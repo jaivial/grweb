@@ -92,8 +92,8 @@ const MAX_MARCA = 600;
         </div>
       } @else {
         <!-- Formulario + resumen (Figma 75) -->
-        <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,640fr)_minmax(0,520fr)] lg:gap-10">
-          <div id="formulario" class="scroll-mt-24 outline-none" tabindex="-1">
+        <div class="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,640fr)_minmax(0,520fr)] lg:gap-10">
+          <div id="formulario" class="min-w-0 scroll-mt-24 outline-none" tabindex="-1">
             @switch (vista()) {
               @case ('cerrada') { <gr-alta-aviso tipo="cerrada" [contacto]="contacto()" /> }
               @case ('legal') { <gr-alta-aviso tipo="legal" [contacto]="contacto()" /> }
@@ -104,7 +104,7 @@ const MAX_MARCA = 600;
                 } @else if (aviso() === 'aprobada') {
                   <gr-alta-aviso tipo="aprobada" [contacto]="contacto()" />
                 } @else {
-                  <form class="relative flex flex-col gap-6 rounded-[18px] border border-line-subtle bg-bg-card p-4 md:p-7" method="post" (ngSubmit)="enviar()" novalidate>
+                  <form class="relative flex min-w-0 flex-col gap-6 rounded-[18px] border border-line-subtle bg-bg-card p-4 md:p-7" method="post" (ngSubmit)="enviar()" novalidate>
                     <div>
                       <h2 class="text-display-xs italic md:text-display-s md:text-[32px]">Solicitud de alta</h2>
                       <p class="mt-1.5 text-body-s text-text-tertiary">Los campos marcados con * son obligatorios. El resto, opcional.</p>
@@ -168,13 +168,13 @@ const MAX_MARCA = 600;
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <span class="text-label-s" id="l-sexo">Sexo *</span>
-                        <div id="c-sexo" class="flex gap-2 scroll-mt-28" role="radiogroup" aria-labelledby="l-sexo" aria-required="true" [attr.aria-invalid]="err()['sexo'] ? true : null" [attr.aria-describedby]="err()['sexo'] ? 'e-sexo' : null">
+                        <div id="c-sexo" tabindex="-1" class="flex gap-2 scroll-mt-28 outline-none" role="radiogroup" aria-labelledby="l-sexo" aria-required="true" [attr.aria-invalid]="err()['sexo'] ? true : null" [attr.aria-describedby]="err()['sexo'] ? 'e-sexo' : null">
                           <button type="button" role="radio" [attr.aria-checked]="d.sexo === 'F'" (click)="d.sexo = 'F'; revalidar()"
                             class="inline-flex h-12 flex-1 items-center justify-center rounded-[10px] border px-4 text-label-m transition-colors"
-                            [class]="d.sexo === 'F' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'">Mujer</button>
+                            [class]="d.sexo === 'F' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : (err()['sexo'] ? 'border-accent-text' : 'border-line-strong') + ' text-text-secondary hover:text-text-primary'">Mujer</button>
                           <button type="button" role="radio" [attr.aria-checked]="d.sexo === 'M'" (click)="d.sexo = 'M'; revalidar()"
                             class="inline-flex h-12 flex-1 items-center justify-center rounded-[10px] border px-4 text-label-m transition-colors"
-                            [class]="d.sexo === 'M' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'">Hombre</button>
+                            [class]="d.sexo === 'M' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : (err()['sexo'] ? 'border-accent-text' : 'border-line-strong') + ' text-text-secondary hover:text-text-primary'">Hombre</button>
                         </div>
                         @if (err()['sexo']; as e) { <p id="e-sexo" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
@@ -391,10 +391,10 @@ const MAX_MARCA = 600;
                           <div><button grButton variant="secondary" size="m" type="button" (click)="enviar()" [disabled]="enviando() || bloqueado()">Reintentar</button></div>
                         </div>
                       }
-                      <!-- UX2-R1-4: en móvil, CTA fijo abajo (zona del pulgar) mientras el formulario está en vista -->
-                      <div class="max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-4 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-4 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]"><button grButton variant="primary" size="l" type="submit" class="max-md:w-full" [loading]="enviando()" [disabled]="!hidratado() || enviando() || bloqueado()">Enviar mi alta</button></div>
-                      <p class="text-body-s text-text-muted">Al enviar, aceptas los términos de uso y la política de privacidad. Te escribimos para confirmar que hemos recibido tu solicitud.</p>
                     </fieldset>
+                    <!-- UX2-R1-4: en móvil, CTA fijo abajo (zona del pulgar) mientras el formulario está en vista -->
+                    <div class="max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-4 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-4 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]"><button grButton variant="primary" size="l" type="submit" class="max-md:w-full" [loading]="enviando()" [disabled]="!hidratado() || enviando() || bloqueado()">Enviar mi alta</button></div>
+                    <p class="-mt-3 text-body-s text-text-muted">Al enviar, aceptas los términos de uso y la política de privacidad. Te escribimos para confirmar que hemos recibido tu solicitud.</p>
                   </form>
                 }
               }

@@ -212,7 +212,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
                   <div class="flex min-w-0 flex-col gap-2">
                     <label class="text-label-s" for="i-cupon">Código de descuento</label>
                     <span class="flex h-12 items-center rounded-[10px] border bg-bg-field pr-3.5 focus-within:border-accent-text" [class]="precio()?.cupon && !precio()!.cupon!.valido ? 'border-accent-text' : 'border-line-strong'">
-                      <input id="i-cupon" name="cupon" autocapitalize="characters" autocorrect="off" spellcheck="false" autocomplete="off" enterkeyhint="done" [attr.aria-invalid]="precio()?.cupon && !precio()!.cupon!.valido ? true : null" [attr.aria-describedby]="precio()?.cupon ? 'e-cupon' : null" class="h-full w-0 min-w-0 flex-1 bg-transparent px-3.5 text-body-m uppercase outline-none placeholder:normal-case placeholder:text-text-muted" [(ngModel)]="cupon" [readonly]="!!precio()?.cupon?.valido" (keydown.enter)="$event.preventDefault(); calcular()" />
+                      <input id="i-cupon" name="cupon" autocapitalize="characters" autocorrect="off" spellcheck="false" autocomplete="off" enterkeyhint="done" [attr.aria-invalid]="precio()?.cupon && !precio()!.cupon!.valido ? true : null" [attr.aria-describedby]="precio()?.cupon ? 'e-cupon' : null" class="h-full w-0 min-w-0 flex-1 bg-transparent px-3.5 text-body-m uppercase outline-none placeholder:normal-case placeholder:text-text-muted" [(ngModel)]="cupon" (ngModelChange)="vaciado('cupon', $event)" [readonly]="!!precio()?.cupon?.valido" (keydown.enter)="$event.preventDefault(); calcular()" />
                       <button type="button" class="h-full shrink-0 pl-2 text-label-s text-accent-text hover:underline" (click)="precio()?.cupon?.valido ? quitar('cupon') : calcular()">{{ precio()?.cupon?.valido ? 'Quitar' : 'Aplicar' }}</button>
                     </span>
                     @if (precio()?.cupon; as x) { <p id="e-cupon" class="flex items-center gap-1.5 text-body-s" [class]="x.valido ? 'text-success' : 'text-accent-text'" aria-live="polite">@if (x.valido) { <gr-icon name="check" [size]="14" /> Cupón aplicado: {{ x.texto }} sobre la cuota } @else { {{ x.motivo }} }</p> }
@@ -222,7 +222,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
                   <div class="flex min-w-0 flex-col gap-2">
                     <label class="text-label-s" for="i-ref">¿Te ha invitado alguien?</label>
                     <span class="flex h-12 items-center rounded-[10px] border bg-bg-field pr-3.5 focus-within:border-accent-text" [class]="precio()?.referido && !precio()!.referido!.valido ? 'border-accent-text' : 'border-line-strong'">
-                      <input id="i-ref" name="referido" autocapitalize="characters" autocorrect="off" spellcheck="false" autocomplete="off" enterkeyhint="done" [attr.aria-invalid]="precio()?.referido && !precio()!.referido!.valido ? true : null" [attr.aria-describedby]="precio()?.referido ? 'e-ref' : (c.referidoTexto ? 'h-ref' : null)" placeholder="Código de referido" class="h-full w-0 min-w-0 flex-1 bg-transparent px-3.5 text-body-m uppercase outline-none placeholder:normal-case placeholder:text-text-muted" [(ngModel)]="referido" [readonly]="!!precio()?.referido?.valido" (keydown.enter)="$event.preventDefault(); calcular()" />
+                      <input id="i-ref" name="referido" autocapitalize="characters" autocorrect="off" spellcheck="false" autocomplete="off" enterkeyhint="done" [attr.aria-invalid]="precio()?.referido && !precio()!.referido!.valido ? true : null" [attr.aria-describedby]="precio()?.referido ? 'e-ref' : (c.referidoTexto ? 'h-ref' : null)" placeholder="Código de referido" class="h-full w-0 min-w-0 flex-1 bg-transparent px-3.5 text-body-m uppercase outline-none placeholder:normal-case placeholder:text-text-muted" [(ngModel)]="referido" (ngModelChange)="vaciado('referido', $event)" [readonly]="!!precio()?.referido?.valido" (keydown.enter)="$event.preventDefault(); calcular()" />
                       <button type="button" class="h-full shrink-0 pl-2 text-label-s text-accent-text hover:underline" (click)="precio()?.referido?.valido ? quitar('referido') : calcular()">{{ precio()?.referido?.valido ? 'Quitar' : 'Aplicar' }}</button>
                     </span>
                     @if (precio()?.referido; as x) { <p id="e-ref" class="flex items-center gap-1.5 text-body-s" [class]="x.valido ? 'text-success' : 'text-accent-text'" aria-live="polite">@if (x.valido) { <gr-icon name="check" [size]="14" /> Te ha invitado {{ x.invitadoPor }}: {{ x.texto }} } @else { {{ x.motivo }} }</p> }
@@ -438,6 +438,12 @@ export class InscripcionPage {
       this.cupon ||= b.cupon ?? '';
       this.referido ||= b.referido ?? '';
     } catch { /* no draft */ }
+  }
+
+  /** UX2-R2-2: al vaciar el campo se borra su error (y el bloqueo de «Pagar»). */
+  protected vaciado(k: 'cupon' | 'referido', v: string): void {
+    const p = this.precio();
+    if (!v.trim() && p?.[k]) this.precio.set({ ...p, [k]: undefined });
   }
 
   protected quitar(k: 'cupon' | 'referido'): void {
