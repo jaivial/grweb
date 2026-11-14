@@ -16,9 +16,17 @@ export const appConfig: ApplicationConfig = {
     provideAppInitializer(() => {
       if (typeof window === 'undefined') return;
       let pop = false;
-      inject(Router).events.subscribe((e) => {
+      let ruta = '';
+      const router = inject(Router);
+      router.events.subscribe((e) => {
         if (e instanceof NavigationStart) pop = e.navigationTrigger === 'popstate';
-        else if (e instanceof NavigationEnd && e.id > 1 && !pop && !e.urlAfterRedirects.includes('#')) window.scrollTo({ left: 0, top: 0, behavior: 'instant' });
+        else if (e instanceof NavigationEnd) {
+          // a replaceUrl query change on the same page (?vista=, filters) keeps the scroll
+          const antes = ruta;
+          ruta = e.urlAfterRedirects.split(/[?#]/)[0];
+          const mismaVista = ruta === antes && !!router.lastSuccessfulNavigation()?.extras.replaceUrl;
+          if (e.id > 1 && !pop && !mismaVista && !e.urlAfterRedirects.includes('#')) window.scrollTo({ left: 0, top: 0, behavior: 'instant' });
+        }
       });
     }),
   ],
