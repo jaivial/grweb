@@ -137,9 +137,9 @@ const UI = {
     @if (open()) {
       <!-- Figma «Mobile menu v3»: logo, ES / EN and close; the four main links; the groups as an accordion (the first one
            open); the edition line and the booking button at the bottom -->
-      <div id="menu-movil" class="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bg-base px-5 pt-3 md:hidden" role="dialog" aria-modal="true" (keydown.tab)="atrapar($event)" (keydown.shift.tab)="atrapar($event)" [attr.aria-label]="lang() === 'en' ? 'Menu' : 'Menú'">
+      <div id="menu-movil" animate.enter="gr-hoja-in" animate.leave="gr-hoja-out" class="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bg-base pt-[max(12px,env(safe-area-inset-top))] pr-[max(20px,env(safe-area-inset-right))] pl-[max(20px,env(safe-area-inset-left))] md:hidden" role="dialog" aria-modal="true" (keydown.tab)="atrapar($event)" (keydown.shift.tab)="atrapar($event)" [attr.aria-label]="lang() === 'en' ? 'Menu' : 'Menú'">
         <div class="flex shrink-0 items-center justify-between pt-2 pb-4">
-          <a [routerLink]="lang() === 'en' ? '/en' : '/'" (click)="open.set(false)" [attr.aria-label]="ui().home"><img [src]="logo" alt="GR Strength Cup" class="h-[34px] w-[92px] object-contain" /></a>
+          <a [routerLink]="lang() === 'en' ? '/en' : '/'" (click)="open.set(false)" [attr.aria-label]="ui().home" class="flex h-11 items-center"><img [src]="logo" alt="GR Strength Cup" class="h-[34px] w-[92px] object-contain" /></a>
           <div class="flex items-center gap-2">
             <a [routerLink]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="flex h-11 items-center gap-1 rounded-xl border border-white/10 px-3 text-label-s">
               <span>{{ lang() === 'en' ? 'EN' : 'ES' }}</span><span class="text-text-muted">/ {{ ui().otherLang }}</span></a>
@@ -159,7 +159,7 @@ const UI = {
                   {{ g.titulo }}<gr-icon name="chevron-down" [size]="18" class="transition-transform" [class.rotate-180]="grupo() === gi" [class.text-accent-text]="grupo() === gi" />
                 </button>
                 @if (grupo() === gi) {
-                  <ul class="flex flex-col gap-1">
+                  <ul animate.enter="gr-desplegar" class="flex flex-col gap-1">
                     @for (it of g.items; track it.href) {
                       <li><a [routerLink]="ruta(it.href)" (click)="open.set(false)" class="flex h-11 items-center justify-between rounded-sm px-3 text-body-m text-text-secondary hover:bg-white/4 hover:text-text-primary" [class.bg-white/4]="activo(it.href)" [attr.aria-current]="activo(it.href) ? 'page' : null">{{ it.label }}<gr-icon name="arrow-right" [size]="14" class="text-text-tertiary" /></a></li>
                     }
@@ -346,7 +346,7 @@ export class Overlays {
         </ul>
       }
       <div class="flex flex-col items-center gap-1 border-t border-line-subtle pt-5 text-center text-body-xs text-text-muted md:flex-row md:justify-between md:gap-3 md:text-left">
-        <p>© {{ year }} GR Cup · GRStrength. Todos los derechos reservados. · <a routerLink="/cookies" class="hover:text-text-secondary">Cookies</a></p>
+        <p>© {{ year }} GR Cup · GRStrength. Todos los derechos reservados. · <a routerLink="/cookies" class="-my-3.5 inline-flex min-h-11 items-center hover:text-text-secondary">Cookies</a></p>
         @if (stripe()) { <p class="inline-flex h-[29px] items-center gap-1.5 rounded-pill bg-white/5 px-3 text-text-tertiary"><gr-icon name="lock" [size]="12" />Pagos seguros con Stripe</p> }
       </div>
     </div>
@@ -357,7 +357,7 @@ export class Overlays {
       <div class="h-20 md:hidden" aria-hidden="true"></div>
       <!-- UX1-R1-3: compact (~72 px) and out of the way while an inline «Reserva tu entrada» CTA is on screen -->
       <div class="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-line-subtle bg-bg-base/95 px-4 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[10px] transition-[opacity,translate] duration-200 md:hidden [@media(max-height:500px)]:hidden" [class.translate-y-full]="ctaEnVista()" [class.opacity-0]="ctaEnVista()" [attr.inert]="ctaEnVista() || null">
-        <span class="flex flex-1 flex-col gap-1"><span class="text-label-s">Entrada gratuita</span><span class="text-body-xs text-text-tertiary">Reserva en 1 minuto · aforo limitado</span></span>
+        <span class="flex flex-1 flex-col gap-1"><span class="text-label-s">Entrada gratuita</span><span class="text-[13px] leading-4 text-text-tertiary">1 minuto · aforo limitado</span></span>
         <a routerLink="/entradas" class="flex h-12 items-center justify-center rounded-sm bg-accent-grain px-6 text-label-m text-white">Reservar</a>
       </div>
       <!-- UX1-R1-4: iOS pattern - only while scrolling back up, past three screens -->

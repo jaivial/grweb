@@ -166,7 +166,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
       <header class="mb-4 hidden items-end justify-between gap-6 md:flex">
         <h1 class="[text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-xl">GRStrength Cup <span class="text-accent-text">en directo</span></h1>
         <nav class="flex shrink-0 items-center gap-1.5 pb-2 text-body-s text-text-tertiary" aria-label="Migas">
-          <a routerLink="/" class="hover:text-text-primary">Inicio</a><gr-icon name="chevron-right" [size]="14" /><span>El evento</span><gr-icon name="chevron-right" [size]="14" /><span class="text-text-secondary">En directo</span>
+          <a routerLink="/" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Inicio</a><gr-icon name="chevron-right" [size]="14" /><span>El evento</span><gr-icon name="chevron-right" [size]="14" /><span class="text-text-secondary">En directo</span>
         </nav>
       </header>
       @let d = dir();

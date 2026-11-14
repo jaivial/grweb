@@ -248,7 +248,18 @@
   .prose-blog .caja-resumen li + li { margin-top: 12px; }
   .prose-blog .caja-resumen li::before { content: ''; position: absolute; left: 0; top: 3px; width: 18px; height: 18px; background: var(--color-accent-text);
     mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat; }
-  .prose-legal { counter-reset: legal; font-size: 14px; }
+  /* UX9-R1-5: mobile menu as a sheet, accordions open smoothly (reduced-motion rule above cuts them) */
+  .gr-hoja-in { animation: gr-hoja-in 280ms cubic-bezier(.22,1,.36,1); }
+  .gr-hoja-out { animation: gr-hoja-in 200ms ease-in reverse; }
+  @keyframes gr-hoja-in { from { opacity: 0; transform: translateY(8px); } }
+  .gr-desplegar { animation: gr-desplegar 250ms cubic-bezier(.22,1,.36,1); }
+  @keyframes gr-desplegar { from { opacity: 0; transform: translateY(-4px); } }
+  .gr-visor-in { animation: gr-visor-in 250ms cubic-bezier(.22,1,.36,1); }
+  @keyframes gr-visor-in { from { opacity: 0; transform: scale(.96); } }
+  :root { interpolate-size: allow-keywords; }
+  details::details-content { height: 0; overflow: clip; transition: height 250ms cubic-bezier(.22,1,.36,1), content-visibility 250ms allow-discrete; }
+  details[open]::details-content { height: auto; }
+  .prose-legal { counter-reset: legal; font-size: 17px; line-height: 1.55; }
   /* endless right-to-left strip (home sponsors): the track holds two equal halves and moves by one */
   @keyframes gr-marquesina { from { transform: translateX(0); } to { transform: translateX(-50%); } }
   /* raffle panel: the «1 €» sticker floats and the main button gets a shine every 4 s (none with reduced motion) */

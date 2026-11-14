@@ -36,13 +36,13 @@ import { Footer, Navbar, type Lang } from './layout';
         @if (cabecera() && !centrado() && !juego()) {
           <header class="max-w-[900px] flex-col gap-3 md:flex md:gap-4" [class.flex]="cabeceraMovil()" [class.hidden]="!cabeceraMovil()">
             <nav class="flex-wrap items-center gap-1.5 text-body-s text-text-tertiary md:flex" [class.flex]="migasMovil()" [class.hidden]="!migasMovil()" aria-label="Migas">
-              <a routerLink="/" class="hover:text-text-primary">Inicio</a>
+              <a routerLink="/" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Inicio</a>
               @if (section()) { <gr-icon name="chevron-right" [size]="14" /><span>{{ section() }}</span> }
               <gr-icon name="chevron-right" [size]="14" /><span class="text-text-secondary">{{ crumb() || (title() + (accent() ? ' ' + accent() : '')) }}</span>
             </nav>
             <div class="flex flex-col gap-3 md:gap-4">
               @if (eyebrow()) { <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-6 bg-accent" aria-hidden="true"></span>{{ eyebrow() }}</p> }
-              <h1 [class.text-display-l]="tituloMovilGrande()" [class.text-display-m]="!tituloMovilGrande()" class="[text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-xl" [class.sr-only]="hideTitle()">{{ title() }} @if (accent()) { <span [class]="tituloMovilGrande() ? 'text-accent' : 'text-accent-text'">{{ accent() }}</span> }@if (suffix()) { {{ ' ' + suffix() }} }</h1>
+              <h1 [class.text-display-l]="tituloMovilGrande()" [class.text-display-m]="!tituloMovilGrande()" class="[overflow-wrap:anywhere] hyphens-auto [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-xl" [class.sr-only]="hideTitle()">{{ title() }} @if (accent()) { <span [class]="tituloMovilGrande() ? 'text-accent' : 'text-accent-text'">{{ accent() }}</span> }@if (suffix()) { {{ ' ' + suffix() }} }</h1>
               @if (subtitle()) { @if (subtitleHtml()) { <p class="md:text-body-l" [class]="tituloMovilGrande() ? 'text-body-l text-text-secondary' : 'text-body-m text-text-tertiary'" [innerHTML]="subtitleHtml()"></p> } @else { <p class="md:text-body-l" [class]="tituloMovilGrande() ? 'text-body-l text-text-secondary' : 'text-body-m text-text-tertiary'">{{ subtitle() }}</p> } }
             </div>
             <!-- Figma «Meta»: the updated stamp and the badges in one row -->

@@ -25,7 +25,7 @@ import { Community, Related, type RelatedLink } from './landings';
         <nav class="sticky top-[76px] z-20 -mx-5 -mt-4 mb-6 flex gap-2 overflow-x-auto border-b border-line-subtle bg-bg-base/95 px-5 py-3 backdrop-blur [scrollbar-width:none] md:hidden" aria-label="Secciones">
           @for (s of anclas; track s.id) {
             @if (s.id !== 'aparcamiento' || practica().length) {
-            <a routerLink="." [fragment]="s.id" class="flex h-9 shrink-0 items-center rounded-full border px-4 text-label-s" [class]="activa() === s.id ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary'">{{ s.t }}</a>
+            <a routerLink="." [fragment]="s.id" class="flex h-11 md:h-9 shrink-0 items-center rounded-full border px-4 text-label-s" [class]="activa() === s.id ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary'">{{ s.t }}</a>
             }
           }
         </nav>
