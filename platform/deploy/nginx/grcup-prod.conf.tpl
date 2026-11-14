@@ -9,6 +9,11 @@
 
 map $http_upgrade $grcup_connection { default upgrade; '' ''; }
 
+# Keep-alive pools to the ClusterIPs (one TCP connection per request saturated TIME_WAIT/conntrack under load, ST1-R8-1).
+upstream grcup_gateway { server 10.43.241.10:8080; keepalive 256; keepalive_requests 10000; keepalive_timeout 60s; }
+upstream grcup_web { server 10.43.241.11:80; keepalive 64; }
+upstream grcup_bo { server 10.43.241.12:80; keepalive 32; }
+
 # Alta de atleta (POST): límite por IP para que un formulario no se llene de peticiones (10 r/min, ráfaga de 5).
 limit_req_zone $binary_remote_addr zone=alta_atleta_prod:10m rate=10r/m;
 
@@ -37,15 +42,15 @@ server {
         limit_req zone=alta_atleta_prod burst=5 nodelay;
         limit_req_status 429; # el formulario lo muestra como «demasiadas altas», no como «cerrada»
         client_max_body_size 10m;
-        proxy_pass http://10.43.241.10:8080;
+        proxy_pass http://grcup_gateway;
         include /etc/nginx/snippets/grcup-proxy.conf;
     }
     location /api/ {
-        proxy_pass http://10.43.241.10:8080;
+        proxy_pass http://grcup_gateway;
         include /etc/nginx/snippets/grcup-proxy.conf;
     }
     location / {
-        proxy_pass http://10.43.241.11:80;
+        proxy_pass http://grcup_web;
         include /etc/nginx/snippets/grcup-proxy.conf;
     }
 }
@@ -65,11 +70,11 @@ server {
     client_max_body_size 12m;
 
     location /api/ {
-        proxy_pass http://10.43.241.10:8080;
+        proxy_pass http://grcup_gateway;
         include /etc/nginx/snippets/grcup-proxy.conf;
     }
     location / {
-        proxy_pass http://10.43.241.12:80;
+        proxy_pass http://grcup_bo;
         include /etc/nginx/snippets/grcup-proxy.conf;
     }
 }
@@ -91,11 +96,11 @@ server {
         limit_req zone=alta_atleta_prod burst=5 nodelay;
         limit_req_status 429; # el formulario lo muestra como «demasiadas altas», no como «cerrada»
         client_max_body_size 10m;
-        proxy_pass http://10.43.241.10:8080;
+        proxy_pass http://grcup_gateway;
         include /etc/nginx/snippets/grcup-proxy.conf;
     }
     location / {
-        proxy_pass http://10.43.241.10:8080;
+        proxy_pass http://grcup_gateway;
         include /etc/nginx/snippets/grcup-proxy.conf;
     }
 }
