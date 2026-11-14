@@ -48,7 +48,7 @@ func (s *Svc) rankingPorra(ctx context.Context, j jornada, fanID uuid.UUID) ([]f
 	key := "rank:porra:" + j.ID.String()
 	var top []filaPorra
 	if s.cache.Get(ctx, key, &top) {
-		p, saldo := s.miPuesto(ctx, j, fanID, Porra)
+		p, saldo := s.puestoPorra(ctx, j, top, fanID)
 		return top, p, saldo
 	}
 	v, _, _ := rankingVuelo.Do(key, func() (any, error) {
@@ -75,8 +75,30 @@ func (s *Svc) rankingPorra(ctx context.Context, j jornada, fanID uuid.UUID) ([]f
 		s.cache.Set(ctx, key, top, 3*time.Second)
 		return top, nil
 	})
+	top = v.([]filaPorra)
+	p, saldo := s.puestoPorra(ctx, j, top, fanID)
+	return top, p, saldo
+}
+
+// puestoPorra reads the fan's place from the cached top when they are in it, else from a 3 s per-fan cache, so
+// the place matches the snapshot shown and the two count ranges no longer run on every request under writes (ST2-R3-2).
+func (s *Svc) puestoPorra(ctx context.Context, j jornada, top []filaPorra, fanID uuid.UUID) (int, int64) {
+	if fanID == uuid.Nil {
+		return 0, 0
+	}
+	for _, f := range top {
+		if f.FanID == fanID {
+			return f.Puesto, f.Saldo
+		}
+	}
+	key := "rank:porra:fan:" + j.ID.String() + ":" + fanID.String()
+	var c [2]int64
+	if s.cache.Get(ctx, key, &c) {
+		return int(c[0]), c[1]
+	}
 	p, saldo := s.miPuesto(ctx, j, fanID, Porra)
-	return v.([]filaPorra), p, saldo
+	s.cache.Set(ctx, key, [2]int64{int64(p), saldo}, 3*time.Second)
+	return p, saldo
 }
 
 // rankingVuelo collapses concurrent loads of the same top (ST2-R1-1: no singleflight meant N identical queries).
