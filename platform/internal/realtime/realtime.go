@@ -38,14 +38,14 @@ type msg struct {
 	pub, adm         []byte
 }
 
-func (m *msg) publicJSON() []byte {
+func (m *msg) publicFrame() []byte {
 	m.pubOnce.Do(func() { m.pub, _ = json.Marshal(publicView(m.ev)) })
 	return m.pub
 }
 
-func (m *msg) adminJSON() []byte {
+func (m *msg) adminFrame() []byte {
 	if m.ev.Actor == nil {
-		return m.publicJSON() // same view
+		return m.publicFrame() // same view
 	}
 	m.admOnce.Do(func() { m.adm, _ = json.Marshal(adminView(m.ev)) })
 	return m.adm
@@ -306,7 +306,7 @@ func (s *Svc) public(w http.ResponseWriter, r *http.Request) {
 		if m.ev.CompetitionID != cid || m.ev.Audience != events.Public {
 			return nil, false
 		}
-		return m.publicJSON(), true
+		return m.publicFrame(), true
 	})
 }
 
@@ -334,10 +334,10 @@ func (s *Svc) admin(w http.ResponseWriter, r *http.Request) {
 		}
 		switch e.Audience {
 		case events.Public:
-			return m.adminJSON(), true
+			return m.adminFrame(), true
 		case events.Admin:
 			if e.Permission == "" || p.Can(cid, e.Permission) {
-				return m.adminJSON(), true
+				return m.adminFrame(), true
 			}
 		}
 		return nil, false
