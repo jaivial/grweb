@@ -485,6 +485,8 @@ func (s *Svc) stream(w http.ResponseWriter, r *http.Request, deadline time.Time,
 		if len(buf) == 0 {
 			return true
 		}
+		// a client that stops reading is cut after 10 s instead of pinning this goroutine and its mailbox
+		_ = rc.SetWriteDeadline(time.Now().Add(10 * time.Second))
 		_, err := w.Write(buf)
 		buf = buf[:0]
 		return err == nil && rc.Flush() == nil
