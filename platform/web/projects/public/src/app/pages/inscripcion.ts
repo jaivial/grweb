@@ -173,7 +173,14 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
                 <label class="text-label-s" [for]="'i-' + f.k">{{ f.label }}{{ f.req ? ' *' : '' }}</label>
                 @switch (f.k) {
                   @case ('sexo') {
-                    <gr-select [id]="'i-' + f.k" tam="l" name="sexo" [(ngModel)]="d.sexo" (ngModelChange)="d.categoria = ''; revalidar()"><option value="F">Mujer</option><option value="M">Hombre</option></gr-select>
+                    <!-- UX2-R1-6: mismo control que el alta (segmented 48 px), sin valor por defecto -->
+                    <div [id]="'i-' + f.k" tabindex="-1" class="flex gap-2 outline-none" role="radiogroup" aria-label="Sexo" aria-required="true" [attr.aria-invalid]="err()[f.k] ? true : null" [attr.aria-describedby]="err()[f.k] ? 'e-' + f.k : null">
+                      @for (o of SEXOS; track o.v) {
+                        <button type="button" role="radio" [attr.aria-checked]="d.sexo === o.v" (click)="d.sexo = o.v; d.categoria = ''; revalidar()"
+                          class="inline-flex h-12 flex-1 items-center justify-center rounded-[10px] border px-4 text-label-m transition-colors"
+                          [class]="d.sexo === o.v ? 'border-accent-text bg-accent-deep/30 text-text-primary' : (err()[f.k] ? 'border-accent-text' : 'border-line-strong') + ' text-text-secondary hover:text-text-primary'">{{ o.l }}</button>
+                      }
+                    </div>
                   }
                   @case ('categoria') {
                     <gr-select [id]="'i-' + f.k" tam="l" name="categoria" [(ngModel)]="d.categoria" (ngModelChange)="revalidar()" [invalido]="!!err()[f.k]" [aria-describedby]="err()[f.k] ? 'e-' + f.k : ''" vacio="Elige primero el sexo"><option value="" hidden>Seleccionar categoría</option>@for (k of categorias(); track k) { <option [value]="k">{{ cat(k) }} kg</option> }</gr-select>
@@ -229,9 +236,9 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
           <div class="flex flex-col">
             @for (k of checks; track k.k) {
               <label class="flex min-h-11 items-start gap-2.5 py-1 text-body-s" [class]="k.req ? 'text-text-primary' : 'text-text-secondary'">
-                <span class="relative mt-px flex size-5 shrink-0 items-center justify-center">
-                  <input type="checkbox" [name]="k.k" [attr.name]="k.k" [(ngModel)]="acepta[k.k]" (ngModelChange)="revalidar()" class="peer size-[18px] appearance-none rounded-[5px] border bg-bg-base checked:border-accent checked:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-text" [class]="k.req && err()['terminos'] && !acepta[k.k] ? 'border-accent-text' : 'border-line-strong'" />
-                  @if (acepta[k.k]) { <gr-icon name="check" [size]="12" class="pointer-events-none absolute text-white" /> }
+                <span class="relative -mt-px flex size-6 shrink-0 items-center justify-center">
+                  <input type="checkbox" [name]="k.k" [attr.name]="k.k" [(ngModel)]="acepta[k.k]" (ngModelChange)="revalidar()" class="peer size-[22px] cursor-pointer appearance-none rounded-[5px] border bg-bg-base checked:border-accent checked:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-text" [class]="k.req && err()['terminos'] && !acepta[k.k] ? 'border-accent-text' : 'border-line-strong'" />
+                  @if (acepta[k.k]) { <gr-icon name="check" [size]="14" class="pointer-events-none absolute text-white" /> }
                 </span>
                 <span>
                   @switch (k.k) {
@@ -273,6 +280,7 @@ export class InscripcionPage {
   protected readonly cat = cat;
   protected readonly fechaLarga = fechaLarga;
   protected readonly CAMPO = CAMPO;
+  protected readonly SEXOS = [{ v: 'F' as const, l: 'Mujer' }, { v: 'M' as const, l: 'Hombre' }];
   protected readonly cfg = signal<ConfigPub | null | undefined>(undefined);
   protected readonly competicion = signal<CompeticionPublica | null>(null);
   protected readonly precio = signal<Precio | null>(null);
@@ -283,7 +291,7 @@ export class InscripcionPage {
   /** Field errors, shown after the first submit and updated while the person fixes them. */
   protected readonly err = signal<Record<string, string>>({});
   private intentado = false;
-  d = { nombre: '', apellidos: '', email: '', telefono: '', sexo: 'M' as 'F' | 'M', categoria: '', fechaNacimiento: '', licencia: '', club: '' };
+  d = { nombre: '', apellidos: '', email: '', telefono: '', sexo: '' as '' | 'F' | 'M', categoria: '', fechaNacimiento: '', licencia: '', club: '' };
   protected cupon = '';
   protected referido = '';
   protected acepta: Record<'terminos' | 'privacidad' | 'imagen', boolean> = { terminos: false, privacidad: false, imagen: false };
@@ -293,7 +301,7 @@ export class InscripcionPage {
     { k: 'apellidos', label: 'Apellidos', req: true, ac: 'family-name', ph: 'Tus apellidos', error: 'Los apellidos son obligatorios', corto: 'son obligatorios' },
     { k: 'email', label: 'Email', req: true, type: 'email', ac: 'email', ph: 'email@ejemplo.com', error: 'Introduce un email válido', corto: 'introduce un email válido' },
     { k: 'telefono', label: 'Teléfono', type: 'tel', ac: 'tel', ph: '+34 600 000 000' },
-    { k: 'sexo', label: 'Sexo', req: true }, { k: 'categoria', label: 'Categoría de peso', req: true, error: 'Selecciona tu categoría', corto: 'selecciona tu categoría' },
+    { k: 'sexo', label: 'Sexo', req: true, error: 'Elige una opción', corto: 'elige una opción' }, { k: 'categoria', label: 'Categoría de peso', req: true, error: 'Selecciona tu categoría', corto: 'selecciona tu categoría' },
     { k: 'fechaNacimiento', label: 'Fecha de nacimiento', req: true, type: 'date', ac: 'bday', error: 'Indica tu fecha de nacimiento', corto: 'indica tu fecha de nacimiento' },
     { k: 'licencia', label: 'Licencia AEP', req: true, ph: 'VAL-0000', error: 'Indica tu número de licencia AEP', corto: 'indica tu número de licencia' },
     { k: 'club', label: 'Club', ph: 'Nombre del club (o vacío si eres independiente)' },
@@ -383,7 +391,7 @@ export class InscripcionPage {
   }
 
   protected categorias(): string[] {
-    return CATEGORIAS_IPF[this.d.sexo];
+    return this.d.sexo ? CATEGORIAS_IPF[this.d.sexo] : [];
   }
 
   protected async calcular(): Promise<void> {
@@ -436,6 +444,7 @@ export class InscripcionPage {
     if (!d.nombre.trim()) e['nombre'] = msg('nombre');
     if (!d.apellidos.trim()) e['apellidos'] = msg('apellidos');
     if (!EMAIL.test(d.email.trim())) e['email'] = msg('email');
+    if (!d.sexo) e['sexo'] = msg('sexo');
     if (!d.categoria) e['categoria'] = msg('categoria');
     if (!d.fechaNacimiento) e['fechaNacimiento'] = msg('fechaNacimiento');
     const lic = normLicencia(d.licencia);

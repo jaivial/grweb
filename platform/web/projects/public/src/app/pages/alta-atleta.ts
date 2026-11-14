@@ -167,13 +167,13 @@ const MAX_MARCA = 600;
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <span class="text-label-s" id="l-sexo">Sexo *</span>
-                        <div id="c-sexo" class="flex gap-2" role="radiogroup" aria-labelledby="l-sexo" aria-required="true" [attr.aria-invalid]="err()['sexo'] ? true : null" [attr.aria-describedby]="err()['sexo'] ? 'e-sexo' : null">
+                        <div id="c-sexo" class="flex gap-2 scroll-mt-28" role="radiogroup" aria-labelledby="l-sexo" aria-required="true" [attr.aria-invalid]="err()['sexo'] ? true : null" [attr.aria-describedby]="err()['sexo'] ? 'e-sexo' : null">
                           <button type="button" role="radio" [attr.aria-checked]="d.sexo === 'F'" (click)="d.sexo = 'F'; revalidar()"
-                            class="inline-flex h-10 items-center rounded-pill border px-5 text-label-s transition-colors"
-                            [class]="d.sexo === 'F' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'">Femenino</button>
+                            class="inline-flex h-12 flex-1 items-center justify-center rounded-[10px] border px-4 text-label-m transition-colors"
+                            [class]="d.sexo === 'F' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'">Mujer</button>
                           <button type="button" role="radio" [attr.aria-checked]="d.sexo === 'M'" (click)="d.sexo = 'M'; revalidar()"
-                            class="inline-flex h-10 items-center rounded-pill border px-5 text-label-s transition-colors"
-                            [class]="d.sexo === 'M' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'">Masculino</button>
+                            class="inline-flex h-12 flex-1 items-center justify-center rounded-[10px] border px-4 text-label-m transition-colors"
+                            [class]="d.sexo === 'M' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'">Hombre</button>
                         </div>
                         @if (err()['sexo']; as e) { <p id="e-sexo" class="flex items-center gap-1.5 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
@@ -348,11 +348,11 @@ const MAX_MARCA = 600;
                       <legend class="mb-5 text-display-2xs italic">Consentimientos</legend>
                       @for (c of casillas(); track c.k) {
                         <label class="flex min-h-11 items-start gap-2.5 py-1 text-body-s" [class]="c.req ? 'text-text-primary' : 'text-text-secondary'">
-                          <span class="relative mt-px flex size-5 shrink-0 items-center justify-center">
+                          <span class="relative -mt-px flex size-6 shrink-0 items-center justify-center">
                             <input type="checkbox" [name]="'c-' + c.k" [(ngModel)]="acepta[c.k]" (ngModelChange)="revalidar()"
-                              class="peer size-[18px] appearance-none rounded-[5px] border bg-bg-base checked:border-accent checked:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-text"
+                              class="peer size-[22px] cursor-pointer appearance-none rounded-[5px] border bg-bg-base checked:border-accent checked:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-text"
                               [class]="c.req && err()['consentimiento'] && !acepta[c.k] ? 'border-accent-text' : 'border-line-strong'" />
-                            @if (acepta[c.k]) { <gr-icon name="check" [size]="12" class="pointer-events-none absolute text-white" /> }
+                            @if (acepta[c.k]) { <gr-icon name="check" [size]="14" class="pointer-events-none absolute text-white" /> }
                           </span>
                           <span>
                             @switch (c.k) {

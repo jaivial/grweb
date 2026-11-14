@@ -15,12 +15,12 @@ import { AltchaConfig, AltchaEstado, payloadBase64, resolverReto } from '../core
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex flex-col gap-2">
-      <div class="flex items-center gap-3 rounded-lg border border-line-subtle bg-bg-surface px-4 py-3">
+      <div class="relative flex min-h-[62px] items-center gap-3 rounded-lg border border-line-subtle bg-bg-surface px-4 py-3">
         @if (estado() === 'verificando') {
           <span class="flex size-5 shrink-0 items-center justify-center text-text-tertiary"><gr-icon name="loader" [size]="18" [spin]="true" /></span>
           <span class="text-label-m text-text-secondary">Comprobando…</span>
         } @else {
-          <button type="button" role="checkbox" class="flex size-5 shrink-0 items-center justify-center rounded-[5px] border bg-bg-base transition-colors"
+          <button type="button" role="checkbox" class="flex size-[22px] shrink-0 cursor-pointer after:absolute after:inset-0 after:rounded-lg after:content-[''] items-center justify-center rounded-[5px] border bg-bg-base transition-colors"
             [class]="estado() === 'verificado' ? 'border-accent bg-accent' : estado() === 'fallo' ? 'border-accent-text' : 'border-line-strong hover:border-text-muted'"
             [attr.aria-checked]="estado() === 'verificado'" [attr.aria-label]="'No soy un robot'" [disabled]="estado() === 'verificando'"
             (click)="verificar()">
