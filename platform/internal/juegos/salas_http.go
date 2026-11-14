@@ -160,11 +160,13 @@ func (s *Svc) registerSalas() {
 		Slug      string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		JornadaID uuid.UUID `query:"jornada"`
 		Buscar    string    `query:"q" maxLength:"32" doc:"Busca por nombre de sala (sin tildes ni mayúsculas)"`
+		Limite    int       `query:"limite" minimum:"1" maximum:"200" default:"30" doc:"Salas públicas por página (ST3-R6-3); mi sala va siempre"`
 	}
 	type lobbyOut struct {
 		Body struct {
 			Jornada   *jornadaOut `json:"jornada,omitempty"`
 			Salas     []salaVista `json:"salas"`
+			HayMas    bool        `json:"hayMas" doc:"Hay más salas públicas: pide un limite mayor"`
 			MiSala    *uuid.UUID  `json:"miSala,omitempty" doc:"Mi sala de hoy, si estoy en una"`
 			Atletas   int         `json:"atletas" doc:"Atletas del día"`
 			PlazasMax int         `json:"plazasMax" doc:"Plazas de una sala nueva: atletas ÷ 5, máximo 10"`
@@ -187,7 +189,7 @@ func (s *Svc) registerSalas() {
 			if err != nil {
 				return nil, err
 			}
-			j, err := s.jornadaPublica(ctx, c.ID, in.JornadaID)
+			j, err := s.jornadaPublicaCache(ctx, c.ID, in.JornadaID)
 			if err != nil {
 				return nil, err
 			}
@@ -197,13 +199,12 @@ func (s *Svc) registerSalas() {
 			}
 			o := &lobbyOut{}
 			o.Body.Jornada = &jornadaOut{ID: j.ID, Dia: j.Dia, Nombre: j.Nombre, Estado: j.Estado}
-			if o.Body.Salas, err = s.lobby(ctx, c.ID, *j, fanID, in.Buscar); err != nil {
+			var miaID uuid.UUID
+			if o.Body.Salas, miaID, o.Body.HayMas, err = s.lobby(ctx, c.ID, *j, fanID, in.Buscar, in.Limite); err != nil {
 				return nil, err
 			}
-			if mia, err := miSala(ctx, s.a.DB, j.ID, fanID); err != nil {
-				return nil, err
-			} else if mia != nil {
-				o.Body.MiSala = &mia.ID
+			if miaID != uuid.Nil {
+				o.Body.MiSala = &miaID
 			}
 			o.Body.Atletas = s.atletasDelDia(ctx, c.ID, *j)
 			var hayPlazas bool
