@@ -62,8 +62,8 @@ const api = '/api/area-atleta';
               <p class="mt-4 text-body-l text-text-secondary">Entra con el email con el que te inscribiste en la AEP. Te enviamos un enlace de acceso: sin contraseñas.</p>
               @if (errorEnlace()) { <gr-alert class="mt-6" tone="warning" title="El enlace no sirve">{{ errorEnlace() }}</gr-alert> }
               <form class="mt-6 flex flex-col gap-4" (ngSubmit)="pedir()" novalidate>
-                <gr-field label="Email de tu inscripción" for="a-email"><input grInput id="a-email" name="email" type="email" autocomplete="email" [(ngModel)]="email" required /></gr-field>
-                @if (error()) { <p class="text-body-s text-accent-text" role="alert">{{ error() }}</p> }
+                <gr-field label="Email de tu inscripción" for="a-email"><input grInput id="a-email" name="email" type="email" autocomplete="email" inputmode="email" enterkeyhint="send" spellcheck="false" autocapitalize="none" [(ngModel)]="email" required [attr.aria-invalid]="error() ? true : null" [attr.aria-describedby]="error() ? 'a-email-err' : null" /></gr-field>
+                <p id="a-email-err" class="-mt-2 min-h-5 text-body-s text-accent-text" role="alert">{{ error() }}</p>
                 <button grButton variant="primary" size="l" type="submit" [block]="true" [loading]="busy()">Enviarme el enlace</button>
               </form>
               <aside class="mt-6 rounded-lg border border-line-subtle bg-bg-card p-5">
@@ -72,7 +72,7 @@ const api = '/api/area-atleta';
               </aside>
               <aside class="mt-4 rounded-lg border border-line-subtle bg-bg-card p-5">
                 <p class="text-label-m">¿No te llega?</p>
-                <p class="mt-1 text-body-s text-text-tertiary">Revisa spam{{ contacto() ? ' o escribe a ' + contacto() : '' }}. Por privacidad, no confirmamos si un email está inscrito.</p>
+                <p class="mt-1 text-body-s text-text-tertiary">Revisa spam@if (contacto()) { o escribe a <a [href]="'mailto:' + contacto()" class="text-accent-text underline">{{ contacto() }}</a>}. Por privacidad, no confirmamos si un email está inscrito.</p>
               </aside>
             </div>
           }
@@ -83,6 +83,7 @@ const api = '/api/area-atleta';
               <h1 class="mt-6 text-display-m">Revisa tu email</h1>
               <p class="mt-3 text-body-l text-text-secondary">Si {{ email }} está inscrito, te llegará un enlace de acceso. Caduca en 30 minutos.</p>
               <button grButton class="mt-6" [disabled]="espera() > 0" [loading]="busy()" (click)="pedir()">{{ espera() > 0 ? 'Reenviar en 0:' + espera().toString().padStart(2, '0') : 'Reenviar el enlace' }}</button>
+              <button grButton type="button" variant="primary" class="mt-3" (click)="abrirCorreo()">Abrir app de correo</button>
               <button type="button" class="mt-3 h-11 text-label-m text-accent-text" (click)="vista.set('acceso')">Usar otro email</button>
             </div>
           }
@@ -302,6 +303,10 @@ export class AreaAtletaPage {
   protected readonly ok = signal('');
   protected readonly espera = signal(0);
   protected email = '';
+  /** iOS opens Mail with message://; elsewhere mailto: opens the default client (UX3-R1-18). */
+  protected abrirCorreo(): void {
+    location.href = /iPhone|iPad|iPod/.test(navigator.userAgent) ? 'message://' : 'mailto:';
+  }
   protected aceptaImagen = false;
   protected retirar = false;
   protected fx = 50;
@@ -439,7 +444,9 @@ export class AreaAtletaPage {
 
   protected async pedir(): Promise<void> {
     this.error.set('');
-    if (!this.email.includes('@')) return this.error.set('Escribe el email de tu inscripción.');
+    const e = this.email.trim();
+    if (!e) return this.error.set('Escribe el email de tu inscripción.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) return this.error.set(e.includes('@') ? 'Revisa el email: falta el dominio (p. ej. @gmail.com).' : 'Revisa el email: falta la @.');
     this.busy.set(true);
     try {
       await firstValueFrom(this.http.post(`${api}/enlace`, { competicion: COMPETITION_SLUG, email: this.email.trim() }));
@@ -451,7 +458,7 @@ export class AreaAtletaPage {
         if (this.espera() === 0) clearInterval(this.timer);
       }, 1000);
     } catch (e) {
-      this.error.set((e as { error?: { detail?: string } }).error?.detail ?? 'Inténtalo de nuevo en unos minutos.');
+      this.error.set(e instanceof HttpErrorResponse && (e.status === 422 || e.status === 400) ? 'Revisa el email: no parece válido.' : e instanceof HttpErrorResponse && e.status === 429 ? 'Demasiados intentos. Espera unos minutos.' : 'No hemos podido enviarlo. Inténtalo de nuevo en unos minutos.');
     } finally {
       this.busy.set(false);
     }
