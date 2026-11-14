@@ -1,6 +1,8 @@
 package juegos
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -17,20 +19,30 @@ const mercadosTTL = time.Second
 type mercadosEntrada struct {
 	mu          sync.Mutex // guards the fields; only the first load ever computes while holding it
 	exp         time.Time
-	ms          []mercadoVista
-	etag        string // weak validator of ms (ST1-R3-1: a 304 skips the 87 KB body)
+	cuerpo      []byte // ST1-R4-1: response body serialized once per refresh, not per request
+	gz          []byte // the same body gzipped (87 KB → a few KB on the wire)
+	etag        string // weak validator of cuerpo (ST1-R3-1: a 304 skips the body)
 	refrescando bool // a background refresh is running (singleflight per jornada and pod)
 }
 
 var mercadosCache sync.Map // jornada id → *mercadosEntrada
 
-// etagMercados hashes the view once per refresh (at most 1/s and pod), not per request.
-func etagMercados(j *jornada, ms []mercadoVista) string {
-	b, _ := json.Marshal(ms)
-	h := sha256.New()
-	h.Write([]byte(j.ID.String() + j.Estado))
-	h.Write(b)
-	return `W/"` + hex.EncodeToString(h.Sum(nil)[:12]) + `"`
+// serializarMercados builds body, gzip and ETag once per refresh (at most 1/s and pod), not per request.
+func serializarMercados(j *jornada, ms []mercadoVista) (cuerpo, gz []byte, etag string, err error) {
+	jo := j.out()
+	cuerpo, err = json.Marshal(struct {
+		Jornada  *jornadaOut    `json:"jornada,omitempty"`
+		Mercados []mercadoVista `json:"mercados"`
+	}{&jo, ms})
+	if err != nil {
+		return nil, nil, "", err
+	}
+	var buf bytes.Buffer
+	w, _ := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
+	_, _ = w.Write(cuerpo)
+	_ = w.Close()
+	h := sha256.Sum256(cuerpo)
+	return cuerpo, buf.Bytes(), `W/"` + hex.EncodeToString(h[:12]) + `"`, nil
 }
 
 type jornadaEntrada struct {
@@ -61,40 +73,45 @@ func (s *Svc) jornadaPublicaCache(ctx context.Context, cid, jid uuid.UUID) (*jor
 // load (80 bets/s, each preceded by this GET) it is recomputed at most once per second and pod. Stale-while-
 // revalidate (ST1-R2-2): once loaded, a request never waits for the aggregate — an expired entry is served as is
 // while one goroutine refreshes it (no stampede of waiters at each expiry).
-func (s *Svc) mercadosVistaCache(ctx context.Context, cid uuid.UUID, j *jornada) ([]mercadoVista, string, error) {
+// It returns the cached JSON body, its gzip and the ETag.
+func (s *Svc) mercadosVistaCache(ctx context.Context, cid uuid.UUID, j *jornada) (cuerpo, gz []byte, etag string, err error) {
 	v, _ := mercadosCache.LoadOrStore(j.ID, &mercadosEntrada{})
 	e := v.(*mercadosEntrada)
 	e.mu.Lock()
 	if !e.exp.IsZero() {
-		ms, etag := e.ms, e.etag
+		cuerpo, gz, etag = e.cuerpo, e.gz, e.etag
 		if !e.refrescando && !time.Now().Before(e.exp) {
 			e.refrescando = true
 			go s.refrescarMercados(e, cid, *j)
 		}
 		e.mu.Unlock()
-		return ms, etag, nil
+		return cuerpo, gz, etag, nil
 	}
 	defer e.mu.Unlock()
 	ms, err := s.mercadosVista(ctx, cid, j)
 	if err != nil {
-		return nil, "", err
+		return nil, nil, "", err
 	}
-	e.ms, e.etag, e.exp = ms, etagMercados(j, ms), time.Now().Add(mercadosTTL)
-	return ms, e.etag, nil
+	if cuerpo, gz, etag, err = serializarMercados(j, ms); err != nil {
+		return nil, nil, "", err
+	}
+	e.cuerpo, e.gz, e.etag, e.exp = cuerpo, gz, etag, time.Now().Add(mercadosTTL)
+	return cuerpo, gz, etag, nil
 }
 
 func (s *Svc) refrescarMercados(e *mercadosEntrada, cid uuid.UUID, j jornada) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	ms, err := s.mercadosVista(ctx, cid, &j)
-	etag := ""
+	var cuerpo, gz []byte
+	var etag string
 	if err == nil {
-		etag = etagMercados(&j, ms)
+		cuerpo, gz, etag, err = serializarMercados(&j, ms)
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.refrescando = false
 	if err == nil {
-		e.ms, e.etag, e.exp = ms, etag, time.Now().Add(mercadosTTL)
+		e.cuerpo, e.gz, e.etag, e.exp = cuerpo, gz, etag, time.Now().Add(mercadosTTL)
 	}
 }
