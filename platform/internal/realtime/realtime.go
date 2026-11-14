@@ -75,25 +75,28 @@ func (m *msg) adminFrame() []byte {
 // gateways ran out of memory; 250 ms cuts the fan-out 2.5× and still keeps delivery well under 1 s.
 const coalesceEvery = 250 * time.Millisecond
 
-// hub fans the stream out to the connected clients of this pod. Live odds (porra.mercado of an open market) are
-// coalesced per market (latest wins) and flushed every coalesceEvery; any other event flushes the pending ones
-// first, so clients always get stream ids in increasing order (Last-Event-ID resume replays the skipped ones).
+// hub fans the stream out to the connected clients of this pod in batches, one every coalesceEvery. Live odds
+// (porra.mercado of an open market) are coalesced per market (latest wins); every other event is queued as is.
+// Each batch is sorted by stream id, so clients always get ids in increasing order (Last-Event-ID resume replays
+// the skipped ones). ST2-R6-2: flushing on every non-odds event (≈1 per bet) defeated the coalescing and woke
+// every subscriber ~100×/s at 100 bets/s; one batch per tick = one wake, one write and one flush per client.
 type hub struct {
-	mu   sync.RWMutex
-	subs map[chan *msg]struct{}
-	pmu  sync.Mutex // serialises offer/flush so the ids stay ordered
-	pend map[string]*msg
+	mu    sync.RWMutex
+	subs  map[chan []*msg]struct{}
+	pmu   sync.Mutex // guards pend/queue
+	pend  map[string]*msg
+	queue []*msg
 }
 
-func (h *hub) add() chan *msg {
-	ch := make(chan *msg, 1024)
+func (h *hub) add() chan []*msg {
+	ch := make(chan []*msg, 256) // ~1 min of batches
 	h.mu.Lock()
 	h.subs[ch] = struct{}{}
 	h.mu.Unlock()
 	return ch
 }
 
-func (h *hub) remove(ch chan *msg) {
+func (h *hub) remove(ch chan []*msg) {
 	h.mu.Lock()
 	if _, ok := h.subs[ch]; ok {
 		delete(h.subs, ch)
@@ -124,37 +127,33 @@ func (h *hub) offer(m *msg) {
 		h.pend[k] = m
 		return
 	}
-	h.flushLocked()
-	h.publish(m)
+	h.queue = append(h.queue, m)
 }
 
+// flush publishes the pending batch; only the flusher goroutine calls it, so batches go out in order.
 func (h *hub) flush() {
 	h.pmu.Lock()
-	h.flushLocked()
-	h.pmu.Unlock()
-}
-
-func (h *hub) flushLocked() {
-	if len(h.pend) == 0 {
+	if len(h.pend) == 0 && len(h.queue) == 0 {
+		h.pmu.Unlock()
 		return
 	}
-	ms := make([]*msg, 0, len(h.pend))
+	ms := h.queue
+	h.queue = nil
 	for k, m := range h.pend {
 		ms = append(ms, m)
 		delete(h.pend, k)
 	}
+	h.pmu.Unlock()
 	sort.Slice(ms, func(i, j int) bool { return after(ms[j].id, ms[i].id) })
-	for _, m := range ms {
-		h.publish(m)
-	}
+	h.publish(ms)
 }
 
-func (h *hub) publish(m *msg) {
+func (h *hub) publish(ms []*msg) {
 	h.mu.RLock()
-	var slow []chan *msg
+	var slow []chan []*msg
 	for ch := range h.subs {
 		select {
-		case ch <- m:
+		case ch <- ms:
 		default:
 			slow = append(slow, ch) // the client will reconnect with Last-Event-ID
 		}
@@ -186,7 +185,7 @@ type slugEntry struct {
 
 // Service returns the realtime service definition.
 func Service() app.Service {
-	s := &Svc{hub: &hub{subs: map[chan *msg]struct{}{}, pend: map[string]*msg{}}, slugs: map[string]slugEntry{}, pub: map[string]int{}}
+	s := &Svc{hub: &hub{subs: map[chan []*msg]struct{}{}, pend: map[string]*msg{}}, slugs: map[string]slugEntry{}, pub: map[string]int{}}
 	return app.Service{Name: "realtime", Title: "GR Cup · realtime (SSE)", NeedsRedis: true, MaxConns: -1, Setup: s.setup}
 }
 
@@ -467,15 +466,20 @@ func (s *Svc) stream(w http.ResponseWriter, r *http.Request, deadline time.Time,
 		case <-end.C:
 			control(endEvent, "fin_de_conexion")
 			return
-		case m, ok := <-ch:
+		case b, ok := <-ch:
 			if !ok {
 				return // too slow: the client reconnects and resumes
 			}
-			if !write(m) {
-				return
-			}
-			for n := len(ch); n > 0; n-- { // drain what is already queued before flushing
-				if m, ok = <-ch; !ok || !write(m) {
+			for n := len(ch); ; n-- { // this batch plus what is already queued, then one flush
+				for _, m := range b {
+					if !write(m) {
+						return
+					}
+				}
+				if n == 0 {
+					break
+				}
+				if b, ok = <-ch; !ok {
 					return
 				}
 			}
