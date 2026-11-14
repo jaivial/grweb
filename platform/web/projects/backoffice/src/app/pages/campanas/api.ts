@@ -43,7 +43,7 @@ export const TIPOS: { tipo: TipoBloque; l: string; icon: string }[] = [
   { tipo: 'cabecera', l: 'Cabecera', icon: 'layout' }, { tipo: 'portada', l: 'Portada', icon: 'camera' }, { tipo: 'titulo', l: 'Título', icon: 'pencil' },
   { tipo: 'texto', l: 'Texto', icon: 'layout' }, { tipo: 'boton', l: 'Botón', icon: 'arrow-right' }, { tipo: 'imagen', l: 'Imagen', icon: 'camera' },
   { tipo: 'dos_columnas', l: 'Dos columnas', icon: 'panel-left' }, { tipo: 'lista', l: 'Lista', icon: 'menu' }, { tipo: 'cuenta_atras', l: 'Cuenta atrás', icon: 'clock' },
-  { tipo: 'horario', l: 'Flight / horario', icon: 'calendar' }, { tipo: 'separador', l: 'Separador', icon: 'minus' }, { tipo: 'espacio', l: 'Espacio', icon: 'chevrons-up-down' },
+  { tipo: 'horario', l: 'Horario', icon: 'calendar' }, { tipo: 'separador', l: 'Separador', icon: 'minus' }, { tipo: 'espacio', l: 'Espacio', icon: 'chevrons-up-down' },
 ];
 export const NOMBRE_TIPO = Object.fromEntries(TIPOS.map((t) => [t.tipo, t.l])) as Record<TipoBloque, string>;
 export const ESTADO_DEST: Record<string, { l: string; tone: 'neutral' | 'info' | 'success' | 'warning' | 'danger' | 'accent' }> = {

@@ -26,7 +26,7 @@ function nuevo(tipo: TipoBloque, id: string): Bloque {
     case 'boton': return { ...b, texto: 'Reserva tu entrada', url: '/entradas' };
     case 'portada': case 'imagen': return { ...b, imagen: 'https://jaimedigitalstudio.b-cdn.net/grcup/images/club/alfonso-fernandez/img-3363.webp', alt: '' };
     case 'lista': return { ...b, items: ['Primer punto', 'Segundo punto'] };
-    case 'dos_columnas': return { ...b, texto: '**Plataforma 1**\nFlights A–G', texto2: '**Plataforma 2**\nFlights H–K' };
+    case 'dos_columnas': return { ...b, texto: '**Sábado**\nCategorías del día', texto2: '**Domingo**\nCategorías del día' };
     case 'cuenta_atras': return { ...b, fecha: '2026-12-19T08:30', texto: 'Faltan' };
     case 'horario': return { ...b, fecha: '2026-12-19', canal: 'email' };
     case 'espacio': return { ...b, alto: 24 };
@@ -158,9 +158,9 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
                               <div class="inline-flex gap-2">@for (x of cuenta(b.fecha); track x.l) { <span class="rounded-lg bg-[#141011] px-4 py-2 text-white"><b class="block text-[24px] leading-7">{{ x.v }}</b><span class="text-[10px] tracking-wider text-[#b8acae]">{{ x.l }}</span></span> }</div></div>
                           }
                           @case ('horario') {
-                            <div class="px-8 pb-4"><p class="mb-1 text-[11px] tracking-wider text-[#9a8f91] uppercase">{{ diaLargo(b.fecha) }} · flights</p>
-                              @for (x of ['A', 'B', 'C']; track x) { <p class="flex justify-between border-b border-[#eee6e7] py-2 text-[14px]"><span>Flight {{ x }} · categorías del día</span><span class="font-mono text-[#c42b3e]">--:--</span></p> }
-                              <p class="mt-1 text-[11px] text-[#9a8f91]">Se rellena con los flights publicados de ese día.</p></div>
+                            <div class="px-8 pb-4"><p class="mb-1 text-[11px] tracking-wider text-[#9a8f91] uppercase">{{ diaLargo(b.fecha) }} · horario</p>
+                              @for (x of ['A', 'B', 'C']; track x) { <p class="flex justify-between border-b border-[#eee6e7] py-2 text-[14px]"><span>Sesión {{ x }} · categorías del día</span><span class="font-mono text-[#c42b3e]">--:--</span></p> }
+                              <p class="mt-1 text-[11px] text-[#9a8f91]">Se rellena con el horario publicado de ese día.</p></div>
                           }
                           @case ('separador') { <div class="px-8 py-3"><div class="border-t border-[#eee6e7]"></div></div> }
                           @case ('espacio') { <div [style.height.px]="b.alto || 24"></div> }
