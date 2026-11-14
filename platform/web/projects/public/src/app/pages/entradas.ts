@@ -86,7 +86,7 @@ const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
     </article>
     @if (puerta()) {
       <!-- UX8-R1-9: full-screen QR for the door (white, max contrast) -->
-      <div class="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-5 bg-white px-6 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-black" role="dialog" aria-modal="true" aria-label="Entrada para la puerta" (keydown.escape)="cerrarPuerta()">
+      <div class="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-5 bg-white px-6 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-black" role="dialog" aria-modal="true" aria-label="Entrada para la puerta" (keydown.escape)="cerrarPuerta()" (keydown.tab)="$event.preventDefault()">
         <button #cerrarP type="button" class="absolute top-[max(12px,env(safe-area-inset-top))] right-3 flex size-11 items-center justify-center rounded-full bg-black/8" aria-label="Cerrar" (click)="cerrarPuerta()"><gr-icon name="x" [size]="22" /></button>
         <img [src]="img()" alt="Código QR de la entrada" class="aspect-square w-[min(82vw,60vh,420px)]" />
         <p class="font-mono text-[22px] font-semibold tracking-[.08em]">{{ codigo() }}</p>
