@@ -44,7 +44,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
       <!-- Figma 46:15 (Jaime 14-nov): a dropdown, not sticky chips that scroll. Each option is its own view (?vista=…), so
            the page is shorter. All views are rendered (SSR / SEO, canonical without query); the inactive ones are hidden. -->
       <label class="mb-8 flex max-w-sm flex-col gap-2 md:mb-12"><span class="text-label-s text-text-secondary">Sección</span>
-        <gr-select tipo="campo" aria-label="Sección" [ngModel]="vista()" (ngModelChange)="irA($event)">
+        <gr-select tipo="campo" [ngModel]="vista()" (ngModelChange)="irA($event)">
           @for (v of vistas; track v.id) { <option [value]="v.id">{{ v.t }}</option> }
         </gr-select>
       </label>
@@ -197,6 +197,9 @@ export class CategoriasPage {
       const v = q.get('vista');
       this.vista.set(VISTAS.some((x) => x.id === v) ? (v as Vista) : 'calculadora');
     });
+    // old links with the former anchors (#hombres, #edad…) open their view
+    const frag = this.route.snapshot.fragment;
+    if (frag && frag !== 'calculadora' && VISTAS.some((x) => x.id === frag)) this.irA(frag);
     inject(DestroyRef).onDestroy(() => sub.unsubscribe());
     void inject(PendingTasks).run(() => applySeo(cms, seo, '/categorias-de-peso', 'Categorías de peso y edad · GR Strength Cup',
       'Las 18 categorías de peso de la AEP (9 masculinas y 9 femeninas), las divisiones por edad y cómo es el pesaje. Calcula en qué categoría compites.', undefined,
