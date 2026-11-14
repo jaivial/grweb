@@ -48,8 +48,17 @@ func publicaPorra(filas []filaPorra) []filaPorraPublic {
 // place and balance (one query, ST2-R2-2).
 func (s *Svc) rankingPorra(ctx context.Context, j jornada, fanID uuid.UUID) ([]filaPorra, int, int64) {
 	key := "rank:porra:" + j.ID.String()
+	// ST2-R7-1/R7-3: pod-local copy for 1 s, so a hot jornada skips the Redis round trip and the JSON decode of
+	// the top 50 on every request (the Redis entry still shares one load across pods).
+	if v, ok := topLocal.Load(key); ok {
+		if e := v.(*topEntrada); time.Now().Before(e.exp) {
+			p, saldo := s.puestoPorra(ctx, j, e.top, fanID)
+			return e.top, p, saldo
+		}
+	}
 	var top []filaPorra
 	if s.cache.Get(ctx, key, &top) {
+		topLocal.Store(key, &topEntrada{top: top, exp: time.Now().Add(time.Second)})
 		p, saldo := s.puestoPorra(ctx, j, top, fanID)
 		return top, p, saldo
 	}
@@ -78,9 +87,17 @@ func (s *Svc) rankingPorra(ctx context.Context, j jornada, fanID uuid.UUID) ([]f
 		return top, nil
 	})
 	top = v.([]filaPorra)
+	topLocal.Store(key, &topEntrada{top: top, exp: time.Now().Add(time.Second)})
 	p, saldo := s.puestoPorra(ctx, j, top, fanID)
 	return top, p, saldo
 }
+
+type topEntrada struct {
+	top []filaPorra
+	exp time.Time
+}
+
+var topLocal sync.Map // "rank:porra:"+jornada → *topEntrada (read-only slices, never mutated)
 
 // puestoPorra reads the fan's place from the cached top when they are in it, else from a 3 s per-fan cache, so
 // the place matches the snapshot shown and the two count ranges no longer run on every request under writes (ST2-R3-2).
