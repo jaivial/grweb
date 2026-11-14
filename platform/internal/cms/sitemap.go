@@ -11,7 +11,7 @@ import (
 // sections are added from the database; routes marked not indexable in «seo» are left out.
 var sitemapRutas = []string{"/", "/en", "/categorias-de-peso", "/marcas-minimas", "/reglamento", "/preguntas-frecuentes",
 	"/atletas", "/participantes", "/horarios", "/entradas", "/sorteo", "/en-directo", "/resultados", "/resultados/2025",
-	"/ediciones/2025", "/publico", "/clubs", "/patrocinadores", "/galeria", "/voluntarios", "/como-llegar",
+	"/ediciones/2025", "/publico", "/patrocinadores", "/galeria", "/voluntarios", "/como-llegar",
 	"/donde-dormir-y-comer", "/mapa-de-accesos", "/blog", "/privacidad", "/terminos", "/cookies", "/consentimiento-datos",
 	"/politica-concurso", "/alta-atleta"}
 

@@ -136,7 +136,6 @@ export class VoluntariosPage {
   protected readonly beneficios = ['Camiseta oficial de voluntario', 'Comida durante la jornada', 'Certificado de voluntariado', 'Ver la competición desde dentro'];
   protected readonly rel = [
     { titulo: 'Reglamento', texto: 'Cómo se juzga un intento', ruta: '/reglamento' },
-    { titulo: 'Clubs', texto: 'Clubs de la región', ruta: '/clubs' },
     { titulo: 'Patrocinadores', texto: 'Quién lo hace posible', ruta: '/patrocinadores' },
   ];
   protected nombre = '';

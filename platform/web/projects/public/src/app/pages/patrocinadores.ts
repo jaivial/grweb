@@ -116,7 +116,6 @@ export class PatrocinadoresPage {
   protected readonly asunto = encodeURIComponent('Dossier de patrocinio · GR Strength Cup');
   protected readonly ofrecemos = ['Logo en la tarima, el photocall y el cartel', 'Presencia en la web y en redes', 'Stand o espacio de producto en el pabellón', 'Menciones durante la retransmisión'];
   protected readonly rel = [
-    { titulo: 'Clubs', texto: 'Clubs de la región', ruta: '/clubs' },
     { titulo: 'Voluntarios', texto: 'Ayuda en la competición', ruta: '/voluntarios' },
     { titulo: 'Edición 2025', texto: 'Quién estuvo', ruta: '/ediciones/2025' },
   ];
