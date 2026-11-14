@@ -39,21 +39,30 @@ export const MEDALLA: Record<number, string> = {
   3: 'border-[#c8835a]/55 bg-[#c8835a]/15 text-[#d79a66]',
 };
 
-/** Chat avatar (Figma «Chat avatar»): initials and a stable tone per alias; athlete = red ring, own = brand gradient. */
+/** Text colour of an alias in the chat (Figma «Chat message»: the alias takes the tone of its avatar). */
+const ALIAS = ['text-accent-text', 'text-warning', 'text-info', 'text-success', 'text-[#e3c25a]', 'text-[#d4dae0]'];
+export function colorAlias(alias: string): string {
+  return ALIAS[tonoDe(alias)];
+}
+
+/** Chat avatar (Figma «Chat avatar» 191:18387): 20 px square, radius 4, the photo or the initials in a stable tone per
+ *  alias; athlete = red, own = brand gradient. */
 @Component({
   selector: 'gr-chat-avatar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'inline-flex size-8 shrink-0 select-none items-center justify-center rounded-full border text-[12px] font-medium tracking-[0.02em]', '[class]': 'clase()', 'aria-hidden': 'true' },
-  template: `{{ ini() }}`,
+  host: { class: 'inline-flex size-5 shrink-0 select-none items-center justify-center overflow-hidden rounded-[4px] border text-[9px] leading-none font-semibold', '[class]': 'clase()', 'aria-hidden': 'true' },
+  template: `@if (foto(); as f) { <img [src]="f" alt="" class="size-full object-cover" loading="lazy" /> } @else { {{ ini() }} }`,
 })
 export class GrChatAvatar {
   readonly alias = input('');
   readonly atleta = input(false);
   readonly mio = input(false);
+  readonly foto = input<string | undefined>(undefined);
   protected readonly ini = computed(() => (this.mio() ? 'TÚ' : iniciales(this.alias())));
   protected readonly clase = computed(() => {
+    if (this.foto()) return 'border-transparent';
     if (this.mio()) return 'border-white/10 bg-accent-grain text-white';
-    if (this.atleta()) return 'border-2 border-accent bg-accent-deep/90 text-white';
+    if (this.atleta()) return 'border-accent bg-accent-deep/90 text-white';
     return TONOS[tonoDe(this.alias())];
   });
 }

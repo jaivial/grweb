@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { GrButton, GrIcon } from '@grcup/ui';
 import { ChatService, MAX_TEXTO, sinIds, type ChatItem } from '../../core/chat';
 import { FanSession } from '../../core/fan';
-import { GrChatAvatar, GrCoin } from './ui';
+import { GrChatAvatar, GrCoin, colorAlias } from './ui';
 
 /** Emojis frecuentes del selector (sin dependencias nuevas). */
 const EMOJIS = ['😀', '😂', '😍', '🔥', '💪', '👏', '🙌', '😮', '😢', '😎', '🤔', '👀', '🥹', '🙏', '💯', '🏆', '⚡', '❤️', '🎉', '🤝', '🏋️', '🥇', '🫡', '😤'];
@@ -41,20 +41,31 @@ interface Fila {
     .gr-hito::after { content: ''; position: absolute; inset: 0; pointer-events: none; transform: translateX(-120%);
       background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.16) 50%, transparent 65%); animation: gr-barrido 1.1s 260ms ease-out 1 both; }
     .gr-entra { animation: gr-entra 180ms ease-out both; }
-    @media (prefers-reduced-motion: reduce) { .gr-hito, .gr-donativo, .gr-entra, .gr-hito::after { animation: none; } }
+    @keyframes gr-fundido { from { opacity: 0; } to { opacity: 1; } }
+    .gr-dormido { animation: gr-fundido 200ms ease-out both; }
+    @media (prefers-reduced-motion: reduce) { .gr-hito, .gr-donativo, .gr-entra, .gr-dormido, .gr-hito::after { animation: none; } }
   `,
   template: `
-    <div class="relative flex min-h-0 flex-1 flex-col">
+    @if (!chat.chatEnabled()) {
+      <!-- Figma 393:121174: the chat switched off by the organisation, only the sleeping notice -->
+      <div class="gr-dormido flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-8 py-10 text-center" role="status">
+        <span class="flex size-16 items-center justify-center rounded-full border border-accent/45 bg-[linear-gradient(135deg,#4c111b,#170c0e)] text-[28px] shadow-glow-deep" aria-hidden="true">🌙</span>
+        <p class="text-ui-h5 text-text-primary">El chat está durmiendo 💤</p>
+        <p class="max-w-[260px] text-body-s text-text-tertiary">Se despertará cuando vuelva el directo.</p>
+      </div>
+    } @else {
+    <div class="gr-dormido relative flex min-h-0 flex-1 flex-col">
       <!-- reconexión -->
       @if (chat.estado() === 'reconectando') {
         <p class="flex items-center gap-2 border-b border-warning/30 bg-warning/10 px-4 py-2 text-body-xs text-warning" role="status">
           <gr-icon name="refresh" [size]="14" class="shrink-0 motion-safe:animate-spin" /><span>Reconectando… recuperaremos los mensajes que te pierdas</span>
         </p>
       }
-      <!-- lista -->
-      <div #lista class="h-[56vh] max-h-[520px] min-h-[320px] overflow-y-auto overscroll-contain py-2 [scrollbar-color:var(--color-line-strong)_transparent] [scrollbar-width:thin] lg:h-auto lg:max-h-none lg:min-h-0 lg:flex-1"
+      <!-- lista: on mobile the panel gives the chat a fixed height; overscroll-behavior auto lets the gesture continue with
+           the page at the end of the list (Figma 393:121897) -->
+      <div #lista class="min-h-0 flex-1 overflow-y-auto overscroll-auto py-2 [scrollbar-color:var(--color-line-strong)_transparent] [scrollbar-width:thin]"
         role="log" aria-live="polite" aria-label="Mensajes del chat" (scroll)="alScroll($event)">
-        @if (chat.items().length === 0) {
+        @if (filas().length === 0) {
           <div class="flex h-full flex-col items-center justify-center gap-3 px-8 py-10 text-center">
             <span class="flex size-16 items-center justify-center rounded-full border border-accent/45 bg-[linear-gradient(135deg,#4c111b,#170c0e)] text-[28px] shadow-glow-deep" aria-hidden="true">💬</span>
             <p class="text-ui-h5 text-text-primary">El chat está en calma</p>
@@ -76,23 +87,18 @@ interface Fila {
                 @if (it.borrado) {
                   <li class="flex items-center gap-2 px-4 py-1.5 text-body-xs text-text-muted italic"><gr-icon name="shield" [size]="14" />Mensaje eliminado por moderación</li>
                 } @else {
-                  <li class="group gr-entra relative flex gap-3 pr-4" [class]="claseMsg(it.atleta, f.cont)" [class.opacity-70]="it.estado === 'pendiente'">
-                    @if (f.cont) {
-                      <time class="absolute top-1 left-0 w-[52px] text-right font-mono text-[10px] leading-5 text-text-muted opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true">{{ hora(it.ts) }}</time>
-                    } @else {
-                      <gr-chat-avatar class="mt-0.5" [alias]="it.alias" [atleta]="it.atleta" [mio]="it.mio" />
-                    }
+                  <!-- Figma «Chat message» 171:59343: avatar + «alias  message» in one flow, the time only as a tooltip -->
+                  <li class="gr-entra flex gap-2 pr-4" [class]="claseMsg(it.atleta, f.cont)" [class.opacity-70]="it.estado === 'pendiente'" [title]="hora(it.ts)">
+                    @if (!f.cont) { <gr-chat-avatar class="mt-px" [alias]="it.alias" [atleta]="it.atleta" [mio]="it.mio" [foto]="it.foto" /> }
                     <div class="min-w-0 flex-1">
-                      @if (!f.cont) {
-                        <p class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                          <span class="text-label-s" [class]="it.mio ? 'text-accent-text' : 'text-text-primary'">{{ it.mio ? 'Tú' : it.alias }}</span>
-                          @if (it.atleta) {
-                            <span class="inline-flex h-[18px] items-center gap-1 rounded-2xs bg-accent px-1.5 font-mono text-[12px] leading-none font-medium tracking-[0.08em] text-white uppercase"><gr-icon name="trophy" [size]="11" />Atleta</span>
-                          }
-                          <time class="font-mono text-[12px] tracking-[0.08em] text-text-muted">{{ hora(it.ts) }}</time>
-                        </p>
-                      }
-                      <p class="text-body-m md:text-body-s break-words [overflow-wrap:anywhere]" [class]="it.mio || it.atleta ? 'text-text-primary' : 'text-text-secondary'">{{ sinIds(it.texto) }}</p>
+                      <p class="text-[14px] leading-[22px] break-words [overflow-wrap:anywhere]" [class]="it.mio || it.atleta ? 'text-text-primary' : 'text-text-secondary'">
+                        @if (!f.cont) {
+                          <span class="font-semibold" [class]="it.mio ? 'text-accent-text' : colorAlias(it.alias)">{{ it.mio ? 'Tú' : it.alias }}</span>
+                          @if (it.atleta) { <span class="ml-1.5 inline-flex h-4 items-center rounded-2xs bg-accent px-1 align-[1px] font-mono text-[10px] leading-none font-medium tracking-[0.08em] text-white uppercase">Atleta</span> }
+                          <span class="sr-only">, {{ hora(it.ts) }}:</span>&nbsp;
+                        }
+                        {{ sinIds(it.texto) }}
+                      </p>
                       @if (it.estado === 'pendiente') { <p class="mt-0.5 font-mono text-[12px] text-text-muted">Enviando…</p> }
                       @if (it.estado === 'error') {
                         <p class="mt-1 flex flex-wrap items-center gap-x-2 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="13" />{{ it.error }}
@@ -119,11 +125,8 @@ interface Fila {
               }
               @case ('banner') {
                 <li class="px-4 py-2">
+                  <!-- Figma «Chat message · Banner»: no «Patrocinado» header nor tier chip; banner + name + «Visitar web» -->
                   <div class="overflow-hidden rounded-md border border-line-subtle bg-bg-raised">
-                    <p class="flex items-center justify-between gap-2 px-3 py-2">
-                      <span class="font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">Patrocinado</span>
-                      @if (it.tier) { <span class="inline-flex h-5 items-center rounded-pill border px-2 font-mono text-[11px] tracking-[0.08em] uppercase" [class]="tier(it.tier)">{{ it.tier }}</span> }
-                    </p>
                     <!-- UX4-R2-1: brand block (gradient + sponsor name) always behind; the image fades in only once loaded -->
                     <div class="relative flex aspect-[3/1] w-full items-center justify-center bg-[linear-gradient(135deg,#4c111b,#281112_55%,#170c0e)] px-4">
                       <span class="line-clamp-2 max-w-full text-center font-display text-[26px] leading-tight break-words text-text-primary uppercase italic [overflow-wrap:anywhere]">{{ it.patrocinador }}</span>
@@ -177,8 +180,8 @@ interface Fila {
         </button>
       }
 
-      <!-- composer -->
-      <div #composer class="border-t border-line-subtle bg-bg-card px-4 pt-3 pb-3.5">
+      <!-- composer (sticks to the bottom of the chat); without a session, the invitation takes its place -->
+      <div #composer class="shrink-0 border-t border-line-subtle bg-bg-card px-4 pt-3 pb-3.5">
         @if (chat.cerrado()) {
           <p class="flex items-center gap-2.5 rounded-md border border-line-subtle bg-bg-raised p-3 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="16" class="shrink-0" />{{ !chat.soloLectura() && chat.fase() === 'antes' ? 'El chat se abre cuando empiece el directo: de momento puedes leerlo.' : 'Este día ya está cerrado: puedes leer el chat, pero no escribir.' }}</p>
         } @else if (!fan.conSesion()) {
@@ -251,6 +254,7 @@ interface Fila {
         }
       </div>
     </div>
+    }
   `,
 })
 export class ChatView {
@@ -258,7 +262,7 @@ export class ChatView {
   protected readonly fan = inject(FanSession);
   protected readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
 
-  /** The panel asks for the donate dialog (kept for the panel binding; Donar lives in the header). */
+  /** The panel asks for the donate dialog (kept for the panel binding). */
   readonly donar = output<void>();
 
   protected readonly maxTexto = MAX_TEXTO;
@@ -311,21 +315,14 @@ export class ChatView {
     });
   }
 
-  /** Row classes of a message: first of a group, continuation, athlete (red tint + bar). */
+  /** Row classes of a message: first of a group, continuation (indented under the text), athlete (red tint + bar). */
   protected claseMsg(atleta: boolean, cont: boolean): string {
-    const pos = cont ? 'pt-0.5 pb-1' : 'pt-2 pb-1';
-    if (atleta) return `${pos} border-l-2 border-accent bg-accent/8 ${cont ? 'pl-[58px]' : 'pl-3.5'}`;
-    return `${pos} ${cont ? 'pl-[60px]' : 'pl-4'}`;
+    const pos = cont ? 'pb-1' : 'pt-1.5 pb-1';
+    if (atleta) return `${pos} border-l-2 border-accent bg-accent/8 ${cont ? 'pl-[42px]' : 'pl-3.5'}`;
+    return `${pos} ${cont ? 'pl-11' : 'pl-4'}`;
   }
 
-  /** Tier chip of a banner (oro · plata · bronce, the medal colours). */
-  protected tier(t: string): string {
-    const k = t.toLowerCase();
-    if (k === 'oro') return 'border-[#d4af37]/45 bg-[#d4af37]/15 text-[#e3c25a]';
-    if (k === 'plata') return 'border-[#c0c4cc]/45 bg-[#c0c4cc]/12 text-[#d4dae0]';
-    if (k === 'bronce') return 'border-[#c8835a]/45 bg-[#c8835a]/15 text-[#d79a66]';
-    return 'border-line-strong bg-bg-surface text-text-secondary';
-  }
+  protected readonly colorAlias = colorAlias;
 
   protected altoComposer(): number {
     return this.composer()?.nativeElement.offsetHeight ?? 0;
