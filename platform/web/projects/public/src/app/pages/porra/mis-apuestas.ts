@@ -53,12 +53,13 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
         </div>
       } @else {
         <!-- Figma «Resumen»: en juego, cobrado, devuelto y perdido -->
-        <div class="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-4">
+        <!-- UX5-R1-2: en móvil una fila compacta 1×4 -->
+        <div class="grid grid-cols-4 gap-1.5 md:gap-4">
           @for (k of kpis(); track k.label) {
-            <div class="flex min-w-0 flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-4">
-              <p class="text-mono-xs text-text-secondary">{{ k.label }}</p>
-              <p class="truncate font-mono text-[20px] leading-[1.3] font-bold tabular-nums md:text-[28px]" [class]="k.color">{{ k.valor }}</p>
-              <p class="truncate text-body-xs text-text-secondary">{{ k.nota }}</p>
+            <div class="flex min-w-0 flex-col gap-1 rounded-md border border-line-subtle bg-bg-card px-2 py-2 md:gap-2 md:rounded-lg md:p-4">
+              <p class="truncate text-mono-xs text-text-secondary">{{ k.label }}</p>
+              <p class="truncate font-mono text-body-s font-bold tabular-nums md:text-[1.75rem] md:leading-[1.3]" [class]="k.color">{{ k.valor }}</p>
+              <p class="hidden truncate text-body-xs text-text-secondary md:block">{{ k.nota }}</p>
             </div>
           }
         </div>

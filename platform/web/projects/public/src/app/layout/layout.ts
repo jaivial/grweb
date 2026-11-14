@@ -390,7 +390,7 @@ export class Footer {
   private readonly url = signal('');
   /** Mobile CTA bar (Figma Mobile, every public page): on the home only once the trophy intro is over; not on flows with their own bottom action. */
   protected readonly barra = computed(() => this.scrolled() && this.comp.data()?.modulos?.['entradas'] !== false &&
-    !/^\/(inscripcion|pago|entradas|area-atleta|alta-atleta|novedades|baja|en|en-directo)(\/|$|\?)/.test(this.url()));
+    !/^\/(inscripcion|pago|entradas|area-atleta|alta-atleta|novedades|baja|en|en-directo|porra|fantasy)(\/|$|\?)/.test(this.url()));
   protected readonly columnas = [
     { titulo: 'Competición', links: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Horarios', href: '/horarios' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },
     { titulo: 'El evento', links: [{ label: 'Entradas', href: '/entradas' }, { label: 'Atletas', href: '/atletas' }, { label: 'Sorteo', href: '/sorteo' }, { label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Edición 2025', href: '/ediciones/2025' }, { label: 'Galería', href: '/galeria' }] },

@@ -1,4 +1,4 @@
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 /**
  * porra/componentes.ts — piezas compartidas de /porra y /fantasy (Figma «71 · /porra», rediseño UI v2): barra del
  * juego, aviso legal, saldo de monedas, chips de filtro, botón de cuota, tarjeta de mercado, boleto de apuesta, gancho
@@ -767,29 +767,23 @@ export class LeaderboardRow {
       <gr-aviso-juegos />
     </div>
 
-    <!-- móvil: dos selectores y el aviso corto -->
-    <div class="flex flex-col gap-3 md:hidden">
-      <label class="relative block">
-        <span class="sr-only">Vertiente</span>
-        <select class="h-12 w-full appearance-none rounded-md border border-line-strong bg-bg-field pr-12 pl-4 text-label-s text-text-primary">
-          <option selected>Apuestas · cuotas en vivo</option>
-          <option disabled>Pronósticos · próximamente</option>
-        </select>
-        <gr-icon name="chevron-down" [size]="20" class="pointer-events-none absolute top-3.5 right-4 text-text-primary" />
-      </label>
-      <label class="relative block">
-        <span class="sr-only">Sección de la porra</span>
-        <select class="h-12 w-full appearance-none rounded-md border border-line-strong bg-bg-field pr-12 pl-4 text-label-s text-text-primary" (change)="ir($any($event.target).value)">
-          @for (t of tabs; track t.id) { <option [value]="t.href" [selected]="t.id === activa()">{{ t.corto }}</option> }
-        </select>
-        <gr-icon name="chevron-down" [size]="20" class="pointer-events-none absolute top-3.5 right-4 text-text-primary" />
-      </label>
+    <!-- móvil (UX5-R1-1/2): aviso corto y tab bar inferior del juego (HIG: 49 px + safe area, icono 24, label 11) -->
+    <div class="flex flex-col gap-2 md:hidden">
+      <p class="text-body-xs text-text-tertiary">Apuestas · cuotas en vivo <span class="ml-1 rounded-2xs border border-line-strong px-1.5 py-0.5 text-mono-xs text-text-muted">Pronósticos · pronto</span></p>
       <gr-aviso-juegos [corto]="true" />
     </div>
+    <div class="h-16 md:hidden" aria-hidden="true"></div>
+    <nav class="fixed inset-x-0 bottom-0 z-40 flex border-t border-line-subtle bg-bg-base/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-[10px] md:hidden" aria-label="Porra">
+      @for (t of tabs; track t.id) {
+        <a [routerLink]="t.href" class="flex h-[49px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-label-xs transition-transform duration-100 active:scale-95"
+          [class]="t.id === activa() ? 'text-accent-text' : 'text-text-tertiary'" [attr.aria-current]="t.id === activa() ? 'page' : null">
+          <gr-icon [name]="t.icono" [size]="24" /><span class="truncate">{{ t.corto }}</span>
+        </a>
+      }
+    </nav>
   `,
 })
 export class PorraCabecera {
-  private readonly router = inject(Router);
   readonly titulo = input.required<string>();
   readonly descripcion = input('');
   /** La entradilla también en móvil (Mis apuestas y Clasificación sí; Mercados no). */
@@ -798,12 +792,9 @@ export class PorraCabecera {
   readonly crumb = input('');
   readonly activa = input<'mercados' | 'apuestas' | 'clasificacion'>('mercados');
   protected readonly tabs = [
-    { id: 'mercados', href: '/porra', label: 'Mercados', corto: 'Mercados' },
-    { id: 'apuestas', href: '/porra/mis-apuestas', label: 'Mis apuestas', corto: 'Mis apuestas' },
-    { id: 'clasificacion', href: '/porra/clasificacion', label: 'Clasificación', corto: 'Ranking' },
-  ];
-  protected ir(href: string): void {
-    void this.router.navigateByUrl(href);
-  }
+    { id: 'mercados', href: '/porra', label: 'Mercados', corto: 'Mercados', icono: 'zap' },
+    { id: 'apuestas', href: '/porra/mis-apuestas', label: 'Mis apuestas', corto: 'Mis apuestas', icono: 'ticket-check' },
+    { id: 'clasificacion', href: '/porra/clasificacion', label: 'Clasificación', corto: 'Ranking', icono: 'trophy' },
+  ] as const;
 }
 
