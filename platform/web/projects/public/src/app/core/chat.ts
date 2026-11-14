@@ -45,6 +45,10 @@ export interface ChatFrame {
   coins?: number;
   dia?: string;
   motivo?: string;
+  /** Avatar photo of the author, when the backend sends it. */
+  fotoUrl?: string;
+  /** Chat switched on/off by the organisation (frame «estado»); absent = unchanged. */
+  chat_enabled?: boolean;
 }
 
 /** A message of the room. `mio` marks the ones written by this browser. */
@@ -59,6 +63,7 @@ export interface ChatMsg {
   cid?: string;
   /** Pseudonym of the author (never the UUID): it is compared with the own one to mark the message. */
   fanKey?: string;
+  foto?: string;
   estado: 'pendiente' | 'enviado' | 'error';
   error?: string;
   borrado?: boolean;
@@ -117,6 +122,8 @@ export interface ChatEstadoSala {
   dia: string;
   /** Pseudonym of the fan of the request (empty when the request is anonymous). */
   fanKey?: string;
+  /** False while the organisation keeps the chat asleep (absent = enabled). */
+  chat_enabled?: boolean;
 }
 
 export interface ChatHistorial {
@@ -182,6 +189,8 @@ export class ChatService {
   readonly conectados = signal(0);
   /** The room is open (config `activo`). */
   readonly salaActiva = signal(true);
+  /** The chat is on (`chat_enabled` of the room state or of the «estado» frame); false = «El chat está durmiendo». */
+  readonly chatEnabled = signal(true);
   /** Seconds between messages in slow mode (0 = off). */
   readonly modoLentoSeg = signal(0);
   /** Day of the room being shown. */
@@ -283,6 +292,7 @@ export class ChatService {
       this.conectados.set(r.conectados);
       this.salaActiva.set(r.salaActiva);
       this.modoLentoSeg.set(r.modoLentoSeg);
+      if (typeof r.chat_enabled === 'boolean') this.chatEnabled.set(r.chat_enabled);
       if (r.fanKey) {
         this.miHash.set(r.fanKey);
         this.recalcularMios();
@@ -577,6 +587,7 @@ export class ChatService {
       case 'estado': {
         if (typeof f.conectados === 'number') this.conectados.set(f.conectados);
         if (f.dia) this.dia.set(f.dia);
+        if (typeof f.chat_enabled === 'boolean') this.chatEnabled.set(f.chat_enabled);
         if (f.motivo === 'conectado') this.estado.set('conectado');
         if (f.fanKey) {
           this.miHash.set(f.fanKey);
@@ -603,6 +614,7 @@ export class ChatService {
           ts,
           mio: !!f.fanKey && f.fanKey === this.miHash(),
           fanKey: f.fanKey,
+          foto: f.fotoUrl || undefined,
           cid: f.cid,
           estado: 'enviado',
         };

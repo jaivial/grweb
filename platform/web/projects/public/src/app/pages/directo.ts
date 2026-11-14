@@ -1,14 +1,14 @@
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrAlert, GrButton, GrIcon, GrLiveStatus, GrLogo, GrSkeleton, GrSelect, type GrLiveEstado } from '@grcup/ui';
+import { GrAlert, GrButton, GrIcon, GrLogo, GrSkeleton, GrSelect, type GrLiveEstado } from '@grcup/ui';
 import { Cms, type Album, type Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, FalloApi, type CompeticionPublica } from '../core/competition';
-import { DirectoPublic, MOV, ORD, catCorta, catLarga, embed, gl, kg, type Categoria, type Directo, type Edicion, type EnPlataforma, type Fila, type Mov, type Pantalla, type ResultadosPublicos } from '../core/directo';
+import { DirectoPublic, MOV, ORD, catCorta, catLarga, embed, gl, kg, type Categoria, type Directo, type Edicion, type EnPlataforma, type Fila, type Pantalla, type ResultadosPublicos } from '../core/directo';
 import { ICS_URL } from '../core/horarios';
 import { Seo } from '../core/seo';
 import { GrCabecera } from '../home/bloques';
@@ -18,7 +18,8 @@ import { NoEncontrada } from '../layout/no-encontrada';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
 import { Community, Related, type RelatedLink } from './landings';
-import { PanelSocial } from './directo-social/panel';
+import { PanelSocial, escritorio } from './directo-social/panel';
+import { Clasificacion, TarimaView } from './directo-social/tarima-view';
 import { ChatService } from '../core/chat';
 
 const TZ = 'Europe/Madrid';
@@ -36,7 +37,6 @@ const FOTOS_2025: [string, string][] = [
   ['foto-7', 'Un compañero ajusta el cinturón de un atleta antes de salir'],
   ['foto-8', 'Atleta concentrado antes de salir a la plataforma'],
 ];
-const MOVS: Mov[] = ['sq', 'bp', 'dl'];
 const diaHora = (iso: string) => new Intl.DateTimeFormat('es-ES', { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: TZ }).format(new Date(iso)).replace(',', ' ·');
 const fechas = (a?: string, b?: string) => {
   if (!a) return 'Fecha por confirmar';
@@ -46,94 +46,10 @@ const fechas = (a?: string, b?: string) => {
 /** Figma 25/28 short form: «1–2 marzo 2025». */
 const fechasCortas = (a?: string, b?: string) => fechas(a, b).replace(/ de /g, ' ');
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-const MEDALLA: Record<string, string> = { oro: 'border-[#c9a227]/60 bg-[#c9a227]/20 text-[#e3c25a]', plata: 'border-[#a9b0b8]/60 bg-[#a9b0b8]/15 text-[#d4dae0]', bronce: 'border-[#b0703e]/60 bg-[#b0703e]/20 text-[#d79a66]' };
 
-/** Three judges' lights (white / red / pending). */
-@Component({
-  selector: 'gr-luces',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex items-center gap-2', role: 'img', '[attr.aria-label]': 'aria()' },
-  template: `@for (v of luces(); track $index) { <span class="rounded-pill border" [style.width.px]="size()" [style.height.px]="size()" [class]="v === 'B' ? 'border-white bg-white' : v === 'R' ? 'border-accent bg-accent' : 'border-line-strong bg-bg-raised/60'"></span> }`,
-})
-export class Luces {
-  readonly votos = input<string | undefined>('');
-  readonly size = input(20);
-  protected readonly luces = computed(() => [0, 1, 2].map((i) => (this.votos() ?? '')[i] ?? ''));
-  protected readonly aria = computed(() => {
-    const v = this.votos() ?? '';
-    if (v.length < 3) return 'Esperando a los jueces';
-    const b = [...v].filter((x) => x === 'B').length;
-    return `${b} blancas y ${3 - b} rojas: ${b >= 2 ? 'válido' : 'nulo'}`;
-  });
-}
-
-/** Ranking table of a category (desktop) / cards with the attempts (mobile, «Tarjeta desplegada»). */
-@Component({
-  selector: 'gr-clasificacion',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'block' },
-  template: `
-    <div class="hidden overflow-x-auto rounded-lg border border-line-subtle bg-bg-card md:block">
-      <table class="w-full min-w-[760px] text-left text-body-s">
-        <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="px-4 py-3">#</th><th class="px-3 py-3">Atleta</th><th class="px-3 py-3">Cat.</th><th class="px-3 py-3 text-right">Peso</th>
-          <th class="px-3 py-3 text-right">Sentadilla</th><th class="px-3 py-3 text-right">Banca</th><th class="px-3 py-3 text-right">P. muerto</th><th class="px-3 py-3 text-right">Total</th><th class="px-4 py-3 text-right">GL</th></tr></thead>
-        <tbody>
-          @for (f of c().filas; track $index; let i = $index) {
-            <tr class="border-b border-line-subtle last:border-0" [class.bg-accent-deep/20]="f.puesto === 1">
-              <td class="px-4 py-3">@if (f.puesto) { <span class="flex size-7 items-center justify-center rounded-pill border text-mono-xs" [class]="f.medalla ? med[f.medalla] : 'border-line-strong'">{{ f.puesto }}</span> } @else { <span class="text-text-muted">–</span> }</td>
-              <td class="px-3 py-3"><p class="text-label-s">@if (f.slug) { <a [routerLink]="'/atletas/' + f.slug" class="hover:text-accent-text">{{ f.nombre }}</a> } @else { {{ f.nombre }} }</p><p class="text-body-xs text-text-tertiary">{{ f.club || (f.nombre === 'Atleta' ? 'Perfil privado' : 'Independiente') }}</p></td>
-              <td class="px-3 py-3 text-text-secondary">{{ c().categoria.replace('-', '−') }}</td>
-              <td class="px-3 py-3 text-right font-mono text-text-secondary">{{ kg(f.pesoCorporal) }}</td>
-              @for (m of movs; track m) { <td class="px-3 py-3 text-right font-mono" [title]="intentos(f, m)">{{ kg(f[m]) }}</td> }
-              <td class="px-3 py-3 text-right">@if (f.total) { <span class="font-display text-[20px] text-accent-text italic">{{ kg(f.total) }}</span> } @else if (f.sinTotal) { <span class="text-label-s text-text-tertiary">Sin total</span> } @else if (f.subtotal) { <span class="font-mono text-text-secondary" title="Subtotal provisional">{{ kg(f.subtotal) }}</span> } @else { <span class="text-text-muted">–</span> }</td>
-              <td class="px-4 py-3 text-right font-mono text-text-secondary">{{ gl(f.gl) }}</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-    <ul class="flex flex-col gap-2 md:hidden">
-      @for (f of c().filas; track $index; let i = $index) {
-        <li class="rounded-lg border bg-bg-card" [class]="abierto() === i ? 'border-accent/60' : 'border-line-subtle'">
-          <button type="button" class="flex w-full items-center gap-3 px-4 py-4 text-left" (click)="abierto.set(abierto() === i ? -1 : i)" [attr.aria-expanded]="abierto() === i">
-            <span class="flex size-9 shrink-0 items-center justify-center rounded-full border text-label-s" [class]="f.medalla ? med[f.medalla] : 'border-line-strong'">{{ f.puesto || '–' }}</span>
-            <span class="min-w-0 flex-1"><span class="block truncate text-label-l">{{ f.nombre }}</span><span class="block text-body-xs text-text-tertiary [overflow-wrap:anywhere]">{{ f.club || 'Independiente' }} · {{ c().titulo.replace(/^(Femenino|Masculino)\s*/, '') }}</span></span>
-            <span class="text-right">@if (f.total) { <span class="block font-display text-[26px] leading-none text-accent-text italic">{{ kg(f.total) }}</span><span class="block text-body-xs text-text-tertiary">kg total</span> }
-              @else { <span class="block font-mono text-mono-s text-text-secondary">{{ f.sinTotal ? 'Sin total' : f.subtotal ? kg(f.subtotal) : '–' }}</span>@if (f.subtotal) { <span class="block text-mono-xs text-text-tertiary">parcial</span> } }</span>
-            <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/8"><gr-icon name="chevron-down" [size]="16" class="text-text-secondary transition-transform" [class.rotate-180]="abierto() === i" /></span>
-          </button>
-          @if (abierto() === i) {
-            <div class="flex flex-col gap-2.5 px-4 pb-4">
-              @for (m of movs; track m) {
-                <div class="flex items-center gap-2"><p class="w-28 shrink-0 text-body-s text-text-secondary">{{ MOVN[m] }}</p>
-                  @for (x of f.intentos[m]; track $index) { <span class="flex h-9 flex-1 items-center justify-center rounded-sm text-mono-s" [class]="x.resultado === 'valido' ? 'bg-success/12 text-success' : x.resultado === 'nulo' ? 'bg-accent/12 text-accent-text line-through' : 'bg-white/5 text-text-muted'">{{ x.resultado === 'pendiente' ? '·' : x.resultado === 'renuncia' ? '—' : kg(x.peso) }}</span> }</div>
-              }
-              @if (f.pesoCorporal || f.gl) { <p class="mt-1 flex justify-between border-t border-line-subtle pt-3 text-body-xs text-text-tertiary"><span>@if (f.pesoCorporal) { Peso corporal {{ kg(f.pesoCorporal) }} kg }@if (f.division) { · {{ f.division }} }</span>@if (f.gl) { <span>{{ gl(f.gl) }} puntos GL</span> }</p> }
-            </div>
-          }
-        </li>
-      }
-    </ul>
-  `,
-  imports: [RouterLink, GrIcon],
-})
-export class Clasificacion {
-  readonly c = input.required<Categoria>();
-  /** Mobile: open the first card (Figma 25 mobile, «Tarjeta desplegada»). */
-  readonly abrir = input(false);
-  protected readonly abierto = linkedSignal<number>(() => (this.abrir() ? 0 : -1));
-  protected readonly movs = MOVS;
-  protected readonly MOVN = MOV;
-  protected readonly med = MEDALLA;
-  protected readonly kg = kg;
-  protected readonly gl = gl;
-  protected intentos(f: Fila, m: Mov): string {
-    return `${MOV[m]}: ` + (f.intentos[m] ?? []).map((c) => (c.resultado === 'pendiente' ? '·' : c.resultado === 'renuncia' ? '—' : (c.resultado === 'nulo' ? '✗ ' : '') + kg(c.peso))).join(' / ');
-  }
-}
 
 /** Public SSE of the competition: reloads on the live events (no personal data travels in them); `estado` gets the connection state. */
-function escuchar(tipos: string[], recargar: () => void, estado?: (e: GrLiveEstado) => void): () => void {
+function escuchar(tipos: string[], recargar: () => void, estado?: (e: GrLiveEstado) => void, chatEstado?: () => void): () => void {
   const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
   if (estado) {
     es.onopen = () => estado('en-directo');
@@ -145,6 +61,8 @@ function escuchar(tipos: string[], recargar: () => void, estado?: (e: GrLiveEsta
     t = setTimeout(recargar, 300);
   };
   for (const ev of tipos) es.addEventListener(ev, fn);
+  // chat switched on/off by the organisation: the event carries `{ chat_enabled }`; re-read the room state
+  if (chatEstado) es.addEventListener('chat.estado', chatEstado);
   return () => {
     clearTimeout(t);
     es.close();
@@ -158,35 +76,30 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
  *  provisional ranking) and finished (replay, results, previous edition). */
 @Component({
   selector: 'gr-en-directo',
-  imports: [RouterLink, Page, GrAlert, GrIcon, GrLiveStatus, GrSkeleton, Luces, Clasificacion, Related, Community, PanelSocial],
+  imports: [RouterLink, Page, GrAlert, GrIcon, GrSkeleton, Related, Community, PanelSocial, TarimaView],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="GRStrength Cup" accent="en directo" section="El evento" crumb="En directo" [cabecera]="false">
-      <!-- Figma 70 desktop: the title and the breadcrumbs in one row, 16 px above the player -->
-      <header class="mb-4 hidden items-end justify-between gap-6 md:flex">
-        <h1 class="[text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-xl">GRStrength Cup <span class="text-accent-text">en directo</span></h1>
-        <nav class="flex shrink-0 items-center gap-1.5 pb-2 text-body-s text-text-tertiary" aria-label="Migas">
-          <a routerLink="/" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Inicio</a><gr-icon name="chevron-right" [size]="14" /><span>El evento</span><gr-icon name="chevron-right" [size]="14" /><span class="text-text-secondary">En directo</span>
-        </nav>
-      </header>
+    <gr-page title="GRS Cup 2" accent="en directo" section="El evento" crumb="En directo" [cabecera]="false">
+      <!-- Figma 171:65287: no visible title (the video goes first); the H1 stays for SEO and screen readers -->
+      <h1 class="sr-only">GRS Cup 2 en directo</h1>
       @let d = dir();
       @if (d === undefined) { <gr-skeleton class="-mx-5 mt-1.5 block h-[218px] md:mx-0 md:mt-0 md:h-[480px] md:rounded-lg" /> }
       @else if (d === null) { @if (!fallo.limitado()) { <gr-alert tone="warning" title="No hemos podido cargar el directo">Vuelve a intentarlo en unos segundos.</gr-alert> } }
       @else {
         @if (d.pausa && d.fase === 'en_directo') { <gr-alert class="mb-5" tone="warning" title="Pausa técnica">Volvemos enseguida.@if (d.retrasoMin) { Vamos con {{ d.retrasoMin }} min de retraso. }</gr-alert> }
-        <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px] lg:grid-rows-[auto_1fr]">
+        <div class="grid md:gap-5 lg:grid-cols-[minmax(0,1fr)_400px] lg:grid-rows-[auto_1fr]">
           <!-- Video -->
           <!-- Figma 27 mobile: the video full width right under the navbar, then the title -->
           <section class="relative -mx-5 mt-1.5 h-[218px] overflow-hidden md:h-auto md:aspect-video border-y border-line-subtle bg-black md:mx-0 md:mt-0 md:rounded-xl md:border lg:col-start-1 lg:row-start-1" aria-label="Retransmisión">
             @if (video(); as v) {
-              <iframe [src]="v" class="absolute inset-0 size-full border-0" title="Retransmisión de la GR Strength Cup" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+              <iframe [src]="v" class="absolute inset-0 size-full border-0" title="Retransmisión de la GRS Cup 2" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
             } @else {
               <!-- Figma «Video»: the full venue as the poster (bright while live, dimmed before and after) -->
               <img [src]="poster" [attr.srcset]="poster + ' 640w, ' + posterL + ' 1300w'" sizes="(min-width: 1024px) 800px, 100vw" alt="" class="absolute inset-0 size-full object-cover" [class.opacity-50]="d.fase !== 'en_directo'" />
               <div class="absolute inset-0" [class]="d.fase === 'en_directo' ? 'bg-[linear-gradient(180deg,transparent_55%,rgb(20_16_18/0.75))]' : 'bg-[linear-gradient(180deg,rgb(20_16_18/0.2),rgb(20_16_18/0.85))]'"></div>
               @if (d.fase === 'antes') {
                 <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
-                  <p class="text-mono-xs text-text-secondary">{{ futuro() ? 'La retransmisión empieza en' : 'La retransmisión empezará con el primer flight' }}</p>
+                  <p class="text-mono-xs text-text-secondary">{{ futuro() ? 'La retransmisión empieza en' : 'La retransmisión empezará con el primer bloque' }}</p>
                   @if (futuro()) { <p class="font-display text-[34px] leading-none uppercase italic md:text-[56px]">{{ cuentaTexto() }}</p> }
                   <a [href]="ics" class="mt-2 inline-flex h-10 items-center gap-2 rounded-pill border border-line-strong bg-bg-base/60 px-4 text-label-s hover:border-white">Recordármelo <gr-icon name="arrow-right" [size]="14" /></a>
                 </div>
@@ -210,49 +123,16 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
             }
           </section>
 
-          <!-- UX4-R2-4 (Figma 27 mobile): the title right under the video, above the chat -->
-          <h2 class="text-display-m md:hidden">En <span class="text-accent-text">directo</span></h2>
+          <!-- Panel social (Figma 171:65287): tabs Chat · Donantes · Porra · Tarima right under the player, full width on
+               mobile; on desktop, the right column -->
+          <gr-panel-social class="-mx-5 min-w-0 md:mx-0 lg:col-start-2 lg:row-start-1 lg:row-span-2" [directo]="d" [conexion]="conexion()" />
 
-          <!-- Panel social del directo (Figma 70): en móvil va bajo el player; en escritorio, en la columna derecha -->
-          <gr-panel-social class="min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2" />
-
-          <div class="flex min-w-0 flex-col lg:col-start-1 lg:row-start-2">
+          <div class="flex min-w-0 flex-col max-md:mt-6 lg:col-start-1 lg:row-start-2">
+            <!-- desktop: the «Tarima» content stays under the player (the panel column is too narrow for it) -->
+            @if (d.fase === 'en_directo' && escritorio()) { <gr-tarima-view [directo]="d" [conexion]="conexion()" /> }
             <!-- Contenido de la fase (Figma 27): en escritorio, bajo el player -->
             <aside class="flex flex-col gap-4">
               @switch (d.fase) {
-                @case ('en_directo') {
-                  <!-- Figma «Live status»: state of the real-time connection -->
-                  <!-- Figma 70 shows the live badge on the player: the pill only appears when the connection drops -->
-                  @if (conexion() !== 'en-directo') { <gr-live-status class="self-start" [estado]="conexion()" /> }
-                  <div class="flex flex-col gap-4 lg:grid lg:grid-cols-[324px_minmax(0,1fr)] lg:items-start">
-                  @if (enPlataforma(); as a) {
-                    <section class="rounded-lg border border-accent/40 bg-[linear-gradient(150deg,#3a0f17,#1b1112_70%)] p-5" aria-live="polite">
-                      <p class="flex justify-between text-label-xs text-text-tertiary uppercase"><span>{{ mostrandoUltimo() ? 'Último intento' : 'En la plataforma' }}</span><span>Flight {{ d.flight?.codigo }}</span></p>
-                      <p class="mt-3 font-display text-[30px] leading-none uppercase italic">@if (a.slug) { <a [routerLink]="'/atletas/' + a.slug" class="hover:text-accent-text">{{ a.nombre }}</a> } @else { {{ a.nombre }} }</p>
-                      <p class="mt-1 text-body-s text-text-secondary">{{ a.club ? a.club + ' · ' : '' }}{{ catLarga(a.sexo, a.categoria) }}</p>
-                      <div class="mt-4 flex items-end justify-between gap-3">
-                        <div><p class="text-label-s">{{ MOVN[a.movimiento] }}</p><p class="text-body-xs text-text-tertiary">{{ ORD[a.numero] }} intento</p></div>
-                        <p class="font-display text-[40px] leading-none text-accent-text italic">{{ kg(a.peso) }} KG</p>
-                      </div>
-                      <div class="mt-4 flex items-center gap-3"><gr-luces [votos]="mostrandoUltimo() ? a.votos : ''" />
-                        @if (mostrandoUltimo()) { <span class="text-label-s" [class]="a.resultado === 'valido' ? 'text-success' : 'text-accent-text'">{{ a.resultado === 'valido' ? 'Válido' : a.resultado === 'nulo' ? 'Nulo' : 'Renuncia' }}</span> }</div>
-                    </section>
-                  } @else {
-                    <section class="rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">{{ d.flight ? 'Cambio de movimiento' : 'Preparando el siguiente flight' }}</p><p class="mt-1 text-body-s text-text-tertiary">En unos minutos sale el siguiente atleta.</p></section>
-                  }
-                  <!-- on mobile «Siguientes» lives in the «Plataforma» tab (Figma 27) -->
-                  <section class="hidden lg:block">
-                    <p class="text-label-s">Siguientes</p>
-                    <ul class="mt-2 divide-y divide-line-subtle">
-                      @for (s of d.siguientes; track $index) {
-                        <li class="flex items-center gap-3 px-4 py-3"><span class="flex size-7 shrink-0 items-center justify-center rounded-pill border border-line-strong text-mono-xs">{{ $index + 1 }}</span>
-                          <span class="min-w-0 flex-1"><span class="block truncate text-label-s">{{ s.nombre }}</span><span class="block text-body-xs text-text-tertiary">{{ MOVN[s.movimiento] }} · {{ ORD[s.numero] }} intento</span></span>
-                          <span class="font-mono text-mono-s">{{ kg(s.peso) }} kg</span></li>
-                      } @empty { <li class="px-4 py-3 text-body-s text-text-tertiary">Último atleta de la ronda.</li> }
-                    </ul>
-                  </section>
-                  </div>
-                }
                 @case ('antes') {
                   @if (futuro()) {
                     <div class="grid grid-cols-4 gap-2" role="timer" [attr.aria-label]="'Faltan ' + cuentaTexto()">
@@ -276,56 +156,14 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
                   <a routerLink="/ediciones/2025" class="group overflow-hidden rounded-lg border border-line-subtle bg-bg-card transition-colors hover:border-line-strong">
                     <div class="relative h-40"><img [src]="foto2025" alt="" class="size-full object-cover object-top" /><p class="absolute bottom-3 left-4 font-display text-[44px] leading-none italic">2025</p></div>
                     <div class="p-4"><span class="rounded-2xs border border-line-strong px-1.5 py-0.5 text-mono-xs text-text-tertiary">Celebrada</span>
-                      <p class="mt-2 font-display text-[22px] uppercase italic">GRStrength Cup 2025</p>
+                      <p class="mt-2 font-display text-[22px] uppercase italic">GRS Cup 2025</p>
                       <p class="mt-1 text-body-xs text-text-tertiary">1–2 marzo 2025 · Llíria (Valencia) · AEP-2 Regional</p>
                       <span class="mt-3 inline-flex text-label-s group-hover:text-accent-text">Ver la edición →</span></div>
                   </a>
                 }
               }
             </aside>
-
-          @if (d.fase === 'en_directo') {
-            <nav class="mt-8 grid grid-cols-3 border-b border-line-subtle" aria-label="Directo">
-              @for (t of tabs; track t.v) {
-                <button type="button" class="relative h-11 text-label-s" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null" (click)="tab.set(t.v)">{{ t.l }}
-                  @if (tab() === t.v) { <span class="absolute inset-x-6 bottom-0 h-0.5 rounded-t-2xs bg-accent"></span> }</button>
-              }
-            </nav>
-            <div class="mt-5">
-              @switch (tab()) {
-                @case ('clasificacion') {
-                  @if (d.clasificacion.length > 1) {
-                    <div class="mb-3 flex flex-wrap gap-2">@for (c of d.clasificacion; track c.clave) { <button type="button" class="h-9 rounded-pill border px-3 text-label-s" [class]="catSel() === c.clave ? 'border-accent bg-accent-deep/40' : 'border-line-strong text-text-secondary'" (click)="cat.set(c.clave)">{{ c.corto }}</button> }</div>
-                  }
-                  @if (categoria(); as c) { <gr-clasificacion [c]="c" /> <p class="mt-2 text-body-xs text-text-tertiary">Clasificación provisional: la oficial se publica en /resultados al terminar la categoría.</p> }
-                }
-                @case ('plataforma') {
-                  <section class="mb-4 lg:hidden">
-                    <p class="text-label-xs text-text-tertiary uppercase">Siguientes</p>
-                    <ul class="mt-2 divide-y divide-line-subtle">
-                      @for (s of d.siguientes; track $index) {
-                        <li class="flex items-center gap-3 py-3"><span class="flex size-7 shrink-0 items-center justify-center rounded-full border border-line-strong text-label-xs">{{ s.numero }}</span>
-                          <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ s.nombre }}</span><span class="block text-body-xs text-text-tertiary">{{ MOVN[s.movimiento] }} · {{ ORD[s.numero] }} intento</span></span>
-                          <span class="text-mono-s">{{ kg(s.peso) }} kg</span></li>
-                      } @empty { <li class="py-3 text-body-s text-text-tertiary">Último atleta de la ronda.</li> }
-                    </ul>
-                  </section>
-                  <div class="grid gap-3 md:grid-cols-3">
-                    <div class="rounded-lg border border-line-subtle bg-bg-card p-4"><p class="text-mono-xs text-text-tertiary">Flight</p><p class="mt-1 text-label-m">{{ d.flight?.codigo }} · {{ d.flight?.titulo }}</p><p class="text-body-xs text-text-tertiary">Plataforma {{ d.flight?.plataforma }}</p></div>
-                    <div class="rounded-lg border border-line-subtle bg-bg-card p-4"><p class="text-mono-xs text-text-tertiary">Movimiento</p><p class="mt-1 text-label-m">{{ MOVN[d.movimiento] }}</p><p class="text-body-xs text-text-tertiary">{{ d.ronda <= 3 ? 'Ronda ' + d.ronda + ' de 3' : 'Terminado' }}</p></div>
-                    <div class="rounded-lg border border-line-subtle bg-bg-card p-4"><p class="text-mono-xs text-text-tertiary">Último intento</p>
-                      @if (d.ultimo; as u) { <p class="mt-1 text-label-m">{{ u.nombre }} · {{ kg(u.peso) }} kg</p><div class="mt-1 flex items-center gap-2"><gr-luces [votos]="u.votos" [size]="14" /><span class="text-body-xs text-text-tertiary">{{ MOVN[u.movimiento] }} {{ ORD[u.numero] }}</span></div> }
-                      @else { <p class="mt-1 text-body-s text-text-tertiary">Aún ninguno</p> }</div>
-                  </div>
-                }
-                @case ('horario') {
-                  <div class="rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">{{ d.retrasoMin ? 'Vamos con ' + d.retrasoMin + ' min de retraso' : 'Vamos en hora' }}</p>
-                    <p class="mt-1 text-body-s text-text-tertiary">Los horarios se actualizan con el retraso en directo y marcan el flight que está en la plataforma.</p>
-                    <a routerLink="/horarios" class="mt-3 inline-flex h-9 items-center gap-2 rounded-pill border border-line-strong px-3 text-label-s hover:border-white">Ver horarios <gr-icon name="arrow-right" [size]="14" /></a></div>
-                }
-              }
-            </div>
-          } @else {
+          @if (d.fase !== 'en_directo') {
             <gr-related class="mt-14 block" titulo="Mientras tanto" [items]="mientras" />
           }
           </div>
@@ -340,13 +178,10 @@ export class EnDirectoPage {
   protected readonly fallo = inject(FalloApi);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   protected readonly dir = signal<Directo | null | undefined>(undefined);
-  protected readonly tab = signal<'plataforma' | 'clasificacion' | 'horario'>('clasificacion');
-
-  protected readonly cat = signal('');
   private readonly ahora = signal(Date.now());
-  protected readonly tabs = [{ v: 'plataforma' as const, l: 'Plataforma' }, { v: 'clasificacion' as const, l: 'Clasificación' }, { v: 'horario' as const, l: 'Horario' }];
+  protected readonly escritorio = escritorio();
   protected readonly mientras: RelatedLink[] = [
-    { titulo: 'Participantes', texto: 'Busca tu bloque y flight', ruta: '/participantes' },
+    { titulo: 'Participantes', texto: 'Busca tu bloque', ruta: '/participantes' },
     { titulo: 'Horarios', texto: 'Bloques por categoría', ruta: '/horarios' },
     { titulo: 'Reglamento', texto: 'Cómo se juzga un intento', ruta: '/reglamento' },
   ];
@@ -372,18 +207,6 @@ export class EnDirectoPage {
     const u = url ? embed(url, location.hostname, d.fase === 'en_directo') : null;
     return u ? this.san.bypassSecurityTrustResourceUrl(u) : null;
   });
-  /** After the lights, the judged attempt stays on screen for 8 s. */
-  protected readonly mostrandoUltimo = computed(() => {
-    const u = this.dir()?.ultimo;
-    return !!u?.juzgadoAt && this.ahora() - new Date(u.juzgadoAt).getTime() < 8000;
-  });
-  protected readonly enPlataforma = computed<EnPlataforma | undefined>(() => (this.mostrandoUltimo() ? this.dir()?.ultimo : this.dir()?.actual));
-  protected readonly catSel = computed(() => {
-    const d = this.dir();
-    const a = d?.actual;
-    return this.cat() || (a ? a.sexo + a.categoria : d?.clasificacion[0]?.clave) || '';
-  });
-  protected readonly categoria = computed<Categoria | undefined>(() => this.dir()?.clasificacion.find((c) => c.clave === this.catSel()) ?? this.dir()?.clasificacion[0]);
   private readonly ms = computed(() => {
     const p = this.dir()?.proximo;
     return p ? new Date(p.inicio).getTime() - this.ahora() : 0;
@@ -401,8 +224,6 @@ export class EnDirectoPage {
   protected readonly anio = computed(() => (this.dir()?.proximo?.inicio ?? new Date().toISOString()).slice(0, 4));
 
   constructor() {
-    // mobile opens on «Plataforma» (Figma 27); switched after hydration so the server HTML and the first render match
-    afterNextRender(() => { if (window.matchMedia('(max-width: 1023px)').matches) this.tab.set('plataforma'); });
     // the chat panel follows the phase of the live (header, chip and composer)
     const chat = inject(ChatService);
     effect(() => {
@@ -414,9 +235,9 @@ export class EnDirectoPage {
     void inject(PendingTasks).run(async () => {
       this.dir.set(await this.api.directo());
       const d = this.dir();
-      await applySeo(cms, seo, '/en-directo', 'En directo · GR Strength Cup',
-        d?.fase === 'en_directo' ? 'Sigue en directo la GR Strength Cup: quién está en la plataforma, los siguientes y la clasificación provisional.'
-          : 'Retransmisión y resultados en directo de la GR Strength Cup: quién compite, los siguientes atletas y la clasificación al momento.');
+      await applySeo(cms, seo, '/en-directo', 'En directo · GRS Cup 2',
+        d?.fase === 'en_directo' ? 'Sigue en directo la GRS Cup 2: chat, quién está en la tarima, los siguientes y la clasificación provisional.'
+          : 'Retransmisión y resultados en directo de la GRS Cup 2: quién compite, los siguientes atletas y la clasificación al momento.');
     });
     if (this.browser) {
       const tick = setInterval(() => this.ahora.set(Date.now()), 1000);
@@ -424,7 +245,7 @@ export class EnDirectoPage {
         const d = await this.api.directo();
         if (d) this.dir.set(d);
       };
-      const cerrar = escuchar(EVENTOS, () => void recargar(), (e) => this.conexion.set(e));
+      const cerrar = escuchar(EVENTOS, () => void recargar(), (e) => this.conexion.set(e), () => void chat.cargarEstadoSala());
       const poll = setInterval(() => void recargar(), 30_000);
       inject(DestroyRef).onDestroy(() => {
         clearInterval(tick);

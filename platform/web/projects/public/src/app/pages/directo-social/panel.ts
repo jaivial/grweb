@@ -1,8 +1,11 @@
 import { isPlatformBrowser } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, computed, effect, inject, input, signal, untracked, type Signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { GrButton, GrIcon, GrToasts } from '@grcup/ui';
-import { ChatService, diaDeHoy, etiquetaDia } from '../../core/chat';
+import { map } from 'rxjs';
+import { GrIcon, GrToasts, type GrLiveEstado } from '@grcup/ui';
+import { ChatService, diaDeHoy } from '../../core/chat';
+import { type Directo } from '../../core/directo';
 import { Donaciones } from '../../core/donaciones';
 import { FanSession } from '../../core/fan';
 import { Juegos, type Jornada } from '../../core/juegos';
@@ -10,80 +13,66 @@ import { ChatView } from './chat-view';
 import { DonantesView } from './donantes-view';
 import { DonarModal } from './donar-modal';
 import { PorraView } from './porra-view';
+import { TarimaView } from './tarima-view';
 
-type Pestana = 'chat' | 'donantes' | 'porra';
+type Pestana = 'chat' | 'donantes' | 'porra' | 'tarima';
+const PESTANAS: readonly Pestana[] = ['chat', 'donantes', 'porra', 'tarima'];
+
+/** True on desktop (≥ 1024 px), following resizes; false on the server. Call it in an injection context. */
+export function escritorio(): Signal<boolean> {
+  const s = signal(false);
+  if (isPlatformBrowser(inject(PLATFORM_ID))) {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    s.set(mq.matches);
+    const fn = (e: MediaQueryListEvent) => s.set(e.matches);
+    mq.addEventListener('change', fn);
+    inject(DestroyRef).onDestroy(() => mq.removeEventListener('change', fn));
+  }
+  return s.asReadonly();
+}
 
 /**
- * Panel social del directo (Figma 70, «/en-directo · Directo con chat»): cabecera con la presencia, pestañas
- * Chat · Donantes · Porra, selector de jornada y el cuerpo de cada pestaña.
+ * Panel social del directo (Figma 171:65287 · «Directo · Pestañas (móvil)» 393:120125): the connected count and the
+ * Chat · Donantes · Porra · Tarima tabs right under the player (full width, no box, on mobile), and the body of each
+ * tab. The tab lives in `?tab=` (chat by default). On desktop «Tarima» stays under the player, so the tab hides.
  */
 @Component({
   selector: 'gr-panel-social',
-  imports: [GrIcon, GrButton, ChatView, DonantesView, PorraView, DonarModal],
+  imports: [GrIcon, ChatView, DonantesView, PorraView, DonarModal, TarimaView],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block' },
   styles: `
-    @keyframes gr-latido { 0% { transform: scale(1); opacity: 0.7; } 80%, 100% { transform: scale(2.4); opacity: 0; } }
-    .gr-latido { animation: gr-latido 2s ease-out infinite; }
     @keyframes gr-tab { from { opacity: 0; } to { opacity: 1; } }
     .gr-tab { animation: gr-tab 200ms ease-out both; }
-    @media (prefers-reduced-motion: reduce) { .gr-latido { animation: none; display: none; } .gr-tab { animation: none; } }
+    @media (prefers-reduced-motion: reduce) { .gr-tab { animation: none; } }
   `,
   template: `
-    <section class="flex flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card bg-[linear-gradient(180deg,rgb(110_20_32/0.42),transparent_220px)] lg:sticky lg:top-[92px] lg:h-[calc(100vh-120px)]" aria-label="Chat del directo">
-      <header class="flex shrink-0 items-center justify-between gap-2 px-4 md:gap-3 pt-4 pb-3">
-        <div class="min-w-0">
-          <h2 class="font-display text-[20px] leading-none text-text-primary uppercase italic">Chat en directo</h2>
-          <p class="mt-2 flex items-center gap-x-2 font-mono text-[12px] leading-none font-medium tracking-[0.04em] whitespace-nowrap uppercase md:tracking-[0.08em]" role="status">
-            <span class="relative flex size-2 shrink-0" aria-hidden="true">
-              @if (vivo()) { <span class="gr-latido absolute inset-0 rounded-full bg-accent"></span> }
-              <span class="relative size-2 rounded-full" [class]="puntoClase()"></span>
-            </span>
-            <span [class]="estadoClase()">{{ badge() }}</span>
-            @if (vivo()) {
-              <span class="inline-flex items-center gap-1 whitespace-nowrap text-text-tertiary md:before:mr-0.5 md:before:text-text-muted md:before:content-['·']"><gr-icon name="users" [size]="12" />{{ conectados() }} {{ conectados() === '1' ? 'conectado' : 'conectados' }}</span>
-            }
-          </p>
-        </div>
-        <button type="button" grButton variant="primary" icon="heart" class="shrink-0" (click)="donar.set(true)">Donar</button>
-      </header>
-
-      <nav class="grid shrink-0 grid-cols-3 border-b border-line-subtle px-2" role="tablist" aria-label="Secciones del directo">
-        @for (t of pestanas; track t.v) {
-          <button type="button" role="tab" [id]="'tab-' + t.v" aria-controls="panel-directo" [attr.aria-selected]="tab() === t.v" class="relative h-11 text-label-s transition-colors" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" (click)="tab.set(t.v)">
+    <section class="flex flex-col md:overflow-hidden md:rounded-lg md:border md:border-line-subtle md:bg-bg-card lg:sticky lg:top-[92px] lg:h-[calc(100vh-120px)]" aria-label="Chat y juegos del directo">
+      <p class="flex h-6 shrink-0 items-center justify-end gap-1.5 px-4 pt-1.5 pb-0.5 font-mono text-[11px] leading-none font-medium tracking-[0.08em] text-text-tertiary uppercase md:h-8 md:pt-3" role="status">
+        @if (vivo()) { <gr-icon name="users" [size]="16" />{{ conectados() }} {{ conectados() === '1' ? 'conectado' : 'conectados' }} }
+      </p>
+      <nav class="grid shrink-0 border-b border-line-subtle px-1" [class]="visibles().length === 4 ? 'grid-cols-4' : 'grid-cols-3'" role="tablist" aria-label="Secciones del directo">
+        @for (t of visibles(); track t.v) {
+          <button type="button" role="tab" [id]="'tab-' + t.v" aria-controls="panel-directo" [attr.aria-selected]="tab() === t.v" class="relative h-[42px] pt-0.5 text-[14px] leading-[17px] font-semibold transition-colors" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" (click)="elegir(t.v)">
             {{ t.l }}
-            @if (tab() === t.v) { <span class="absolute bottom-0 left-1/2 h-0.5 w-14 -translate-x-1/2 rounded-t-2xs bg-accent shadow-[0_0_8px_rgb(196_43_62/0.6)]"></span> }
+            @if (tab() === t.v) { <span class="absolute inset-x-0 bottom-0 h-[3px] rounded-t-2xs bg-accent-grain" aria-hidden="true"></span> }
           </button>
         }
       </nav>
 
-      <!-- jornada: una sola fila con scroll horizontal y degradado de borde (la de hoy con punto vivo) -->
-      <div class="shrink-0 border-b border-line-subtle/60" role="group" aria-label="Jornada">
-        <div class="flex gap-2 overflow-x-auto px-4 [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent)] [scrollbar-width:none]">
-          @for (o of opciones(); track o.dia) {
-            <button type="button" class="group flex h-11 shrink-0 items-center md:h-[52px]" [attr.aria-pressed]="o.dia === chat.dia()" (click)="elegirDia(o.dia)">
-              <span class="inline-flex h-8 items-center gap-1.5 rounded-pill border px-3 text-label-s transition-colors"
-                [class]="o.dia === chat.dia() ? 'border-accent/60 bg-accent-deep/35 text-accent-text' : 'border-line-strong text-text-secondary group-hover:border-text-muted group-hover:text-text-primary'">
-                @if (o.hoy && chat.fase() === 'en_directo') { <span class="size-1.5 rounded-full bg-accent shadow-[0_0_6px_rgb(196_43_62/0.8)]" aria-hidden="true"></span> }
-                {{ o.l }}
-              </span>
-            </button>
-          }
-          <span class="w-6 shrink-0" aria-hidden="true"></span>
-        </div>
-      </div>
-
-      <!-- UX4-R1-11: one tabpanel, same height for the three tabs (no jump), a short fade on change -->
       @for (t of [tab()]; track t) {
-      <div id="panel-directo" role="tabpanel" [attr.aria-labelledby]="'tab-' + t" class="gr-tab flex min-h-[600px] flex-1 flex-col lg:min-h-0">
+      <div id="panel-directo" role="tabpanel" [attr.aria-labelledby]="'tab-' + t" class="gr-tab flex flex-col lg:min-h-0 lg:flex-1"
+        [class]="t === 'chat' ? 'h-[max(360px,calc(100dvh-382px))] md:h-[600px] lg:h-auto' : 'min-h-[480px] md:min-h-[600px]'">
         @switch (t) {
           @case ('chat') { <gr-chat-view (donar)="donar.set(true)" /> }
           @case ('donantes') { <gr-donantes-view [diaSala]="chat.dia()" [jornadaId]="jornadaId()" (donar)="donar.set(true)" /> }
           @case ('porra') { <gr-porra-view [jornadaId]="jornadaPorra()?.id ?? ''" [jornadaNombre]="jornadaPorra()?.nombre ?? ''" [cargada]="jornadasCargadas()" /> }
+          @case ('tarima') { @if (directo(); as d) { <gr-tarima-view class="px-4 py-4 md:px-5" [directo]="d" [conexion]="conexion()" /> } }
         }
       </div>
       }
     </section>
-    <gr-donar-modal [(abierto)]="donar" (verRanking)="tab.set('donantes')" />
+    <gr-donar-modal [(abierto)]="donar" (verRanking)="elegir('donantes')" />
   `,
 })
 export class PanelSocial {
@@ -95,67 +84,48 @@ export class PanelSocial {
   private readonly toasts = inject(GrToasts);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
-  protected readonly tab = signal<Pestana>('chat');
+  /** The live data of the page (the «Tarima» tab shows it). */
+  readonly directo = input<Directo | null | undefined>(undefined);
+  /** State of the real-time connection of the page. */
+  readonly conexion = input<GrLiveEstado>('en-directo');
+
+  private readonly escritorio = escritorio();
+  private readonly pedida = toSignal(this.route.queryParamMap.pipe(map((q) => q.get('tab'))), { initialValue: this.route.snapshot.queryParamMap.get('tab') });
+  /** The tab of `?tab=`; chat when absent or unknown (and on desktop for «tarima», which sits under the player). */
+  protected readonly tab = computed<Pestana>(() => {
+    const p = this.pedida() as Pestana | null;
+    if (!p || !PESTANAS.includes(p)) return 'chat';
+    return p === 'tarima' && this.escritorio() ? 'chat' : p;
+  });
   protected readonly donar = signal(false);
   protected readonly jornadas = signal<Jornada[]>([]);
   protected readonly jornadasCargadas = signal(false);
-  /** Still on the first connection attempt (or its first 8 s). */
-  private readonly primera = signal(true);
 
-  protected readonly pestanas: { v: Pestana; l: string }[] = [
+  private readonly pestanas: { v: Pestana; l: string }[] = [
     { v: 'chat', l: 'Chat' },
     { v: 'donantes', l: 'Donantes' },
     { v: 'porra', l: 'Porra' },
+    { v: 'tarima', l: 'Tarima' },
   ];
+  protected readonly visibles = computed(() => (this.escritorio() ? this.pestanas.filter((t) => t.v !== 'tarima') : this.pestanas));
 
-  /** La sala viva (hoy) y las jornadas de juegos de otros días (historial de solo lectura). */
-  protected readonly opciones = computed(() => {
-    const hoy = diaDeHoy();
-    const lista = [{ dia: hoy, l: this.chat.fase() === 'en_directo' ? 'Hoy · en directo' : 'Hoy', hoy: true }];
-    const otras = this.jornadas()
-      .filter((j) => j.dia !== hoy)
-      .sort((a, b) => a.dia.localeCompare(b.dia))
-      .map((j) => ({ dia: j.dia, l: `${j.nombre} · ${etiquetaDia(j.dia)}`, hoy: false }));
-    return [...lista, ...otras];
-  });
-
-  /** The jornada of the day being shown (its id is needed by the games). */
+  /** The jornada of today (its id is needed by the games). */
   protected readonly jornadaId = computed(() => this.jornadas().find((j) => j.dia === this.chat.dia())?.id ?? '');
-  protected readonly jornadaNombre = computed(() => this.jornadas().find((j) => j.dia === this.chat.dia())?.nombre ?? '');
-  /** The porra of the day shown; today without a jornada falls back to the open one (never a 404 «no jornada today»). */
+  /** The porra of today; without a jornada today it falls back to the open one (never a 404 «no jornada today»). */
   protected readonly jornadaPorra = computed<Jornada | undefined>(() => {
     const l = this.jornadas();
-    return l.find((j) => j.dia === this.chat.dia()) ?? (this.chat.soloLectura() ? undefined : l.find((j) => j.estado === 'abierta' || j.estado === 'en_juego'));
+    return l.find((j) => j.dia === this.chat.dia()) ?? l.find((j) => j.estado === 'abierta' || j.estado === 'en_juego');
   });
 
-  protected readonly badge = computed(() => {
-    if (this.chat.soloLectura()) return `Historial · ${etiquetaDia(this.chat.dia())}`;
-    if (this.chat.fase() === 'antes') return 'Antes del directo';
-    if (this.chat.fase() === 'finalizado') return 'Directo finalizado';
-    if (this.chat.estado() === 'conectado') return 'En directo';
-    if (this.chat.estado() === 'reconectando') return 'Reconectando…';
-    // UX4-R1-9: the first attempt is not an outage
-    return this.primera() ? 'Conectando…' : 'Sin conexión';
-  });
-  protected readonly puntoClase = computed(() => {
-    if (this.chat.cerrado()) return 'bg-text-muted';
-    if (this.chat.estado() === 'conectado') return 'bg-accent shadow-[0_0_8px_rgb(196_43_62/0.8)]';
-    if (this.chat.estado() === 'reconectando') return 'bg-warning shadow-[0_0_8px_rgb(245_158_11/0.7)]';
-    return 'bg-text-muted';
-  });
-  protected readonly estadoClase = computed(() => {
-    if (this.chat.cerrado()) return 'text-text-tertiary';
-    if (this.chat.estado() === 'conectado') return 'text-accent-text';
-    if (this.chat.estado() === 'reconectando') return 'text-warning';
-    return 'text-text-tertiary';
-  });
-  /** Live room of today, connected: the dot beats and the audience shows. */
-  protected readonly vivo = computed(() => this.chat.estado() === 'conectado' && !this.chat.cerrado());
+  /** Connected and live: the audience shows (no red dot, Figma 393:120125). */
+  protected readonly vivo = computed(() => this.chat.estado() === 'conectado' && !this.chat.cerrado() && this.chat.conectados() > 0);
   protected readonly conectados = computed(() => new Intl.NumberFormat('es-ES').format(this.chat.conectados()));
 
   constructor() {
     if (this.browser) {
+      // one room: the active one of today (no day picker)
       this.chat.conectar(diaDeHoy());
       void this.fan.cargar();
       void this.juegos
@@ -166,9 +136,12 @@ export class PanelSocial {
       // The return of the payment (the backend sends to /en-directo?donacion=ok|cancelada).
       const donacion = this.route.snapshot.queryParamMap.get('donacion');
       // consumed once: a re-created panel (the page reloads its data) must not toast again
-      if (donacion) void this.router.navigate([], { relativeTo: this.route, queryParams: { donacion: null }, queryParamsHandling: 'merge', replaceUrl: true });
+      if (donacion) {
+        const queryParams: Record<string, string | null> = { donacion: null };
+        if (donacion === 'ok') queryParams['tab'] = 'donantes';
+        void this.router.navigate([], { relativeTo: this.route, queryParams, queryParamsHandling: 'merge', replaceUrl: true });
+      }
       if (donacion === 'ok') {
-        this.tab.set('donantes');
         this.toasts.success('¡Gracias! Tu donativo aparecerá en el chat', 'Los coins y las monedas de GRS Fantasy se acreditan al volver a la sala de la jornada.');
       } else if (donacion === 'cancelada') {
         this.toasts.info('Donativo cancelado', 'No se ha hecho ningún cargo: puedes intentarlo otra vez cuando quieras.');
@@ -180,13 +153,15 @@ export class PanelSocial {
       if (!n) return;
       untracked(() => void this.don.cargarRanking(this.chat.dia()));
     });
-    effect(() => { if (this.chat.estado() !== 'sin-conexion') untracked(() => this.primera.set(false)); });
-    if (this.browser) { const t = setTimeout(() => this.primera.set(false), 8000); inject(DestroyRef).onDestroy(() => clearTimeout(t)); }
     inject(DestroyRef).onDestroy(() => this.chat.desconectar());
   }
 
-  protected elegirDia(dia: string): void {
-    if (dia === this.chat.dia()) return;
-    this.chat.conectar(dia);
+  protected elegir(t: Pestana): void {
+    if (t !== this.tab()) void this.router.navigate([], { relativeTo: this.route, queryParams: { tab: t === 'chat' ? null : t }, queryParamsHandling: 'merge', replaceUrl: true });
+    // Figma 393:121897 · 5: on mobile, opening the chat scrolls the page so the block fits the screen
+    if (t === 'chat' && this.browser && window.matchMedia('(max-width: 767px)').matches) {
+      const suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      requestAnimationFrame(() => this.host.nativeElement.scrollIntoView({ block: 'end', behavior: suave ? 'smooth' : 'auto' }));
+    }
   }
 }
