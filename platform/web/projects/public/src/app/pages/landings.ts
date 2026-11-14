@@ -1,6 +1,6 @@
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, input, signal } from '@angular/core';
-import { GrButton, GrIcon, GrSkeleton, type GrIconName } from '@grcup/ui';
+import { GrButton, GrIcon, GrSelect, GrSkeleton, type GrIconName } from '@grcup/ui';
 import { Cms, type Landing, type Seccion } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { HOME_ALTERNATES, Seo } from '../core/seo';
