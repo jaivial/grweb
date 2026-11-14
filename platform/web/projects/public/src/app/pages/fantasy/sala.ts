@@ -81,12 +81,32 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } f
                   </li>
                 }
                 @if (!d.empezada && d.sala.miembros < d.sala.plazas && abierta()) {
-                  <li class="flex items-center gap-3 rounded-[14px] border border-dashed border-line-strong px-4 py-3 text-body-s text-text-muted"><gr-icon name="plus" [size]="16" class="shrink-0" />Plaza libre · comparte el enlace</li>
+                  <li>
+                    @if (puedeSolicitar()) {
+                      <button type="button" class="flex min-h-11 w-full items-center gap-3 rounded-[14px] border border-dashed border-line-strong px-4 py-3 text-left text-body-s text-text-secondary hover:text-text-primary disabled:opacity-40" [disabled]="operando() === 'solicitar'" (click)="solicitar()"><gr-icon name="plus" [size]="16" class="shrink-0" />Plaza libre · solicitar unirse</button>
+                    } @else if (d.codigo) {
+                      <button type="button" class="flex min-h-11 w-full items-center gap-3 rounded-[14px] border border-dashed border-line-strong px-4 py-3 text-left text-body-s text-text-secondary hover:text-text-primary" (click)="compartir()"><gr-icon name="share" [size]="16" class="shrink-0" />Plaza libre · compartir enlace</button>
+                    } @else {
+                      <p class="flex items-center gap-3 rounded-[14px] border border-dashed border-line-strong px-4 py-3 text-body-s text-text-tertiary"><gr-icon name="plus" [size]="16" class="shrink-0" />Plaza libre</p>
+                    }
+                  </li>
                 }
               </ul>
             </section>
 
             <aside class="flex min-w-0 flex-col gap-4 lg:w-[420px] lg:shrink-0">
+              @if (accionUnirse(); as a) {
+                <!-- UX6-R1-1: no miembro: solicitar o cancelar; en móvil, barra fija en la zona del pulgar -->
+                <section class="flex flex-col gap-3 rounded-lg border border-line-accent bg-bg-surface p-5" aria-labelledby="sala-unirse">
+                  <h2 id="sala-unirse" class="text-ui-h5 text-text-primary">{{ a === 'cancelar' ? 'Solicitud pendiente' : 'Únete a esta sala' }}</h2>
+                  <p class="text-body-s text-text-secondary">{{ a === 'cancelar' ? 'El anfitrión decide quién entra. Te avisamos aquí cuando responda.' : 'El anfitrión aprueba tu solicitud. Puedes tener hasta 3 pendientes.' }}</p>
+                  <button type="button" grButton [variant]="a === 'cancelar' ? 'outline' : 'primary'" [block]="true" class="hidden md:flex" [loading]="operando() === 'solicitar'" (click)="a === 'cancelar' ? cancelarSolicitud() : solicitar()">{{ a === 'cancelar' ? 'Cancelar solicitud' : 'Solicitar unirse · ' + d.sala.miembros + '/' + d.sala.plazas }}</button>
+                </section>
+                <div class="h-20 md:hidden" aria-hidden="true"></div>
+                <div class="fixed inset-x-0 bottom-0 z-40 border-t border-line-subtle bg-bg-base/95 px-4 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[10px] md:hidden">
+                  <button type="button" grButton [variant]="a === 'cancelar' ? 'outline' : 'primary'" [block]="true" class="h-12" [loading]="operando() === 'solicitar'" (click)="a === 'cancelar' ? cancelarSolicitud() : solicitar()">{{ a === 'cancelar' ? 'Solicitud pendiente · Cancelar' : 'Solicitar unirse · ' + d.sala.miembros + '/' + d.sala.plazas }}</button>
+                </div>
+              }
               @if (esAnfitrion() && !d.empezada && abierta()) {
                 <section id="solicitudes" class="flex flex-col gap-3 rounded-lg border border-line-accent bg-bg-surface p-5" aria-labelledby="sala-solicitudes">
                   <div class="flex items-center gap-2">
@@ -216,6 +236,15 @@ export class SalaPage {
   protected readonly sala = computed(() => this.detalle()?.sala ?? null);
   protected readonly esAnfitrion = computed(() => this.detalle()?.filas.some((f) => f.esYo && f.esAnfitrion) ?? false);
   protected readonly abierta = computed(() => ['esperando', 'lista', 'llena'].includes(this.sala()?.estado ?? ''));
+  /** UX6-R1-1: lo que puede hacer quien no es miembro (sala pública, abierta y sin empezar). */
+  protected readonly accionUnirse = computed<'solicitar' | 'cancelar' | null>(() => {
+    const d = this.detalle();
+    if (!d || d.sala.esMia || d.empezada || !d.sala.publica) return null;
+    if (d.sala.miSolicitud === 'pendiente') return 'cancelar';
+    const ok = (d.sala.estado === 'esperando' || d.sala.estado === 'lista') && d.sala.miSolicitud !== 'rechazada' && d.sala.miSolicitud !== 'expulsada';
+    return ok ? 'solicitar' : null;
+  });
+  protected readonly puedeSolicitar = computed(() => this.accionUnirse() === 'solicitar');
   protected readonly llena = computed(() => (this.sala()?.miembros ?? 0) >= (this.sala()?.plazas ?? 0));
   protected readonly subtitulo = computed(() => {
     const d = this.detalle();
@@ -372,6 +401,13 @@ export class SalaPage {
   }
   protected responder(solicitudId: string, aceptar: boolean): void {
     void this.operar(solicitudId, () => this.juegos.responderSolicitud(this.id, solicitudId, aceptar));
+  }
+  protected solicitar(): void {
+    if (!this.fan.conSesion()) return this.fan.abrirAcceso('fantasy', '/fantasy/salas/' + this.id);
+    void this.operar('solicitar', () => this.juegos.solicitar(this.id));
+  }
+  protected cancelarSolicitud(): void {
+    void this.operar('solicitar', () => this.juegos.cancelarSolicitud(this.id));
   }
   protected expulsar(f: FilaSala): void {
     void this.operar(f.miembroId, () => this.juegos.expulsar(this.id, f.miembroId));
