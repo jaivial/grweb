@@ -20,7 +20,6 @@ import (
 
 	"github.com/jaivial/grweb/platform/pkg/config"
 	"github.com/jaivial/grweb/platform/pkg/fanauth"
-	"github.com/jaivial/grweb/platform/pkg/httpx"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 	"github.com/jaivial/grweb/platform/pkg/ratelimit"
 )
@@ -690,7 +689,7 @@ type reportarOut struct {
 }
 
 // reportar flags a message for the moderation queue: fan session required, one report per fan and message,
-// limited per fan and per IP. A message still in the stream (persistence lag) is persisted here with its report.
+// limited per fan. A message still in the stream (persistence lag) is persisted here with its report.
 func (s *Svc) reportar(ctx context.Context, in *reportarIn) (*reportarOut, error) {
 	cid, err := s.comps.ID(ctx, in.Slug)
 	if err != nil {
@@ -705,13 +704,6 @@ func (s *Svc) reportar(ctx context.Context, in *reportarIn) (*reportarOut, error
 	}
 	if in.Dia != "" && !diaValido(in.Dia) {
 		return nil, problem.BadRequest("DIA_INVALIDO", "El parámetro dia tiene que ser una fecha YYYY-MM-DD.")
-	}
-	ip := httpx.ClientIPFrom(ctx)
-	if r, err := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("chat", "reportes", ip), 20, time.Hour); err == nil && !r.Allowed {
-		return nil, problem.TooMany("Has reportado demasiado. Inténtalo más tarde.")
-	}
-	if r, err := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("chat", "reportes", "fan", f.ID.String()), 20, time.Hour); err == nil && !r.Allowed {
-		return nil, problem.TooMany("Has reportado demasiado. Inténtalo más tarde.")
 	}
 	// the id of the stream is only unique inside a room: with the day of the message the report goes to that
 	// jornada; without it, to the most recent day with that id (fallback)
@@ -731,6 +723,12 @@ func (s *Svc) reportar(ctx context.Context, in *reportarIn) (*reportarOut, error
 			return nil, problem.NotFound("Mensaje no encontrado.")
 		}
 		return &reportarOut{Body: reportarBody{Reportes: n}}, nil
+	}
+	// limit per fan only, after the dedup (a repeated report spends nothing). No per-IP cap (ST1-R2-4): the fans
+	// of the venue share a NAT, and a fan session is already required.
+	if r, err := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("chat", "reportes", "fan", f.ID.String()), 20, time.Hour); err == nil && !r.Allowed {
+		s.a.Redis.Del(ctx, dk)
+		return nil, problem.TooMany("Has reportado demasiado. Inténtalo más tarde.")
 	}
 	var n int
 	err = s.a.DB.QueryRow(ctx, `UPDATE mensajes SET reportes = reportes + 1 WHERE `+cond+` RETURNING reportes`, args...).Scan(&n)
