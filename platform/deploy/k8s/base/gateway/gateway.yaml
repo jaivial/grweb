@@ -63,7 +63,9 @@ spec:
             readOnlyRootFilesystem: true
             capabilities: { drop: [ALL] }
           resources:
-            requests: { cpu: 250m, memory: 96Mi } # ST1 QA r2: 300 writers = 1317m of gateway (8 × 150m maxed out); 1000 idle WS ≈ 41Mi per pod (85 % of 48Mi)
+            # ST1 QA r2: 300 writers = 1317m of gateway (8 × 150m maxed out). QA r3: 1000 idle WS on 2–3 pods = 61–70Mi
+            # per pod (63–73 % of 96Mi): request = observed working set + margin, so the scheduler reserves what it uses.
+            requests: { cpu: 250m, memory: 128Mi }
             limits: { cpu: "1", memory: 384Mi }
 ---
 apiVersion: v1
@@ -87,10 +89,12 @@ spec:
   metrics:
     - type: Resource
       resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
-    - type: Resource
-      resource: { name: memory, target: { type: Utilization, averageUtilization: 80 } }
+  # No memory metric (ST1-R3-2): idle WS hold memory but no CPU, and GOMEMLIMIT keeps the heap in check, so memory
+  # flapped 2↔3 replicas with nothing to serve and each scale-down cut the WS. Scale-down: 1 pod per minute.
   behavior:
-    scaleDown: { stabilizationWindowSeconds: 180 }
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies: [{ type: Pods, value: 1, periodSeconds: 60 }]
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
