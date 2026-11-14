@@ -210,11 +210,13 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
             }
           </section>
 
+          <!-- UX4-R2-4 (Figma 27 mobile): the title right under the video, above the chat -->
+          <h1 class="text-display-m md:hidden">En <span class="text-accent-text">directo</span></h1>
+
           <!-- Panel social del directo (Figma 70): en móvil va bajo el player; en escritorio, en la columna derecha -->
           <gr-panel-social class="min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2" />
 
           <div class="flex min-w-0 flex-col lg:col-start-1 lg:row-start-2">
-            <h1 class="text-display-m md:hidden">En <span class="text-accent-text">directo</span></h1>
             <!-- Contenido de la fase (Figma 27): en escritorio, bajo el player -->
             <aside class="flex flex-col gap-4">
               @switch (d.fase) {
