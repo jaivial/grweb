@@ -126,7 +126,7 @@ interface Fila {
                     </p>
                     <!-- UX4-R2-1: brand block (gradient + sponsor name) always behind; the image fades in only once loaded -->
                     <div class="relative flex aspect-[3/1] w-full items-center justify-center bg-[linear-gradient(135deg,#4c111b,#281112_55%,#170c0e)] px-4">
-                      <span class="text-center font-display text-[26px] leading-tight text-text-primary uppercase italic">{{ it.patrocinador }}</span>
+                      <span class="line-clamp-2 max-w-full text-center font-display text-[26px] leading-tight break-words text-text-primary uppercase italic [overflow-wrap:anywhere]">{{ it.patrocinador }}</span>
                       @if (browser && imagen(it); as img) {
                         <img [src]="img" [alt]="'Banner de ' + it.patrocinador" class="absolute inset-0 size-full object-cover opacity-0 transition-opacity duration-300" loading="lazy" (load)="$any($event.target).classList.replace('opacity-0', 'opacity-100')" (error)="falloImagen(it.id)" />
                       }
