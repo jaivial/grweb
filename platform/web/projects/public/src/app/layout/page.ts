@@ -17,8 +17,8 @@ import { Footer, Navbar, type Lang } from './layout';
     <gr-navbar [lang]="lang()" />
     <!-- overflow-x-clip: the header glow must not widen the page on phones (clip keeps «sticky» working) -->
     <main class="relative overflow-x-clip">
-      <!-- Figma «Cabecera» (SEO pages): 640 px glow at the top right (360 on mobile) -->
-      @if (!centrado()) { <div class="pointer-events-none absolute -top-20 left-[55%] size-[360px] rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.42),transparent)] md:left-[55%] md:size-[640px]" aria-hidden="true"></div> }
+      <!-- Figma «Cabecera» (SEO pages): 640 px glow at the top right (360 on mobile; none at 200 % zoom, UX6-R1-12) -->
+      @if (!centrado()) { <div class="pointer-events-none absolute -top-20 left-[55%] size-[360px] max-[239px]:hidden rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.42),transparent)] md:left-[55%] md:size-[640px]" aria-hidden="true"></div> }
       <!-- One wrapper and ONE plain <ng-content>: projecting through an <ng-template> + ngTemplateOutlet broke hydration
            (NG0501) on pages whose content starts with control flow. The layout only changes classes. -->
       <div [class]="centrado() ? 'relative mx-auto flex max-w-[800px] flex-col gap-5 px-5 pt-[120px] pb-18 md:gap-7 md:pt-40 md:pb-30'
