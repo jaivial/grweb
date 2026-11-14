@@ -21,7 +21,13 @@ type Config struct {
 	PalabrasProhibidas []string `json:"palabrasProhibidas"`
 	DominiosPermitidos []string `json:"dominiosPermitidos"`
 	MaxHitos           int      `json:"maxHitos"`
+	// ChatEnabled is the backoffice on/off switch (PATCH …/chat/estado); a pointer so that an old Redis copy
+	// without the field reads as «on».
+	ChatEnabled *bool `json:"chatEnabled,omitempty"`
 }
+
+// Habilitado says whether fans may write (the switch is on by default).
+func (c Config) Habilitado() bool { return c.ChatEnabled == nil || *c.ChatEnabled }
 
 // configPorDefecto is used when nothing is configured (or the cache and the DB are both unavailable).
 func configPorDefecto() Config {

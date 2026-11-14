@@ -50,6 +50,7 @@ return {1, 0}`)
 
 var (
 	errSalaInactiva = problem.Conflict("SALA_INACTIVA", "El chat está cerrado para esta competición.")
+	errChatDormido  = problem.New(403, "chat_disabled", "El chat está durmiendo: ya no se pueden enviar mensajes.")
 	errSilenciado   = problem.Forbidden("Un moderador te ha silenciado temporalmente.")
 	errDuplicado    = errors.New("mensaje duplicado")
 )
@@ -58,6 +59,9 @@ var (
 // PostgreSQL is only touched for the (infrequent) milestone events.
 func (s *Svc) enviar(ctx context.Context, cid uuid.UUID, dia string, f fanauth.Fan, texto, msgCID string) (item, error) {
 	cfg := s.configDe(ctx, cid)
+	if !cfg.Habilitado() {
+		return item{}, errChatDormido
+	}
 	if !cfg.Activo {
 		return item{}, errSalaInactiva
 	}

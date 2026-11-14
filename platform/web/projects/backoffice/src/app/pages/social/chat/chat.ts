@@ -8,9 +8,8 @@ import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
 import { Realtime } from '../../../core/realtime';
 import { BoPageHeader, BoToggle, errText } from '../../../shared/ui';
-import { JuegosApi, type Jornada } from '../juegos/api';
 import { ChatApi, type ChatConfig, type ChatEstado, type MensajeAdmin, type SilenciadoChat } from './api';
-import { SoAjuste, SoCard, SoFecha, SoIcon, SoNumber, SoSegmented, SoSkelFilas, SoSkelKpis, SoTags, descargarCsv, esDominio, fechaDia, hora, iniciales, num, rangoError, type SoOpcion } from '../ui';
+import { SoAjuste, SoCard, SoIcon, SoNumber, SoSegmented, SoSkelFilas, SoSkelKpis, SoTags, descargarCsv, esDominio, hora, iniciales, num, rangoError, type SoOpcion } from '../ui';
 
 interface ChatForm {
   activo: boolean;
@@ -38,7 +37,7 @@ const VACIA: ChatForm = { activo: true, modoLentoSeg: 0, palabrasProhibidas: [],
  */
 @Component({
   selector: 'bo-chat',
-  imports: [A11yModule, FormsModule, RouterLink, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, SoAjuste, SoCard, SoFecha, SoIcon, SoNumber, SoSegmented, SoSkelFilas, SoSkelKpis, SoTags],
+  imports: [A11yModule, FormsModule, RouterLink, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, SoAjuste, SoCard, SoIcon, SoNumber, SoSegmented, SoSkelFilas, SoSkelKpis, SoTags],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'escape()', '(document:keydown)': 'tecladoGlobal($event)' },
   template: `
@@ -52,6 +51,15 @@ const VACIA: ChatForm = { activo: true, modoLentoSeg: 0, palabrasProhibidas: [],
           <span class="contents sm:hidden"><button grIconButton icon="download" label="Exportar registro" class="border border-line-strong" (click)="exportar()"></button></span>
         </ng-container>
       </bo-page-header>
+
+      <!-- Estado del chat (Figma 393:120124 / móvil 393:120235): interruptor de apagado al acabar la competición -->
+      <section class="flex items-center gap-4 rounded-lg border border-line-subtle bg-bg-card px-4 py-3 md:px-5" aria-labelledby="estado-chat">
+        <div class="min-w-0 flex-1">
+          <h2 id="estado-chat" class="text-label-m">Chat activo</h2>
+          <p class="mt-0.5 text-body-xs text-text-tertiary">Desactívalo al acabar la competición: el chat público muestra «El chat está durmiendo» y nadie puede escribir.</p>
+        </div>
+        <bo-toggle [value]="habilitado()" label="Chat activo" [disabled]="!puede() || cambiandoEstado() || !config()" (changed)="alternarChat($event)" />
+      </section>
 
       @if (cargando() && !mensajes().length && !error()) {
         <so-skel-kpis />
@@ -89,7 +97,6 @@ const VACIA: ChatForm = { activo: true, modoLentoSeg: 0, palabrasProhibidas: [],
             </div>
             <div class="flex flex-wrap items-center gap-3">
               <so-segmented class="w-full sm:w-auto" [llenar]="true" label="Mensajes" [opciones]="vistas()" [value]="vista()" (valueChange)="cambiarVista($event)" />
-              <so-fecha class="ml-auto" label="Jornada" [value]="dia()" [sufijo]="jornada()?.nombre ?? ''" (changed)="cambiarDia($event)" />
             </div>
           </header>
 
@@ -99,6 +106,9 @@ const VACIA: ChatForm = { activo: true, modoLentoSeg: 0, palabrasProhibidas: [],
             <gr-empty icon="wifi-off" title="No hemos podido cargar la sala" text="Comprueba la conexión. Seguimos reintentando cada 3 s; también puedes hacerlo ahora.">
               <button grButton variant="primary" icon="refresh" (click)="cargar()">Reintentar</button>
             </gr-empty>
+          } @else if (!habilitado() && !visibles().length) {
+            <!-- Figma 393:120148: el feed sigue visible, sin envíos -->
+            <gr-empty icon="pause" title="El chat está durmiendo" text="Nadie puede escribir en /en-directo. Reactívalo con el interruptor «Chat activo»." />
           } @else if (!visibles().length) {
             <gr-empty icon="circle-check" title="No hay mensajes que revisar"
               [text]="vista() === 'reportados' ? 'Nadie ha reportado nada. Los reportados aparecerán arriba, en rojo, en cuanto lleguen.' : vista() === 'silenciados' ? 'No hay nadie silenciado ni baneado ahora mismo.' : 'La sala está tranquila.'" />
@@ -178,16 +188,12 @@ const VACIA: ChatForm = { activo: true, modoLentoSeg: 0, palabrasProhibidas: [],
           <button type="button" class="flex items-center gap-3 rounded-lg border border-line-subtle bg-bg-card p-4 text-left lg:hidden" [attr.aria-expanded]="configAbierta()" (click)="configAbierta.update(v => !v)">
             <span class="min-w-0 flex-1">
               <span class="block text-label-m">Configuración de la sala</span>
-              <span class="block text-body-xs text-text-tertiary">{{ form().activo ? 'Activa' : 'En pausa' }} · modo lento {{ form().modoLentoSeg }} s · {{ form().palabrasProhibidas.length }} palabras prohibidas</span>
+              <span class="block text-body-xs text-text-tertiary">Modo lento {{ form().modoLentoSeg }} s · {{ form().palabrasProhibidas.length }} palabras prohibidas</span>
             </span>
             <gr-icon name="chevron-down" [size]="20" class="text-text-tertiary transition-transform" [class.rotate-180]="configAbierta()" />
           </button>
           <div class="lg:block" [class.hidden]="!configAbierta()">
           <so-card titulo="Configuración de la sala" ayuda="Se aplica en caliente a todos los fans conectados">
-            <so-ajuste label="Sala activa" ayuda="Los mensajes entran en la sala de la jornada">
-              <bo-toggle [value]="form().activo" label="Sala activa" [disabled]="!puede()" (changed)="set({ activo: $event })" />
-            </so-ajuste>
-            <hr class="border-line-subtle" />
             <so-ajuste label="Modo lento" ayuda="Un mensaje cada N segundos por fan · ráfaga de 5 · 0 = sin límite">
               <so-number ancho="xs" unidad="s" label="Modo lento en segundos" [min]="0" [max]="3600" [disabled]="!puede()" [valor]="form().modoLentoSeg" [cambiado]="form().modoLentoSeg !== config()?.modoLentoSeg" (changed)="set({ modoLentoSeg: $event })" />
             </so-ajuste>
@@ -222,6 +228,21 @@ const VACIA: ChatForm = { activo: true, modoLentoSeg: 0, palabrasProhibidas: [],
         </aside>
       </div>
     </div>
+
+    <!-- ===== ¿Dormir el chat? (Figma 393:120129, 420 px) ===== -->
+    @if (confirmarDormir()) {
+      <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 sm:items-center sm:px-4" (click)="confirmarDormir.set(false)">
+        <div class="w-full rounded-t-xl border border-line-strong bg-bg-card p-5 shadow-card sm:max-w-[420px] sm:rounded-lg" role="alertdialog" aria-modal="true"
+          aria-labelledby="dormir-titulo" aria-describedby="dormir-texto" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
+          <h2 id="dormir-titulo" class="text-ui-h5">¿Dormir el chat?</h2>
+          <p id="dormir-texto" class="mt-2 text-body-s text-text-secondary">El chat público mostrará «El chat está durmiendo» y nadie podrá escribir. Los mensajes se conservan y puedes reactivarlo cuando quieras.</p>
+          <div class="mt-5 flex justify-end gap-2">
+            <button type="button" grButton variant="ghost" (click)="confirmarDormir.set(false)">Cancelar</button>
+            <button type="button" grButton variant="danger" [loading]="cambiandoEstado()" (click)="guardarEstado(false)">Desactivar chat</button>
+          </div>
+        </div>
+      </div>
+    }
 
     <!-- ===== Silenciar / banear ===== -->
     @if (accion(); as a) {
@@ -280,7 +301,6 @@ const VACIA: ChatForm = { activo: true, modoLentoSeg: 0, palabrasProhibidas: [],
 })
 export class ChatPage {
   private readonly api = inject(ChatApi);
-  private readonly juegos = inject(JuegosApi);
   protected readonly comps = inject(Competitions);
   private readonly auth = inject(Auth);
   private readonly toasts = inject(GrToasts);
@@ -293,7 +313,6 @@ export class ChatPage {
   protected readonly reportados = signal<MensajeAdmin[]>([]);
   /** Fans callados ahora (servidor: claves «mudo» con su TTL), por fanId. */
   protected readonly silenciados = signal<Map<string, SilenciadoChat>>(new Map());
-  private readonly jornadas = signal<Jornada[]>([]);
   /** Aviso cuando el sondeo falla con datos ya en pantalla (red caída, 429…). */
   protected readonly desfase = signal('');
   protected readonly ultimaOk = signal<string | null>(null);
@@ -311,6 +330,8 @@ export class ChatPage {
   protected readonly sel = signal<string | null>(null);
   protected readonly confirmando = signal<string | null>(null);
   protected readonly configAbierta = signal(false);
+  protected readonly confirmarDormir = signal(false);
+  protected readonly cambiandoEstado = signal(false);
   /** ≥ 640 px: the KPI sparkline only fits from there on. */
   protected readonly ancho = signal(typeof matchMedia === 'undefined' || matchMedia('(min-width: 640px)').matches);
   protected motivo = '';
@@ -320,11 +341,13 @@ export class ChatPage {
   /** Estado guardado de la sala; null mientras carga (ni «En pausa» ni «Reanudar» antes de saberlo). */
   protected readonly activa = computed(() => this.config()?.activo ?? this.estado()?.salaActiva ?? null);
   protected readonly esHoy = computed(() => !this.dia() || this.dia() === (this.estado()?.dia ?? hoyMadrid()));
-  protected readonly jornada = computed(() => this.jornadas().find((j) => j.dia === this.dia()) ?? null);
+  /** Interruptor «Chat activo»: activado por defecto mientras carga o si el servidor aún no lo manda. */
+  protected readonly habilitado = computed(() => this.config()?.chat_enabled ?? this.estado()?.chat_enabled ?? true);
   protected readonly badge = computed(() => {
     const a = this.activa();
     if (a === null) return '';
     if (!this.esHoy()) return 'Jornada cerrada';
+    if (!this.habilitado()) return 'Chat durmiendo';
     return a ? 'En directo' : 'Sala en pausa';
   });
   protected readonly invalido = computed(() => {
@@ -380,12 +403,7 @@ export class ChatPage {
     ].filter(Boolean).length;
   });
   protected readonly sucio = computed(() => this.cambios() > 0);
-  protected readonly subtitulo = computed(() => {
-    const dia = this.dia() || this.estado()?.dia;
-    if (!dia) return 'Recompensas de porra y fantasy activas';
-    const nombre = this.jornada()?.nombre;
-    return `Sala${nombre ? ' ' + nombre : ''} · ${fechaDia(dia)} · ${this.esHoy() ? 'recompensas de porra y fantasy activas' : 'registro de la jornada'}`;
-  });
+  protected readonly subtitulo = computed(() => 'Una sola sala para toda la competición · recompensas de porra y fantasy activas');
 
   protected readonly num = num;
   protected readonly hora = hora;
@@ -431,10 +449,6 @@ export class ChatPage {
       });
       if (estado) this.estado.set(estado);
       if (!this.dia()) this.dia.set(estado?.dia ?? hoyMadrid());
-      if (!this.jornadas().length) {
-        // solo para poner nombre a la jornada (cabecera y selector): si falla, se queda la fecha
-        this.juegos.jornadas(cid).then((r) => this.jornadas.set(r.jornadas), () => undefined);
-      }
       await this.sondear();
     } catch (e) {
       this.error.set(errText(e, 'No se pudo cargar la sala.'));
@@ -466,13 +480,6 @@ export class ChatPage {
         this.desfase.set(p.status === 429 ? 'Demasiadas peticiones: el servidor nos está frenando.' : p.status === 0 ? 'No hay conexión con el servidor.' : 'El servidor no responde.');
       }
     }
-  }
-
-  protected cambiarDia(d: string): void {
-    this.dia.set(d);
-    this.sel.set(null);
-    this.confirmando.set(null);
-    void this.sondear();
   }
 
   protected cambiarVista(v: string): void {
@@ -523,7 +530,8 @@ export class ChatPage {
   }
 
   protected escape(): void {
-    if (this.accion()) this.accion.set(null);
+    if (this.confirmarDormir()) this.confirmarDormir.set(false);
+    else if (this.accion()) this.accion.set(null);
     else this.confirmando.set(null);
   }
 
@@ -583,6 +591,29 @@ export class ChatPage {
       this.toasts.error(errText(e, 'No se pudo cambiar el estado de la sala.'));
     } finally {
       this.ocupado.set(false);
+    }
+  }
+
+  /** Apagar pide confirmación (diálogo «¿Dormir el chat?»); encender se aplica directamente. */
+  protected alternarChat(on: boolean): void {
+    if (on) void this.guardarEstado(true);
+    else this.confirmarDormir.set(true);
+  }
+
+  protected async guardarEstado(on: boolean): Promise<void> {
+    const cid = this.cid();
+    if (!cid) return;
+    this.cambiandoEstado.set(true);
+    try {
+      const r = await this.api.cambiarEstado(cid, on);
+      this.config.update((c) => (c ? { ...c, chat_enabled: r.chat_enabled } : c));
+      this.estado.update((e) => (e ? { ...e, chat_enabled: r.chat_enabled } : e));
+      this.confirmarDormir.set(false);
+      this.toasts.success(r.chat_enabled ? 'Chat activado' : 'El chat está durmiendo');
+    } catch (e) {
+      this.toasts.error(errText(e, 'No se pudo cambiar el estado del chat.'));
+    } finally {
+      this.cambiandoEstado.set(false);
     }
   }
 

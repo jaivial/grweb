@@ -225,10 +225,11 @@ func (s *Svc) configDe(ctx context.Context, cid uuid.UUID) Config {
 			PalabrasProhibidas []string `db:"palabras_prohibidas"`
 			DominiosPermitidos []string `db:"dominios_permitidos"`
 			MaxHitos           int      `db:"max_hitos"`
+			ChatEnabled        bool     `db:"chat_enabled"`
 		}
-		if err := s.a.DB.QueryRow(ctx, `SELECT activo, modo_lento_seg, palabras_prohibidas, dominios_permitidos, max_hitos FROM config_chat WHERE competition_id = $1`, cid).Scan(
-			&row.Activo, &row.ModoLentoSeg, &row.PalabrasProhibidas, &row.DominiosPermitidos, &row.MaxHitos); err == nil {
-			cfg = Config{Activo: row.Activo, ModoLentoSeg: row.ModoLentoSeg, PalabrasProhibidas: row.PalabrasProhibidas, DominiosPermitidos: row.DominiosPermitidos, MaxHitos: row.MaxHitos}
+		if err := s.a.DB.QueryRow(ctx, `SELECT activo, modo_lento_seg, palabras_prohibidas, dominios_permitidos, max_hitos, chat_enabled FROM config_chat WHERE competition_id = $1`, cid).Scan(
+			&row.Activo, &row.ModoLentoSeg, &row.PalabrasProhibidas, &row.DominiosPermitidos, &row.MaxHitos, &row.ChatEnabled); err == nil {
+			cfg = Config{Activo: row.Activo, ModoLentoSeg: row.ModoLentoSeg, PalabrasProhibidas: row.PalabrasProhibidas, DominiosPermitidos: row.DominiosPermitidos, MaxHitos: row.MaxHitos, ChatEnabled: &row.ChatEnabled}
 		} // no row yet: defaults
 		if b, err := json.Marshal(cfg); err == nil {
 			s.a.Redis.Set(ctx, key, string(b), time.Hour)

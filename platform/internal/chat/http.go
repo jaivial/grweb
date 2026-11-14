@@ -777,6 +777,7 @@ type estadoIn struct {
 type estadoBody struct {
 	Conectados   int64  `json:"conectados"`
 	SalaActiva   bool   `json:"salaActiva"`
+	ChatEnabled  bool   `json:"chat_enabled" doc:"false: el chat está durmiendo (nadie puede escribir)"`
 	ModoLentoSeg int    `json:"modoLentoSeg"`
 	Dia          string `json:"dia"`
 	FanKey       string `json:"fanKey,omitempty"` // pseudonym of the fan of the request (empty if anonymous)
@@ -821,5 +822,5 @@ func (s *Svc) estado(ctx context.Context, in *estadoIn) (*estadoOut, error) {
 			fanKey = s.hub.hashFan(f.ID.String())
 		}
 	}
-	return &estadoOut{CacheControl: "no-cache", Body: estadoBody{Conectados: total, SalaActiva: cfg.Activo, ModoLentoSeg: cfg.ModoLentoSeg, Dia: dia, FanKey: fanKey}}, nil
+	return &estadoOut{CacheControl: "no-cache", Body: estadoBody{Conectados: total, SalaActiva: cfg.Activo, ChatEnabled: cfg.Habilitado(), ModoLentoSeg: cfg.ModoLentoSeg, Dia: dia, FanKey: fanKey}}, nil
 }
