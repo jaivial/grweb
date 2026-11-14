@@ -110,7 +110,7 @@ interface MiAtleta { a: PubAtleta; f: PubFlight; dia: string }
                     </span>
                     <span class="col-span-3 row-start-2 flex min-w-0 flex-col gap-1 md:col-span-1 md:row-start-auto">
                       <span class="text-label-m" [class.text-text-secondary]="fin">Flight {{ f.codigo }} · {{ f.titulo }}<span class="sr-only">. </span></span>
-                      <span class="text-body-xs text-text-tertiary">Plataforma {{ f.plataforma }} · {{ f.total }} atletas · Pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }}</span>
+                      <span class="text-body-xs text-text-tertiary">Plataforma {{ f.plataforma }} · {{ f.total }} atletas · Pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }}<span class="sr-only">. </span></span>
                     </span>
                     <!-- Figma «Badge» -->
                     @switch (f.estado) {
