@@ -66,7 +66,7 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
 
         <div class="hidden flex-wrap gap-2 md:flex" role="group" aria-label="Filtro de apuestas">
           @for (o of opcionesFiltro(); track o.v) {
-            <button type="button" class="h-8 rounded-pill border px-3 text-label-xs transition-colors" [attr.aria-pressed]="o.v === filtro()" (click)="filtro.set(o.v)"
+            <button type="button" class="h-11 rounded-pill border px-3 text-label-xs transition-colors pointer-fine:h-8" [attr.aria-pressed]="o.v === filtro()" (click)="filtro.set(o.v)"
               [class]="o.v === filtro() ? 'border-accent bg-accent/16 text-accent-text' : 'border-transparent bg-bg-field text-text-secondary hover:text-text-primary'">{{ o.l }} ({{ o.n }})</button>
           }
         </div>

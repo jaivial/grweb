@@ -764,7 +764,7 @@ export class LeaderboardRow {
   host: { class: 'contents' },
   template: `
     <nav class="text-body-xs text-text-tertiary" aria-label="Migas">
-      <a routerLink="/" class="hover:text-text-primary">Inicio</a> · Juegos · @if (crumb()) { <a routerLink="/porra" class="hover:text-text-primary">Porra</a> · {{ crumb() }} } @else { Porra }
+      <a routerLink="/" class="-mx-2 px-2 py-3.5 hover:text-text-primary">Inicio</a> · Juegos · @if (crumb()) { <a routerLink="/porra" class="-mx-2 px-2 py-3.5 hover:text-text-primary">Porra</a> · {{ crumb() }} } @else { Porra }
     </nav>
     <div class="flex items-start justify-between gap-8">
       <div class="flex min-w-0 flex-1 flex-col gap-2.5">

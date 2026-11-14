@@ -28,7 +28,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
         <ng-container aside>
           <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" />
           @if (fan.conSesion()) {
-            <button type="button" class="font-mono text-[13px] text-info underline-offset-4 hover:underline" [attr.aria-expanded]="verCartera()" (click)="verCartera.set(!verCartera())">{{ verCartera() ? 'Ocultar cartera' : 'Ver cartera y movimientos' }} →</button>
+            <button type="button" class="inline-flex min-h-11 items-center font-mono text-[0.8125rem] text-info underline-offset-4 hover:underline" [attr.aria-expanded]="verCartera()" (click)="verCartera.set(!verCartera())">{{ verCartera() ? 'Ocultar cartera' : 'Ver cartera y movimientos' }} →</button>
           }
         </ng-container>
       </gr-porra-cabecera>
@@ -120,13 +120,13 @@ type FiltroSexo = 'todos' | 'F' | 'M';
       <div class="hidden flex-wrap items-center gap-2 md:flex">
         <div class="flex gap-2" role="group" aria-label="Tipo de mercado">
           @for (o of tipos; track o.v) {
-            <button type="button" class="h-8 rounded-pill border px-3 text-label-xs transition-colors" [class]="chip(o.v === filtroTipo())" [attr.aria-pressed]="o.v === filtroTipo()" (click)="filtroTipo.set(o.v)">{{ o.l }}</button>
+            <button type="button" class="h-11 rounded-pill border px-3 text-label-xs transition-colors pointer-fine:h-8" [class]="chip(o.v === filtroTipo())" [attr.aria-pressed]="o.v === filtroTipo()" (click)="filtroTipo.set(o.v)">{{ o.l }}</button>
           }
         </div>
         <span class="size-3 shrink-0" aria-hidden="true"></span>
         <div class="flex gap-2" role="group" aria-label="Sexo">
           @for (o of sexos; track o.v) {
-            <button type="button" class="h-8 rounded-pill border px-3 text-label-xs transition-colors" [class]="chip(o.v === filtroSexo())" [attr.aria-pressed]="o.v === filtroSexo()" (click)="filtroSexo.set(o.v)">{{ o.l }}</button>
+            <button type="button" class="h-11 rounded-pill border px-3 text-label-xs transition-colors pointer-fine:h-8" [class]="chip(o.v === filtroSexo())" [attr.aria-pressed]="o.v === filtroSexo()" (click)="filtroSexo.set(o.v)">{{ o.l }}</button>
           }
         </div>
         <span class="size-3 shrink-0" aria-hidden="true"></span>
@@ -155,7 +155,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
           }
         </div>
         @if (filtrados().length > 6) {
-          <button type="button" class="-my-2 self-start py-2 text-label-s text-text-primary underline-offset-4 hover:underline" (click)="verTodos.set(!verTodos())">
+          <button type="button" class="-my-2 inline-flex min-h-11 items-center self-start text-label-s text-text-primary underline-offset-4 hover:underline" (click)="verTodos.set(!verTodos())">
             {{ verTodos() ? 'Ver menos mercados ←' : 'Ver todos los mercados (' + filtrados().length + ') →' }}
           </button>
         }
