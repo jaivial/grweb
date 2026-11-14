@@ -6,122 +6,131 @@ import { Seo } from '../core/seo';
 import { GrCabecera } from '../home/bloques';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
+import { Related, type RelatedLink } from './landings';
 
-/** A place of the page: the lists below are data, change them there. */
-interface Sitio {
+/** A place of the guide: the lists below are data, change them there (no BO yet: see SeccionVisita/LugarVisita). */
+export interface Sitio {
   nombre: string;
-  tipo: string;
-  direccion: string;
-  /** Own website; without it the link is a Google Maps search of the name. */
+  /** «Dirección, localidad» or «Tipo · localidad». */
+  detalle: string;
+  /** «≈ 4 min en coche · 1,8 km». */
+  distancia?: string;
+  /** «Desde 65 €/noche», «Pase de día ~10 €». */
+  precio?: string;
   web?: string;
+  imagen?: string;
 }
-interface Grupo {
+interface Seccion {
   id: string;
+  eyebrow: string;
   titulo: string;
+  texto: string;
   icono: GrIconName;
   sitios: Sitio[];
 }
 
+/** Google Maps search of a place (the «Mapa» link). */
+export function mapaDe(s: Sitio): string {
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(`${s.nombre}, ${s.detalle}`);
+}
+
 /**
- * /donde-dormir-y-comer: where to sleep and eat in Almussafes and where to train in Valencia, linked from
- * /como-llegar (Figma page 11, «Dónde dormir y comer»). SEO: one h1, two h2 and three h3 (the names of the
- * places are not headings).
+ * /donde-dormir-y-comer (Figma 393:132672; without sections 393:136197): hotels, apartments, where to eat and gyms near
+ * the venue, linked from /como-llegar?vista=alojamiento. An empty section is not painted.
  */
 @Component({
   selector: 'gr-donde-dormir-page',
-  imports: [RouterLink, Page, GrIcon, GrButton, GrCabecera],
+  imports: [RouterLink, Page, GrIcon, GrButton, GrCabecera, Related],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="Dónde dormir y comer en" accent="Almussafes" eyebrow="Visita" section="Cómo llegar" crumb="Dónde dormir y comer"
-      subtitle="Hoteles y restaurantes en Almussafes, a pocos minutos del pabellón, y gimnasios de powerlifting en Valencia para entrenar los días previos a la competición.">
+    <gr-page title="Alojamientos cerca" accent="del pabellón" eyebrow="Visita" section="Cómo llegar" crumb="Alojamientos cerca">
       <div class="flex flex-col gap-12 md:gap-20">
-        @for (b of bloques; track b.id) {
+        @for (b of secciones; track b.id; let i = $index) {
           <section [id]="b.id" class="flex scroll-mt-28 flex-col gap-6 md:gap-8">
             <gr-cabecera [eyebrow]="b.eyebrow" [titulo]="b.titulo" [texto]="b.texto" [centro]="false" tam="m" />
-            @for (g of b.grupos; track g.id) {
-              <div [id]="g.id" class="flex scroll-mt-28 flex-col gap-4">
-                <div class="flex items-center gap-3">
-                  <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon [name]="g.icono" [size]="20" /></span>
-                  <h3 class="text-ui-h5 md:text-ui-h4">{{ g.titulo }}</h3>
-                </div>
-                <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  @for (s of g.sitios; track s.nombre) {
-                    <li class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-5">
-                      <p class="text-label-xs text-text-muted uppercase">{{ s.tipo }}</p>
-                      <p class="text-label-m">{{ s.nombre }}</p>
-                      <p class="flex items-start gap-2 text-body-s text-text-tertiary"><gr-icon name="map-pin" [size]="16" class="mt-0.5 shrink-0 text-accent-text" />{{ s.direccion }}</p>
-                      <a [href]="s.web || mapa(s)" target="_blank" rel="noopener nofollow" class="mt-auto inline-flex items-center gap-1.5 pt-2 text-label-s text-accent-text hover:underline">
-                        {{ s.web ? 'Ver web' : 'Ver en Google Maps' }}<gr-icon name="external-link" [size]="14" /></a>
-                    </li>
-                  }
-                </ul>
-              </div>
-            }
+            <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              @for (s of b.sitios; track s.nombre) {
+                <li class="flex flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
+                  <div class="aspect-video bg-bg-elevated">
+                    @if (s.imagen) { <img [src]="s.imagen" [alt]="s.nombre" class="size-full object-cover" loading="lazy" /> }
+                  </div>
+                  <div class="flex flex-1 flex-col gap-2 p-5">
+                    <div class="flex items-center gap-2">
+                      <gr-icon [name]="b.icono" [size]="18" class="shrink-0 text-accent-text" />
+                      <h3 class="text-label-m">{{ s.nombre }}</h3>
+                    </div>
+                    <p class="text-body-s text-text-tertiary">{{ s.detalle }}</p>
+                    @if (s.distancia || s.precio) {
+                      <p class="flex flex-wrap items-center gap-x-1.5 text-body-xs text-text-secondary">
+                        @if (s.distancia) { <span>{{ s.distancia }}</span> }
+                        @if (s.distancia && s.precio) { <span aria-hidden="true">·</span> }
+                        @if (s.precio) { <span>{{ s.precio }}</span> }
+                      </p>
+                    }
+                    <div class="mt-auto flex gap-4 pt-2">
+                      @if (s.web) { <a [href]="s.web" target="_blank" rel="noopener nofollow" class="inline-flex items-center gap-1.5 text-label-s text-accent-text hover:underline">Web<gr-icon name="external-link" [size]="14" /></a> }
+                      <a [href]="mapa(s)" target="_blank" rel="noopener nofollow" class="inline-flex items-center gap-1.5 text-label-s text-accent-text hover:underline">Mapa<gr-icon name="map-pin" [size]="14" /></a>
+                    </div>
+                  </div>
+                </li>
+              }
+            </ul>
           </section>
+        } @empty {
+          <!-- Figma 393:136197 -->
+          <div class="flex flex-col items-center gap-3 rounded-lg border border-line-subtle bg-bg-card px-6 py-12 text-center">
+            <gr-icon name="building" [size]="28" class="text-text-tertiary" />
+            <h2 class="text-ui-h4">Estamos preparando la guía</h2>
+            <p class="max-w-md text-body-s text-text-tertiary">Pronto publicaremos alojamientos, restaurantes y gimnasios cerca del pabellón. Mientras tanto, mira cómo llegar.</p>
+            <a grButton variant="outline" routerLink="/como-llegar" icon="map-pin" class="mt-2">Ver cómo llegar</a>
+          </div>
         }
-
-        <!-- Figma «Callout» (success) of «Dónde dormir y comer» -->
-        <div class="relative flex gap-3 overflow-hidden rounded-lg bg-success/8 p-4">
-          <gr-icon name="circle-check" [size]="20" class="ml-2 shrink-0 text-success" />
-          <div class="flex flex-col gap-1"><p class="text-label-s text-success">Consejo</p>
-            <p class="text-body-m text-text-secondary">Es una selección orientativa: reserva con tiempo y confirma horarios, precios y condiciones con cada establecimiento. El fin de semana de la competición la zona se llena.</p></div>
-        </div>
-        <div class="flex flex-col gap-3 sm:flex-row">
-          <a grButton variant="outline" size="l" routerLink="/como-llegar" icon="map-pin">Cómo llegar al pabellón</a>
-          <a grButton variant="outline" size="l" routerLink="/mapa-de-accesos">Mapa de accesos</a>
-        </div>
+        <gr-related [items]="relacionados" />
       </div>
     </gr-page>
   `,
 })
 export class DondeDormirPage {
-  protected readonly bloques = BLOQUES;
+  protected readonly secciones = SECCIONES.filter((s) => s.sitios.length);
+  protected readonly mapa = mapaDe;
+  protected readonly relacionados: RelatedLink[] = [
+    { titulo: 'Público', texto: 'Entrada y normas', ruta: '/publico' },
+    { titulo: 'Horarios', texto: 'Bloques por categoría', ruta: '/horarios' },
+    { titulo: 'Preguntas frecuentes', texto: 'Resolvemos tus dudas', ruta: '/preguntas-frecuentes' },
+  ];
 
   constructor() {
     const cms = inject(Cms);
     const seo = inject(Seo);
     void inject(PendingTasks).run(() =>
-      applySeo(cms, seo, '/donde-dormir-y-comer', 'Dónde dormir y comer en Almussafes · GR Strength Cup',
-        'Hoteles y restaurantes en Almussafes cerca del pabellón y gimnasios de powerlifting y culturismo en Valencia para atletas y público de la GR Strength Cup.'));
-  }
-
-  protected mapa(s: Sitio): string {
-    return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(`${s.nombre}, ${s.direccion}`);
+      applySeo(cms, seo, '/donde-dormir-y-comer', 'Alojamientos cerca del pabellón · GRS Cup 2',
+        'Hoteles, apartamentos y restaurantes cerca del pabellón de Almussafes y gimnasios de fuerza en Valencia para atletas y público de la GRS Cup 2.'));
   }
 }
 
-// Provisional places (a simple search: OpenStreetMap and the web of each club, November 2026). The final
-// selection is still to be decided: edit these three lists.
-const ALOJAMIENTOS: Sitio[] = [
-  { nombre: 'Hotel Bartos', tipo: 'Hotel', direccion: 'Carrer del Mestre Medina, 46440 Almussafes', web: 'https://www.hotelbartos.com/' },
-  { nombre: 'Ramada by Wyndham Valencia Almussafes', tipo: 'Hotel', direccion: 'Avinguda de la Foia, 46440 Almussafes', web: 'https://www.wyndhamhotels.com/es-xl/ramada/almussafes-spain/ramada-valencia-almussafes/overview' },
-  { nombre: 'Hotel Isabel', tipo: 'Hotel', direccion: 'Carrer de Salvador Botella, 46440 Almussafes' },
-  { nombre: 'Pensión Nadal', tipo: 'Pensión', direccion: 'Carrer de la Lira Almussafense, 6, 46440 Almussafes' },
+// Provisional places (OpenStreetMap and the web of each place, November 2026): edit these lists.
+const HOTELES: Sitio[] = [
+  { nombre: 'Hotel Bartos', detalle: 'Carrer del Mestre Medina, Almussafes', web: 'https://www.hotelbartos.com/' },
+  { nombre: 'Ramada by Wyndham Valencia Almussafes', detalle: 'Avinguda de la Foia, Almussafes', web: 'https://www.wyndhamhotels.com/es-xl/ramada/almussafes-spain/ramada-valencia-almussafes/overview' },
+  { nombre: 'Hotel Isabel', detalle: 'Carrer de Salvador Botella, Almussafes' },
+  { nombre: 'Pensión Nadal', detalle: 'Carrer de la Lira Almussafense, 6, Almussafes' },
 ];
+const APARTAMENTOS: Sitio[] = [];
 const RESTAURANTES: Sitio[] = [
-  { nombre: 'Casa La Cuesta', tipo: 'Restaurante', direccion: "Carrer d'Ausiàs March, 46440 Almussafes" },
-  { nombre: 'Cervecería Enjoy', tipo: 'Cervecería', direccion: "Ronda de l'Historiador Lluís Duart Alabarta, Almussafes" },
-  { nombre: 'Bar Polideportivo', tipo: 'Bar restaurante', direccion: 'Ronda Antoni Ludeña, 46440 Almussafes' },
+  { nombre: 'Casa La Cuesta', detalle: "Carrer d'Ausiàs March, Almussafes" },
+  { nombre: 'Cervecería Enjoy', detalle: "Ronda de l'Historiador Lluís Duart Alabarta, Almussafes" },
+  { nombre: 'Bar Polideportivo', detalle: 'Ronda Antoni Ludeña, Almussafes' },
 ];
-const GIMNASIOS: Sitio[] = [
-  { nombre: 'GR Strength Powerlifting Club', tipo: 'Club de powerlifting', direccion: 'P. I. Canyada dels Codonyers, calle 13, n.º 11, nave 9, 46220 Picassent', web: 'https://www.grteam.net/grs-powerlifting-club-valencia' },
-  { nombre: 'Anvil Strength', tipo: 'Club de powerlifting', direccion: 'Puerto de Sagunto (Valencia)', web: 'https://anvilstrength.es/powerlifting-valencia' },
-  { nombre: 'Titan Fitness Valencia', tipo: 'Fuerza y alto rendimiento', direccion: 'Valencia', web: 'https://www.instagram.com/titanfitnessvalencia' },
-  { nombre: 'Fitness Park Valencia', tipo: 'Musculación y culturismo', direccion: 'Valencia y área metropolitana', web: 'https://www.fitnesspark.es/valencia' },
+export const GIMNASIOS: Sitio[] = [
+  { nombre: 'GR Strength Powerlifting Club', detalle: 'P. I. Canyada dels Codonyers, c/ 13, n.º 11, nave 9, Picassent', web: 'https://www.grteam.net/grs-powerlifting-club-valencia' },
+  { nombre: 'Anvil Strength', detalle: 'Club de powerlifting · Puerto de Sagunto', web: 'https://anvilstrength.es/powerlifting-valencia' },
+  { nombre: 'Titan Fitness Valencia', detalle: 'Fuerza y alto rendimiento · Valencia', web: 'https://www.instagram.com/titanfitnessvalencia' },
+  { nombre: 'Fitness Park Valencia', detalle: 'Musculación y culturismo · Valencia', web: 'https://www.fitnesspark.es/valencia' },
 ];
 
-const BLOQUES: { id: string; eyebrow: string; titulo: string; texto: string; grupos: Grupo[] }[] = [
-  {
-    id: 'almussafes', eyebrow: 'Alojamiento y restaurantes', titulo: 'Hoteles y restaurantes *cerca del pabellón*',
-    texto: 'Todo queda a pocos minutos a pie o en coche del Pabellón de Almussafes.',
-    grupos: [
-      { id: 'hoteles', titulo: 'Hoteles en Almussafes', icono: 'building', sitios: ALOJAMIENTOS },
-      { id: 'restaurantes', titulo: 'Restaurantes en Almussafes', icono: 'star', sitios: RESTAURANTES },
-    ],
-  },
-  {
-    id: 'entrenar', eyebrow: 'Dónde entrenar', titulo: 'Gimnasios de powerlifting *en Valencia*',
-    texto: 'Para el último entrenamiento antes de subir a la tarima. Pregunta antes por el pase de día.',
-    grupos: [{ id: 'gimnasios', titulo: 'Powerlifting y culturismo en Valencia', icono: 'trophy', sitios: GIMNASIOS }],
-  },
+const SECCIONES: Seccion[] = [
+  { id: 'hoteles', eyebrow: 'Dormir', titulo: 'Hoteles *cerca*', texto: 'A pocos minutos del pabellón. Reserva con tiempo: el fin de semana de la competición la zona se llena.', icono: 'building', sitios: HOTELES },
+  { id: 'apartamentos', eyebrow: 'Dormir', titulo: 'Apartamentos *turísticos*', texto: 'Para equipos y grupos que vienen varios días.', icono: 'home', sitios: APARTAMENTOS },
+  { id: 'comer', eyebrow: 'Comer', titulo: 'Dónde *comer*', texto: 'Restaurantes y bares cerca del pabellón para antes y después de la competición.', icono: 'star', sitios: RESTAURANTES },
+  { id: 'gimnasios', eyebrow: 'Entrenar', titulo: 'Gimnasios *para entrenar*', texto: 'Gimnasios de fuerza en Valencia y alrededores para entrenar los días previos.', icono: 'trophy', sitios: GIMNASIOS },
 ];
