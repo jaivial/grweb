@@ -49,7 +49,7 @@ const cfgPorDefecto: ConfigJuegos = {
     <div class="mx-auto flex max-w-[1280px] flex-col gap-6" [class.pb-24]="!sucio()" [class.pb-44]="sucio()">
       <bo-page-header title="Juegos · Configuración" [badge]="jornadaActiva()" [badgeTone]="jornadaActiva().startsWith('Sin') ? 'neutral' : 'live'"
         subtitle="Recompensas, puntos, cláusulas y límites · los acredita juegos-worker con ref idempotente (§6.4)"
-        [crumbs]="[comps.current()?.nombreCorto || '', 'Directo social', 'Juegos', 'Configuración']">
+        [crumbs]="[{ label: comps.current()?.nombreCorto || '', link: ['/', comps.current()?.slug, 'inicio'] }, 'Directo social', { label: 'Juegos', link: ['/', comps.current()?.slug, 'juegos'] }, 'Configuración']" [back]="['/', comps.current()?.slug, 'juegos']">
         <ng-container actions>
           <button grButton variant="secondary" icon="undo" [disabled]="!sucio()" (click)="restaurar()">Restaurar valores</button>
           <button grButton variant="primary" icon="check" [loading]="guardando()" [disabled]="!sucio() || !puede() || !!invalido()" (click)="guardar()">Guardar cambios</button>
