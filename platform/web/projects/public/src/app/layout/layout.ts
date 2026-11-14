@@ -96,7 +96,7 @@ const UI = {
         @for (l of links(); track l.href; let i = $index) {
           <li [class]="i > 2 ? 'hidden lg:block' : ''">
             @if (i === 0 && lang() === 'es') {
-              <button type="button" class="group inline-flex flex-col items-center gap-2 rounded-xs p-2 text-label-s text-text-secondary transition-colors hover:text-text-primary" [attr.aria-expanded]="mega()" aria-controls="mega-competicion" (click)="mega.set(!mega())">
+              <button type="button" class="group inline-flex flex-col items-center gap-2 rounded-xs p-2 text-label-s pointer-coarse:min-h-11 text-text-secondary transition-colors hover:text-text-primary" [attr.aria-expanded]="mega()" aria-controls="mega-competicion" (click)="mega.set(!mega())">
                 <span class="inline-flex items-center gap-1">{{ l.label }}<gr-icon name="chevron-down" [size]="14" class="text-text-tertiary transition-transform" [class.rotate-180]="mega()" /></span>
                 <span class="h-0.5 w-6 rounded-[1px] bg-transparent transition-colors group-hover:bg-white/30" aria-hidden="true"></span>
               </button>

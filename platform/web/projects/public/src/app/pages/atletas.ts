@@ -84,7 +84,7 @@ export class Fav {
             <option value="horario">horario</option><option value="nombre">nombre</option><option value="categoria">categoría</option>
           </gr-select>
           @if (fav.slugs().length) {
-            <button type="button" (click)="soloFav.set(!soloFav())" [attr.aria-pressed]="soloFav()" class="inline-flex h-10 items-center gap-1.5 rounded-pill border px-3 text-label-s" [class]="soloFav() ? 'border-accent-text bg-accent-deep/40' : 'border-line-strong'">
+            <button type="button" (click)="soloFav.set(!soloFav())" [attr.aria-pressed]="soloFav()" class="inline-flex h-11 items-center gap-1.5 rounded-pill border px-3 text-label-s pointer-fine:h-10" [class]="soloFav() ? 'border-accent-text bg-accent-deep/40' : 'border-line-strong'">
               Mis atletas · {{ fav.slugs().length }}
             </button>
           }
