@@ -124,14 +124,13 @@ interface Fila {
                       <span class="font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">Patrocinado</span>
                       @if (it.tier) { <span class="inline-flex h-5 items-center rounded-pill border px-2 font-mono text-[11px] tracking-[0.08em] uppercase" [class]="tier(it.tier)">{{ it.tier }}</span> }
                     </p>
-                    @if (browser && imagen(it); as img) {
-                      <img [src]="img" [alt]="'Banner de ' + it.patrocinador" class="aspect-[3/1] w-full bg-bg-surface object-cover" loading="lazy" (error)="falloImagen(it.id)" />
-                    } @else {
-                      <!-- la imagen no carga: bloque de marca del diseño (degradado + nombre del patrocinador) -->
-                      <div class="flex aspect-[3/1] w-full items-center justify-center bg-[linear-gradient(135deg,#4c111b,#281112_55%,#170c0e)] px-4">
-                        <span class="text-center font-display text-[26px] leading-tight text-text-primary uppercase italic">{{ it.patrocinador }}</span>
-                      </div>
-                    }
+                    <!-- UX4-R2-1: brand block (gradient + sponsor name) always behind; the image fades in only once loaded -->
+                    <div class="relative flex aspect-[3/1] w-full items-center justify-center bg-[linear-gradient(135deg,#4c111b,#281112_55%,#170c0e)] px-4">
+                      <span class="text-center font-display text-[26px] leading-tight text-text-primary uppercase italic">{{ it.patrocinador }}</span>
+                      @if (browser && imagen(it); as img) {
+                        <img [src]="img" [alt]="'Banner de ' + it.patrocinador" class="absolute inset-0 size-full object-cover opacity-0 transition-opacity duration-300" loading="lazy" (load)="$any($event.target).classList.replace('opacity-0', 'opacity-100')" (error)="falloImagen(it.id)" />
+                      }
+                    </div>
                     <div class="flex min-w-0 items-center justify-between gap-3 px-3 py-2.5">
                       <p class="min-w-0 flex-1 truncate text-label-s">{{ it.patrocinador }}</p>
                       <a class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-sm border border-line-strong px-3 text-label-s text-text-secondary transition-colors hover:border-text-muted hover:text-text-primary md:h-9"
@@ -230,7 +229,7 @@ interface Fila {
               <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-sm text-[20px] transition-colors hover:bg-white/5" aria-label="Emojis" [attr.aria-expanded]="emojis()" (click)="emojis.set(!emojis())">
                 <span aria-hidden="true">😊</span>
               </button>
-              <textarea #caja rows="1" enterkeyhint="send" class="max-h-32 min-h-11 min-w-0 flex-1 resize-none bg-transparent px-1 py-[10px] text-[17px] leading-6 md:text-body-s text-text-primary outline-none placeholder:text-text-muted focus-visible:outline-none [field-sizing:content]"
+              <textarea #caja rows="1" enterkeyhint="send" class="max-h-32 min-h-11 min-w-0 flex-1 resize-none bg-transparent px-1 py-[10px] text-[17px] leading-6 md:text-[16px] text-text-primary outline-none placeholder:text-text-muted focus-visible:outline-none [field-sizing:content]"
                 placeholder="Escribe un mensaje…" aria-label="Mensaje del chat" [attr.aria-describedby]="'chat-ayuda'" [ngModel]="texto()" (ngModelChange)="texto.set($event)" (keydown.enter)="enter($event)" (keydown.escape)="emojis.set(false)"></textarea>
               <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-[10px] transition-[background,box-shadow,color]" aria-label="Enviar mensaje"
                 [class]="puedeEnviar() ? 'bg-accent-grain text-white hover:shadow-glow' : 'bg-bg-raised text-text-muted'" [disabled]="!puedeEnviar()" (click)="enviar()">

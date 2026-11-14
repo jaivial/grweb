@@ -98,7 +98,7 @@ const euros0 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EU
                   <span class="text-label-s text-text-primary">Importe en € *</span>
                   <span class="relative mt-1.5 block"><input grInput type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" autocomplete="off" class="pr-10" placeholder="15,00" aria-label="Importe en euros" aria-describedby="donar-rango" [attr.aria-invalid]="fueraDeRango()" [invalid]="fueraDeRango()" [ngModel]="otroEuros()" (ngModelChange)="ponerOtro($event)" />
                     <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-body-m text-text-tertiary" aria-hidden="true">€</span></span>
-                  <span id="donar-rango" class="mt-1.5 block text-body-xs" [class]="fueraDeRango() ? 'text-accent-text' : 'text-text-tertiary'">Entre {{ minimoEuros() }} y {{ maximoEuros() }}</span>
+                  <span id="donar-rango" class="mt-1.5 block text-body-xs" [class]="fueraDeRango() ? 'text-accent-text' : 'text-text-tertiary'" [attr.role]="fueraDeRango() ? 'alert' : null">{{ otroNoNumero() ? 'Escribe solo un número, p. ej. 15 o 15,50. ' : '' }}Entre {{ minimoEuros() }} y {{ maximoEuros() }}</span>
                 </label>
               }
 
@@ -129,7 +129,7 @@ const euros0 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EU
 
               <!-- UX4-R1-7: «Pagar» always in reach of the thumb -->
               <div class="sticky bottom-0 -mx-5 mt-4 border-t border-line-subtle bg-bg-card px-5 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] md:-mx-6 md:px-6 md:pb-6">
-                <button type="button" grButton variant="primary" size="l" [block]="true" icon="lock" [loading]="pagando()" [disabled]="!puedePagar()" (click)="pagar()">Pagar{{ importe() > 0 ? ' ' + total() : '' }}</button>
+                <button type="button" grButton variant="primary" size="l" [block]="true" icon="lock" [loading]="pagando()" [disabled]="!puedePagar()" (click)="pagar()">Pagar{{ importe() > 0 && !fueraDeRango() ? ' ' + total() : '' }}</button>
                 <p class="mt-2 flex items-center justify-center gap-1.5 text-center text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />{{ pie() }}</p>
               </div>
             }
@@ -169,6 +169,7 @@ export class DonarModal {
   protected readonly spanOtro = computed(() => 3 - (this.chips().length % 3));
   protected readonly fueraDeRango = computed(() => {
     if (!this.otro() || this.otroEuros() === '') return false;
+    if (this.otroNoNumero()) return true;
     const cfg = this.don.config();
     return this.importe() < (cfg?.minimo ?? 100) || this.importe() > (cfg?.maximo ?? 50000);
   });
@@ -212,7 +213,7 @@ export class DonarModal {
     // «Otro»: the amount written in euros is the amount paid (in cents).
     effect(() => {
       if (!this.otro()) return;
-      const n = parseFloat(this.otroEuros().replace(',', '.'));
+      const n = this.otroNoNumero() ? NaN : parseFloat(this.otroEuros().replace(',', '.'));
       this.importe.set(isNaN(n) ? 0 : Math.round(n * 100));
     });
   }
@@ -274,10 +275,11 @@ export class DonarModal {
   protected num(n: number): string {
     return num(n);
   }
-  /** The amount is kept as text: only digits and one decimal separator. */
+  /** UX4-R2-2: the amount is kept as typed; anything but «15», «15,5» or «15.50» is invalid (never stripped to digits). */
   protected ponerOtro(v: string | null): void {
-    this.otroEuros.set((v ?? '').replace(/[^0-9.,]/g, ''));
+    this.otroEuros.set((v ?? '').trim());
   }
+  protected readonly otroNoNumero = computed(() => this.otroEuros() !== '' && !/^\d{1,6}([.,]\d{1,2})?$/.test(this.otroEuros()));
   protected coinsDe(c: number): number {
     return coinsDe(c, this.don.config()?.coinsPorEuro ?? 100);
   }
