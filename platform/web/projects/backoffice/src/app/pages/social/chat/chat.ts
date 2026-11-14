@@ -1,5 +1,5 @@
 import { A11yModule } from '@angular/cdk/a11y';
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, computed, effect, inject, linkedSignal, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, GrToasts } from '@grcup/ui';
@@ -58,7 +58,7 @@ const VACIA: ChatForm = { activo: true, modoLentoSeg: 0, palabrasProhibidas: [],
           <h2 id="estado-chat" class="text-label-m">Chat activo</h2>
           <p class="mt-0.5 text-body-xs text-text-tertiary">Desactívalo al acabar la competición: el chat público muestra «El chat está durmiendo» y nadie puede escribir.</p>
         </div>
-        <bo-toggle [value]="habilitado()" label="Chat activo" [disabled]="!puede() || cambiandoEstado() || !config()" (changed)="alternarChat($event)" />
+        <bo-toggle [(value)]="interruptor" label="Chat activo" [disabled]="!puede() || cambiandoEstado() || !config()" (changed)="alternarChat($event)" />
       </section>
 
       @if (cargando() && !mensajes().length && !error()) {
@@ -231,13 +231,13 @@ const VACIA: ChatForm = { activo: true, modoLentoSeg: 0, palabrasProhibidas: [],
 
     <!-- ===== ¿Dormir el chat? (Figma 393:120129, 420 px) ===== -->
     @if (confirmarDormir()) {
-      <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 sm:items-center sm:px-4" (click)="confirmarDormir.set(false)">
+      <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 sm:items-center sm:px-4" (click)="cancelarDormir()">
         <div class="w-full rounded-t-xl border border-line-strong bg-bg-card p-5 shadow-card sm:max-w-[420px] sm:rounded-lg" role="alertdialog" aria-modal="true"
           aria-labelledby="dormir-titulo" aria-describedby="dormir-texto" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
           <h2 id="dormir-titulo" class="text-ui-h5">¿Dormir el chat?</h2>
           <p id="dormir-texto" class="mt-2 text-body-s text-text-secondary">El chat público mostrará «El chat está durmiendo» y nadie podrá escribir. Los mensajes se conservan y puedes reactivarlo cuando quieras.</p>
           <div class="mt-5 flex justify-end gap-2">
-            <button type="button" grButton variant="ghost" (click)="confirmarDormir.set(false)">Cancelar</button>
+            <button type="button" grButton variant="ghost" (click)="cancelarDormir()">Cancelar</button>
             <button type="button" grButton variant="danger" [loading]="cambiandoEstado()" (click)="guardarEstado(false)">Desactivar chat</button>
           </div>
         </div>
@@ -343,6 +343,8 @@ export class ChatPage {
   protected readonly esHoy = computed(() => !this.dia() || this.dia() === (this.estado()?.dia ?? hoyMadrid()));
   /** Interruptor «Chat activo»: activado por defecto mientras carga o si el servidor aún no lo manda. */
   protected readonly habilitado = computed(() => this.config()?.chat_enabled ?? this.estado()?.chat_enabled ?? true);
+  /** Posición visible del interruptor: vuelve al estado real si se cancela el diálogo o falla el guardado. */
+  protected readonly interruptor = linkedSignal(() => this.habilitado());
   protected readonly badge = computed(() => {
     const a = this.activa();
     if (a === null) return '';
@@ -530,7 +532,7 @@ export class ChatPage {
   }
 
   protected escape(): void {
-    if (this.confirmarDormir()) this.confirmarDormir.set(false);
+    if (this.confirmarDormir()) this.cancelarDormir();
     else if (this.accion()) this.accion.set(null);
     else this.confirmando.set(null);
   }
@@ -600,6 +602,11 @@ export class ChatPage {
     else this.confirmarDormir.set(true);
   }
 
+  protected cancelarDormir(): void {
+    this.confirmarDormir.set(false);
+    this.interruptor.set(this.habilitado());
+  }
+
   protected async guardarEstado(on: boolean): Promise<void> {
     const cid = this.cid();
     if (!cid) return;
@@ -611,6 +618,7 @@ export class ChatPage {
       this.confirmarDormir.set(false);
       this.toasts.success(r.chat_enabled ? 'Chat activado' : 'El chat está durmiendo');
     } catch (e) {
+      this.interruptor.set(this.habilitado());
       this.toasts.error(errText(e, 'No se pudo cambiar el estado del chat.'));
     } finally {
       this.cambiandoEstado.set(false);
