@@ -13,7 +13,7 @@ import { FantasyClasificacionPage } from './pages/fantasy/clasificacion';
 import { ComoSeJuegaPage } from './pages/fantasy/como-se-juega';
 import type { Routes } from '@angular/router';
 import { HomePage, NotFoundPage } from './home/home';
-import { ClubsPage, EnPage, PublicoPage } from './pages/landings';
+import { EnPage, PublicoPage } from './pages/landings';
 import { AreaAtletaPage } from './pages/area';
 import { InscripcionEstadoPage, InscripcionPage, PagoSimuladoPage } from './pages/inscripcion';
 import { AtletaPage, AtletasPage, ParticipantesPage } from './pages/atletas';
@@ -91,7 +91,7 @@ export const routes: Routes = [
   { path: 'inscripcion/estado', component: InscripcionEstadoPage },
   { path: 'pago/simulado', component: PagoSimuladoPage },
   { path: 'publico', component: PublicoPage },
-  { path: 'clubs', component: ClubsPage },
+  { path: 'clubs', redirectTo: '/', pathMatch: 'full' }, // página retirada (Jaime 14-nov): solo queda el campo «club» del atleta
   { path: 'en', component: EnPage },
   { path: 'blog', component: BlogPage },
   { path: 'blog/:pslug', component: BlogPostPage },

@@ -74,17 +74,6 @@ export interface Landing {
   secciones: Record<string, Seccion>;
   orden: string[];
 }
-export interface Club {
-  nombre: string;
-  ciudad: string;
-  provincia: string;
-  logoUrl: string;
-  web: string;
-  instagram: string;
-  etiquetas: string;
-  rol: 'organizador' | 'colaborador' | 'club';
-  afiliadoAep: boolean | null;
-}
 
 /** An access map of /mapa-de-accesos (uploaded in the backoffice; title, subtitle and description are optional). */
 export interface MapaAcceso {
@@ -158,11 +147,7 @@ export class Cms {
   seoMap(): Promise<SeoMap | null> { return (this.seo ??= this.get<SeoMap>('/seo')); }
 
   landing(pagina: 'publico' | 'en'): Promise<Landing | null> { return this.get<Landing>(`/web/${pagina}`); }
-  clubs(): Promise<Club[] | null> { return this.get<Club[]>('/clubs'); }
   mapas(): Promise<MapaAcceso[] | null> { return this.get<MapaAcceso[]>('/mapas'); }
-  async proponerClub(body: unknown): Promise<void> {
-    await firstValueFrom(this.http.post(`${base}/clubs`, body));
-  }
 
   async voluntario(body: unknown): Promise<void> {
     await firstValueFrom(this.http.post(`${base}/voluntarios`, body));
