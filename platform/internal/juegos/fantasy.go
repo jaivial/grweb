@@ -109,8 +109,10 @@ type atletaSala struct {
 }
 
 // bloquearAtletaTx checks that the fan plays in a live room (shared lock on the room: a close or the start of the
-// day cannot interleave), share-locks the athlete row of the jornada (the clause cannot move under the signing,
-// yet signings in different rooms no longer queue on it, ST3-R1-5) and locks his ownership row inside the room.
+// day cannot interleave) and locks the athlete's ownership row inside the room. The athlete row of the jornada is
+// not locked at all (ST3-R2-3: 60 rooms signing one star queued on its FOR SHARE/MultiXact): the clause of the
+// jornada and the price in the room are read in the same statement that locks the room row, so they are one
+// snapshot, and a grade sync committing right after is the same as that sync landing just after the signing.
 func bloquearAtletaTx(ctx context.Context, tx pgx.Tx, j jornada, salaID, fanID, atletaID uuid.UUID) (atletaSala, error) {
 	var a atletaSala
 	var ok bool
@@ -122,19 +124,16 @@ func bloquearAtletaTx(ctx context.Context, tx pgx.Tx, j jornada, salaID, fanID, 
 	if err != nil {
 		return a, err
 	}
-	err = tx.QueryRow(ctx, `SELECT clausula FROM fantasy_atletas WHERE jornada_id = $1 AND atleta_id = $2 FOR SHARE`, j.ID, atletaID).Scan(&a.Base)
+	if _, err := tx.Exec(ctx, `INSERT INTO sala_atletas (sala_id, jornada_id, atleta_id)
+		SELECT $1, $2, $3 WHERE EXISTS (SELECT 1 FROM fantasy_atletas WHERE jornada_id = $2 AND atleta_id = $3) ON CONFLICT DO NOTHING`, salaID, j.ID, atletaID); err != nil {
+		return a, err
+	}
+	err = tx.QueryRow(ctx, `SELECT `+precioSala+`, fa.clausula, sa.dueno_fan_id, sa.dueno_alias, sa.protegido_hasta FROM sala_atletas sa
+		JOIN fantasy_atletas fa ON fa.jornada_id = sa.jornada_id AND fa.atleta_id = sa.atleta_id WHERE sa.sala_id = $1 AND sa.atleta_id = $2 FOR UPDATE OF sa`, salaID, atletaID).
+		Scan(&a.Clausula, &a.Base, &a.Dueno, &a.DuenoAlias, &a.Protegido)
 	if db.IsNoRows(err) {
 		return a, problem.NotFound("Ese atleta no está en la jornada.")
 	}
-	if err != nil {
-		return a, err
-	}
-	if _, err := tx.Exec(ctx, `INSERT INTO sala_atletas (sala_id, jornada_id, atleta_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, salaID, j.ID, atletaID); err != nil {
-		return a, err
-	}
-	err = tx.QueryRow(ctx, `SELECT `+precioSala+`, sa.dueno_fan_id, sa.dueno_alias, sa.protegido_hasta FROM sala_atletas sa
-		JOIN fantasy_atletas fa ON fa.jornada_id = sa.jornada_id AND fa.atleta_id = sa.atleta_id WHERE sa.sala_id = $1 AND sa.atleta_id = $2 FOR UPDATE OF sa`, salaID, atletaID).
-		Scan(&a.Clausula, &a.Dueno, &a.DuenoAlias, &a.Protegido)
 	return a, err
 }
 
