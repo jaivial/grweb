@@ -319,7 +319,8 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
 
         <div class="flex flex-col gap-16 md:gap-20 lg:col-start-1 lg:row-start-1">
           <section class="flex flex-col gap-5 md:gap-7">
-            <gr-cabecera eyebrow="El día" titulo="Qué vas a *ver*" [centro]="false" tam="m" />
+            <p class="sr-only">El día</p>
+            <gr-cabecera titulo="Qué vas a *ver*" [centro]="false" tam="m" />
             <ul class="grid grid-cols-2 gap-3 md:gap-4">
               @for (x of queVer; track x.t) {
                 <li class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-4 md:p-5"><span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent-text md:size-11"><gr-icon [name]="x.i" [size]="20" /></span>

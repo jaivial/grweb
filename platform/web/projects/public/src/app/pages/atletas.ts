@@ -52,7 +52,7 @@ export class Fav {
           <label class="relative min-w-0 flex-1 lg:max-w-[400px]">
             <span class="sr-only">Buscar atleta</span>
             <gr-icon name="search" [size]="18" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
-            <input type="search" placeholder="Busca por nombre o club" [ngModel]="q()" (ngModelChange)="q.set($event); limite.set(24)"
+            <input type="search" placeholder="Nombre o club" [ngModel]="q()" (ngModelChange)="q.set($event); limite.set(24)"
               class="h-12 w-full rounded-md border border-line-strong bg-bg-field pr-11 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none [&::-webkit-search-cancel-button]:hidden" />
             @if (q()) { <button type="button" (click)="q.set(''); limite.set(24)" aria-label="Borrar búsqueda" class="absolute top-1/2 right-2.5 flex size-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-text-tertiary hover:bg-white/15 hover:text-text-primary focus-visible:outline-2 focus-visible:outline-accent-text"><gr-icon name="x" [size]="14" /></button> }
           </label>
