@@ -42,13 +42,15 @@ export class GrCallout {
   template: `
     <p class="text-label-xs text-accent-text uppercase">{{ titulo() }}</p>
     <ul class="flex flex-col gap-3">
-      @for (h of items(); track h) { <li class="flex gap-2.5 text-body-m text-text-secondary"><gr-icon name="check" [size]="18" class="mt-[3px] shrink-0 text-accent-text" />{{ h }}</li> }
+      @for (h of items(); track h; let i = $index) { <li class="flex gap-2.5 text-body-m text-text-secondary"><gr-icon [name]="iconos()[i] ?? 'check'" [size]="18" class="mt-[3px] shrink-0 text-accent-text" />{{ h }}</li> }
     </ul>
   `,
 })
 export class GrHechos {
   readonly titulo = input('En resumen');
   readonly items = input<string[]>([]);
+  /** Optional icon per item (Figma «Key facts · reglamento»); defaults to a check. */
+  readonly iconos = input<GrIconName[]>([]);
 }
 
 /** Figma «Anchor chips» (mobile): sticky under the navbar; the chip of the section on screen is highlighted. */

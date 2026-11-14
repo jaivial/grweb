@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { GrIcon, GrSelect } from '@grcup/ui';
 import { Cms } from '../core/cms';
 import { Seo } from '../core/seo';
@@ -15,7 +17,7 @@ const TOTALES: Record<'M' | 'F', [string, number | null, number | null, number |
   M: [['-53', 350, null, null], ['-59', 390, 425, 375], ['-66', 425, 475, 415], ['-74', 455, 520, 450], ['-83', 515, 607.5, 485], ['-93', 530, 630, 515], ['-105', 550, 655, 540], ['-120', 560, 670, 565], ['+120', 565, 680, 585]],
   F: [['-43', 160, null, null], ['-47', 187.5, 220, 160], ['-52', 202.5, 245, 180], ['-57', 235, 260, 195], ['-63', 267.5, 285, 210], ['-69', 282.5, 300, 220], ['-76', 295, 315, 240], ['-84', 300, 325, 250], ['+84', 305, 335, 260]],
 };
-const DIVS: { k: Div; l: string; i: 1 | 2 | 3 }[] = [{ k: 'JUN', l: 'Júnior', i: 1 }, { k: 'ABS', l: 'Absoluto', i: 2 }, { k: 'M1', l: 'Máster 1', i: 3 }];
+const DIVS: { k: Div; l: string; i: 1 | 2 | 3; q: string }[] = [{ k: 'JUN', l: 'Júnior', i: 1, q: 'junior' }, { k: 'ABS', l: 'Absoluto', i: 2, q: 'absoluto' }, { k: 'M1', l: 'Máster 1', i: 3, q: 'master1' }];
 const kg = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const nombre = (k: string) => k.replace('-', '−') + ' kg';
 
@@ -24,6 +26,8 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
   selector: 'gr-marcas-page',
   imports: [GrSelect, Page, FormsModule, GrIcon, GrCabecera, GrCallout, GrChipsAncla, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  // Figma 80:183056/80:183063: switching sex or division crossfades the list (160 ms, none with reduced motion)
+  styles: `@keyframes fundido { from { opacity: 0; } } .fundido { animation: fundido 160ms ease-out; } @media (prefers-reduced-motion: reduce) { .fundido { animation: none; } }`,
   template: `
     <gr-page title="Marcas mínimas" accent="AEP-1" eyebrow="Competición" section="Competición" crumb="Marcas mínimas"
       subtitle="El total que necesitas acreditar para competir en los campeonatos nacionales AEP-1, por categoría de peso y división de edad."
@@ -31,7 +35,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
       <p pageStamps><span class="inline-flex h-7 items-center rounded-full border border-info bg-info/12 px-3 text-label-xs text-info uppercase">Revisar vigencia 2026</span></p>
       <gr-chips-ancla [anclas]="anclas" />
       <div class="flex flex-col gap-12 md:gap-20">
-        <gr-callout tono="importante" titulo="Importante">Las marcas mínimas solo se exigen para campeonatos nacionales AEP-1. En la GR Strength Cup (AEP-2 / AEP-3) no hace falta: es donde puedes conseguirla.</gr-callout>
+        <gr-callout tono="importante" titulo="Importante">Las marcas mínimas solo se exigen para campeonatos nacionales AEP-1. En la GRS Cup (AEP-2 / AEP-3) no hace falta: es donde puedes conseguirla.</gr-callout>
 
         <!-- 01 · Tabla -->
         <section id="tabla" class="flex scroll-mt-36 flex-col gap-5 md:scroll-mt-28 md:gap-7">
@@ -39,19 +43,21 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
           <!-- mobile: sex tabs and one division at a time -->
           <div class="flex flex-col gap-3 md:hidden">
             <div class="grid grid-cols-2 gap-1 rounded-md border border-line-subtle p-1" role="tablist" aria-label="Sexo">
-              @for (g of generos; track g.k) { <button type="button" role="tab" [attr.aria-selected]="sexoTabla() === g.k" (click)="sexoTabla.set(g.k)" class="h-11 rounded-md text-label-s" [class]="sexoTabla() === g.k ? 'bg-accent-grain text-text-primary' : 'text-text-tertiary'">{{ g.l }}</button> }
+              @for (g of generos; track g.k) { <button type="button" role="tab" [attr.aria-selected]="sexoTabla() === g.k" (click)="elegir(g.k, divTabla())" class="h-11 rounded-md text-label-s" [class]="sexoTabla() === g.k ? 'bg-accent-grain text-text-primary' : 'text-text-tertiary'">{{ g.l }}</button> }
             </div>
             <div class="flex flex-wrap gap-2" role="radiogroup" aria-label="División">
               @for (d of divs; track d.k) {
-                <button type="button" role="radio" [attr.aria-checked]="divTabla() === d.k" (click)="divTabla.set(d.k)" class="flex h-11 items-center gap-1.5 rounded-full border px-4 text-label-s" [class]="divTabla() === d.k ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary'"><gr-icon [name]="divTabla() === d.k ? 'check' : 'plus'" [size]="14" />{{ d.l }}</button>
+                <button type="button" role="radio" [attr.aria-checked]="divTabla() === d.k" (click)="elegir(sexoTabla(), d.k)" class="flex h-11 items-center gap-1.5 rounded-full border px-4 text-label-s" [class]="divTabla() === d.k ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary'"><gr-icon [name]="divTabla() === d.k ? 'check' : 'plus'" [size]="14" />{{ d.l }}</button>
               }
             </div>
-            <ul class="rounded-lg border border-line-subtle bg-bg-card px-4">
+            @for (k of [sexoTabla() + divTabla()]; track k) {
+            <ul class="fundido rounded-lg border border-line-subtle bg-bg-card px-4">
               @for (r of totales[sexoTabla()]; track r[0]) {
                 <li class="flex h-[60px] items-center justify-between border-b border-line-subtle last:border-0"><span class="font-display text-[18px] uppercase italic">{{ nombre(r[0]) }}</span>
                   <span class="text-label-m" [class.text-text-muted]="r[divIdx()] === null">{{ r[divIdx()] === null ? '— (solo JUN)' : kg(r[divIdx()]!) + ' kg' }}</span></li>
               }
             </ul>
+            }
           </div>
           <div class="hidden gap-6 md:grid lg:grid-cols-2">
             @for (g of generos; track g.k) {
@@ -102,10 +108,10 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
           <ul class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
             @for (n of normas; track n) { <li class="flex gap-3 text-body-s text-text-secondary md:text-body-m"><span class="mt-2 size-1.5 shrink-0 rounded-full bg-accent"></span>{{ n }}</li> }
           </ul>
-          <div id="pdf" class="flex scroll-mt-36 flex-col items-start gap-3 sm:flex-row sm:items-center">
+          <div id="pdf" class="flex scroll-mt-36 flex-col items-start gap-3">
             <!-- the AEP has no stable PDF URL: the link opens its official rules page, so it says so -->
             <a href="https://powerliftingspain.es/directrices-normativas-reglamentos/" target="_blank" rel="noopener" class="inline-flex h-12 w-full items-center justify-center gap-2 rounded-sm bg-accent-grain px-6 text-label-m text-white sm:w-auto"><gr-icon name="external-link" [size]="16" />Ver normativa AEP</a>
-            <span class="text-mono-xs text-text-muted">powerliftingspain.es · directrices, normativas y reglamentos</span>
+            <p class="w-full border-t border-line-subtle pt-2 font-mono text-[12px] text-text-secondary">Fuente: Powerlifting Spain (AEP) · Marcas mínimas AEP-1 · powerliftingspain.es</p>
           </div>
         </section>
 
@@ -155,15 +161,14 @@ export class MarcasPage {
     return { ok: dif >= 0, texto: dif >= 0 ? `¡Marca conseguida! +${kg(dif)} kg` : `Te faltan ${kg(-dif)} kg`, min, pct: Math.min(100, (t / min) * 100) };
   });
   protected readonly normas = [
-    'La marca de total debe conseguirse en competición oficial AEP-1, AEP-2 o internacional EPF/IPF en los 12 meses previos al cierre de inscripciones (o en la misma competición del año anterior).',
-    'En competición absoluta sin divisiones por edad se exige siempre la marca absoluta (ABS).',
-    'Los júnior y máster 1 deben acreditar la marca de su división de edad.',
-    'Los sub-júnior y los máster 2, 3 y 4 están exentos de marca mínima.',
-    'La AEP revisa y ajusta las marcas cada año a partir de los resultados AEP-1.',
+    'Marca de total en competición oficial (AEP, EPF/IPF) de los últimos 12 meses.',
+    'Júnior y máster 1: marca de su edad. El resto, ABS.',
+    'Sub-júnior y máster 2–4: exentos.',
+    'La AEP revisa las marcas cada año.',
   ];
   protected readonly faq = [
-    { q: '¿Qué pasa si no tengo la marca mínima?', a: 'Puedes competir igualmente en la GR Strength Cup: en un AEP-2 o AEP-3 no se exige marca. Solo la necesitas para inscribirte en un campeonato nacional AEP-1.' },
-    { q: '¿Vale mi total de la GR Strength Cup para un AEP-1?', a: 'Sí. Un total conseguido en un AEP-2 es clasificatorio para optar a una plaza en un AEP-1 de tu división de edad o al Clasificatorio Nacional, según el calendario AEP.' },
+    { q: '¿Qué pasa si no tengo la marca mínima?', a: 'Puedes competir igualmente en la GRS Cup: en un AEP-2 o AEP-3 no se exige marca. Solo la necesitas para inscribirte en un campeonato nacional AEP-1.' },
+    { q: '¿Vale mi total de la GRS Cup para un AEP-1?', a: 'Sí. Un total conseguido en un AEP-2 es clasificatorio para optar a una plaza en un AEP-1 de tu división de edad o al Clasificatorio Nacional, según el calendario AEP.' },
     { q: '¿Se actualizan las marcas cada año?', a: 'Sí. La AEP las revisa cada temporada a partir de los resultados AEP-1 y publica la tabla vigente en su web. Comprueba siempre la versión oficial antes de inscribirte.' },
   ];
   protected readonly relacionados: RelatedLink[] = [
@@ -172,11 +177,22 @@ export class MarcasPage {
     { titulo: 'Calendario 2026', texto: 'Dónde conseguir tu marca', ruta: '/blog' },
   ];
 
+  private readonly router = inject(Router);
+  /** Tabs ↔ URL (?sexo=hombres|mujeres&tab=junior|absoluto|master1); invalid values fall back to the defaults. */
+  protected elegir(s: 'M' | 'F', d: Div) {
+    void this.router.navigate([], { queryParams: { sexo: s === 'F' ? 'mujeres' : 'hombres', tab: DIVS.find((x) => x.k === d)!.q },
+      queryParamsHandling: 'merge', replaceUrl: true, preserveFragment: true });
+  }
+
   constructor() {
+    inject(ActivatedRoute).queryParamMap.pipe(takeUntilDestroyed()).subscribe((q) => {
+      this.sexoTabla.set(q.get('sexo') === 'mujeres' ? 'F' : 'M');
+      this.divTabla.set(DIVS.find((x) => x.q === q.get('tab'))?.k ?? 'ABS');
+    });
     const cms = inject(Cms);
     const seo = inject(Seo);
-    void inject(PendingTasks).run(() => applySeo(cms, seo, '/marcas-minimas', 'Marcas mínimas AEP-1 · GR Strength Cup',
-      'Totales mínimos AEP-1 por categoría y división (júnior, absoluto, máster 1), cómo se acreditan y comprobador de marca. En la GR Strength Cup no se exige marca.', undefined,
+    void inject(PendingTasks).run(() => applySeo(cms, seo, '/marcas-minimas', 'Marcas mínimas AEP-1 · GRS Cup',
+      'Totales mínimos AEP-1 por categoría y división (júnior, absoluto, máster 1), cómo se acreditan y comprobador de marca. En la GRS Cup no se exige marca.', undefined,
       // Figma 20: Dataset schema (the minimum totals table).
       { jsonLd: { '@context': 'https://schema.org', '@type': 'Dataset', name: 'Marcas mínimas AEP-1 2026',
         description: 'Totales mínimos AEP-1 por categoría de peso y división de edad.', creator: { '@type': 'Organization', name: 'Asociación Española de Powerlifting' } } }));

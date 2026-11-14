@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import {
   Activity, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Award, Bell, Building2, Heart, Calendar, CalendarDays, Camera, Car, Check, ChevronDown, ChevronLeft,
-  ChevronRight, ChevronsUpDown, CircleAlert, CircleCheck, CircleHelp, CircleX, Clock, DoorOpen, Download, Eye, ExternalLink, Gift, Globe,
+  ChevronRight, ChevronsUpDown, Dumbbell, CircleAlert, CircleCheck, CircleHelp, CircleX, Clock, DoorOpen, Download, Eye, ExternalLink, Gift, Globe,
   GripVertical, History, House, Info, KeyRound, LayoutTemplate, LoaderCircle, Lock, LogOut, Mail, MapPin, Menu, Minus, PanelLeft, Pencil, Plane, Plug,
   Plus, Pause, Play, Monitor, Copy, Maximize2, Radio, RefreshCw, Scale, ScanLine, Search, Send, Settings, Shield, ShieldAlert, Smartphone, Sparkles, Star, Ticket, Trash2, Undo2, CalendarPlus,
   TrainFront, TriangleAlert, Trophy, User, UserPlus, Users, WifiOff, X, Zap, Link, CreditCard, Bus, Bike, SquareParking, Accessibility, SlidersHorizontal, Share2, Infinity as InfinityIcon, QrCode, Shuffle, Hourglass, Upload, Funnel, Crosshair, Keyboard, ChevronUp, Ellipsis, Inbox, WandSparkles, ChartColumn,
@@ -26,7 +26,7 @@ export const GR_ICONS = {
   plane: Plane, plug: Plug, plus: Plus, radio: Radio, refresh: RefreshCw, scale: Scale, scan: ScanLine, search: Search, send: Send, share: Share2,
   settings: Settings, shield: Shield, 'shield-alert': ShieldAlert, smartphone: Smartphone, sparkles: Sparkles,
   ticket: Ticket, train: TrainFront, 'triangle-alert': TriangleAlert, trophy: Trophy, user: User, 'user-plus': UserPlus, users: Users,
-  'wifi-off': WifiOff, x: X, zap: Zap, door: DoorOpen, eye: Eye, grip: GripVertical, pencil: Pencil, star: Star, trash: Trash2, undo: Undo2, inbox: Inbox, wand: WandSparkles, 'bar-chart': ChartColumn,
+  'wifi-off': WifiOff, x: X, zap: Zap, door: DoorOpen, dumbbell: Dumbbell, eye: Eye, grip: GripVertical, pencil: Pencil, star: Star, trash: Trash2, undo: Undo2, inbox: Inbox, wand: WandSparkles, 'bar-chart': ChartColumn,
   'calendar-plus': CalendarPlus, pause: Pause, play: Play, monitor: Monitor, copy: Copy, maximize: Maximize2,
   instagram: Instagram, building: Building2, heart: Heart, link: Link, 'credit-card': CreditCard, bus: Bus, bike: Bike, parking: SquareParking, accessibility: Accessibility, sliders: SlidersHorizontal, infinity: InfinityIcon, shuffle: Shuffle, qr: QrCode, hourglass: Hourglass,
   upload: Upload, filter: Funnel, crosshair: Crosshair, keyboard: Keyboard, 'chevron-up': ChevronUp, more: Ellipsis,
