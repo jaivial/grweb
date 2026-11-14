@@ -91,7 +91,7 @@ export class GrCinturon {
         <p class="text-body-m text-text-tertiary lg:text-body-l">{{ parrafo() }}</p>
         <p class="inline-flex items-center gap-2 rounded-md border border-line-strong bg-bg-base px-4 py-3 text-body-s text-text-secondary"><gr-icon name="ticket" [size]="16" class="shrink-0 text-accent-text" />Boletos solo en el recinto y en efectivo. No hay venta online.</p>
         <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-          <a grButton variant="display-gradient" size="l" class="gr-brillo" routerLink="/sorteo">Ver la rifa</a>
+          <a grButton variant="primary" size="l" routerLink="/sorteo">Ver la rifa</a>
           <a grButton variant="outline" size="l" routerLink="/sorteo" fragment="normas">Cómo funciona</a>
         </div>
       </div>
