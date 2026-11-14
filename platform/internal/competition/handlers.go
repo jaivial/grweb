@@ -439,6 +439,43 @@ func (s *Svc) registerAdmin() {
 			return modsView(c), nil
 		})
 
+	// The raffle module starts locked until the staff confirms its legal checklist (Sorteo › Configuración).
+	type desbloqIn struct {
+		CID  uuid.UUID `path:"cid"`
+		Body struct {
+			Confirmado bool `json:"confirmado" doc:"Quien desbloquea confirma que la checklist legal del sorteo está completa"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "competition-sorteo-checklist", Method: http.MethodPost, Path: "/api/admin/competiciones/{cid}/modulos/sorteo/checklist-legal", Summary: "Confirmar la checklist legal del sorteo y desbloquear el módulo", Tags: tagAdmin, Security: bearer},
+		func(ctx context.Context, in *desbloqIn) (*modsOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "evento.editar"); err != nil {
+				return nil, err
+			}
+			if !in.Body.Confirmado {
+				return nil, problem.Unprocessable("CHECKLIST_INCOMPLETA", "Marca todos los puntos de la checklist legal antes de desbloquear el sorteo.")
+			}
+			var c Competicion
+			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				var err error
+				if c, err = lockComp(ctx, tx, in.CID); err != nil {
+					return err
+				}
+				m := c.Modulos["sorteo"]
+				m.Bloqueado, m.Motivo = false, ""
+				c.Modulos["sorteo"] = m
+				if _, err := tx.Exec(ctx, `UPDATE competiciones SET modulos = $2, updated_at = now(), version = version + 1 WHERE id = $1`, in.CID, c.Modulos); err != nil {
+					return err
+				}
+				return events.Enqueue(ctx, tx, events.New(ctx, "competition.modulos_actualizados", map[string]any{"modulo": "sorteo", "desbloqueado": true},
+					events.Competition(in.CID.String()), events.Audience(events.Public)))
+			})
+			if err != nil {
+				return nil, err
+			}
+			s.afterChange(ctx, c)
+			return modsView(c), nil
+		})
+
 	// ---- checklist ----
 	type paso struct {
 		Clave      string     `json:"clave"`

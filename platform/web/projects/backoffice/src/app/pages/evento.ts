@@ -4,7 +4,7 @@ import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer as DomSanitizerRef } from '@angular/platform-browser';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSegmented, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { problemOf } from '../core/api';
@@ -38,7 +38,7 @@ const NIVELES = ['AEP 1 · Nacional', 'AEP 2 · Interregional', 'AEP 3 · Region
 /** «Evento y módulos» (Figma page 53): event data with a live preview, web state (with scheduled changes), modules, AEP registration and how to get there. */
 @Component({
   selector: 'bo-evento',
-  imports: [A11yModule, GrSelect, GrSegmented, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [A11yModule, RouterLink, GrSelect, GrSegmented, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = comp();
@@ -166,7 +166,13 @@ const NIVELES = ['AEP 1 · Nacional', 'AEP 2 · Interregional', 'AEP 3 · Region
                 </div>
               }
             </section>
-            @if (bloqueoSorteo(); as m) { <gr-alert tone="warning" title="Sorteo de pago pendiente de asesoría">{{ m.motivo }} · Completa la checklist en Sorteo › Configuración para poder activarlo.</gr-alert> }
+            <a class="flex items-center gap-3 rounded-lg border border-line-subtle bg-bg-card p-4 hover:border-line-strong" [routerLink]="['/', comps.current()?.slug, 'atletas', 'inscripcion']">
+              <gr-icon name="user-plus" [size]="18" class="text-text-tertiary" />
+              <span class="min-w-0 flex-1"><span class="block text-label-s">Inscripción AEP</span><span class="block text-body-xs text-text-tertiary">El modo de inscripción, el enlace de la AEP y las plazas se gestionan en Atletas › Inscripción</span></span>
+              <gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" />
+            </a>
+            @if (bloqueoSorteo(); as m) { <gr-alert tone="warning" title="Sorteo bloqueado: falta la checklist legal">{{ m.motivo }}. Complétala en la página del sorteo para poder activarlo.
+              <a alertAction [routerLink]="['/', comps.current()?.slug, 'sorteo']" fragment="checklist-legal" class="mt-2 inline-flex items-center gap-1 text-label-s hover:underline">Ir a la checklist del sorteo <gr-icon name="arrow-right" [size]="14" /></a></gr-alert> }
           }
           @case ('llegar') {
             <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -227,7 +233,7 @@ export class EventoPage {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly san = inject(DomSanitizerRef);
-  protected readonly tabs: { v: Tab; l: string }[] = [{ v: 'datos', l: 'Datos' }, { v: 'estado', l: 'Estado del evento' }, { v: 'modulos', l: 'Módulos' }, { v: 'inscripcion', l: 'Inscripción AEP' }, { v: 'llegar', l: 'Cómo llegar' }];
+  protected readonly tabs: { v: Tab; l: string }[] = [{ v: 'datos', l: 'Datos' }, { v: 'estado', l: 'Estado del evento' }, { v: 'modulos', l: 'Módulos' }, { v: 'llegar', l: 'Cómo llegar' }];
   protected readonly dispositivos = [{ value: 'escritorio', label: 'Escritorio' }, { value: 'movil', label: 'Móvil' }];
   protected readonly vista = signal('escritorio');
   protected readonly estados = ESTADOS;

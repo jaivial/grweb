@@ -1,13 +1,16 @@
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { NgTemplateOutlet } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoPageHeader, BoToggle, Confirm, Media, errText } from '../../shared/ui';
+import { BoCheckbox } from '../../shared/kit/controls';
 import { RifaApi, euros, eurosCorto, type RifaConfig, type RifaHistorial, type RifaItem, type RifaItemIn } from './api';
 
 type Tab = 'items' | 'config' | 'ganadores' | 'historial';
@@ -34,7 +37,7 @@ const vacio = (): RifaItemIn => ({ nombre: '', descripcion: '', imagenUrl: null,
  *  create/edit an object with its BunnyCDN photo and (optionally) the winning ticket of each object. */
 @Component({
   selector: 'bo-sorteo',
-  imports: [FormsModule, NgTemplateOutlet, CdkDropList, CdkDrag, CdkDragHandle, BoPageHeader, BoToggle, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [FormsModule, NgTemplateOutlet, CdkDropList, CdkDrag, CdkDragHandle, BoCheckbox, BoPageHeader, BoToggle, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `.cdk-drag-preview{box-shadow:0 12px 32px rgb(0 0 0/.5)}.cdk-drag-animating,.cdk-drop-list-dragging .cdk-drag{transition:transform .2s ease}@media (prefers-reduced-motion:reduce){.cdk-drag-animating,.cdk-drop-list-dragging .cdk-drag{transition:none}}`,
   template: `
@@ -55,6 +58,19 @@ const vacio = (): RifaItemIn => ({ nombre: '', descripcion: '', imagenUrl: null,
             </ng-container>
           }
         </bo-page-header>
+      }
+      @if (bloqueo(); as motivo) {
+        <section id="checklist-legal" class="scroll-mt-24 rounded-lg border border-warning/40 bg-bg-card p-5">
+          <h2 class="flex items-center gap-2 text-ui-h5"><gr-icon name="circle-alert" [size]="18" class="text-warning" />Checklist legal del sorteo</h2>
+          <p class="mt-1 text-body-s text-text-tertiary">{{ motivo }}. El módulo «Sorteo» no se puede activar en Evento y módulos hasta confirmar estos puntos.</p>
+          <div class="mt-3 flex flex-col gap-1">
+            @for (p of pasosLegales; track $index) { <bo-checkbox [label]="p" [value]="!!marcados()[$index]" [disabled]="!puedeEvento()" (valueChange)="marcar($index, $event === true)" /> }
+          </div>
+          <div class="mt-4 flex flex-wrap items-center gap-3">
+            <button grButton variant="primary" icon="check" [loading]="desbloqueando()" [disabled]="!puedeEvento() || !checklistOk()" (click)="desbloquear()">Confirmar y desbloquear el sorteo</button>
+            @if (!puedeEvento()) { <span class="text-body-xs text-text-tertiary">Hace falta el permiso «evento.editar».</span> }
+          </div>
+        </section>
       }
       <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Rifa">
         @for (t of tabs; track t.v) {
@@ -271,12 +287,51 @@ export class SorteoPage {
     return `Rifa presencial en efectivo · ${its.length} items (${vis} visibles)` + (c.fechaSorteo ? ` · sorteo ${fechaSorteo(c.fechaSorteo)}` : '') + (c.lugar ? ' en el recinto' : '');
   });
   private t: ReturnType<typeof setTimeout> | undefined;
+  private readonly http = inject(HttpClient);
+  /** Motivo del bloqueo del módulo «sorteo» (null = desbloqueado). */
+  protected readonly bloqueo = signal<string | null>(null);
+  protected readonly pasosLegales = [
+    'Bases del sorteo redactadas y publicadas en la web (premios, fecha, mecánica y requisitos)',
+    'Rifa presencial comunicada o autorizada ante el órgano de juego que corresponda',
+    'Premios y donantes registrados con su valor estimado',
+    'Tratamiento de datos de los participantes y ganadores revisado (privacidad)',
+  ];
+  protected readonly marcados = signal<boolean[]>([]);
+  protected readonly checklistOk = computed(() => this.pasosLegales.every((_, i) => this.marcados()[i]));
+  protected readonly desbloqueando = signal(false);
+  protected readonly puedeEvento = computed(() => this.auth.can(this.cid(), 'evento.editar'));
+  protected marcar(i: number, v: boolean): void {
+    this.marcados.update((m) => { const n = [...m]; n[i] = v; return n; });
+  }
+  private async cargarBloqueo(): Promise<void> {
+    try {
+      const mods = await firstValueFrom(this.http.get<{ clave: string; bloqueado: boolean; motivo?: string }[]>(`/api/admin/competiciones/${this.cid()}/modulos`));
+      const m = mods.find((x) => x.clave === 'sorteo');
+      this.bloqueo.set(m?.bloqueado ? m.motivo || 'Checklist legal del sorteo pendiente' : null);
+      if (m?.bloqueado && this.route.snapshot.fragment === 'checklist-legal') setTimeout(() => document.getElementById('checklist-legal')?.scrollIntoView({ behavior: 'smooth' }));
+    } catch {
+      this.bloqueo.set(null);
+    }
+  }
+  protected async desbloquear(): Promise<void> {
+    this.desbloqueando.set(true);
+    try {
+      await firstValueFrom(this.http.post(`/api/admin/competiciones/${this.cid()}/modulos/sorteo/checklist-legal`, { confirmado: true }));
+      this.bloqueo.set(null);
+      this.toasts.success('Sorteo desbloqueado: ya puedes activarlo en Evento y módulos');
+    } catch (e) {
+      this.toasts.error(errText(e, 'No se pudo desbloquear el sorteo.'));
+    } finally {
+      this.desbloqueando.set(false);
+    }
+  }
 
   constructor() {
     effect(() => {
       if (!this.cid()) return;
       untracked(() => {
         void this.cargar();
+        void this.cargarBloqueo();
         if (this.tab() === 'historial') void this.cargarHistorial();
       });
     });
