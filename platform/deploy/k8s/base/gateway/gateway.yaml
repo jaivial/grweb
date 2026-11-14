@@ -32,7 +32,7 @@ spec:
           envFrom:
             - configMapRef: { name: grcup-config }
           env:
-            - { name: GOMEMLIMIT, value: "307MiB" } # ~80% of the 384Mi limit
+            - { name: GOMEMLIMIT, value: "410MiB" } # ~80% of the 512Mi limit
             - { name: UPLOADS_MAX, value: "32" } # concurrent multipart uploads per replica; over it 503 code=busy
             - { name: UPSTREAMS, value: "identity,competition,audit,realtime,cms,athletes,schedule,crm,messaging,ticketing,live,ai,raffle,fans,chat,donaciones,patrocinio,juegos,openlifter" }
             - { name: RATE_LIMIT_IP_MIN, value: "600" }
@@ -66,7 +66,8 @@ spec:
             # ST1 QA r2: 300 writers = 1317m of gateway (8 × 150m maxed out). QA r3: 1000 idle WS on 2–3 pods = 61–70Mi
             # per pod (63–73 % of 96Mi): request = observed working set + margin, so the scheduler reserves what it uses.
             requests: { cpu: 250m, memory: 128Mi }
-            limits: { cpu: "1", memory: 384Mi }
+            # ST2-R4-1: 500 SSE + bet load peaked at 292Mi and OOMKilled at 384Mi: headroom for the peak.
+            limits: { cpu: "1", memory: 512Mi }
 ---
 apiVersion: v1
 kind: Service
@@ -93,7 +94,9 @@ spec:
   # flapped 2↔3 replicas with nothing to serve and each scale-down cut the WS. Scale-down: 1 pod per minute.
   behavior:
     scaleDown:
-      stabilizationWindowSeconds: 300
+      # ST2-R4-4: open SSE use no CPU, so a scale-down cut them mid-run; wait the 30 min SSE recycle period (after
+      # which public streams reconnect and spread over the pods anyway).
+      stabilizationWindowSeconds: 1800
       policies: [{ type: Pods, value: 1, periodSeconds: 60 }]
 ---
 apiVersion: policy/v1

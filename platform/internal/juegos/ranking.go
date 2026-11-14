@@ -6,6 +6,8 @@ package juegos
 import (
 	"context"
 	"golang.org/x/sync/singleflight"
+	"sort"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -104,22 +106,83 @@ func (s *Svc) puestoPorra(ctx context.Context, j jornada, top []filaPorra, fanID
 // rankingVuelo collapses concurrent loads of the same top (ST2-R1-1: no singleflight meant N identical queries).
 var rankingVuelo singleflight.Group
 
+// orden is a snapshot of every wallet of a jornada in ranking order (saldo DESC, updated_at ASC), shared by the
+// pod for 3 s. ST2-R4-3: two count ranges per distinct fan scanned O(wallets) each with 1000+ fans; now one
+// index-only scan per jornada every 3 s and a binary search per fan.
+type orden struct {
+	exp   time.Time
+	saldo []int64
+	upd   []time.Time
+}
+
+var (
+	ordenMu sync.Mutex
+	ordenes = map[string]*orden{}
+)
+
+func (s *Svc) ordenJornada(ctx context.Context, j jornada, m Moneda) *orden {
+	key := j.ID.String() + ":" + string(m)
+	ordenMu.Lock()
+	o := ordenes[key]
+	ordenMu.Unlock()
+	if o != nil && time.Now().Before(o.exp) {
+		return o
+	}
+	v, _, _ := rankingVuelo.Do("orden:"+key, func() (any, error) {
+		// shared load: a caller that hangs up must not fail the others waiting on the flight
+		qctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		rows, err := s.a.DB.Query(qctx, `SELECT saldo, updated_at FROM saldos WHERE jornada_id = $1 AND moneda = $2
+			ORDER BY saldo DESC, updated_at ASC`, j.ID, m)
+		if err != nil {
+			return o, err
+		}
+		defer rows.Close()
+		n := &orden{exp: time.Now().Add(3 * time.Second)}
+		for rows.Next() {
+			var sd int64
+			var u time.Time
+			if rows.Scan(&sd, &u) == nil {
+				n.saldo, n.upd = append(n.saldo, sd), append(n.upd, u)
+			}
+		}
+		if rows.Err() != nil {
+			return o, rows.Err()
+		}
+		ordenMu.Lock()
+		for k, x := range ordenes { // drop expired jornadas so the map stays bounded
+			if time.Since(x.exp) > time.Minute {
+				delete(ordenes, k)
+			}
+		}
+		ordenes[key] = n
+		ordenMu.Unlock()
+		return n, nil
+	})
+	o, _ = v.(*orden)
+	return o
+}
+
 // miPuesto is the fan's place in the whole ranking (same order and ties as rank() in the top): 1 + the wallets
-// strictly ahead, counted as two index-only ranges of saldos_orden instead of sorting every wallet (ST2-R1-1).
+// strictly ahead in the jornada snapshot; the fan's own balance is read fresh by primary key.
 func (s *Svc) miPuesto(ctx context.Context, j jornada, fanID uuid.UUID, m Moneda) (int, int64) {
 	if fanID == uuid.Nil {
 		return 0, 0
 	}
-	var puesto int
 	var saldo int64
-	if err := s.a.DB.QueryRow(ctx, `SELECT 1
-			+ (SELECT count(*) FROM saldos s WHERE s.jornada_id = $1 AND s.moneda = $2 AND s.saldo > m.saldo)
-			+ (SELECT count(*) FROM saldos s WHERE s.jornada_id = $1 AND s.moneda = $2 AND s.saldo = m.saldo AND s.updated_at < m.updated_at),
-			m.saldo
-		FROM saldos m WHERE m.jornada_id = $1 AND m.fan_id = $3 AND m.moneda = $2`, j.ID, m, fanID).Scan(&puesto, &saldo); err != nil {
+	var upd time.Time
+	if err := s.a.DB.QueryRow(ctx, `SELECT saldo, updated_at FROM saldos WHERE jornada_id = $1 AND fan_id = $3 AND moneda = $2`,
+		j.ID, m, fanID).Scan(&saldo, &upd); err != nil {
 		return 0, 0
 	}
-	return puesto, saldo
+	o := s.ordenJornada(ctx, j, m)
+	if o == nil {
+		return 0, saldo
+	}
+	ahead := sort.Search(len(o.saldo), func(i int) bool {
+		return o.saldo[i] < saldo || (o.saldo[i] == saldo && !o.upd[i].Before(upd))
+	})
+	return 1 + ahead, saldo
 }
 
 // eventoClasificacion emits juegos.clasificacion at most once every 5 s per jornada (contract §6.6), with the

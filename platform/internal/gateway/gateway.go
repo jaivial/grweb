@@ -108,6 +108,7 @@ type gw struct {
 	a        *app.App
 	upstream map[string]*url.URL
 	proxies  map[string]*httputil.ReverseProxy
+	sseProxy *httputil.ReverseProxy // public SSE of realtime: 4 KB copy buffers (ST2-R4-1)
 	identity *svcclient.Client
 	cors     []string
 	ipLimit  int64
@@ -167,7 +168,11 @@ func (g *gw) setup(_ context.Context, a *app.App) error {
 	wsT := transport.Clone()
 	wsT.ResponseHeaderTimeout = 5 * time.Second
 	wsT.DialContext = (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext
-	rt := porUpgrade{http: transport, ws: wsT}
+	// ST2-R4-1: an open SSE held 64 KB of transport buffers for its whole life (500 SSE ≈ 32 MB per replica just
+	// idling); events are < 1 KB, so SSE get their own transport with 4 KB buffers.
+	sseT := transport.Clone()
+	sseT.WriteBufferSize, sseT.ReadBufferSize = 4<<10, 4<<10
+	rt := porUpgrade{http: transport, ws: wsT, sse: sseT}
 	for _, svc := range enabled {
 		raw := config.Str("UPSTREAM_"+strings.ToUpper(svc), "http://"+svc+":8080")
 		u, err := url.Parse(raw)
@@ -176,6 +181,10 @@ func (g *gw) setup(_ context.Context, a *app.App) error {
 		}
 		g.upstream[svc] = u
 		g.proxies[svc] = g.newProxy(svc, u, rt)
+	}
+	if u, ok := g.upstream["realtime"]; ok {
+		g.sseProxy = g.newProxy("realtime", u, rt)
+		g.sseProxy.BufferPool = smallPool{}
 	}
 	if u, ok := g.upstream["identity"]; ok {
 		g.identity = svcclient.New(u.String(), "gateway", "identity", a.Cfg.InternalToken)
@@ -277,6 +286,9 @@ func (g *gw) serve(w http.ResponseWriter, r *http.Request) {
 		problem.Write(w, problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "El módulo «"+svc+"» todavía no está desplegado."))
 		return
 	}
+	if svc == "realtime" && g.sseProxy != nil && esSSE(r) {
+		proxy = g.sseProxy
+	}
 	// Clients never send internal headers.
 	r.Header.Del("X-GrCup-Service")
 	if strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "multipart/") {
@@ -331,6 +343,14 @@ var buffers = sync.Pool{New: func() any { b := make([]byte, 32<<10); return &b }
 
 func (bufPool) Get() []byte  { return *buffers.Get().(*[]byte) }
 func (bufPool) Put(b []byte) { buffers.Put(&b) }
+
+// smallPool: 4 KB copy buffers for SSE, held for the whole life of each connection.
+type smallPool struct{}
+
+var smallBuffers = sync.Pool{New: func() any { b := make([]byte, 4<<10); return &b }}
+
+func (smallPool) Get() []byte  { return *smallBuffers.Get().(*[]byte) }
+func (smallPool) Put(b []byte) { smallBuffers.Put(&b) }
 
 // esSSE tells a real public SSE open: GET, exact registered path (RawPath empty: nothing percent-encoded) and an
 // Accept that asks for text/event-stream. Anything else to /stream counts in the normal request bucket.
