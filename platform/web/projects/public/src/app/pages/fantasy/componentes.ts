@@ -100,10 +100,10 @@ export function badgeSala(estado: EstadoSala | 'abierta', miembros = 0, plazas =
     case 'en_juego':
       return { txt: 'En juego', clase: acento };
     case 'cancelada':
-      return { txt: 'Cancelada', clase: 'border-text-muted/45 bg-text-muted/12 text-text-muted' };
+      return { txt: 'Cancelada', clase: 'border-text-muted/45 bg-text-muted/12 text-text-tertiary' };
     case 'cerrada':
     case 'finalizada':
-      return { txt: 'Cerrada', clase: 'border-text-muted/45 bg-text-muted/12 text-text-muted' };
+      return { txt: 'Cerrada', clase: 'border-text-muted/45 bg-text-muted/12 text-text-tertiary' };
     default:
       return plazas > 0 && plazas - miembros === 1 ? { txt: 'Últimas plazas', clase: acento } : { txt: 'Abierta', clase: 'border-success/45 bg-success/12 text-success' };
   }
@@ -119,7 +119,7 @@ export function badgeSala(estado: EstadoSala | 'abierta', miembros = 0, plazas =
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'contents' },
   template: `
-    <nav class="text-body-xs text-text-tertiary" aria-label="Migas"><a routerLink="/" class="hover:text-text-primary">Inicio</a> · Juegos · <a routerLink="/fantasy" class="hover:text-text-primary">Fantasy</a>@for (m of migas(); track $index) { · {{ m }} }</nav>
+    <nav class="text-body-s text-text-tertiary" aria-label="Migas"><a routerLink="/" class="hover:text-text-primary">Inicio</a> · Juegos · <a routerLink="/fantasy" class="hover:text-text-primary">Fantasy</a>@for (m of migas(); track $index) { · {{ m }} }</nav>
     <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
       <div class="flex min-w-0 flex-col gap-2.5">
         <h1 class="text-display-s md:text-display-m">{{ titulo() }}</h1>
@@ -148,7 +148,7 @@ export class FantasyCabecera {
     <p class="flex min-w-0 items-center gap-3">
       <gr-icon name="users" [size]="20" class="shrink-0 text-text-secondary" />
       <span class="flex min-w-0 flex-col gap-0.5">
-        <span class="text-mono-xs text-text-muted">Sala</span>
+        <span class="text-meta text-text-tertiary">Sala</span>
         <span class="truncate text-label-s text-text-primary">{{ nombre() }}</span>
       </span>
       <span class="inline-flex h-7 shrink-0 items-center rounded-pill border px-3 text-label-xs" [class]="badge().clase">{{ badge().txt }}</span>
@@ -216,19 +216,19 @@ export const POSICION_CORTA = ['Pívot', 'Ala izq.', 'Ala der.', 'Cierre', 'Port
   template: `
     @for (a of atletas(); track a.atletaId; let i = $index) {
       <p class="flex items-center gap-3 rounded-md bg-bg-card px-3 py-2">
-        <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-700 text-mono-xs text-text-primary">{{ ini(a.nombre) }}</span>
+        <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-700 text-meta text-text-primary">{{ ini(a.nombre) }}</span>
         <span class="flex min-w-0 flex-1 flex-col gap-0.5">
           <span class="truncate text-label-s text-text-primary">{{ a.nombre }}</span>
-          <span class="text-mono-xs text-text-muted">{{ posiciones[i] ?? '' }}</span>
+          <span class="text-meta text-text-tertiary">{{ posiciones[i] ?? '' }}</span>
         </span>
         <gr-nota [nota]="a.nota" />
       </p>
     } @empty {
-      <p class="rounded-md bg-bg-card px-3 py-3 text-body-xs text-text-muted">Todavía no ha fichado a nadie.</p>
+      <p class="rounded-md bg-bg-card px-3 py-3 text-body-s text-text-tertiary">Todavía no ha fichado a nadie.</p>
     }
     @if (atletas().length) {
       <p class="flex items-center gap-2 px-3 py-2">
-        <span class="min-w-0 flex-1 text-mono-xs text-text-muted">{{ pie() }}</span>
+        <span class="min-w-0 flex-1 text-meta text-text-tertiary">{{ pie() }}</span>
         <span class="text-ui-h5 tabular-nums" [class]="color()">{{ mediaTxt() }}</span>
       </p>
     }
@@ -257,9 +257,9 @@ export function lineasNota(n: Nota | null | undefined, nulo = 0.3): { concepto: 
   const bonus = (c: ConceptoNota, l: string) => (de(c) ? [{ concepto: l, valor: '+' + nota1(de(c)!), clase: 'text-success' }] : []);
   return [
     { concepto: `A · Intentos válidos (${n.validos} de 9)`, valor: nota1(de('intentos') ?? 0), clase: 'text-success' },
-    { concepto: `Nulos (${n.nulos} × −${nota1(nulo)})`, valor: n.nulos ? '−' + nota1(Math.abs(de('nulos') ?? n.nulos * nulo)) : nota1(0), clase: n.nulos ? 'text-nota-rojo' : 'text-text-muted' },
-    { concepto: 'Blanqueo (3 nulos en un movimiento)', valor: n.blanqueo ? 'nota = 0,0' : 'no ocurrió', clase: n.blanqueo ? 'text-nota-rojo' : 'text-text-muted' },
-    { concepto: 'B · Puesto en su categoría', valor: nota1(de('puesto') ?? 0), clase: de('puesto') ? 'text-success' : 'text-text-muted' },
+    { concepto: `Nulos (${n.nulos} × −${nota1(nulo)})`, valor: n.nulos ? '−' + nota1(Math.abs(de('nulos') ?? n.nulos * nulo)) : nota1(0), clase: n.nulos ? 'text-nota-rojo' : 'text-text-tertiary' },
+    { concepto: 'Blanqueo (3 nulos en un movimiento)', valor: n.blanqueo ? 'nota = 0,0' : 'no ocurrió', clase: n.blanqueo ? 'text-nota-rojo' : 'text-text-tertiary' },
+    { concepto: 'B · Puesto en su categoría', valor: nota1(de('puesto') ?? 0), clase: de('puesto') ? 'text-success' : 'text-text-tertiary' },
     ...bonus('pleno', 'C · Pleno 9/9'),
     ...bonus('record_personal', 'C · Récord personal'),
     ...bonus('record_competicion', 'C · Récord de la competición'),
@@ -272,14 +272,14 @@ export function lineasNota(n: Nota | null | undefined, nulo = 0.3): { concepto: 
   selector: 'gr-clause-trend',
   imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[class]': '"inline-flex h-6 shrink-0 items-center gap-1 rounded-pill px-2 font-mono text-[11px] font-medium tabular-nums " + clase()', '[attr.aria-label]': 'etiqueta()' },
+  host: { '[class]': '"inline-flex h-6 shrink-0 items-center gap-1 rounded-pill px-2 font-mono text-[13px] font-medium tabular-nums " + clase()', '[attr.aria-label]': 'etiqueta()' },
   template: `@if (delta() > 0) { <gr-icon name="arrow-up" [size]="12" />{{ delta() }} % } @else if (delta() < 0) { <gr-icon name="arrow-down" [size]="12" />{{ -delta() }} % } @else { <span>— 0 %</span> }`,
 })
 export class ClauseTrend {
   /** El cambio en porcentaje (positivo o negativo). */
   readonly delta = input(0);
   protected readonly clase = computed(() =>
-    this.delta() > 0 ? 'bg-success/12 text-success' : this.delta() < 0 ? 'bg-warning/12 text-warning' : 'bg-bg-raised text-text-muted',
+    this.delta() > 0 ? 'bg-success/12 text-success' : this.delta() < 0 ? 'bg-warning/12 text-warning' : 'bg-bg-raised text-text-tertiary',
   );
   protected readonly etiqueta = computed(() => (this.delta() > 0 ? `Cláusula sube un ${this.delta()} %` : this.delta() < 0 ? `Cláusula baja un ${-this.delta()} %` : 'Cláusula sin cambios'));
 }
@@ -325,7 +325,7 @@ export class SparklineClausula {
     <span class="flex size-10 shrink-0 items-center justify-center rounded-full border-[1.5px] bg-bg-raised font-display text-[15px] text-text-primary italic" [class]="atleta().esMio ? 'border-info/70' : 'border-line-strong'">{{ ini() }}</span>
     <button type="button" class="min-w-0 flex-1 basis-[9rem] py-1 text-left" (click)="ficha.emit()" [attr.aria-label]="'Ver la ficha de ' + atleta().nombre">
       <span class="block truncate text-label-m text-text-primary hover:underline underline-offset-4">{{ atleta().nombre }}</span>
-      <span class="block truncate text-body-xs text-text-tertiary">{{ subtitulo() }}</span>
+      <span class="block truncate text-body-s text-text-tertiary">{{ subtitulo() }}</span>
     </button>
     <span class="hidden w-[72px] shrink-0 lg:block"><gr-sparkline-clausula [valores]="serie()" [color]="color()" /></span>
     <span class="flex shrink-0 flex-col items-end gap-1 lg:w-24">
@@ -409,7 +409,7 @@ export class MarketRow {
     </span>
     <span class="min-w-0 flex-1">
       <span class="line-clamp-2 text-label-s text-text-primary">{{ titulo() }}</span>
-      <span class="block truncate font-mono text-[11px] text-text-tertiary">{{ detalle() }}</span>
+      <span class="block truncate font-mono text-[13px] text-text-tertiary">{{ detalle() }}</span>
     </span>
   `,
 })
@@ -458,38 +458,38 @@ export class FeedRow {
         </header>
         <div class="flex flex-col gap-3.5 p-5">
           @if (sala()) {
-            <p class="flex items-center gap-2 text-mono-xs text-text-secondary"><gr-icon name="users" [size]="16" class="shrink-0" /><span class="min-w-0 truncate">Sala · {{ sala() }}</span></p>
+            <p class="flex items-center gap-2 text-meta text-text-secondary"><gr-icon name="users" [size]="16" class="shrink-0" /><span class="min-w-0 truncate">Sala · {{ sala() }}</span></p>
           }
           <p class="flex items-center gap-3 rounded-md border border-line-strong bg-bg-card px-3 py-3">
             <span class="flex size-11 shrink-0 items-center justify-center rounded-full border-[1.5px] border-accent/80 bg-bg-raised font-display text-[16px] italic">{{ ini() }}</span>
             <span class="min-w-0 flex-1">
               <span class="block truncate text-label-m">{{ atleta().nombre }}</span>
-              <span class="block truncate text-body-xs text-text-tertiary">{{ subtitulo() }}</span>
+              <span class="block truncate text-body-s text-text-tertiary">{{ subtitulo() }}</span>
             </span>
             <span class="shrink-0 text-right">
               <span class="block font-mono text-label-s text-text-primary">{{ dueno() }}</span>
-              <span class="block text-mono-xs text-text-muted">dueño actual</span>
+              <span class="block text-meta text-text-tertiary">dueño actual</span>
             </span>
           </p>
           <p class="flex items-center justify-between gap-3 rounded-md border border-accent/50 bg-accent-deep/25 px-3.5 py-3">
             <span class="min-w-0">
-              <span class="block text-mono-xs text-text-tertiary">Cláusula a pagar</span>
-              <span class="block text-body-xs text-text-tertiary">Sube un 3 % por la demanda tras el fichaje</span>
+              <span class="block text-meta text-text-tertiary">Cláusula a pagar</span>
+              <span class="block text-body-s text-text-tertiary">Sube un 3 % por la demanda tras el fichaje</span>
             </span>
             <span class="shrink-0 font-mono text-[24px] font-bold text-accent-text tabular-nums md:text-[26px]">{{ monedas(atleta().clausula) }}</span>
           </p>
           <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2.5">
             <p class="rounded-md border border-line-subtle bg-bg-card px-3 py-2.5">
-              <span class="block text-mono-xs text-text-tertiary">Tu saldo antes</span>
+              <span class="block text-meta text-text-tertiary">Tu saldo antes</span>
               <span class="block font-mono text-[18px] font-bold text-text-primary tabular-nums">{{ monedas(saldo()) }}</span>
             </p>
             <gr-icon name="arrow-right" [size]="18" class="text-text-tertiary" />
             <p class="rounded-md border px-3 py-2.5" [class]="despues() < 0 ? 'border-accent-text/50 bg-accent-deep/30' : 'border-warning/45 bg-bg-card'">
-              <span class="block text-mono-xs text-text-tertiary">Después</span>
+              <span class="block text-meta text-text-tertiary">Después</span>
               <span class="block font-mono text-[18px] font-bold tabular-nums" [class]="despues() < 0 ? 'text-accent-text' : 'text-warning'">{{ despues() < 0 ? 'Sin saldo' : monedas(despuesMostrado()) }}</span>
             </p>
           </div>
-          <ul class="flex flex-col gap-2 rounded-md border border-warning bg-bg-deep px-3.5 py-3 text-body-xs text-text-secondary">
+          <ul class="flex flex-col gap-2 rounded-md border border-warning bg-bg-deep px-3.5 py-3 text-body-s text-text-secondary">
             <li class="flex items-start gap-2"><gr-icon name="credit-card" [size]="15" class="mt-px shrink-0 text-warning" /><span>Cobra <b class="text-text-primary">{{ dueno() }}</b>: el dinero va íntegro al dueño anterior.</span></li>
             @if (proteccionMin() > 0) {
               <li class="flex items-start gap-2"><gr-icon name="shield" [size]="15" class="mt-px shrink-0 text-warning" /><span>Después queda <b class="text-text-primary">protegido {{ proteccionMin() }} min</b>: nadie te lo puede clausular.</span></li>
@@ -497,19 +497,19 @@ export class FeedRow {
             <li class="flex items-start gap-2"><gr-icon name="zap" [size]="15" class="mt-px shrink-0 text-warning" /><span>Clausulazos usados: <b class="font-mono text-text-primary">{{ clausulazosUsados() }} de {{ maxClausulazos() }}</b> esta jornada · sin deuda.</span></li>
           </ul>
           @if (cerrado()) {
-            <p class="flex items-center gap-2 rounded-md border border-warning bg-bg-deep p-3 text-body-xs text-text-secondary" role="alert">
+            <p class="flex items-center gap-2 rounded-md border border-warning bg-bg-deep p-3 text-body-s text-text-secondary" role="alert">
               <gr-icon name="circle-alert" [size]="16" class="shrink-0 text-warning" />Clausulazos cerrados desde las {{ cerrado() }}. La última sesión del día ya empezó; se reabren el próximo día de competición.
             </p>
           } @else if (error()) {
-            <p class="flex items-center gap-2 rounded-md border border-crimson bg-bg-deep p-3 text-body-xs text-text-secondary" role="alert">
+            <p class="flex items-center gap-2 rounded-md border border-crimson bg-bg-deep p-3 text-body-s text-text-secondary" role="alert">
               <gr-icon name="circle-alert" [size]="16" class="shrink-0 text-crimson" />{{ error() }}
             </p>
           } @else if (despues() < 0) {
-            <p class="flex items-center gap-2 rounded-md border border-crimson bg-bg-deep p-3 text-body-xs text-text-secondary" role="alert">
+            <p class="flex items-center gap-2 rounded-md border border-crimson bg-bg-deep p-3 text-body-s text-text-secondary" role="alert">
               <gr-icon name="circle-alert" [size]="16" class="shrink-0 text-crimson" />Te faltan {{ monedas(-despues()) }} monedas para pagar la cláusula.
             </p>
           } @else if (clausulazosUsados() >= maxClausulazos()) {
-            <p class="flex items-center gap-2 rounded-md border border-crimson bg-bg-deep p-3 text-body-xs text-text-secondary" role="alert">
+            <p class="flex items-center gap-2 rounded-md border border-crimson bg-bg-deep p-3 text-body-s text-text-secondary" role="alert">
               <gr-icon name="circle-alert" [size]="16" class="shrink-0 text-crimson" />Ya has usado tus {{ maxClausulazos() }} clausulazos de esta jornada.
             </p>
           }
@@ -569,7 +569,7 @@ export class ClausulazoModal {
             <span class="flex size-12 shrink-0 items-center justify-center rounded-full border-2 border-accent/70 bg-bg-raised font-display text-[18px] italic">{{ ini() }}</span>
             <span class="min-w-0">
               <span class="block truncate text-ui-h5">{{ atleta()?.nombre ?? 'Atleta' }}</span>
-              <span class="block truncate text-body-xs text-text-tertiary">{{ subtitulo() }}</span>
+              <span class="block truncate text-body-s text-text-tertiary">{{ subtitulo() }}</span>
             </span>
           </span>
           <button type="button" class="-m-2 flex size-10 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" aria-label="Cerrar" (click)="cerrar.emit()"><gr-icon name="x" [size]="20" /></button>
@@ -577,30 +577,30 @@ export class ClausulazoModal {
 
         <p class="flex items-center justify-between gap-3 rounded-md border border-line-subtle bg-bg-card px-3 py-2.5">
           <span class="min-w-0">
-            <span class="block text-mono-xs text-text-tertiary uppercase">Cláusula actual · dueño {{ dueno() }}</span>
+            <span class="block text-meta text-text-tertiary uppercase">Cláusula actual · dueño {{ dueno() }}</span>
             <span class="block font-mono text-[24px] font-bold text-accent-text tabular-nums">{{ monedas(clausulaActual()) }}</span>
           </span>
           <gr-clause-trend [delta]="delta()" />
         </p>
 
         <section class="rounded-md border border-line-subtle bg-bg-card p-3">
-          <p class="text-mono-xs text-text-tertiary uppercase">Evolución de la cláusula · hoy</p>
+          <p class="text-meta text-text-tertiary uppercase">Evolución de la cláusula · hoy</p>
           <svg class="mt-2 h-24 w-full" [attr.viewBox]="'0 0 ' + ancho + ' 96'" preserveAspectRatio="none" fill="none" role="img" [attr.aria-label]="'Evolución de la cláusula de ' + (atleta()?.nombre ?? '')">
             <path [attr.d]="curva()" stroke="#e6606b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
             @for (p of puntosCurva(); track p.x) { <circle [attr.cx]="p.x" [attr.cy]="p.y" r="3" fill="#e6606b" /> }
           </svg>
-          <p class="mt-2 text-body-xs text-text-tertiary">{{ resumenCurva() }}</p>
+          <p class="mt-2 text-body-s text-text-tertiary">{{ resumenCurva() }}</p>
         </section>
 
         @if (evento(); as ev) {
           <section class="flex flex-col gap-3 rounded-lg border bg-bg-deep p-4" [class]="ev.blanqueo ? 'border-crimson' : ev.valido ? 'border-success' : 'border-warning'" aria-live="polite">
-            <p class="flex items-center gap-2 text-mono-xs" [class]="ev.blanqueo ? 'text-text-primary' : 'text-text-secondary'">
+            <p class="flex items-center gap-2 text-meta" [class]="ev.blanqueo ? 'text-text-primary' : 'text-text-secondary'">
               <span class="size-2 shrink-0 rounded-full" [class]="ev.blanqueo ? 'bg-crimson' : ev.valido ? 'bg-success' : 'bg-warning'" aria-hidden="true"></span>{{ ev.cabecera }}
             </p>
             <p class="text-ui-h4 text-text-primary">{{ ev.titulo }}</p>
             @if (ev.blanqueo) {
               <p class="flex items-center gap-3 text-mono-s text-text-secondary">@if (ev.antes !== null) { <span>Nota {{ n2(ev.antes) }} →</span> } <gr-nota [nota]="notaAtleta()" /></p>
-              <p class="text-body-xs text-text-primary">3 nulos en un mismo movimiento: nota 0,0 absoluto. Se anula todo y la cláusula baja un 30 %.</p>
+              <p class="text-body-s text-text-primary">3 nulos en un mismo movimiento: nota 0,0 absoluto. Se anula todo y la cláusula baja un 30 %.</p>
             } @else {
               <p class="text-mono-s text-text-secondary">{{ ev.linea }}</p>
             }
@@ -609,28 +609,28 @@ export class ClausulazoModal {
 
         <section class="flex flex-col gap-2 rounded-md bg-bg-surface p-3" aria-labelledby="ficha-desglose">
           <p class="flex items-center justify-between gap-3">
-            <span id="ficha-desglose" class="text-label-xs text-text-muted">Desglose de la nota</span>
+            <span id="ficha-desglose" class="text-label-xs text-text-tertiary">Desglose de la nota</span>
             <gr-nota [nota]="notaAtleta()" />
           </p>
           @for (l of lineas(); track l.concepto) {
             <p class="flex items-center justify-between gap-3">
-              <span class="min-w-0 text-body-xs text-text-secondary" [class.line-through]="blanqueo() && l.concepto.slice(0, 8) !== 'Blanqueo'">{{ l.concepto }}</span>
+              <span class="min-w-0 text-body-s text-text-secondary" [class.line-through]="blanqueo() && l.concepto.slice(0, 8) !== 'Blanqueo'">{{ l.concepto }}</span>
               <span class="shrink-0 text-mono-s tabular-nums" [class]="l.clase">{{ l.valor }}</span>
             </p>
           }
-          <p class="text-body-xs text-text-muted">{{ blanqueo() ? 'Los componentes se muestran tachados: blanqueo = nota 0,0.' : 'La nota se actualiza con cada veredicto; el puesto, al publicarse la categoría. Blanqueo = nota 0,0.' }}</p>
+          <p class="text-body-s text-text-tertiary">{{ blanqueo() ? 'Los componentes se muestran tachados: blanqueo = nota 0,0.' : 'La nota se actualiza con cada veredicto; el puesto, al publicarse la categoría. Blanqueo = nota 0,0.' }}</p>
         </section>
 
         @if (fichajes().length) {
           <section class="rounded-md border border-line-subtle bg-bg-card p-3">
-            <p class="text-mono-xs text-text-tertiary uppercase">Historial de fichajes</p>
+            <p class="text-meta text-text-tertiary uppercase">Historial de fichajes</p>
             <ul class="mt-2 flex flex-col gap-2">
               @for (f of fichajes(); track f.fecha) {
                 <li class="flex items-start gap-2.5">
                   <gr-icon [name]="f.tipo === 'clausulazo' ? 'zap' : f.tipo === 'compra' ? 'users' : 'arrow-right'" [size]="16" class="mt-0.5 shrink-0 text-text-tertiary" />
                   <span class="min-w-0">
-                    <span class="block text-body-xs text-text-primary">{{ textoFichaje(f) }}</span>
-                    <span class="block text-body-xs text-text-tertiary">{{ hora(f.fecha) }} · {{ monedas(f.precio) }}</span>
+                    <span class="block text-body-s text-text-primary">{{ textoFichaje(f) }}</span>
+                    <span class="block text-body-s text-text-tertiary">{{ hora(f.fecha) }} · {{ monedas(f.precio) }}</span>
                   </span>
                 </li>
               }

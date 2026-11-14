@@ -65,12 +65,12 @@ interface FilaDia {
                 <p class="flex min-w-0 items-center gap-4">
                   <span class="flex size-14 shrink-0 items-center justify-center rounded-full bg-[#d4af37] text-display-label text-text-primary">{{ ini(m.ganador.alias) }}</span>
                   <span class="flex min-w-0 flex-col gap-1">
-                    <span class="text-mono-xs text-[#d4af37]">Mejor nota media · {{ dia()?.nombre }}</span>
+                    <span class="text-meta text-[#d4af37]">Mejor nota media · {{ dia()?.nombre }}</span>
                     <span class="text-ui-h3 text-text-primary">&#64;{{ m.ganador.alias }} · {{ n2(m.ganador.nota) }}</span>
                     <span class="text-body-s text-text-secondary">{{ m.sala.nombre }} · {{ m.sala.jugadores }} {{ m.sala.jugadores === 1 ? 'jugador' : 'jugadores' }}</span>
                   </span>
                 </p>
-                <span class="inline-flex h-7 shrink-0 items-center self-start rounded-pill border border-text-muted/45 bg-text-muted/12 px-3 text-label-xs text-text-muted md:self-auto">Día cerrado</span>
+                <span class="inline-flex h-7 shrink-0 items-center self-start rounded-pill border border-text-muted/45 bg-text-muted/12 px-3 text-label-xs text-text-tertiary md:self-auto">Día cerrado</span>
               </section>
             }
           </div>
@@ -94,11 +94,11 @@ interface FilaDia {
                         <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-700 text-display-label text-text-primary">{{ ini(f.ganador.alias) }}</span>
                         <span class="flex min-w-0 flex-col gap-0.5">
                           <span class="truncate text-label-s text-text-primary">{{ f.sala.nombre }}</span>
-                          <span class="truncate text-body-xs text-text-tertiary">{{ f.sala.jugadores }} jugadores · {{ f.sala.ganadores.length > 1 ? 'ganadores ' + aliasGanadores(f.sala) + ' (empate)' : 'ganador @' + f.ganador.alias }}</span>
+                          <span class="truncate text-body-s text-text-tertiary">{{ f.sala.jugadores }} jugadores · {{ f.sala.ganadores.length > 1 ? 'ganadores ' + aliasGanadores(f.sala) + ' (empate)' : 'ganador @' + f.ganador.alias }}</span>
                         </span>
                       </p>
                       <div class="flex items-center gap-3">
-                        <p class="flex flex-1 flex-col gap-0.5 sm:flex-none"><span class="text-ui-h5 tabular-nums" [class]="color(f.ganador.nota)">{{ n2(f.ganador.nota) }}</span><span class="text-mono-xs text-text-muted">nota media</span></p>
+                        <p class="flex flex-1 flex-col gap-0.5 sm:flex-none"><span class="text-ui-h5 tabular-nums" [class]="color(f.ganador.nota)">{{ n2(f.ganador.nota) }}</span><span class="text-meta text-text-tertiary">nota media</span></p>
                         <button type="button" grButton [variant]="f.sala.salaId === salaId() ? 'primary' : 'outline'" [attr.aria-pressed]="f.sala.salaId === salaId()" (click)="salaId.set(f.sala.salaId)">Ver detalle</button>
                       </div>
                     </li>
@@ -106,10 +106,10 @@ interface FilaDia {
                 </ol>
               }
               @for (c of canceladas(); track c.salaId) {
-                <p class="flex items-center gap-3 rounded-lg border border-dashed border-line-strong px-4 py-3 text-body-xs text-text-muted"><gr-icon name="circle-alert" [size]="16" class="shrink-0" />{{ c.nombre }} · cancelada ({{ c.jugadores }} {{ c.jugadores === 1 ? 'jugador' : 'jugadores' }}, mínimo 2) · no puntúa</p>
+                <p class="flex items-center gap-3 rounded-lg border border-dashed border-line-strong px-4 py-3 text-body-s text-text-tertiary"><gr-icon name="circle-alert" [size]="16" class="shrink-0" />{{ c.nombre }} · cancelada ({{ c.jugadores }} {{ c.jugadores === 1 ? 'jugador' : 'jugadores' }}, mínimo 2) · no puntúa</p>
               }
               @if (jugadas().length) {
-                <p class="flex items-center gap-3 rounded-lg border border-line-subtle bg-bg-card px-4 py-3 text-body-xs text-text-secondary"><gr-icon name="scale" [size]="16" class="shrink-0" />Empates: gana el mayor valor de alineación, luego el saldo y por último quien llegó antes a la sala.</p>
+                <p class="flex items-center gap-3 rounded-lg border border-line-subtle bg-bg-card px-4 py-3 text-body-s text-text-secondary"><gr-icon name="scale" [size]="16" class="shrink-0" />Empates: gana el mayor valor de alineación, luego el saldo y por último quien llegó antes a la sala.</p>
               }
             </section>
 
@@ -117,16 +117,16 @@ interface FilaDia {
               <section class="flex min-w-0 flex-col gap-4 rounded-lg border border-line-subtle bg-bg-surface p-5 lg:w-[520px] lg:shrink-0 lg:p-6" aria-live="polite" aria-label="Detalle del ganador">
                 <p class="flex items-center gap-3">
                   <span class="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#d4af37] text-display-label text-text-primary">{{ ini(g.ganador.alias) }}</span>
-                  <span class="flex min-w-0 flex-col gap-0.5"><span class="text-mono-xs text-[#d4af37]">Ganador · {{ dia()?.nombre }}</span><span class="text-ui-h5 text-text-primary">&#64;{{ g.ganador.alias }} · {{ g.sala.nombre }}</span></span>
+                  <span class="flex min-w-0 flex-col gap-0.5"><span class="text-meta text-[#d4af37]">Ganador · {{ dia()?.nombre }}</span><span class="text-ui-h5 text-text-primary">&#64;{{ g.ganador.alias }} · {{ g.sala.nombre }}</span></span>
                 </p>
-                <p class="flex flex-col gap-1 rounded-md bg-bg-card p-3"><span class="text-mono-xs text-text-muted">Media de la alineación</span><span class="text-mono-s text-text-primary tabular-nums">{{ formula(g.ganador) }}</span></p>
+                <p class="flex flex-col gap-1 rounded-md bg-bg-card p-3"><span class="text-meta text-text-tertiary">Media de la alineación</span><span class="text-mono-s text-text-primary tabular-nums">{{ formula(g.ganador) }}</span></p>
                 <h3 class="text-label-s text-text-secondary">Alineación ({{ g.ganador.alineacion.length }} {{ g.ganador.alineacion.length === 1 ? 'atleta' : 'atletas' }} · nota final)</h3>
                 <gr-alineacion-lista [atletas]="g.ganador.alineacion" [media]="g.ganador.nota" [final]="true" />
                 <h3 class="text-label-s text-text-secondary">Partida</h3>
                 <dl class="flex flex-wrap gap-2">
-                  <div class="flex flex-col gap-0.5 rounded-md bg-bg-card px-3 py-2"><dt class="text-mono-xs text-text-muted">Valor alineación</dt><dd class="text-mono-s text-text-primary tabular-nums">{{ monedas(g.ganador.valor) }}</dd></div>
-                  <div class="flex flex-col gap-0.5 rounded-md bg-bg-card px-3 py-2"><dt class="text-mono-xs text-text-muted">Saldo final</dt><dd class="text-mono-s text-text-primary tabular-nums">{{ monedas(g.ganador.saldo) }}</dd></div>
-                  <div class="flex flex-col gap-0.5 rounded-md bg-bg-card px-3 py-2"><dt class="text-mono-xs text-text-muted">Jugadores</dt><dd class="text-mono-s text-text-primary tabular-nums">{{ g.sala.jugadores }}</dd></div>
+                  <div class="flex flex-col gap-0.5 rounded-md bg-bg-card px-3 py-2"><dt class="text-meta text-text-tertiary">Valor alineación</dt><dd class="text-mono-s text-text-primary tabular-nums">{{ monedas(g.ganador.valor) }}</dd></div>
+                  <div class="flex flex-col gap-0.5 rounded-md bg-bg-card px-3 py-2"><dt class="text-meta text-text-tertiary">Saldo final</dt><dd class="text-mono-s text-text-primary tabular-nums">{{ monedas(g.ganador.saldo) }}</dd></div>
+                  <div class="flex flex-col gap-0.5 rounded-md bg-bg-card px-3 py-2"><dt class="text-meta text-text-tertiary">Jugadores</dt><dd class="text-mono-s text-text-primary tabular-nums">{{ g.sala.jugadores }}</dd></div>
                 </dl>
               </section>
             }

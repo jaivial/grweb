@@ -84,7 +84,7 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
 
         <div class="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
           <label class="flex h-12 min-w-0 flex-1 items-center gap-3 rounded-md border bg-bg-field px-4 focus-within:border-line-accent" [class.border-line-accent]="!!q()" [class.border-line-strong]="!q()">
-            <gr-icon name="search" [size]="20" class="shrink-0 text-text-muted" />
+            <gr-icon name="search" [size]="20" class="shrink-0 text-text-tertiary" />
             <span class="sr-only">Buscar sala por nombre</span>
             <input type="search" class="min-w-0 flex-1 bg-transparent text-body-m text-text-primary outline-none placeholder:text-text-muted [&::-webkit-search-cancel-button]:hidden" placeholder="Buscar sala por nombre…" autocomplete="off" enterkeyhint="search" inputmode="search"
               [ngModel]="q()" (ngModelChange)="buscar($event)" />
@@ -127,7 +127,7 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
           </div>
         } @else {
           <div class="flex flex-col gap-3" [class.opacity-55]="vivo.caida()">
-            <p class="hidden items-center gap-6 px-5 text-mono-xs text-text-muted xl:flex" aria-hidden="true">
+            <p class="hidden items-center gap-6 px-5 text-meta text-text-tertiary xl:flex" aria-hidden="true">
               <span class="min-w-0 flex-1">Sala</span><span class="w-40">Jugadores</span><span class="w-[190px]">Estado</span><span class="w-[260px]">Va ganando (media)</span><span class="w-[180px]"></span><span class="w-11"></span>
             </p>
             <ul class="flex flex-col gap-3" aria-live="polite">
@@ -136,14 +136,14 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
                   <div class="flex min-w-0 items-center gap-2 xl:flex-1">
                     <p class="flex min-w-0 flex-1 flex-col gap-1">
                       <a [href]="'/fantasy/salas/' + s.id" class="truncate text-ui-h5 text-text-primary hover:underline underline-offset-4">{{ s.nombre }}</a>
-                      <span class="flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="user" [size]="16" class="shrink-0" /><span class="truncate">Anfitrión &#64;{{ s.anfitrion }}{{ s.esMia ? ' · tu sala' : '' }}</span></span>
+                      <span class="flex items-center gap-1.5 text-body-s text-text-tertiary"><gr-icon name="user" [size]="16" class="shrink-0" /><span class="truncate">Anfitrión &#64;{{ s.anfitrion }}{{ s.esMia ? ' · tu sala' : '' }}</span></span>
                     </p>
                     <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-full xl:hidden" [class]="favoritas().has(s.id) ? 'text-warning' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-pressed]="favoritas().has(s.id)" [attr.aria-label]="(favoritas().has(s.id) ? 'Quitar de favoritas: ' : 'Marcar como favorita: ') + s.nombre" (click)="favorita(s)">
                       <gr-icon name="star" [size]="20" />
                     </button>
                   </div>
                   <p class="flex flex-col gap-1.5 xl:w-40">
-                    <span class="flex items-center gap-2"><span class="text-mono-s text-text-primary tabular-nums">{{ s.miembros }}/{{ s.plazas }}</span><span class="text-mono-xs text-text-muted">jugadores</span></span>
+                    <span class="flex items-center gap-2"><span class="text-mono-s text-text-primary tabular-nums">{{ s.miembros }}/{{ s.plazas }}</span><span class="text-meta text-text-tertiary">jugadores</span></span>
                     <span class="block h-1.5 overflow-hidden rounded-pill bg-bg-field" aria-hidden="true"><span class="block h-full rounded-pill" [class]="s.plazas - s.miembros <= 1 && s.estado !== 'en_juego' ? 'bg-warning' : 'bg-accent'" [style.width.%]="s.plazas ? (s.miembros / s.plazas) * 100 : 0"></span></span>
                   </p>
                   <p class="flex flex-wrap items-center gap-2 xl:w-[190px] xl:flex-col xl:items-start xl:gap-1">
@@ -157,7 +157,7 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
                         <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-700 text-display-label text-text-primary">{{ ini(l.alias) }}</span>
                         <span class="flex min-w-0 flex-col gap-0.5">
                           <span class="truncate text-label-s text-text-primary">&#64;{{ l.alias }}</span>
-                          <span class="truncate text-mono-xs text-accent-text">Media {{ n2(l.nota) }} · {{ cerrada(s) ? 'ganó' : 'va ganando' }}</span>
+                          <span class="truncate text-meta text-accent-text">Media {{ n2(l.nota) }} · {{ cerrada(s) ? 'ganó' : 'va ganando' }}</span>
                         </span>
                         <gr-icon name="eye" [size]="16" class="shrink-0 text-text-tertiary" />
                       </button>
@@ -165,7 +165,7 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
                         <gr-popover-alineacion [fila]="l" [sala]="s.nombre" [final]="cerrada(s)" [verSala]="'/fantasy/salas/' + s.id" (cerrar)="cerrarPopover()" />
                       }
                     } @else {
-                      <span class="text-body-xs text-text-muted">Sin clasificar todavía</span>
+                      <span class="text-body-s text-text-tertiary">Sin clasificar todavía</span>
                     }
                   </div>
                   <div class="xl:w-[180px]">

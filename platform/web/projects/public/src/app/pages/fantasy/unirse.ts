@@ -74,7 +74,7 @@ import { TarjetaEstado } from './salas-ui';
                 <section class="flex min-w-0 flex-col gap-3 rounded-lg border border-line-subtle bg-bg-surface p-6 lg:flex-1" aria-label="La invitación">
                   <p class="flex items-center gap-3">
                     <span class="flex size-12 shrink-0 items-center justify-center rounded-full bg-accent-700 text-display-label text-text-primary">{{ ini(i.sala.anfitrion) }}</span>
-                    <span class="flex min-w-0 flex-col gap-0.5"><span class="text-mono-xs text-text-muted">Te invita &#64;{{ i.sala.anfitrion }}</span><span class="text-ui-h4 text-text-primary">{{ i.sala.nombre }}</span></span>
+                    <span class="flex min-w-0 flex-col gap-0.5"><span class="text-meta text-text-tertiary">Te invita &#64;{{ i.sala.anfitrion }}</span><span class="text-ui-h4 text-text-primary">{{ i.sala.nombre }}</span></span>
                   </p>
                   <p class="flex items-center gap-3 text-body-s text-text-secondary"><gr-icon name="users" [size]="16" class="shrink-0" />{{ i.sala.miembros }}/{{ i.sala.plazas }} jugadores · {{ libres() === 1 ? 'queda 1 plaza' : 'quedan ' + libres() + ' plazas' }}</p>
                   @if (dia()) { <p class="flex items-center gap-3 text-body-s text-text-secondary"><gr-icon name="calendar" [size]="16" class="shrink-0" />Día {{ dia() }} · empieza con la primera sesión</p> }
@@ -83,7 +83,7 @@ import { TarjetaEstado } from './salas-ui';
 
                 @if (i.estado === 'disponible') {
                   <section class="flex min-w-0 flex-col gap-4 rounded-xl border border-line-accent bg-bg-card p-6 lg:w-[420px] lg:shrink-0" aria-label="Unirme a la sala">
-                    <p class="text-mono-xs text-text-muted">Entrarás como</p>
+                    <p class="text-meta text-text-tertiary">Entrarás como</p>
                     <p class="flex items-center gap-3">
                       <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-700 text-display-label text-text-primary">{{ ini(fan.yo()?.alias ?? '') }}</span>
                       <span class="truncate text-label-s text-text-primary">&#64;{{ fan.yo()?.alias }}</span>
@@ -94,7 +94,7 @@ import { TarjetaEstado } from './salas-ui';
                     @if (error(); as e) { <gr-aviso tono="error" titulo="No has podido entrar">{{ e }}</gr-aviso> }
                     <button type="button" grButton variant="primary" size="l" [block]="true" [loading]="entrando()" (click)="entrar()">{{ i.solicitudesPendientes > 0 ? 'Unirme y cancelar solicitudes' : 'Unirme a la sala' }}</button>
                     <a grButton variant="outline" [block]="true" href="/fantasy/salas">Ahora no</a>
-                    <p class="text-body-xs text-text-tertiary">Recibirás 1.000.000 monedas al entrar. Podrás salir hasta que empiece el día.</p>
+                    <p class="text-body-s text-text-tertiary">Recibirás 1.000.000 monedas al entrar. Podrás salir hasta que empiece el día.</p>
                   </section>
                 }
               </div>
@@ -105,20 +105,20 @@ import { TarjetaEstado } from './salas-ui';
                     <span class="flex size-8 items-center justify-center rounded-full bg-accent text-mono-s text-text-primary">1</span>
                     <p class="text-ui-h5 text-text-primary">Tu correo y alias</p>
                     <p class="text-body-s text-text-secondary">Te mandamos un enlace de acceso. Si ya tienes cuenta, entras directamente.</p>
-                    <p class="text-body-xs text-text-tertiary">El alias es visible en la sala y el palmarés. El destino de la sala viaja en el enlace.</p>
+                    <p class="text-body-s text-text-tertiary">El alias es visible en la sala y el palmarés. El destino de la sala viaja en el enlace.</p>
                     <button type="button" grButton variant="primary" [block]="true" (click)="acceder()">Enviarme el enlace de acceso</button>
                   </li>
                   <li class="flex flex-col gap-3 rounded-xl border border-line-subtle bg-bg-surface p-7">
                     <span class="flex size-8 items-center justify-center rounded-full bg-accent text-mono-s text-text-primary">2</span>
                     <p class="text-ui-h5 text-text-primary">Revisa tu correo</p>
                     <p class="text-body-s text-text-secondary">El enlace caduca en 30 minutos y solo funciona una vez.</p>
-                    <p class="text-body-xs text-text-tertiary">Puedes abrirlo en otro dispositivo: te lleva igualmente a la sala.</p>
+                    <p class="text-body-s text-text-tertiary">Puedes abrirlo en otro dispositivo: te lleva igualmente a la sala.</p>
                   </li>
                   <li class="flex flex-col gap-3 rounded-xl border border-success bg-bg-deep p-7">
                     <span class="flex size-8 items-center justify-center rounded-full bg-accent text-mono-s text-text-primary">3</span>
                     <p class="text-ui-h5 text-text-primary">Cuenta lista · entras directo</p>
                     <p class="text-body-s text-text-secondary">Volvemos a «{{ i.sala.nombre }}». Confirma y entras sin esperar aprobación.</p>
-                    <p class="text-body-xs text-text-tertiary">Si la sala se llenó o empezó mientras tanto, verás el estado correspondiente.</p>
+                    <p class="text-body-s text-text-tertiary">Si la sala se llenó o empezó mientras tanto, verás el estado correspondiente.</p>
                   </li>
                 </ol>
               }

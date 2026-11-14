@@ -30,8 +30,8 @@ const ICONO_TARJETA = { neutro: 'text-text-secondary', exito: 'text-success', av
   template: `
     <gr-icon [name]="icono()" [size]="32" [class]="color()" />
     <p class="text-ui-h5 text-text-primary">{{ titulo() }}</p>
-    <div class="text-body-s text-text-secondary"><ng-content /></div>
-    @if (meta()) { <p class="text-body-xs text-text-tertiary">{{ meta() }}</p> }
+    <div class="text-body-m text-text-secondary"><ng-content /></div>
+    @if (meta()) { <p class="text-body-s text-text-tertiary">{{ meta() }}</p> }
     <div class="flex flex-col gap-2 empty:hidden"><ng-content select="[acciones]" /></div>
   `,
 })
@@ -126,10 +126,10 @@ export interface SalaEditable {
           <span class="flex h-12 items-center gap-2 rounded-md border bg-bg-field px-3 focus-within:border-line-accent" [class.border-2]="!!errorNombre()" [class.border-crimson]="!!errorNombre()" [class.border-line-strong]="!errorNombre()">
             <input type="text" name="nombre" class="min-w-0 flex-1 bg-transparent text-body-m text-text-primary outline-none placeholder:text-text-muted" maxlength="32" autocomplete="off" enterkeyhint="done" autocapitalize="words" spellcheck="false" placeholder="Los Cuervos de Gonzalo"
               [disabled]="!puede()" [attr.aria-invalid]="!!errorNombre()" aria-describedby="crear-sala-ayuda" [ngModel]="nombre()" (ngModelChange)="nombre.set($event); errorNombre.set(null)" (blur)="validarNombre(true)" />
-            <span class="shrink-0 text-mono-xs" [class]="errorNombre() ? 'text-crimson' : 'text-text-muted'">{{ nombre().trim().length }}/32</span>
+            <span class="shrink-0 text-meta" [class]="errorNombre() ? 'text-crimson' : 'text-text-tertiary'">{{ nombre().trim().length }}/32</span>
           </span>
           @if (puede()) {
-            <span id="crear-sala-ayuda" class="text-body-xs" [class]="errorNombre() ? 'text-crimson' : 'text-text-tertiary'">{{ errorNombre() || (publica() ? 'Visible para todos en el lobby. 3–32 caracteres, único por día.' : 'Solo lo ve quien tenga el enlace. 3–32 caracteres, único por día.') }}</span>
+            <span id="crear-sala-ayuda" class="text-body-s" [class]="errorNombre() ? 'text-crimson' : 'text-text-tertiary'">{{ errorNombre() || (publica() ? 'Visible para todos en el lobby. 3–32 caracteres, único por día.' : 'Solo lo ve quien tenga el enlace. 3–32 caracteres, único por día.') }}</span>
           }
         </label>
 
@@ -143,7 +143,7 @@ export interface SalaEditable {
             </div>
             <span class="block h-1.5 max-w-[236px] overflow-hidden rounded-pill bg-bg-raised" aria-hidden="true"><span class="block h-full rounded-pill bg-accent" [style.width.%]="plazasMax() ? (plazas() / plazasMax()) * 100 : 0"></span></span>
           </div>
-          <p class="text-body-xs text-text-tertiary">Máximo hoy: {{ plazasMax() }} ({{ atletas() }} atletas ÷ 5, tope 10). Mínimo 2. Si hay menos atletas, las plazas se ajustan solas.</p>
+          <p class="text-body-s text-text-tertiary">Máximo hoy: {{ plazasMax() }} ({{ atletas() }} atletas ÷ 5, tope 10). Mínimo 2. Si hay menos atletas, las plazas se ajustan solas.</p>
 
           <div class="flex flex-col gap-1.5" role="radiogroup" aria-labelledby="crear-sala-vis">
             <span id="crear-sala-vis" class="text-label-s text-text-secondary">Visibilidad</span>
@@ -151,14 +151,14 @@ export interface SalaEditable {
               @for (o of visibilidades; track o.l) {
                 <button type="button" role="radio" [attr.aria-checked]="publica() === o.v" class="flex min-h-11 flex-col gap-0.5 rounded-sm border px-3 py-2 text-left" [class]="publica() === o.v ? 'border-line-accent bg-bg-raised' : 'border-transparent'" (click)="publica.set(o.v)">
                   <span class="text-label-s" [class]="publica() === o.v ? 'text-text-primary' : 'text-text-tertiary'">{{ o.l }}</span>
-                  <span class="text-body-xs text-text-muted">{{ o.d }}</span>
+                  <span class="text-body-s text-text-tertiary">{{ o.d }}</span>
                 </button>
               }
             </div>
           </div>
 
           <p class="flex flex-col gap-1.5 rounded-md border border-line-subtle bg-bg-card p-3">
-            <span class="text-mono-xs text-text-muted">Así se publicará</span>
+            <span class="text-meta text-text-tertiary">Así se publicará</span>
             <span class="text-body-s text-text-secondary">{{ vistaPrevia() }}</span>
           </p>
         }

@@ -60,12 +60,12 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } f
                         <span class="truncate text-label-s text-text-primary">&#64;{{ f.alias }}{{ f.esYo ? ' · tú' : '' }}</span>
                         @if (f.esAnfitrion) { <span class="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-pill border border-warning bg-warning/12 px-2.5 text-label-xs text-warning">Anfitrión</span> }
                       </span>
-                      <span class="text-body-xs text-text-tertiary">{{ d.empezada ? 'Alineación ' + f.conNota + '/5 con nota' : f.alineacion.length >= 5 ? 'Alineación completa 5/5' : 'Alineación ' + f.alineacion.length + '/5' }}</span>
+                      <span class="text-body-s text-text-tertiary">{{ d.empezada ? 'Alineación ' + f.conNota + '/5 con nota' : f.alineacion.length >= 5 ? 'Alineación completa 5/5' : 'Alineación ' + f.alineacion.length + '/5' }}</span>
                     </p>
                     @if (d.empezada) {
-                      <p class="flex shrink-0 flex-col gap-0.5 text-right"><span class="text-mono-s tabular-nums" [class]="color(f)">{{ n2(f.nota) }}</span><span class="text-mono-xs text-text-muted">nota media</span></p>
+                      <p class="flex shrink-0 flex-col gap-0.5 text-right"><span class="text-mono-s tabular-nums" [class]="color(f)">{{ n2(f.nota) }}</span><span class="text-meta text-text-tertiary">nota media</span></p>
                     } @else {
-                      <p class="flex shrink-0 flex-col gap-0.5 text-right"><span class="text-mono-s text-accent-text tabular-nums">{{ monedas(f.saldo) }}</span><span class="text-mono-xs text-text-muted">monedas</span></p>
+                      <p class="flex shrink-0 flex-col gap-0.5 text-right"><span class="text-mono-s text-accent-text tabular-nums">{{ monedas(f.saldo) }}</span><span class="text-meta text-text-tertiary">monedas</span></p>
                     }
                     <button type="button" class="-m-2 flex size-11 shrink-0 items-center justify-center rounded-full text-text-tertiary hover:text-text-primary" aria-haspopup="dialog" [attr.aria-expanded]="popover() === f.miembroId" [attr.aria-label]="'Ver la alineación de @' + f.alias" (click)="alternarPopover(f.miembroId, $event)">
                       <gr-icon name="eye" [size]="16" />
@@ -113,13 +113,13 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } f
                     <h2 id="sala-solicitudes" class="min-w-0 flex-1 text-ui-h5 text-text-primary">Solicitudes de unión</h2>
                     @if (d.solicitudes.length) { <span class="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-pill border border-warning bg-warning/12 px-2.5 text-label-xs text-warning">{{ d.solicitudes.length }} {{ d.solicitudes.length === 1 ? 'pendiente' : 'pendientes' }}</span> }
                   </div>
-                  <p class="text-body-xs text-text-tertiary">{{ textoSolicitudes() }}</p>
+                  <p class="text-body-s text-text-tertiary">{{ textoSolicitudes() }}</p>
                   <ul class="flex flex-col gap-3 empty:hidden" aria-live="polite">
                     @for (s of d.solicitudes; track s.id) {
                       <li class="flex flex-col gap-3 rounded-md bg-bg-card p-3">
                         <p class="flex items-center gap-3">
                           <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-700 text-display-label text-text-primary">{{ ini(s.alias) }}</span>
-                          <span class="flex min-w-0 flex-col gap-0.5"><span class="truncate text-label-s text-text-primary">&#64;{{ s.alias }}</span><span class="text-body-xs text-text-tertiary">Solicitud {{ hace(s.createdAt) }}</span></span>
+                          <span class="flex min-w-0 flex-col gap-0.5"><span class="truncate text-label-s text-text-primary">&#64;{{ s.alias }}</span><span class="text-body-s text-text-tertiary">Solicitud {{ hace(s.createdAt) }}</span></span>
                         </p>
                         <div class="grid grid-cols-2 gap-2">
                           <button type="button" grButton variant="primary" [block]="true" [loading]="operando() === s.id" [disabled]="llena()" (click)="responder(s.id, true)">Aceptar</button>
@@ -147,7 +147,7 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } f
                   </div>
                   @if (qr(); as q) { <img [src]="q" width="180" height="180" class="self-start rounded-md" alt="Código QR del enlace de invitación a la sala" /> }
                   @if (esAnfitrion()) {
-                    <button type="button" class="inline-flex min-h-11 items-center gap-2 self-start text-body-xs text-text-tertiary hover:text-text-primary md:min-h-0" [disabled]="operando() === 'enlace'" (click)="regenerar()"><gr-icon name="shuffle" [size]="16" />Regenerar enlace (invalida el anterior)</button>
+                    <button type="button" class="inline-flex min-h-11 items-center gap-2 self-start text-body-s text-text-tertiary hover:text-text-primary md:min-h-0" [disabled]="operando() === 'enlace'" (click)="regenerar()"><gr-icon name="shuffle" [size]="16" />Regenerar enlace (invalida el anterior)</button>
                   }
                 </section>
               }
@@ -157,7 +157,7 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } f
                   <h2 id="sala-acciones" class="text-ui-h5 text-text-primary">Acciones del anfitrión</h2>
                   <button type="button" grButton variant="outline" [block]="true" (click)="editando.set(true)">Editar sala</button>
                   <button type="button" class="flex h-11 w-full items-center justify-center rounded-md border border-crimson px-5 text-label-s text-crimson disabled:opacity-40" [disabled]="operando() === 'cerrar'" (click)="cerrarSala()">{{ confirmarCierre() ? 'Pulsa otra vez para cerrar la sala' : 'Cerrar sala' }}</button>
-                  <p class="text-body-xs text-text-tertiary">Cerrar sala rechaza las solicitudes, expulsa a todos y libera sus atletas. No se puede si el día ya empezó.</p>
+                  <p class="text-body-s text-text-tertiary">Cerrar sala rechaza las solicitudes, expulsa a todos y libera sus atletas. No se puede si el día ya empezó.</p>
                 </section>
               }
 
@@ -167,10 +167,10 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } f
                   <a grButton variant="primary" [block]="true" [href]="'/fantasy/salas/' + d.sala.id + '/equipo'">Ir a mi alineación</a>
                   <a grButton variant="outline" [block]="true" [href]="'/fantasy/salas/' + d.sala.id + '/mercado'">Ver mercado de la sala</a>
                   @if (d.empezada) {
-                    <p class="text-body-xs text-text-tertiary">No puedes salir una vez iniciado el día: tu nota cuenta en el palmarés.</p>
+                    <p class="text-body-s text-text-tertiary">No puedes salir una vez iniciado el día: tu nota cuenta en el palmarés.</p>
                   } @else if (abierta()) {
                     <button type="button" grButton variant="outline" [block]="true" [disabled]="operando() === 'salir'" (click)="salir()">{{ confirmarSalida() ? 'Pulsa otra vez para salir' : 'Salir de la sala' }}</button>
-                    <p class="text-body-xs text-text-tertiary">{{ esAnfitrion() ? 'Si sales, el anfitrión pasa al jugador más antiguo; si eres el único, la sala se cierra.' : 'Podrás salir hasta que empiece el día.' }}</p>
+                    <p class="text-body-s text-text-tertiary">{{ esAnfitrion() ? 'Si sales, el anfitrión pasa al jugador más antiguo; si eres el único, la sala se cierra.' : 'Podrás salir hasta que empiece el día.' }}</p>
                   }
                 </section>
               }
@@ -181,7 +181,7 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } f
                   <p class="text-mono-s text-accent-text tabular-nums">{{ m.libres }} de {{ m.total }} atletas libres</p>
                   <span class="block h-1.5 overflow-hidden rounded-pill bg-bg-field" aria-hidden="true"><span class="block h-full rounded-pill bg-warning" [style.width.%]="m.total ? (m.libres / m.total) * 100 : 0"></span></span>
                 }
-                <p class="text-body-xs text-text-tertiary">Cada atleta tiene un solo dueño por sala. Alineación de exactamente 5 atletas{{ mercado()?.total ? ': ' + mercado()!.total + ' ÷ 5 = ' + d.plazasMax + ' plazas' : '' }}.</p>
+                <p class="text-body-s text-text-tertiary">Cada atleta tiene un solo dueño por sala. Alineación de exactamente 5 atletas{{ mercado()?.total ? ': ' + mercado()!.total + ' ÷ 5 = ' + d.plazasMax + ' plazas' : '' }}.</p>
               </section>
             </aside>
           </div>
@@ -192,7 +192,7 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } f
     @if (toast(); as t) {
       <div class="fixed inset-x-4 top-20 z-40 flex items-center gap-3 rounded-md border border-line-accent bg-bg-deep px-4 py-3 shadow-card md:inset-x-auto md:top-24 md:right-6 md:w-[380px]" role="status" aria-live="polite">
         <gr-icon name="bell" [size]="20" class="shrink-0 text-text-secondary" />
-        <p class="flex min-w-0 flex-1 flex-col gap-0.5"><span class="truncate text-label-s text-text-primary">Nueva solicitud de &#64;{{ t }}</span><span class="text-body-xs text-text-tertiary">Quiere unirse a tu sala · ahora</span></p>
+        <p class="flex min-w-0 flex-1 flex-col gap-0.5"><span class="truncate text-label-s text-text-primary">Nueva solicitud de &#64;{{ t }}</span><span class="text-body-s text-text-tertiary">Quiere unirse a tu sala · ahora</span></p>
         <a href="#solicitudes" class="flex min-h-11 shrink-0 items-center text-label-s text-accent-text hover:underline" (click)="toast.set(null)">Ver</a>
       </div>
     }

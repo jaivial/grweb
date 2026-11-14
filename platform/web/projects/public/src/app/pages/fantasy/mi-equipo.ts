@@ -56,8 +56,8 @@ import { AvisoConexion, BarraSala, FantasyCabecera, GrAviso, SinSala, colorNota 
           <!-- Móvil: marcador compacto (nota media y saldo); el resto, en «ver más» -->
           <section class="rounded-lg border border-line-subtle bg-bg-card lg:hidden" aria-label="Tu jornada">
             <div class="flex items-center gap-2 py-3 pr-2 pl-4">
-              <p class="min-w-0 flex-1"><span class="block text-mono-xs text-text-tertiary">Nota media</span><span class="block font-mono text-[20px] leading-tight font-bold tabular-nums" [class]="kpis()[0].color">{{ kpis()[0].valor }}</span></p>
-              <p class="min-w-0 flex-1"><span class="block text-mono-xs text-text-tertiary">Saldo</span><span class="block truncate font-mono text-[20px] leading-tight font-bold text-info tabular-nums">{{ kpis()[2].valor }}</span></p>
+              <p class="min-w-0 flex-1"><span class="block text-meta text-text-tertiary">Nota media</span><span class="block font-mono text-[20px] leading-tight font-bold tabular-nums" [class]="kpis()[0].color">{{ kpis()[0].valor }}</span></p>
+              <p class="min-w-0 flex-1"><span class="block text-meta text-text-tertiary">Saldo</span><span class="block truncate font-mono text-[20px] leading-tight font-bold text-info tabular-nums">{{ kpis()[2].valor }}</span></p>
               <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-sm border border-line-strong bg-bg-raised text-text-secondary" [attr.aria-expanded]="verMas()" aria-controls="mas-kpis"
                 [attr.aria-label]="verMas() ? 'Ver menos' : 'Ver puesto y valor del equipo'" (click)="verMas.set(!verMas())">
                 <gr-icon name="chevron-down" [size]="18" class="transition-transform motion-reduce:transition-none" [class.rotate-180]="verMas()" />
@@ -65,8 +65,8 @@ import { AvisoConexion, BarraSala, FantasyCabecera, GrAviso, SinSala, colorNota 
             </div>
             @if (verMas()) {
               <dl id="mas-kpis" class="grid grid-cols-2 gap-3 border-t border-line-subtle px-4 py-3">
-                <div><dt class="text-mono-xs text-text-tertiary">Tu puesto</dt><dd class="font-mono text-[18px] font-bold text-accent-text">{{ kpis()[1].valor }}</dd><dd class="text-body-xs text-text-tertiary">{{ kpis()[1].nota }}</dd></div>
-                <div><dt class="text-mono-xs text-text-tertiary">Valor del equipo</dt><dd class="font-mono text-[18px] font-bold text-text-primary">{{ kpis()[3].valor }}</dd><dd class="text-body-xs text-text-tertiary">{{ kpis()[3].nota }}</dd></div>
+                <div><dt class="text-meta text-text-tertiary">Tu puesto</dt><dd class="font-mono text-[18px] font-bold text-accent-text">{{ kpis()[1].valor }}</dd><dd class="text-body-s text-text-tertiary">{{ kpis()[1].nota }}</dd></div>
+                <div><dt class="text-meta text-text-tertiary">Valor del equipo</dt><dd class="font-mono text-[18px] font-bold text-text-primary">{{ kpis()[3].valor }}</dd><dd class="text-body-s text-text-tertiary">{{ kpis()[3].nota }}</dd></div>
               </dl>
             }
           </section>
@@ -75,7 +75,7 @@ import { AvisoConexion, BarraSala, FantasyCabecera, GrAviso, SinSala, colorNota 
           <section class="min-w-0" aria-labelledby="pista-titulo">
             <div class="mb-3 flex items-end justify-between gap-3">
               <h2 id="pista-titulo" class="text-display-xs">Alineación · {{ atletas().length }}/{{ plazas() }}</h2>
-              <p class="hidden text-body-xs text-text-tertiary sm:block">Toca un jugador para ver su ficha</p>
+              <p class="hidden text-body-s text-text-tertiary sm:block">Toca un jugador para ver su ficha</p>
             </div>
             <gr-pista-futsal [titulares]="atletas()" [mercado]="rutaMercado()" (abrir)="abrirJugador($event.atleta, $event.origen)" />
           </section>
@@ -85,7 +85,7 @@ import { AvisoConexion, BarraSala, FantasyCabecera, GrAviso, SinSala, colorNota 
               <h2 id="jornada-titulo" class="text-display-2xs">Tu jornada {{ jornadaTxt() }}</h2>
               <dl class="mt-4 grid grid-cols-2 gap-4">
                 @for (k of kpis(); track k.label) {
-                  <div class="flex min-w-0 flex-col gap-1"><dt class="text-mono-xs text-text-tertiary">{{ k.label }}</dt><dd class="truncate font-mono text-[26px] leading-[1.3] font-bold tabular-nums" [class]="k.color">{{ k.valor }}</dd><dd class="truncate text-body-xs text-text-tertiary">{{ k.nota }}</dd></div>
+                  <div class="flex min-w-0 flex-col gap-1"><dt class="text-meta text-text-tertiary">{{ k.label }}</dt><dd class="truncate font-mono text-[26px] leading-[1.3] font-bold tabular-nums" [class]="k.color">{{ k.valor }}</dd><dd class="truncate text-body-s text-text-tertiary">{{ k.nota }}</dd></div>
                 }
               </dl>
             </section>
@@ -101,7 +101,7 @@ import { AvisoConexion, BarraSala, FantasyCabecera, GrAviso, SinSala, colorNota 
                 <a grButton variant="primary" [routerLink]="rutaMercado()" iconRight="arrow-right" class="w-full lg:w-auto lg:self-start">Ir al mercado</a>
             </section>
 
-            <p class="text-body-xs text-text-tertiary">Toca un jugador para ver su ficha o venderlo. Las posiciones son solo visuales.</p>
+            <p class="text-body-s text-text-tertiary">Toca un jugador para ver su ficha o venderlo. Las posiciones son solo visuales.</p>
           </aside>
         </div>
       }
