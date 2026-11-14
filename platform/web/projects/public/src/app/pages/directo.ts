@@ -211,7 +211,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
           </section>
 
           <!-- UX4-R2-4 (Figma 27 mobile): the title right under the video, above the chat -->
-          <h1 class="text-display-m md:hidden">En <span class="text-accent-text">directo</span></h1>
+          <h2 class="text-display-m md:hidden">En <span class="text-accent-text">directo</span></h2>
 
           <!-- Panel social del directo (Figma 70): en móvil va bajo el player; en escritorio, en la columna derecha -->
           <gr-panel-social class="min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2" />
