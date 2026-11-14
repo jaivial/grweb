@@ -240,10 +240,11 @@ const api = '/api/area-atleta';
           }
           <p class="text-label-m text-text-secondary">Primeros intentos previstos (kg)</p>
           <div class="grid grid-cols-3 gap-2">
-            @for (m of lifts; track m.k) { <label class="flex flex-col gap-1"><span class="text-mono-xs text-text-tertiary">{{ m.s }}</span><input grInput class="font-mono" type="number" inputmode="decimal" step="2.5" min="0" max="600" [name]="'i' + m.k" [(ngModel)]="pz.intentos[m.k]" /></label> }
+            @for (m of lifts; track m.k) { <label class="flex flex-col gap-1"><span class="text-mono-xs text-text-tertiary">{{ m.s }}</span><input grInput class="font-mono" type="number" inputmode="decimal" step="2.5" min="0" max="600" [name]="'i' + m.k" [(ngModel)]="pz.intentos[m.k]" [attr.aria-invalid]="fueraIntento(pz.intentos[m.k]) || null" [attr.aria-describedby]="fueraIntento(pz.intentos[m.k]) ? 'i-err' : null" [class.border-accent]="fueraIntento(pz.intentos[m.k])" /></label> }
           </div>
+          @if (intentosMal()) { <p id="i-err" class="text-body-s text-accent-text" role="alert">Entre 0 y 600 kg, en múltiplos de 2,5.</p> }
           @if (error() && vista() !== 'perfil') { <p class="text-body-s text-accent-text" role="alert">{{ error() }}</p> }
-          <button grButton variant="primary" size="l" [block]="true" [loading]="busy()" (click)="guardarPesaje()">Guardar para el pesaje</button>
+          <button grButton variant="primary" size="l" [block]="true" [loading]="busy()" [disabled]="intentosMal()" (click)="guardarPesaje()">Guardar para el pesaje</button>
         </ng-template>
         <ng-template #eleccionTpl let-pr>
           <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6" aria-labelledby="pr-tit">
@@ -374,6 +375,12 @@ export class AreaAtletaPage {
   private timer?: ReturnType<typeof setInterval>;
   protected fuera(v: unknown): boolean {
     return v !== null && v !== undefined && v !== '' && !(Number(v) >= 0 && Number(v) <= 600);
+  }
+  protected fueraIntento(v: unknown): boolean {
+    return this.fuera(v) || (v !== null && v !== undefined && v !== '' && Number(v) % 2.5 !== 0);
+  }
+  protected intentosMal(): boolean {
+    return this.lifts.some((m) => this.fueraIntento(this.pz.intentos[m.k]));
   }
 
   private async recargar(): Promise<void> {
@@ -530,6 +537,7 @@ export class AreaAtletaPage {
 
   protected async guardarPesaje(): Promise<void> {
     this.error.set('');
+    if (this.intentosMal()) return;
     this.busy.set(true);
     const n = (v: unknown) => (v === null || v === undefined || v === '' ? undefined : Number(v));
     try {
