@@ -32,29 +32,18 @@ type SnapAtleta struct {
 	Lote           int       `json:"lote"`
 }
 
-// SnapFlight is a flight in a published version.
-type SnapFlight struct {
-	ID           uuid.UUID    `json:"id"`
-	Codigo       string       `json:"codigo"`
+// SnapDia is a date of a published version: its athletes in lot order on the only platform.
+type SnapDia struct {
+	Fecha        string       `json:"fecha"`
 	Prueba       string       `json:"prueba,omitempty"`
-	Titulo       string       `json:"titulo"`
-	Sexo         string       `json:"sexo"`
-	Plataforma   int          `json:"plataforma"`
+	Puertas      string       `json:"puertas,omitempty"`
+	Notas        []string     `json:"notas"`
+	Agenda       []AgendaItem `json:"agenda"`
 	Inicio       time.Time    `json:"inicio"`
 	Fin          time.Time    `json:"fin"`
-	DuracionMin  int          `json:"duracionMin"`
 	PesajeInicio time.Time    `json:"pesajeInicio"`
 	PesajeFin    time.Time    `json:"pesajeFin"`
 	Atletas      []SnapAtleta `json:"atletas"`
-}
-
-// SnapDia is a day of a published version.
-type SnapDia struct {
-	Fecha   string       `json:"fecha"`
-	Puertas string       `json:"puertas,omitempty"`
-	Notas   []string     `json:"notas"`
-	Agenda  []AgendaItem `json:"agenda"`
-	Flights []SnapFlight `json:"flights"`
 }
 
 // Snapshot is a published version of the schedule (immutable).
@@ -65,12 +54,10 @@ type Snapshot struct {
 	Dias        []SnapDia `json:"dias"`
 }
 
-func (sn Snapshot) flight(id uuid.UUID) *SnapFlight {
+func (sn Snapshot) dia(f string) *SnapDia {
 	for i := range sn.Dias {
-		for j := range sn.Dias[i].Flights {
-			if sn.Dias[i].Flights[j].ID == id {
-				return &sn.Dias[i].Flights[j]
-			}
+		if sn.Dias[i].Fecha == f {
+			return &sn.Dias[i]
 		}
 	}
 	return nil
@@ -94,117 +81,66 @@ func (s *Svc) versionPublicada(ctx context.Context, q querier, cid uuid.UUID) (*
 	return &v, nil
 }
 
-// snapshot freezes the draft: days (settings + any day with flights), non-empty flights, confirmed athletes only.
+// snapshot freezes the draft: every configured date (also without athletes) with its confirmed athletes.
 func snapshot(b Borrador, byID map[uuid.UUID]atleta, numero int) Snapshot {
 	sn := Snapshot{Numero: numero, PublicadoAt: time.Now().UTC(), ZonaHoraria: b.ZonaHoraria, Dias: []SnapDia{}}
-	idx := map[string]int{}
-	dia := func(f string) *SnapDia {
-		if i, ok := idx[f]; ok {
-			return &sn.Dias[i]
-		}
-		idx[f] = len(sn.Dias)
-		sn.Dias = append(sn.Dias, SnapDia{Fecha: f, Notas: []string{}, Agenda: []AgendaItem{}, Flights: []SnapFlight{}})
-		return &sn.Dias[len(sn.Dias)-1]
-	}
+	cfg := map[string]Dia{}
 	for _, d := range b.Config.Dias {
-		sd := dia(d.Fecha)
-		sd.Puertas = d.Puertas
+		cfg[d.Fecha] = d
+	}
+	for _, j := range b.Jornadas {
+		d, ok := cfg[j.Dia]
+		if !ok {
+			continue // a removed date (blocking conflict)
+		}
+		sd := SnapDia{Fecha: j.Dia, Prueba: j.Prueba, Puertas: d.Puertas, Notas: []string{}, Agenda: []AgendaItem{}, Atletas: []SnapAtleta{},
+			Inicio: j.Inicio, Fin: j.Fin, PesajeInicio: j.PesajeInicio, PesajeFin: j.PesajeFin}
 		if d.Notas != nil {
 			sd.Notas = d.Notas
 		}
-	}
-	for _, f := range b.Flights {
-		var as []SnapAtleta
-		for _, fa := range f.Atletas {
-			a, ok := byID[fa.ID]
-			if fa.Baja || !ok {
+		for _, ap := range j.Atletas {
+			a, ok := byID[ap.ID]
+			if ap.Baja || !ok {
 				continue
 			}
-			sa := SnapAtleta{ID: a.ID, Publico: a.Publico, Sexo: a.Sexo, Categoria: a.Categoria, Lote: len(as) + 1}
+			sa := SnapAtleta{ID: a.ID, Publico: a.Publico, Sexo: a.Sexo, Categoria: a.Categoria, Lote: len(sd.Atletas) + 1}
 			if a.Publico {
 				sa.Slug, sa.Nombre, sa.Club, sa.DivisionNombre = a.Slug, a.Nombre, a.Club, a.DivisionNombre
 			}
-			as = append(as, sa)
+			sd.Atletas = append(sd.Atletas, sa)
 		}
-		if len(as) == 0 {
-			continue
+		for _, x := range b.Agenda {
+			if x.Dia == j.Dia {
+				sd.Agenda = append(sd.Agenda, x)
+			}
 		}
-		sd := dia(f.Dia)
-		sd.Flights = append(sd.Flights, SnapFlight{ID: f.ID, Codigo: f.Codigo, Prueba: f.Prueba, Titulo: f.Titulo, Sexo: f.Sexo, Plataforma: f.Plataforma, Inicio: f.Inicio, Fin: f.Fin,
-			DuracionMin: f.DuracionMin, PesajeInicio: f.PesajeInicio, PesajeFin: f.PesajeFin, Atletas: as})
-	}
-	for _, a := range b.Agenda {
-		sd := dia(a.Dia)
-		sd.Agenda = append(sd.Agenda, a)
+		sn.Dias = append(sn.Dias, sd)
 	}
 	sort.Slice(sn.Dias, func(i, j int) bool { return sn.Dias[i].Fecha < sn.Dias[j].Fecha })
 	return sn
 }
 
-// esDePrueba: a published flight belongs to competition p (versions before flights.prueba: all its athletes are of p).
-func esDePrueba(f SnapFlight, p string, byID map[uuid.UUID]atleta) bool {
-	if f.Prueba != "" {
-		return f.Prueba == p
-	}
-	for _, a := range f.Atletas {
-		if byID[a.ID].Prueba != p {
-			return false
-		}
-	}
-	return len(f.Atletas) > 0
-}
-
-// partir splits a published snapshot into the flights of p and the rest (agenda and days stay in both).
-func partir(sn Snapshot, p string, byID map[uuid.UUID]atleta) (suya, resto Snapshot, tiene bool) {
+// partir splits a published snapshot into the dates of competition p and the rest.
+func partir(sn Snapshot, p string) (suya, resto Snapshot, tiene bool) {
 	suya, resto = sn, sn
-	suya.Dias, resto.Dias = make([]SnapDia, len(sn.Dias)), make([]SnapDia, len(sn.Dias))
-	for i, d := range sn.Dias {
-		x, y := d, d
-		x.Flights, y.Flights = []SnapFlight{}, []SnapFlight{}
-		for _, f := range d.Flights {
-			if esDePrueba(f, p, byID) {
-				x.Flights, tiene = append(x.Flights, f), true
-			} else {
-				y.Flights = append(y.Flights, f)
-			}
+	suya.Dias, resto.Dias = []SnapDia{}, []SnapDia{}
+	for _, d := range sn.Dias {
+		if d.Prueba == p {
+			suya.Dias, tiene = append(suya.Dias, d), true
+		} else {
+			resto.Dias = append(resto.Dias, d)
 		}
-		suya.Dias[i], resto.Dias[i] = x, y
 	}
 	return
 }
 
-// fusionar adds to sn (the draft of one competition) the published flights of the others, without the athletes
-// sn already places: the web keeps showing the other competition as it was published.
+// fusionar adds to sn (the draft dates of one competition) the published dates of the others: the web keeps
+// showing the other competition as it was published.
 func fusionar(sn Snapshot, resto Snapshot) Snapshot {
-	en := posiciones(&sn)
-	idx := map[string]int{}
-	for i, d := range sn.Dias {
-		idx[d.Fecha] = i
-	}
 	for _, d := range resto.Dias {
-		for _, f := range d.Flights {
-			as := []SnapAtleta{}
-			for _, a := range f.Atletas {
-				if _, ok := en[a.ID]; !ok {
-					a.Lote = len(as) + 1
-					as = append(as, a)
-				}
-			}
-			if len(as) == 0 {
-				continue
-			}
-			f.Atletas = as
-			i, ok := idx[d.Fecha]
-			if !ok {
-				i = len(sn.Dias)
-				idx[d.Fecha] = i
-				sn.Dias = append(sn.Dias, SnapDia{Fecha: d.Fecha, Puertas: d.Puertas, Notas: d.Notas, Agenda: []AgendaItem{}, Flights: []SnapFlight{}})
-			}
-			sn.Dias[i].Flights = append(sn.Dias[i].Flights, f)
+		if sn.dia(d.Fecha) == nil {
+			sn.Dias = append(sn.Dias, d)
 		}
-	}
-	for i := range sn.Dias {
-		sort.SliceStable(sn.Dias[i].Flights, func(a, b int) bool { return sn.Dias[i].Flights[a].Inicio.Before(sn.Dias[i].Flights[b].Inicio) })
 	}
 	sort.Slice(sn.Dias, func(i, j int) bool { return sn.Dias[i].Fecha < sn.Dias[j].Fecha })
 	return sn
@@ -212,9 +148,9 @@ func fusionar(sn Snapshot, resto Snapshot) Snapshot {
 
 // ---- diff ----
 
-// Cambio is a row of the publish dialog («Lucía Martín · C · 11:30 → B · 10:40»).
+// Cambio is a row of the publish dialog («Lucía Martín · sáb 19/12 09:00 → dom 20/12 09:00»).
 type Cambio struct {
-	Tipo    string `json:"tipo" enum:"atleta,flight,alta,baja,agenda"`
+	Tipo    string `json:"tipo" enum:"atleta,jornada,alta,baja,agenda"`
 	Titulo  string `json:"titulo"`
 	Antes   string `json:"antes"`
 	Despues string `json:"despues"`
@@ -232,17 +168,16 @@ type Diff struct {
 	ConEmail    int      `json:"conEmail" doc:"Afectados con email"`
 	Seguidores  int      `json:"seguidores" doc:"Personas que siguen a los afectados"`
 	Bloqueantes int      `json:"bloqueantes"`
-	Atletas     int      `json:"atletas" doc:"Atletas en los flights publicados"`
+	Atletas     int      `json:"atletas" doc:"Atletas en las fechas publicadas"`
 	afectados   []uuid.UUID
 }
 
-// posicion is what an athlete sees of their schedule (the flight's internal id does not matter: regenerating the
-// draft creates new flights, but «Flight A · 09:00» is still the same for the athlete).
+// posicion is what an athlete sees of their schedule: the date, its start and the weigh-in (the lot inside the day
+// does not trigger a notice).
 type posicion struct {
-	codigo     string
-	plataforma int
-	inicio     time.Time
-	pesaje     time.Time
+	dia    string
+	inicio time.Time
+	pesaje time.Time
 }
 
 func posiciones(sn *Snapshot) map[uuid.UUID]posicion {
@@ -251,10 +186,8 @@ func posiciones(sn *Snapshot) map[uuid.UUID]posicion {
 		return out
 	}
 	for _, d := range sn.Dias {
-		for _, f := range d.Flights {
-			for _, a := range f.Atletas {
-				out[a.ID] = posicion{f.Codigo, f.Plataforma, f.Inicio, f.PesajeInicio}
-			}
+		for _, a := range d.Atletas {
+			out[a.ID] = posicion{d.Fecha, d.Inicio, d.PesajeInicio}
 		}
 	}
 	return out
@@ -267,14 +200,7 @@ func diff(prev *Snapshot, cur Snapshot, byID map[uuid.UUID]atleta, loc *time.Loc
 	}
 	antes, ahora := posiciones(prev), posiciones(&cur)
 	d.Atletas = len(ahora)
-	// Times carry the date when the day changes («F · dom 26/7 09:00 → F · sáb 25/7 18:00»).
-	cuando := func(t, otra time.Time) string {
-		if t.In(loc).Format("2006-01-02") != otra.In(loc).Format("2006-01-02") {
-			return diaCorto(t, loc) + " " + hhmm(t, loc)
-		}
-		return hhmm(t, loc)
-	}
-	pos := func(p, otra posicion) string { return p.codigo + " · " + cuando(p.inicio, otra.inicio) }
+	pos := func(p posicion) string { return diaCorto(p.inicio, loc) + " " + hhmm(p.inicio, loc) }
 	nombre := func(id uuid.UUID) string {
 		if a, ok := byID[id]; ok {
 			return a.Nombre
@@ -293,26 +219,23 @@ func diff(prev *Snapshot, cur Snapshot, byID map[uuid.UUID]atleta, loc *time.Loc
 		case prev == nil:
 			d.afectados = append(d.afectados, id)
 		case !estaba:
-			d.Cambios = append(d.Cambios, Cambio{Tipo: "alta", Titulo: nombre(id), Antes: "—", Despues: pos(p, p), Atletas: 1})
+			d.Cambios = append(d.Cambios, Cambio{Tipo: "alta", Titulo: nombre(id), Antes: "—", Despues: pos(p), Atletas: 1})
 			d.afectados = append(d.afectados, id)
-		case q.codigo != p.codigo:
-			d.Cambios = append(d.Cambios, Cambio{Tipo: "atleta", Titulo: nombre(id), Antes: pos(q, p), Despues: pos(p, q), Atletas: 1})
+		case q.dia != p.dia:
+			d.Cambios = append(d.Cambios, Cambio{Tipo: "atleta", Titulo: nombre(id), Antes: pos(q), Despues: pos(p), Atletas: 1})
 			d.afectados = append(d.afectados, id)
-		case !q.inicio.Equal(p.inicio) || !q.pesaje.Equal(p.pesaje) || q.plataforma != p.plataforma:
+		case !q.inicio.Equal(p.inicio) || !q.pesaje.Equal(p.pesaje):
 			var a, b string
 			if !q.inicio.Equal(p.inicio) {
-				a, b = "inicio "+cuando(q.inicio, p.inicio), "inicio "+cuando(p.inicio, q.inicio)
+				a, b = "inicio "+hhmm(q.inicio, loc), "inicio "+hhmm(p.inicio, loc)
 			}
 			if !q.pesaje.Equal(p.pesaje) {
 				a, b = join(a, "pesaje "+hhmm(q.pesaje, loc)), join(b, "pesaje "+hhmm(p.pesaje, loc))
 			}
-			if q.plataforma != p.plataforma {
-				a, b = join(a, fmt.Sprintf("plat. %d", q.plataforma)), join(b, fmt.Sprintf("plat. %d", p.plataforma))
-			}
-			k := p.codigo + "|" + a + "|" + b
+			k := p.dia + "|" + a + "|" + b
 			g, ok := grupos[k]
 			if !ok {
-				g = &grupo{c: Cambio{Tipo: "flight", Antes: a, Despues: b}}
+				g = &grupo{c: Cambio{Tipo: "jornada", Antes: a, Despues: b}}
 				grupos[k] = g
 				orden = append(orden, k)
 			}
@@ -322,16 +245,16 @@ func diff(prev *Snapshot, cur Snapshot, byID map[uuid.UUID]atleta, loc *time.Loc
 	}
 	for id, q := range antes {
 		if _, sigue := ahora[id]; !sigue {
-			d.Cambios = append(d.Cambios, Cambio{Tipo: "baja", Titulo: nombre(id), Antes: pos(q, q), Despues: "sin flight", Atletas: 1})
+			d.Cambios = append(d.Cambios, Cambio{Tipo: "baja", Titulo: nombre(id), Antes: pos(q), Despues: "sin fecha", Atletas: 1})
 			if _, ok := byID[id]; ok {
-				d.afectados = append(d.afectados, id) // still confirmed: tell them they have no flight now
+				d.afectados = append(d.afectados, id) // still confirmed: tell them they have no date now
 			}
 		}
 	}
 	sort.Strings(orden)
 	for _, k := range orden {
 		g := grupos[k]
-		g.c.Titulo = fmt.Sprintf("Flight %s (%d atletas)", k[:indexBar(k)], len(g.ids))
+		g.c.Titulo = fmt.Sprintf("%s (%d atletas)", diaCorto(dayTime(k[:indexBar(k)], "12:00", loc), loc), len(g.ids))
 		g.c.Atletas = len(g.ids)
 		d.Cambios = append(d.Cambios, g.c)
 	}
@@ -384,8 +307,8 @@ func mismaAgenda(a, b Snapshot) bool {
 
 type asignacion struct {
 	AtletaID     uuid.UUID `json:"atletaId"`
-	Flight       string    `json:"flight"`
-	Plataforma   int       `json:"plataforma"`
+	Dia          string    `json:"dia"`
+	Lote         int       `json:"lote"`
 	Inicio       time.Time `json:"inicio"`
 	PesajeInicio time.Time `json:"pesajeInicio"`
 	PesajeFin    time.Time `json:"pesajeFin"`
@@ -417,8 +340,8 @@ type Publicado struct {
 	Seguidores   int    `json:"seguidores" doc:"Emails a seguidores"`
 }
 
-// preparar builds the snapshot to publish and its diff. With prueba, only that competition is published: the
-// snapshot is its draft plus the published flights of the other one, and the diff, the conflicts and the version
+// preparar builds the snapshot to publish and its diff. With prueba, only the date of that competition is published:
+// the snapshot is its draft plus the published dates of the other one, and the diff, the conflicts and the version
 // number («v1 · AEP-3») are the ones of that competition.
 func (s *Svc) preparar(ctx context.Context, cid uuid.UUID, prueba string) (Borrador, map[uuid.UUID]atleta, *version, Snapshot, Diff, error) {
 	if prueba != "" && !slices.Contains(ordenPruebas, prueba) {
@@ -443,23 +366,25 @@ func (s *Svc) preparar(ctx context.Context, cid uuid.UUID, prueba string) (Borra
 		return b, byID, prev, sn, d, nil
 	}
 	bp := b
-	bp.Flights = nil
-	for _, f := range b.Flights {
-		if f.Prueba == prueba {
-			bp.Flights = append(bp.Flights, f)
+	bp.Jornadas = nil
+	for _, j := range b.Jornadas {
+		if j.Prueba == prueba {
+			bp.Jornadas = append(bp.Jornadas, j)
 		}
 	}
 	bp.Conflictos = nil
 	for _, c := range b.Conflictos {
-		if c.Prueba == prueba {
-			bp.Conflictos = append(bp.Conflictos, c)
+		for _, j := range bp.Jornadas {
+			if c.Dia == j.Dia {
+				bp.Conflictos = append(bp.Conflictos, c)
+			}
 		}
 	}
 	snP := snapshot(bp, byID, n)
 	sn := snP
 	var psP *Snapshot
 	if ps != nil {
-		suya, resto, tiene := partir(*ps, prueba, byID)
+		suya, resto, tiene := partir(*ps, prueba)
 		if tiene {
 			psP = &suya
 		}
@@ -508,7 +433,7 @@ func (s *Svc) publicar(ctx context.Context, cid uuid.UUID, ifm, prueba string, a
 		return Publicado{}, problem.Conflict("HORARIO_CON_CONFLICTOS", fmt.Sprintf("Resuelve antes los %d conflictos marcados en rojo.", d.Bloqueantes))
 	}
 	if d.Atletas == 0 {
-		return Publicado{}, problem.Unprocessable("SIN_FLIGHTS", "No hay flights con atletas que publicar.")
+		return Publicado{}, problem.Unprocessable("SIN_ATLETAS", "No hay fechas con atletas que publicar.")
 	}
 	if !d.Primera && len(d.Cambios) == 0 {
 		return Publicado{}, problem.Conflict("SIN_CAMBIOS", "No hay cambios respecto a la versión publicada.")
@@ -518,10 +443,8 @@ func (s *Svc) publicar(ctx context.Context, cid uuid.UUID, ifm, prueba string, a
 		in.Afectados = []uuid.UUID{}
 	}
 	for _, dd := range sn.Dias {
-		for _, f := range dd.Flights {
-			for _, a := range f.Atletas {
-				in.Asignaciones = append(in.Asignaciones, asignacion{a.ID, f.Codigo, f.Plataforma, f.Inicio, f.PesajeInicio, f.PesajeFin})
-			}
+		for _, a := range dd.Atletas {
+			in.Asignaciones = append(in.Asignaciones, asignacion{a.ID, dd.Fecha, a.Lote, dd.Inicio, dd.PesajeInicio, dd.PesajeFin})
 		}
 	}
 	var res aplicarOut
@@ -561,13 +484,18 @@ func (s *Svc) publicar(ctx context.Context, cid uuid.UUID, ifm, prueba string, a
 		if _, err := tx.Exec(ctx, `UPDATE config SET publicado = true, rev_publicada = rev WHERE competition_id = $1`, cid); err != nil {
 			return err
 		}
-		ids := []uuid.UUID{}
+		fechas := []string{}
 		for _, dd := range sn.Dias {
-			for _, f := range dd.Flights {
-				ids = append(ids, f.ID)
-			}
+			fechas = append(fechas, dd.Fecha)
 		}
-		if _, err := tx.Exec(ctx, `DELETE FROM directo WHERE competition_id = $1 AND NOT (flight_id = ANY($2))`, cid, ids); err != nil {
+		if _, err := tx.Exec(ctx, `DELETE FROM directo_jornada WHERE competition_id = $1 AND NOT (dia::text = ANY($2))`, cid, fechas); err != nil {
+			return err
+		}
+		cfg, _, _, _, err := loadConfig(ctx, tx, cid)
+		if err != nil {
+			return err
+		}
+		if err := avisarJornadas(ctx, tx, cid, cfg.Dias); err != nil {
 			return err
 		}
 		return events.Enqueue(ctx, tx, events.New(ctx, "horarios.publicados", map[string]any{"version": sn.Numero, "cambios": out.Cambios, "avisos": out.Avisos + out.Seguidores},
@@ -707,77 +635,49 @@ func (s *Svc) registerPublicar() {
 		})
 }
 
-// restaurar replaces the draft flights, athletes and agenda with a published snapshot (same flight ids, so the live
-// state stays linked) and copies its doors time and notes into the day settings. A version of one competition
-// (prueba) only brings back the flights of that competition; the rest of the draft stays.
+// restaurar replaces the draft athletes and agenda with a published snapshot and copies its doors time and notes
+// into the date settings. A version of one competition (prueba) only brings back the dates of that competition.
 func restaurar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, sn Snapshot, prueba string) error {
-	if prueba != "" {
-		if _, err := tx.Exec(ctx, `DELETE FROM flights WHERE competition_id = $1 AND prueba = $2`, cid, prueba); err != nil {
-			return err
-		}
-		for _, d := range sn.Dias {
-			for _, f := range d.Flights {
-				if f.Prueba != prueba {
-					continue
-				}
-				ids := make([]uuid.UUID, len(f.Atletas))
-				for i, a := range f.Atletas {
-					ids[i] = a.ID
-				}
-				if _, err := tx.Exec(ctx, `DELETE FROM flights WHERE competition_id = $1 AND id = $2`, cid, f.ID); err != nil {
-					return err
-				}
-				if _, err := tx.Exec(ctx, `DELETE FROM flight_atletas WHERE competition_id = $1 AND atleta_id = ANY($2)`, cid, ids); err != nil {
-					return err
-				}
-				if err := insertarSnap(ctx, tx, cid, d.Fecha, f); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	}
-	for _, q := range []string{`DELETE FROM flights WHERE competition_id = $1`, `DELETE FROM agenda WHERE competition_id = $1`} {
-		if _, err := tx.Exec(ctx, q, cid); err != nil {
-			return err
-		}
-	}
 	cfg, _, _, _, err := loadConfig(ctx, tx, cid)
 	if err != nil {
 		return err
 	}
 	for _, d := range sn.Dias {
-		for i := range cfg.Dias {
-			if cfg.Dias[i].Fecha == d.Fecha {
-				cfg.Dias[i].Puertas, cfg.Dias[i].Notas = d.Puertas, d.Notas
-			}
+		if prueba != "" && d.Prueba != prueba {
+			continue
 		}
-		for _, f := range d.Flights {
-			if err := insertarSnap(ctx, tx, cid, d.Fecha, f); err != nil {
+		ids := make([]uuid.UUID, len(d.Atletas))
+		for i, a := range d.Atletas {
+			ids[i] = a.ID
+		}
+		for _, q := range []string{`DELETE FROM jornada_atletas WHERE competition_id = $1 AND dia = $2`, `DELETE FROM agenda WHERE competition_id = $1 AND dia = $2`} {
+			if _, err := tx.Exec(ctx, q, cid, d.Fecha); err != nil {
 				return err
 			}
+		}
+		if err := insertarJornada(ctx, tx, cid, d.Fecha, ids); err != nil {
+			return err
 		}
 		for i, a := range d.Agenda {
 			if _, err := tx.Exec(ctx, `INSERT INTO agenda (id, competition_id, dia, hora, titulo, icono, orden) VALUES ($1,$2,$3,$4,$5,$6,$7)`, newID(), cid, d.Fecha, a.Hora, a.Titulo, a.Icono, i); err != nil {
 				return err
 			}
 		}
+		esta := false
+		for i := range cfg.Dias {
+			if cfg.Dias[i].Fecha == d.Fecha {
+				cfg.Dias[i].Puertas, cfg.Dias[i].Notas, esta = d.Puertas, d.Notas, true
+			}
+		}
+		if !esta {
+			cfg.Dias = append(cfg.Dias, Dia{Fecha: d.Fecha, Inicio: hhmm(d.Inicio, madrid), Fin: "21:00", Puertas: d.Puertas, Notas: d.Notas})
+		}
+	}
+	if err := validarDias(cfg.Dias); err != nil {
+		return err
 	}
 	_, err = tx.Exec(ctx, `UPDATE config SET dias = $2 WHERE competition_id = $1`, cid, cfg.Dias)
 	return err
-}
-
-func insertarSnap(ctx context.Context, tx pgx.Tx, cid uuid.UUID, fecha string, f SnapFlight) error {
-	if _, err := tx.Exec(ctx, `INSERT INTO flights (id, competition_id, dia, codigo, plataforma, inicio, duracion_min, pesaje_inicio, pesaje_fin, prueba) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-		f.ID, cid, fecha, f.Codigo, f.Plataforma, f.Inicio, f.DuracionMin, f.PesajeInicio, f.PesajeFin, f.Prueba); err != nil {
-		return err
-	}
-	for _, a := range f.Atletas {
-		if _, err := tx.Exec(ctx, `INSERT INTO flight_atletas (flight_id, competition_id, atleta_id, orden) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`, f.ID, cid, a.ID, a.Lote); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 var diasCortos = [...]string{"dom", "lun", "mar", "mié", "jue", "vie", "sáb"}

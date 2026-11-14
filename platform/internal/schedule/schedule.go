@@ -1,7 +1,9 @@
-// Package schedule owns the competition schedule (Figma page 56 · «Horarios y flights» and public page 41 ·
-// /horarios): a draft planned in the backoffice (flights generated from the confirmed athletes, moved by drag and
-// drop, weigh-in windows, agenda of the day), conflict checks, versioned publication with a diff and email notices,
-// the public schedule with the live state of each flight and «Mi horario» as an .ics calendar.
+// Package schedule owns the competition schedule (BO «Horarios» and public /horarios): the dates of the event
+// (jornadas, one platform, no flights), the athletes of each date in lot order (generated from the confirmed
+// athletes, moved by drag and drop), weigh-in windows, agenda of the day, conflict checks, versioned publication
+// with a diff and email notices, the public schedule with the live state of each date and «Mi horario» (.ics).
+// Other services (juegos) read the dates from GET /internal/competiciones/{cid}/horarios/jornadas and listen to
+// «horarios.jornadas».
 package schedule
 
 import (
@@ -77,7 +79,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	return nil
 }
 
-// readPerms may look at the planner (the desk, check-in and results teams need the flights too).
+// readPerms may look at the planner (the desk, check-in and results teams need the dates too).
 var readPerms = []string{"horarios.publicar", "atletas.editar", "directo.operar", "checkin.escanear", "resultados.publicar"}
 
 func requireAny(ctx context.Context, cid uuid.UUID, perms ...string) (*auth.Principal, error) {
@@ -201,9 +203,6 @@ func (s *Svc) change(ctx context.Context, cid uuid.UUID, ifm, accion string, fn 
 		if err := fn(tx); err != nil {
 			return err
 		}
-		if err := recode(ctx, tx, cid); err != nil {
-			return err
-		}
 		if len(desc) > 0 {
 			accion = desc[0]()
 		}
@@ -215,83 +214,6 @@ func (s *Svc) change(ctx context.Context, cid uuid.UUID, ifm, accion string, fn 
 			events.Competition(cid.String()), events.ForPermission("horarios.publicar")))
 	})
 	return rev, err
-}
-
-// recode gives a letter to the flights that lack one (new ones, in chronological order), after the highest letter
-// used in the draft or in the published version; existing flights never change letter, so generating AEP-3
-// never recodes the flights of another competition (or of «Sin competición»).
-func recode(ctx context.Context, tx pgx.Tx, cid uuid.UUID) error {
-	rows, err := tx.Query(ctx, `SELECT id, prueba, codigo FROM flights WHERE competition_id = $1 ORDER BY dia, inicio, plataforma, created_at`, cid)
-	if err != nil {
-		return err
-	}
-	type fr struct {
-		ID             uuid.UUID
-		Prueba, Codigo string
-	}
-	fl, err := pgx.CollectRows(rows, pgx.RowToStructByPos[fr])
-	if err != nil {
-		return err
-	}
-	usado := map[string]bool{}
-	enBorrador := map[uuid.UUID]bool{}
-	for _, f := range fl {
-		enBorrador[f.ID] = true
-	}
-	// Letters of published flights that are no longer in the draft stay reserved (no «Flight F» twice on the web).
-	var sn Snapshot
-	if err := tx.QueryRow(ctx, `SELECT snapshot FROM versiones WHERE competition_id = $1 AND estado = 'publicada'`, cid).Scan(&sn); err != nil && !db.IsNoRows(err) {
-		return err
-	}
-	for _, d := range sn.Dias {
-		for _, f := range d.Flights {
-			if !enBorrador[f.ID] {
-				usado[f.Codigo] = true
-			}
-		}
-	}
-	// A flight keeps its letter; only new flights («?») or a repeated letter get one, after the highest letter in use.
-	var nuevos []uuid.UUID
-	for _, f := range fl {
-		if f.Codigo == "?" || f.Codigo == "" || usado[f.Codigo] {
-			nuevos = append(nuevos, f.ID)
-			continue
-		}
-		usado[f.Codigo] = true
-	}
-	libre := 0
-	for c := range usado {
-		libre = max(libre, indiceCodigo(c)+1)
-	}
-	for _, id := range nuevos {
-		if _, err := tx.Exec(ctx, `UPDATE flights SET codigo = $2 WHERE id = $1`, id, codigoFlight(libre)); err != nil {
-			return err
-		}
-		libre++
-	}
-	return nil
-}
-
-// indiceCodigo is the inverse of codigoFlight (-1 if it is not a letter code).
-func indiceCodigo(c string) int {
-	i := 0
-	for _, r := range c {
-		if r < 'A' || r > 'Z' {
-			return -1
-		}
-		i = i*26 + int(r-'A') + 1
-	}
-	return i - 1
-}
-
-// codigoFlight: 0 → A … 25 → Z, 26 → AA…
-func codigoFlight(i int) string {
-	s := ""
-	for i >= 0 {
-		s = string(rune('A'+i%26)) + s
-		i = i/26 - 1
-	}
-	return s
 }
 
 // marcarChecklist ticks «Horarios publicados» in the competition checklist (best effort).

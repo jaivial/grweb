@@ -15,29 +15,24 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
-// Dia is a day of competition (local times of the competition time zone).
+// Dia is a date of the competition (local times of the competition time zone). Every date follows the same
+// template: a new one copies the settings of the last one.
 type Dia struct {
 	Fecha       string   `json:"fecha" format:"date"`
-	Inicio      string   `json:"inicio" pattern:"^[0-2][0-9]:[0-5][0-9]$" doc:"Primer flight"`
-	Fin         string   `json:"fin" pattern:"^[0-2][0-9]:[0-5][0-9]$" doc:"Último flight terminado"`
+	Inicio      string   `json:"inicio" pattern:"^[0-2][0-9]:[0-5][0-9]$" doc:"Empieza la competición del día"`
+	Fin         string   `json:"fin" pattern:"^[0-2][0-9]:[0-5][0-9]$" doc:"Hora límite del día"`
 	Puertas     string   `json:"puertas,omitempty" pattern:"^([0-2][0-9]:[0-5][0-9])?$" doc:"Apertura de puertas al público"`
 	PausaInicio string   `json:"pausaInicio,omitempty" pattern:"^([0-2][0-9]:[0-5][0-9])?$"`
 	PausaFin    string   `json:"pausaFin,omitempty" pattern:"^([0-2][0-9]:[0-5][0-9])?$"`
 	Notas       []string `json:"notas,omitempty" maxItems:"6" doc:"«Info del día» de la web"`
 }
 
-// Config are the planner settings (Figma 56 toolbar and «Ajustes del día»).
+// Config are the planner settings (one platform, no flights).
 type Config struct {
-	MaxPorFlight      int    `json:"maxPorFlight" db:"max_por_flight" minimum:"2" maximum:"30"`
-	Plataformas       int    `json:"plataformas" db:"plataformas" minimum:"1" maximum:"4"`
-	Orden             string `json:"orden" db:"orden" enum:"total,categoria" doc:"total: por categoría y total previsto · categoria: por categoría y apellidos"`
-	SepararSexo       bool   `json:"separarSexo" db:"separar_sexo"`
-	MinPorAtleta      int    `json:"minPorAtleta" db:"min_por_atleta" minimum:"3" maximum:"20" doc:"Minutos estimados por atleta (9 intentos)"`
-	DescansoMin       int    `json:"descansoMin" db:"descanso_min" minimum:"0" maximum:"120" doc:"Entre flights de una plataforma"`
-	PesajeAntesMin    int    `json:"pesajeAntesMin" db:"pesaje_antes_min" minimum:"30" maximum:"240" doc:"El pesaje abre N minutos antes del flight"`
-	PesajeDuracionMin int    `json:"pesajeDuracionMin" db:"pesaje_duracion_min" minimum:"15" maximum:"180"`
-	MesasPesaje       int    `json:"mesasPesaje" db:"mesas_pesaje" minimum:"1" maximum:"4"`
-	Dias              []Dia  `json:"dias" db:"dias" maxItems:"7"`
+	MinPorAtleta      int   `json:"minPorAtleta" db:"min_por_atleta" minimum:"3" maximum:"20" doc:"Minutos estimados por atleta (9 intentos) para el fin estimado del día"`
+	PesajeAntesMin    int   `json:"pesajeAntesMin" db:"pesaje_antes_min" minimum:"30" maximum:"240" doc:"El pesaje abre N minutos antes del inicio del día"`
+	PesajeDuracionMin int   `json:"pesajeDuracionMin" db:"pesaje_duracion_min" minimum:"15" maximum:"180"`
+	Dias              []Dia `json:"dias" db:"dias" maxItems:"7"`
 }
 
 // atleta is a confirmed athlete as the athletes service gives it to other services.
@@ -56,8 +51,8 @@ type atleta struct {
 	Seguidores     int       `json:"seguidores"`
 }
 
-// FlightAtleta is an athlete in the planner.
-type FlightAtleta struct {
+// AtletaPlan is an athlete in the planner.
+type AtletaPlan struct {
 	ID             uuid.UUID `json:"id"`
 	Nombre         string    `json:"nombre"`
 	Sexo           string    `json:"sexo"`
@@ -71,30 +66,24 @@ type FlightAtleta struct {
 	Baja           bool      `json:"baja" doc:"Ya no está confirmado: se quitará al publicar"`
 }
 
-// Directo is the live state of a flight on the day.
+// Directo is the live state of a day (driven by the OpenLifter desk).
 type Directo struct {
 	Estado     string `json:"estado" enum:"programado,en_curso,finalizado"`
 	RetrasoMin int    `json:"retrasoMin,omitempty"`
 }
 
-// Flight is a flight of the draft.
-type Flight struct {
-	ID           uuid.UUID      `json:"id"`
-	Codigo       string         `json:"codigo"`
-	Prueba       string         `json:"prueba" doc:"Competición del flight: aep2, aep3 o vacío (sin competición)"`
-	Dia          string         `json:"dia" format:"date"`
-	Plataforma   int            `json:"plataforma"`
-	Inicio       time.Time      `json:"inicio"`
-	Fin          time.Time      `json:"fin" doc:"Fin estimado"`
-	DuracionMin  int            `json:"duracionMin"`
-	PesajeInicio time.Time      `json:"pesajeInicio"`
-	PesajeFin    time.Time      `json:"pesajeFin"`
-	Titulo       string         `json:"titulo" doc:"Femenino −57 / −63 kg"`
-	Sexo         string         `json:"sexo" doc:"F, M, X (mixto) o vacío"`
-	Atletas      []FlightAtleta `json:"atletas"`
-	Directo      Directo        `json:"directo"`
-	Publicado    bool           `json:"publicado" doc:"Está en la versión publicada (admite estado en directo)"`
-	Avisos       []string       `json:"avisos" doc:"Conflictos que afectan a este flight (texto corto)"`
+// Jornada is a date of the draft: its athletes in lot order on the only platform.
+type Jornada struct {
+	Dia          string       `json:"dia" format:"date"`
+	Prueba       string       `json:"prueba" doc:"Competición del día: aep2 (1.ª fecha), aep3 (2.ª) o vacío"`
+	Inicio       time.Time    `json:"inicio"`
+	Fin          time.Time    `json:"fin" doc:"Fin estimado (atletas × min por atleta, saltando la pausa)"`
+	PesajeInicio time.Time    `json:"pesajeInicio"`
+	PesajeFin    time.Time    `json:"pesajeFin"`
+	Atletas      []AtletaPlan `json:"atletas"`
+	Directo      Directo      `json:"directo"`
+	Publicado    bool         `json:"publicado" doc:"Está en la versión publicada (admite estado en directo)"`
+	Avisos       []string     `json:"avisos" doc:"Conflictos que afectan a este día (texto corto)"`
 }
 
 // AgendaItem is another moment of the day (doors, awards…).
@@ -107,13 +96,11 @@ type AgendaItem struct {
 
 // Conflicto is a problem of the draft. Blocking ones must be solved before publishing.
 type Conflicto struct {
-	Tipo     string     `json:"tipo" enum:"exceso,solape_plataforma,solape_pesaje,sexo_mixto,fuera_horario,pausa,baja,sin_flight,vacio"`
-	Bloquea  bool       `json:"bloquea"`
-	FlightID *uuid.UUID `json:"flightId,omitempty"`
-	Flight   string     `json:"flight,omitempty"`
-	Prueba   string     `json:"prueba,omitempty" doc:"Competición del flight afectado"`
-	Titulo   string     `json:"titulo"`
-	Detalle  string     `json:"detalle"`
+	Tipo    string `json:"tipo" enum:"fuera_horario,baja,sin_jornada,prueba_distinta,dia_inexistente"`
+	Bloquea bool   `json:"bloquea"`
+	Dia     string `json:"dia,omitempty" format:"date"`
+	Titulo  string `json:"titulo"`
+	Detalle string `json:"detalle"`
 }
 
 // VersionInfo summarises a published version.
@@ -131,17 +118,17 @@ type VersionInfo struct {
 
 // Borrador is the planner (GET …/horarios).
 type Borrador struct {
-	Config             Config         `json:"config"`
-	Rev                int            `json:"rev"`
-	ZonaHoraria        string         `json:"zonaHoraria"`
-	Flights            []Flight       `json:"flights"`
-	Agenda             []AgendaItem   `json:"agenda"`
-	SinFlight          []FlightAtleta `json:"sinFlight"`
-	Conflictos         []Conflicto    `json:"conflictos"`
-	Atletas            int            `json:"atletas" doc:"Atletas confirmados"`
-	Publicado          bool           `json:"publicado"`
-	Publicada          *VersionInfo   `json:"publicada,omitempty"`
-	CambiosSinPublicar bool           `json:"cambiosSinPublicar"`
+	Config             Config       `json:"config"`
+	Rev                int          `json:"rev"`
+	ZonaHoraria        string       `json:"zonaHoraria"`
+	Jornadas           []Jornada    `json:"jornadas"`
+	Agenda             []AgendaItem `json:"agenda"`
+	SinJornada         []AtletaPlan `json:"sinJornada"`
+	Conflictos         []Conflicto  `json:"conflictos"`
+	Atletas            int          `json:"atletas" doc:"Atletas confirmados"`
+	Publicado          bool         `json:"publicado"`
+	Publicada          *VersionInfo `json:"publicada,omitempty"`
+	CambiosSinPublicar bool         `json:"cambiosSinPublicar"`
 }
 
 // confirmados asks athletes for the confirmed athletes (planning data; no contact data).
@@ -163,51 +150,31 @@ func loadConfig(ctx context.Context, q querier, cid uuid.UUID) (Config, int, int
 	var c Config
 	var rev, revPub int
 	var pub bool
-	err := q.QueryRow(ctx, `SELECT max_por_flight, plataformas, orden, separar_sexo, min_por_atleta, descanso_min, pesaje_antes_min, pesaje_duracion_min,
-		mesas_pesaje, dias, rev, rev_publicada, publicado FROM config WHERE competition_id = $1`, cid).
-		Scan(&c.MaxPorFlight, &c.Plataformas, &c.Orden, &c.SepararSexo, &c.MinPorAtleta, &c.DescansoMin, &c.PesajeAntesMin, &c.PesajeDuracionMin,
-			&c.MesasPesaje, &c.Dias, &rev, &revPub, &pub)
+	err := q.QueryRow(ctx, `SELECT min_por_atleta, pesaje_antes_min, pesaje_duracion_min, dias, rev, rev_publicada, publicado FROM config WHERE competition_id = $1`, cid).
+		Scan(&c.MinPorAtleta, &c.PesajeAntesMin, &c.PesajeDuracionMin, &c.Dias, &rev, &revPub, &pub)
 	if c.Dias == nil {
 		c.Dias = []Dia{}
 	}
 	return c, rev, revPub, pub, err
 }
 
-type flightRow struct {
-	ID                          uuid.UUID
-	Codigo, Prueba              string
-	Dia                         time.Time
-	Plataforma, DuracionMin     int
-	Inicio, PesajeIni, PesajeFn time.Time
-}
-
-func loadFlights(ctx context.Context, q querier, cid uuid.UUID) ([]flightRow, map[uuid.UUID][]uuid.UUID, error) {
-	rows, err := q.Query(ctx, `SELECT id, codigo, prueba, dia, plataforma, duracion_min, inicio, pesaje_inicio, pesaje_fin FROM flights WHERE competition_id = $1 ORDER BY dia, inicio, plataforma`, cid)
+// loadJornadas returns the athletes of every day in lot order.
+func loadJornadas(ctx context.Context, q querier, cid uuid.UUID) (map[string][]uuid.UUID, error) {
+	rows, err := q.Query(ctx, `SELECT dia::text, atleta_id FROM jornada_atletas WHERE competition_id = $1 ORDER BY dia, orden`, cid)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	fl, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (flightRow, error) {
-		var f flightRow
-		err := r.Scan(&f.ID, &f.Codigo, &f.Prueba, &f.Dia, &f.Plataforma, &f.DuracionMin, &f.Inicio, &f.PesajeIni, &f.PesajeFn)
-		return f, err
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-	rows, err = q.Query(ctx, `SELECT flight_id, atleta_id FROM flight_atletas WHERE competition_id = $1 ORDER BY flight_id, orden`, cid)
-	if err != nil {
-		return nil, nil, err
-	}
-	asig := map[uuid.UUID][]uuid.UUID{}
+	out := map[string][]uuid.UUID{}
 	for rows.Next() {
-		var f, a uuid.UUID
-		if err := rows.Scan(&f, &a); err != nil {
+		var d string
+		var a uuid.UUID
+		if err := rows.Scan(&d, &a); err != nil {
 			rows.Close()
-			return nil, nil, err
+			return nil, err
 		}
-		asig[f] = append(asig[f], a)
+		out[d] = append(out[d], a)
 	}
-	return fl, asig, rows.Err()
+	return out, rows.Err()
 }
 
 func loadAgenda(ctx context.Context, q querier, cid uuid.UUID) ([]AgendaItem, error) {
@@ -222,7 +189,7 @@ func loadAgenda(ctx context.Context, q querier, cid uuid.UUID) ([]AgendaItem, er
 	})
 }
 
-// borrador builds the planner view: flights with their athletes, athletes without flight and the conflicts.
+// borrador builds the planner view.
 func (s *Svc) borrador(ctx context.Context, cid uuid.UUID) (Borrador, error) {
 	b, _, _, err := s.cargar(ctx, cid)
 	return b, err
@@ -242,7 +209,7 @@ func (s *Svc) cargar(ctx context.Context, cid uuid.UUID) (Borrador, map[uuid.UUI
 	if err != nil {
 		return Borrador{}, nil, nil, err
 	}
-	fl, asig, err := loadFlights(ctx, s.a.DB, cid)
+	asig, err := loadJornadas(ctx, s.a.DB, cid)
 	if err != nil {
 		return Borrador{}, nil, nil, err
 	}
@@ -254,7 +221,7 @@ func (s *Svc) cargar(ctx context.Context, cid uuid.UUID) (Borrador, map[uuid.UUI
 	if err != nil {
 		return Borrador{}, nil, nil, err
 	}
-	b := Borrador{Config: cfg, Rev: rev, Agenda: ag, Atletas: len(ats), Publicado: pub}
+	b := Borrador{Config: cfg, Rev: rev, Agenda: ag, Atletas: len(ats), Publicado: pub, Jornadas: []Jornada{}, SinJornada: []AtletaPlan{}}
 	if b.Agenda == nil {
 		b.Agenda = []AgendaItem{}
 	}
@@ -265,41 +232,34 @@ func (s *Svc) cargar(ctx context.Context, cid uuid.UUID) (Borrador, map[uuid.UUI
 		byID[a.ID] = a
 	}
 	asignado := map[uuid.UUID]bool{}
-	for _, f := range fl {
-		nf := buildFlight(f, asig[f.ID], byID, dir, asignado)
-		if f.Prueba == "" && nf.Prueba != "" {
-			// Backfill of the flights created before flights.prueba: their athletes' competition.
-			if _, err := s.a.DB.Exec(ctx, `UPDATE flights SET prueba = $3 WHERE competition_id = $1 AND id = $2 AND prueba = ''`, cid, f.ID, nf.Prueba); err != nil {
-				return Borrador{}, nil, nil, err
-			}
+	// One jornada per configured date, plus any date that still has athletes but was removed from the settings.
+	fechas := map[string]bool{}
+	for i, d := range cfg.Dias {
+		fechas[d.Fecha] = true
+		b.Jornadas = append(b.Jornadas, buildJornada(cfg, loc, d, pruebaDeDia(cfg.Dias, i), asig[d.Fecha], byID, dir, asignado))
+	}
+	var huerfanos []string
+	for f := range asig {
+		if !fechas[f] {
+			huerfanos = append(huerfanos, f)
 		}
-		b.Flights = append(b.Flights, nf)
 	}
-	if b.Flights == nil {
-		b.Flights = []Flight{}
+	sort.Strings(huerfanos)
+	for _, f := range huerfanos {
+		b.Jornadas = append(b.Jornadas, buildJornada(cfg, loc, Dia{Fecha: f, Inicio: "09:00", Fin: "21:00"}, "", asig[f], byID, dir, asignado))
 	}
-	b.SinFlight = []FlightAtleta{}
 	for _, a := range ats {
 		if !asignado[a.ID] {
-			b.SinFlight = append(b.SinFlight, toFA(a, 0))
+			b.SinJornada = append(b.SinJornada, toAP(a, 0))
 		}
 	}
-	sort.SliceStable(b.SinFlight, func(i, j int) bool {
-		return catLess(b.SinFlight[i].Sexo, b.SinFlight[i].Categoria, b.SinFlight[j].Sexo, b.SinFlight[j].Categoria)
-	})
-	b.Conflictos = conflictos(cfg, loc, b.Flights, len(b.SinFlight))
-	for i := range b.Flights {
-		b.Flights[i].Avisos = []string{}
+	sort.SliceStable(b.SinJornada, func(i, j int) bool { return ordenSalida(b.SinJornada[i], b.SinJornada[j]) })
+	b.Conflictos = conflictos(cfg, loc, b.Jornadas, fechas, len(b.SinJornada))
+	for i := range b.Jornadas {
+		b.Jornadas[i].Avisos = []string{}
 		for _, c := range b.Conflictos {
-			if c.FlightID != nil && *c.FlightID == b.Flights[i].ID {
-				b.Flights[i].Avisos = append(b.Flights[i].Avisos, c.Titulo)
-			}
-		}
-	}
-	for i, c := range b.Conflictos {
-		for _, f := range b.Flights {
-			if c.FlightID != nil && *c.FlightID == f.ID {
-				b.Conflictos[i].Prueba = f.Prueba
+			if c.Dia == b.Jornadas[i].Dia {
+				b.Jornadas[i].Avisos = append(b.Jornadas[i].Avisos, c.Titulo)
 			}
 		}
 	}
@@ -309,86 +269,82 @@ func (s *Svc) cargar(ctx context.Context, cid uuid.UUID) (Borrador, map[uuid.UUI
 	}
 	if v != nil {
 		b.Publicada = &v.VersionInfo
-		for i := range b.Flights {
-			b.Flights[i].Publicado = v.Snapshot.flight(b.Flights[i].ID) != nil
+		for i := range b.Jornadas {
+			b.Jornadas[i].Publicado = v.Snapshot.dia(b.Jornadas[i].Dia) != nil
 		}
 		b.CambiosSinPublicar = len(diff(&v.Snapshot, snapshot(b, byID, v.Numero+1), byID, loc).Cambios) > 0
 	} else {
-		b.CambiosSinPublicar = len(b.Flights) > 0
+		b.CambiosSinPublicar = asignados(b) > 0
 	}
 	return b, byID, v, nil
 }
 
-func toFA(a atleta, lote int) FlightAtleta {
-	return FlightAtleta{ID: a.ID, Nombre: a.Nombre, Sexo: a.Sexo, Categoria: a.Categoria, Club: a.Club, DivisionNombre: a.DivisionNombre,
+func asignados(b Borrador) int {
+	n := 0
+	for _, j := range b.Jornadas {
+		n += len(j.Atletas)
+	}
+	return n
+}
+
+func toAP(a atleta, lote int) AtletaPlan {
+	return AtletaPlan{ID: a.ID, Nombre: a.Nombre, Sexo: a.Sexo, Categoria: a.Categoria, Club: a.Club, DivisionNombre: a.DivisionNombre,
 		Prueba: a.Prueba, TotalPrevisto: a.TotalPrevisto, Seguidores: a.Seguidores, Lote: lote}
 }
 
-func buildFlight(f flightRow, ids []uuid.UUID, byID map[uuid.UUID]atleta, dir map[uuid.UUID]Directo, asignado map[uuid.UUID]bool) Flight {
-	out := Flight{ID: f.ID, Codigo: f.Codigo, Dia: f.Dia.Format("2006-01-02"), Plataforma: f.Plataforma, Inicio: f.Inicio, DuracionMin: f.DuracionMin,
-		Fin: f.Inicio.Add(time.Duration(f.DuracionMin) * time.Minute), PesajeInicio: f.PesajeIni, PesajeFin: f.PesajeFn, Atletas: []FlightAtleta{},
-		Directo: Directo{Estado: "programado"}, Prueba: f.Prueba}
-	if d, ok := dir[f.ID]; ok {
-		out.Directo = d
+// tiempos returns the start, the estimated end and the weigh-in window of a day with n active athletes.
+func tiempos(cfg Config, loc *time.Location, d Dia, n int) (ini, fin, pi, pf time.Time) {
+	ini = dayTime(d.Fecha, d.Inicio, loc)
+	if ini.IsZero() {
+		ini = dayTime(d.Fecha, "09:00", loc)
 	}
-	var sexos, cats []string
-	pruebas := map[string]bool{}
+	fin = ini.Add(time.Duration((n*cfg.MinPorAtleta+4)/5*5) * time.Minute)
+	if p1, p2 := dayTime(d.Fecha, d.PausaInicio, loc), dayTime(d.Fecha, d.PausaFin, loc); !p1.IsZero() && !p2.IsZero() && fin.After(p1) {
+		fin = fin.Add(p2.Sub(p1)) // the lunch break pauses the session
+	}
+	pi, pf = pesaje(cfg, ini)
+	return
+}
+
+func buildJornada(cfg Config, loc *time.Location, d Dia, prueba string, ids []uuid.UUID, byID map[uuid.UUID]atleta, dir map[string]Directo, asignado map[uuid.UUID]bool) Jornada {
+	out := Jornada{Dia: d.Fecha, Prueba: prueba, Atletas: []AtletaPlan{}, Directo: Directo{Estado: "programado"}}
+	if x, ok := dir[d.Fecha]; ok {
+		out.Directo = x
+	}
+	activos := 0
 	for i, id := range ids {
 		a, ok := byID[id]
 		if !ok {
-			out.Atletas = append(out.Atletas, FlightAtleta{ID: id, Nombre: "Atleta dado de baja", Lote: i + 1, Baja: true})
+			out.Atletas = append(out.Atletas, AtletaPlan{ID: id, Nombre: "Atleta dado de baja", Lote: i + 1, Baja: true})
 			continue
 		}
 		asignado[id] = true
-		out.Atletas = append(out.Atletas, toFA(a, i+1))
-		sexos = append(sexos, a.Sexo)
-		cats = append(cats, a.Categoria)
-		pruebas[a.Prueba] = true
+		activos++
+		out.Atletas = append(out.Atletas, toAP(a, i+1))
 	}
-	if out.Prueba == "" && len(pruebas) == 1 {
-		for p := range pruebas {
-			out.Prueba = p // flights before flights.prueba: the competition of their athletes, only if all share it
-		}
-	}
-	out.Sexo, out.Titulo = titulo(sexos, cats)
+	out.Inicio, out.Fin, out.PesajeInicio, out.PesajeFin = tiempos(cfg, loc, d, activos)
 	return out
 }
 
-// titulo: «Femenino −47 / −52 / −57 kg» (classes in IPF order).
-func titulo(sexos, cats []string) (string, string) {
-	set := map[string]bool{}
-	for _, s := range sexos {
-		set[s] = true
+// ordenSalida is the lot order of a day: women first, lighter class first, lower expected total, name.
+func ordenSalida(a, b AtletaPlan) bool {
+	if a.Sexo != b.Sexo {
+		return a.Sexo < b.Sexo // F before M
 	}
-	sexo := ""
-	switch {
-	case len(set) > 1:
-		sexo = "X"
-	case set["F"]:
-		sexo = "F"
-	case set["M"]:
-		sexo = "M"
+	if ka, kb := catKey(a.Categoria), catKey(b.Categoria); ka != kb {
+		return ka < kb
 	}
-	if sexo == "" {
-		return "", "Sin atletas"
+	ta, tb := 0.0, 0.0
+	if a.TotalPrevisto != nil {
+		ta = *a.TotalPrevisto
 	}
-	seen := map[string]bool{}
-	var u []string
-	for _, c := range cats {
-		if c != "" && !seen[c] {
-			seen[c] = true
-			u = append(u, c)
-		}
+	if b.TotalPrevisto != nil {
+		tb = *b.TotalPrevisto
 	}
-	sort.Slice(u, func(i, j int) bool { return catKey(u[i]) < catKey(u[j]) })
-	for i := range u {
-		u[i] = strings.Replace(u[i], "-", "−", 1)
+	if ta != tb {
+		return ta < tb
 	}
-	label := map[string]string{"F": "Femenino", "M": "Masculino", "X": "Mixto"}[sexo]
-	if len(u) == 0 {
-		return sexo, label
-	}
-	return sexo, label + " " + strings.Join(u, " / ") + " kg"
+	return strings.ToLower(a.Nombre) < strings.ToLower(b.Nombre)
 }
 
 // catKey orders weight classes: −47 < −52 < … < +84.
@@ -403,27 +359,20 @@ func catKey(c string) float64 {
 	return n
 }
 
-func catLess(s1, c1, s2, c2 string) bool {
-	if s1 != s2 {
-		return s1 < s2 // F before M
-	}
-	return catKey(c1) < catKey(c2)
-}
-
-func loadDirecto(ctx context.Context, q querier, cid uuid.UUID) (map[uuid.UUID]Directo, error) {
-	rows, err := q.Query(ctx, `SELECT flight_id, estado, retraso_min FROM directo WHERE competition_id = $1`, cid)
+func loadDirecto(ctx context.Context, q querier, cid uuid.UUID) (map[string]Directo, error) {
+	rows, err := q.Query(ctx, `SELECT dia::text, estado, retraso_min FROM directo_jornada WHERE competition_id = $1`, cid)
 	if err != nil {
 		return nil, err
 	}
-	out := map[uuid.UUID]Directo{}
+	out := map[string]Directo{}
 	for rows.Next() {
-		var id uuid.UUID
+		var dia string
 		var d Directo
-		if err := rows.Scan(&id, &d.Estado, &d.RetrasoMin); err != nil {
+		if err := rows.Scan(&dia, &d.Estado, &d.RetrasoMin); err != nil {
 			rows.Close()
 			return nil, err
 		}
-		out[id] = d
+		out[dia] = d
 	}
 	return out, rows.Err()
 }
@@ -431,8 +380,6 @@ func loadDirecto(ctx context.Context, q querier, cid uuid.UUID) (map[uuid.UUID]D
 // ---- conflicts ----
 
 func hhmm(t time.Time, loc *time.Location) string { return t.In(loc).Format("15:04") }
-
-func overlap(a1, a2, b1, b2 time.Time) bool { return a1.Before(b2) && b1.Before(a2) }
 
 // dayTime turns «HH:MM» of a date into an instant of the competition time zone (zero when empty or invalid).
 func dayTime(fecha, hm string, loc *time.Location) time.Time {
@@ -446,106 +393,45 @@ func dayTime(fecha, hm string, loc *time.Location) time.Time {
 	return t
 }
 
-func conflictos(cfg Config, loc *time.Location, fl []Flight, sinFlight int) []Conflicto {
+func conflictos(cfg Config, loc *time.Location, js []Jornada, fechas map[string]bool, sinJornada int) []Conflicto {
 	out := []Conflicto{}
-	add := func(f *Flight, tipo string, bloquea bool, titulo, detalle string) {
-		c := Conflicto{Tipo: tipo, Bloquea: bloquea, Titulo: titulo, Detalle: detalle}
-		if f != nil {
-			id := f.ID
-			c.FlightID, c.Flight = &id, f.Codigo
-		}
-		out = append(out, c)
-	}
 	dias := map[string]Dia{}
 	for _, d := range cfg.Dias {
 		dias[d.Fecha] = d
 	}
-	for i := range fl {
-		f := &fl[i]
-		activos := 0
-		for _, a := range f.Atletas {
-			if !a.Baja {
-				activos++
-			}
+	for _, j := range js {
+		add := func(tipo string, bloquea bool, titulo, detalle string) {
+			out = append(out, Conflicto{Tipo: tipo, Bloquea: bloquea, Dia: j.Dia, Titulo: titulo, Detalle: detalle})
 		}
-		if activos > cfg.MaxPorFlight {
-			add(f, "exceso", true, fmt.Sprintf("Flight %s tiene %d atletas", f.Codigo, activos), fmt.Sprintf("Máximo %d (reglamento del evento).", cfg.MaxPorFlight))
-		}
-		if len(f.Atletas) == 0 {
-			add(f, "vacio", false, "Flight "+f.Codigo+" está vacío", "No se publicará mientras no tenga atletas.")
-		}
-		for _, a := range f.Atletas {
-			if a.Baja {
-				add(f, "baja", false, "Una baja sigue en el flight "+f.Codigo, "Ya no está confirmada: se quitará al publicar.")
-			}
-		}
-		if f.Sexo == "X" && cfg.SepararSexo {
-			add(f, "sexo_mixto", false, "Flight "+f.Codigo+" mezcla categorías femeninas y masculinas", "Revisa si es intencionado.")
-		}
-		if d, ok := dias[f.Dia]; !ok {
-			add(f, "fuera_horario", false, "Flight "+f.Codigo+" está en un día sin competición", "Añade el día en los ajustes o muévelo.")
-		} else {
-			ini, fin := dayTime(f.Dia, d.Inicio, loc), dayTime(f.Dia, d.Fin, loc)
-			if (!ini.IsZero() && f.Inicio.Before(ini)) || (!fin.IsZero() && f.Fin.After(fin)) {
-				add(f, "fuera_horario", false, "Flight "+f.Codigo+" sale del horario del día", fmt.Sprintf("Termina hacia las %s; el día acaba a las %s.", hhmm(f.Fin, loc), d.Fin))
-			}
-			pi, pf := dayTime(f.Dia, d.PausaInicio, loc), dayTime(f.Dia, d.PausaFin, loc)
-			if !pi.IsZero() && !pf.IsZero() && overlap(f.Inicio, f.Fin, pi, pf) {
-				add(f, "pausa", false, "Flight "+f.Codigo+" se come la pausa", fmt.Sprintf("Pausa %s–%s.", d.PausaInicio, d.PausaFin))
-			}
-		}
-	}
-	for i := range fl {
-		for j := i + 1; j < len(fl); j++ {
-			a, b := &fl[i], &fl[j]
-			if a.Dia == b.Dia && a.Plataforma == b.Plataforma && overlap(a.Inicio, a.Fin, b.Inicio, b.Fin) {
-				add(b, "solape_plataforma", true, fmt.Sprintf("%s y %s coinciden en la plataforma %d", a.Codigo, b.Codigo, a.Plataforma),
-					fmt.Sprintf("%s termina hacia las %s y %s empieza a las %s.", a.Codigo, hhmm(a.Fin, loc), b.Codigo, hhmm(b.Inicio, loc)))
-			}
-		}
-	}
-	// Weigh-in: at most «mesas» windows at the same time.
-	for i := range fl {
-		var con []*Flight
-		for j := range fl {
-			if i != j && overlap(fl[i].PesajeInicio, fl[i].PesajeFin, fl[j].PesajeInicio, fl[j].PesajeFin) {
-				con = append(con, &fl[j])
-			}
-		}
-		if len(con)+1 <= cfg.MesasPesaje {
+		if !fechas[j.Dia] {
+			add("dia_inexistente", true, plural(len(j.Atletas), "atleta en una fecha borrada", "atletas en una fecha borrada"), "Muévelos a otra fecha antes de publicar.")
 			continue
 		}
-		o := con[0]
-		for _, c := range con[1:] {
-			if c.Inicio.Before(o.Inicio) {
-				o = c
+		bajas, otra := 0, 0
+		for _, a := range j.Atletas {
+			if a.Baja {
+				bajas++
+			} else if j.Prueba != "" && a.Prueba != "" && a.Prueba != j.Prueba {
+				otra++
 			}
 		}
-		if o.Inicio.Before(fl[i].Inicio) || (o.Inicio.Equal(fl[i].Inicio) && o.Codigo < fl[i].Codigo) {
-			ini, fin := maxT(fl[i].PesajeInicio, o.PesajeInicio), minT(fl[i].PesajeFin, o.PesajeFin)
-			add(&fl[i], "solape_pesaje", true, fmt.Sprintf("Pesaje de %s se solapa con %s", fl[i].Codigo, o.Codigo),
-				fmt.Sprintf("Misma mesa de pesaje %s–%s.", hhmm(ini, loc), hhmm(fin, loc)))
+		if bajas > 0 {
+			add("baja", false, plural(bajas, "baja sigue en la jornada", "bajas siguen en la jornada"), "Ya no están confirmadas: se quitarán al publicar.")
+		}
+		if otra > 0 {
+			add("prueba_distinta", false, plural(otra, "atleta de otra competición", "atletas de otra competición"), "Este día es de "+nombrePrueba(j.Prueba)+". Revisa si es intencionado.")
+		}
+		if d := dias[j.Dia]; d.Fin != "" && len(j.Atletas) > 0 {
+			if fin := dayTime(j.Dia, d.Fin, loc); !fin.IsZero() && j.Fin.After(fin) {
+				add("fuera_horario", false, "El día termina más tarde de lo previsto", fmt.Sprintf("Fin estimado hacia las %s; la hora límite es %s.", hhmm(j.Fin, loc), d.Fin))
+			}
 		}
 	}
-	if sinFlight > 0 {
-		add(nil, "sin_flight", false, plural(sinFlight, "atleta sin flight", "atletas sin flight"), "No aparecerán en los horarios hasta que los asignes.")
+	if sinJornada > 0 {
+		out = append(out, Conflicto{Tipo: "sin_jornada", Titulo: plural(sinJornada, "atleta sin fecha", "atletas sin fecha"), Detalle: "No aparecerán en los horarios hasta que les asignes una fecha."})
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Bloquea && !out[j].Bloquea })
 	return out
-}
-
-func maxT(a, b time.Time) time.Time {
-	if a.After(b) {
-		return a
-	}
-	return b
-}
-
-func minT(a, b time.Time) time.Time {
-	if a.Before(b) {
-		return a
-	}
-	return b
 }
 
 func bloqueantes(cs []Conflicto) int {
@@ -558,7 +444,7 @@ func bloqueantes(cs []Conflicto) int {
 	return n
 }
 
-// plural: «1 atleta sin flight» / «3 atletas sin flight».
+// plural: «1 atleta sin fecha» / «3 atletas sin fecha».
 func plural(n int, uno, varios string) string {
 	if n == 1 {
 		return "1 " + uno
