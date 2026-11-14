@@ -50,21 +50,38 @@ export class Related {
   readonly nivel = input<'h2' | 'h3'>('h2');
 }
 
-/** «Sigue la GRS Cup 2»: Instagram band before the footer. */
+/**
+ * «Sigue la GRS Cup 2 en directo» (Figma «CTA band» 80:159737, Kind=Directo): one shared band before the footer of the
+ * inner pages. Main CTA to the live page, plus quick links to its chat and to the Porra and Fantasy games.
+ */
 @Component({
   selector: 'gr-community',
-  imports: [GrButton],
+  imports: [RouterLink, GrButton, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
-    <section class="relative overflow-hidden rounded-2xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-6 shadow-glow-deep md:flex md:items-center md:justify-between md:gap-8 md:p-10">
-      <div>
-        <p class="flex items-center gap-3 text-mono-xs text-text-tertiary">{{ en() ? 'Community' : 'Comunidad' }}</p>
-        @if (nivel() === 'h3') { <h3 class="mt-3 text-display-xs md:text-display-m">{{ en() ? 'Follow the GRS Cup 2' : 'Sigue la GRS Cup 2' }}</h3> }
-        @else { <h2 class="mt-3 text-display-xs md:text-display-m">{{ en() ? 'Follow the GRS Cup 2' : 'Sigue la GRS Cup 2' }}</h2> }
-        <p class="mt-2 text-body-s text-text-secondary md:text-body-m">{{ en() ? 'Dates, schedule, raffle and results first on Instagram.' : 'Fechas, horarios, sorteo y resultados primero en Instagram.' }}</p>
+    <section class="relative overflow-hidden rounded-2xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-6 shadow-glow-deep md:flex md:items-center md:justify-between md:gap-10 md:p-10">
+      <div class="md:max-w-xl">
+        <p class="text-mono-xs text-text-tertiary">{{ en() ? 'Community' : 'Comunidad' }}</p>
+        <!-- the red part is never split: white words on one line, the whole red phrase on the next -->
+        @if (nivel() === 'h3') {
+          <h3 class="mt-3 text-display-xs md:text-display-m">{{ en() ? 'Follow GRS Cup 2' : 'Sigue la GRS Cup 2' }} <span class="block bg-accent-grain bg-clip-text whitespace-nowrap text-transparent">{{ en() ? 'live' : 'en directo' }}</span></h3>
+        } @else {
+          <h2 class="mt-3 text-display-xs md:text-display-m">{{ en() ? 'Follow GRS Cup 2' : 'Sigue la GRS Cup 2' }} <span class="block bg-accent-grain bg-clip-text whitespace-nowrap text-transparent">{{ en() ? 'live' : 'en directo' }}</span></h2>
+        }
+        <p class="mt-2 text-body-s text-text-secondary md:text-body-m">{{ en() ? 'Watch the competition, chat and play the Pool and Fantasy.' : 'Mira la competición, comenta en el chat y juega a la Porra y al Fantasy.' }}</p>
       </div>
-      <a grButton icon="camera" class="mt-5 w-full md:mt-0 md:w-auto" [href]="instagram()" target="_blank" rel="noopener">{{ en() ? 'Follow on Instagram' : 'Seguir en Instagram' }}</a>
+      <div class="mt-5 flex flex-col gap-3 md:mt-0 md:w-[340px] md:shrink-0">
+        <a grButton icon="play" class="w-full" routerLink="/en-directo">{{ en() ? 'Watch live' : 'Ver el directo' }}</a>
+        <nav class="grid grid-cols-3 gap-2" [attr.aria-label]="en() ? 'Live and games' : 'Directo y juegos'">
+          @for (l of enlaces(); track l.ruta) {
+            <a [routerLink]="l.ruta" [queryParams]="l.query" class="flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-md border border-line-strong bg-black/20 px-2 text-label-s transition-colors hover:border-accent/60 hover:bg-black/30">
+              <gr-icon [name]="l.icono" [size]="16" class="shrink-0" /><span class="truncate">{{ l.texto }}</span>
+            </a>
+          }
+        </nav>
+        <a [href]="instagram()" target="_blank" rel="noopener" class="inline-flex items-center gap-2 self-start text-body-xs text-text-tertiary hover:text-text-secondary"><gr-icon name="instagram" [size]="14" />{{ en() ? 'Also on Instagram' : 'También en Instagram' }}</a>
+      </div>
     </section>
   `,
 })
@@ -75,6 +92,11 @@ export class Community {
   protected readonly en = computed(() => this.lang() === 'en');
   private readonly comp = inject(Competition);
   protected readonly instagram = computed(() => instagramOf(this.comp.data()));
+  protected readonly enlaces = computed<{ texto: string; ruta: string; query?: Record<string, string>; icono: GrIconName }[]>(() => [
+    { texto: 'Chat', ruta: '/en-directo', query: { tab: 'chat' }, icono: 'message' },
+    { texto: this.en() ? 'Pool' : 'Porra', ruta: '/porra', icono: 'trophy' },
+    { texto: 'Fantasy', ruta: '/fantasy', icono: 'star' },
+  ]);
 }
 
 // ============================================================ /publico ===
