@@ -87,13 +87,13 @@ interface Fila {
                         <p class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                           <span class="text-label-s" [class]="it.mio ? 'text-accent-text' : 'text-text-primary'">{{ it.mio ? 'Tú' : it.alias }}</span>
                           @if (it.atleta) {
-                            <span class="inline-flex h-[18px] items-center gap-1 rounded-2xs bg-accent px-1.5 font-mono text-[11px] leading-none font-medium tracking-[0.08em] text-white uppercase"><gr-icon name="trophy" [size]="11" />Atleta</span>
+                            <span class="inline-flex h-[18px] items-center gap-1 rounded-2xs bg-accent px-1.5 font-mono text-[12px] leading-none font-medium tracking-[0.08em] text-white uppercase"><gr-icon name="trophy" [size]="11" />Atleta</span>
                           }
-                          <time class="font-mono text-[11px] tracking-[0.08em] text-text-muted">{{ hora(it.ts) }}</time>
+                          <time class="font-mono text-[12px] tracking-[0.08em] text-text-muted">{{ hora(it.ts) }}</time>
                         </p>
                       }
-                      <p class="text-body-s break-words [overflow-wrap:anywhere]" [class]="it.mio || it.atleta ? 'text-text-primary' : 'text-text-secondary'">{{ sinIds(it.texto) }}</p>
-                      @if (it.estado === 'pendiente') { <p class="mt-0.5 font-mono text-[11px] text-text-muted">Enviando…</p> }
+                      <p class="text-body-m md:text-body-s break-words [overflow-wrap:anywhere]" [class]="it.mio || it.atleta ? 'text-text-primary' : 'text-text-secondary'">{{ sinIds(it.texto) }}</p>
+                      @if (it.estado === 'pendiente') { <p class="mt-0.5 font-mono text-[12px] text-text-muted">Enviando…</p> }
                       @if (it.estado === 'error') {
                         <p class="mt-1 flex flex-wrap items-center gap-x-2 text-body-xs text-accent-text"><gr-icon name="circle-alert" [size]="13" />{{ it.error }}
                           <button type="button" class="min-h-11 font-semibold underline underline-offset-2 md:min-h-0" (click)="chat.reintentar(it)">Reintentar</button></p>
@@ -124,8 +124,8 @@ interface Fila {
                       <span class="font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">Patrocinado</span>
                       @if (it.tier) { <span class="inline-flex h-5 items-center rounded-pill border px-2 font-mono text-[11px] tracking-[0.08em] uppercase" [class]="tier(it.tier)">{{ it.tier }}</span> }
                     </p>
-                    @if (imagen(it); as img) {
-                      <img [src]="img" [alt]="'Banner de ' + it.patrocinador" class="aspect-[3/1] w-full object-cover" loading="lazy" (error)="falloImagen(it.id)" />
+                    @if (browser && imagen(it); as img) {
+                      <img [src]="img" [alt]="'Banner de ' + it.patrocinador" class="aspect-[3/1] w-full bg-bg-surface object-cover" loading="lazy" (error)="falloImagen(it.id)" />
                     } @else {
                       <!-- la imagen no carga: bloque de marca del diseño (degradado + nombre del patrocinador) -->
                       <div class="flex aspect-[3/1] w-full items-center justify-center bg-[linear-gradient(135deg,#4c111b,#281112_55%,#170c0e)] px-4">
@@ -230,7 +230,7 @@ interface Fila {
               <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-sm text-[20px] transition-colors hover:bg-white/5" aria-label="Emojis" [attr.aria-expanded]="emojis()" (click)="emojis.set(!emojis())">
                 <span aria-hidden="true">😊</span>
               </button>
-              <textarea #caja rows="1" class="max-h-32 min-h-11 min-w-0 flex-1 resize-none bg-transparent px-1 py-[11px] text-body-s text-text-primary outline-none placeholder:text-text-muted focus-visible:outline-none [field-sizing:content]"
+              <textarea #caja rows="1" enterkeyhint="send" class="max-h-32 min-h-11 min-w-0 flex-1 resize-none bg-transparent px-1 py-[10px] text-[17px] leading-6 md:text-body-s text-text-primary outline-none placeholder:text-text-muted focus-visible:outline-none [field-sizing:content]"
                 placeholder="Escribe un mensaje…" aria-label="Mensaje del chat" [attr.aria-describedby]="'chat-ayuda'" [ngModel]="texto()" (ngModelChange)="texto.set($event)" (keydown.enter)="enter($event)" (keydown.escape)="emojis.set(false)"></textarea>
               <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-[10px] transition-[background,box-shadow,color]" aria-label="Enviar mensaje"
                 [class]="puedeEnviar() ? 'bg-accent-grain text-white hover:shadow-glow' : 'bg-bg-raised text-text-muted'" [disabled]="!puedeEnviar()" (click)="enviar()">
@@ -257,7 +257,7 @@ interface Fila {
 export class ChatView {
   readonly chat = inject(ChatService);
   protected readonly fan = inject(FanSession);
-  private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
+  protected readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
 
   /** The panel asks for the donate dialog (kept for the panel binding; Donar lives in the header). */
   readonly donar = output<void>();

@@ -170,7 +170,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
         </nav>
       </header>
       @let d = dir();
-      @if (d === undefined) { <gr-skeleton class="h-[480px] rounded-lg" /> }
+      @if (d === undefined) { <gr-skeleton class="-mx-5 mt-1.5 block h-[218px] md:mx-0 md:mt-0 md:h-[480px] md:rounded-lg" /> }
       @else if (d === null) { @if (!fallo.limitado()) { <gr-alert tone="warning" title="No hemos podido cargar el directo">Vuelve a intentarlo en unos segundos.</gr-alert> } }
       @else {
         @if (d.pausa && d.fase === 'en_directo') { <gr-alert class="mb-5" tone="warning" title="Pausa técnica">Volvemos enseguida.@if (d.retrasoMin) { Vamos con {{ d.retrasoMin }} min de retraso. }</gr-alert> }

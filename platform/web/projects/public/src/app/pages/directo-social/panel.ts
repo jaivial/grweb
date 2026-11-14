@@ -24,14 +24,16 @@ type Pestana = 'chat' | 'donantes' | 'porra';
   styles: `
     @keyframes gr-latido { 0% { transform: scale(1); opacity: 0.7; } 80%, 100% { transform: scale(2.4); opacity: 0; } }
     .gr-latido { animation: gr-latido 2s ease-out infinite; }
-    @media (prefers-reduced-motion: reduce) { .gr-latido { animation: none; display: none; } }
+    @keyframes gr-tab { from { opacity: 0; } to { opacity: 1; } }
+    .gr-tab { animation: gr-tab 200ms ease-out both; }
+    @media (prefers-reduced-motion: reduce) { .gr-latido { animation: none; display: none; } .gr-tab { animation: none; } }
   `,
   template: `
     <section class="flex flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card bg-[linear-gradient(180deg,rgb(110_20_32/0.42),transparent_220px)] lg:sticky lg:top-[92px] lg:h-[calc(100vh-120px)]" aria-label="Chat del directo">
       <header class="flex shrink-0 items-center justify-between gap-2 px-4 md:gap-3 pt-4 pb-3">
         <div class="min-w-0">
           <h2 class="font-display text-[20px] leading-none text-text-primary uppercase italic">Chat en directo</h2>
-          <p class="mt-2 flex items-center gap-x-2 font-mono text-[11px] leading-none font-medium tracking-[0.04em] whitespace-nowrap uppercase md:tracking-[0.08em]" role="status">
+          <p class="mt-2 flex items-center gap-x-2 font-mono text-[12px] leading-none font-medium tracking-[0.04em] whitespace-nowrap uppercase md:tracking-[0.08em]" role="status">
             <span class="relative flex size-2 shrink-0" aria-hidden="true">
               @if (vivo()) { <span class="gr-latido absolute inset-0 rounded-full bg-accent"></span> }
               <span class="relative size-2 rounded-full" [class]="puntoClase()"></span>
@@ -47,7 +49,7 @@ type Pestana = 'chat' | 'donantes' | 'porra';
 
       <nav class="grid shrink-0 grid-cols-3 border-b border-line-subtle px-2" role="tablist" aria-label="Secciones del directo">
         @for (t of pestanas; track t.v) {
-          <button type="button" role="tab" [attr.aria-selected]="tab() === t.v" class="relative h-11 text-label-s transition-colors" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" (click)="tab.set(t.v)">
+          <button type="button" role="tab" [id]="'tab-' + t.v" aria-controls="panel-directo" [attr.aria-selected]="tab() === t.v" class="relative h-11 text-label-s transition-colors" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" (click)="tab.set(t.v)">
             {{ t.l }}
             @if (tab() === t.v) { <span class="absolute bottom-0 left-1/2 h-0.5 w-14 -translate-x-1/2 rounded-t-2xs bg-accent shadow-[0_0_8px_rgb(196_43_62/0.6)]"></span> }
           </button>
@@ -70,13 +72,16 @@ type Pestana = 'chat' | 'donantes' | 'porra';
         </div>
       </div>
 
-      <div class="flex min-h-0 flex-1 flex-col">
-        @switch (tab()) {
+      <!-- UX4-R1-11: one tabpanel, same height for the three tabs (no jump), a short fade on change -->
+      @for (t of [tab()]; track t) {
+      <div id="panel-directo" role="tabpanel" [attr.aria-labelledby]="'tab-' + t" class="gr-tab flex min-h-[600px] flex-1 flex-col lg:min-h-0">
+        @switch (t) {
           @case ('chat') { <gr-chat-view (donar)="donar.set(true)" /> }
           @case ('donantes') { <gr-donantes-view [diaSala]="chat.dia()" [jornadaId]="jornadaId()" (donar)="donar.set(true)" /> }
           @case ('porra') { <gr-porra-view [jornadaId]="jornadaPorra()?.id ?? ''" [jornadaNombre]="jornadaPorra()?.nombre ?? ''" [cargada]="jornadasCargadas()" /> }
         }
       </div>
+      }
     </section>
     <gr-donar-modal [(abierto)]="donar" (verRanking)="tab.set('donantes')" />
   `,
@@ -95,6 +100,8 @@ export class PanelSocial {
   protected readonly donar = signal(false);
   protected readonly jornadas = signal<Jornada[]>([]);
   protected readonly jornadasCargadas = signal(false);
+  /** Still on the first connection attempt (or its first 8 s). */
+  private readonly primera = signal(true);
 
   protected readonly pestanas: { v: Pestana; l: string }[] = [
     { v: 'chat', l: 'Chat' },
@@ -128,7 +135,8 @@ export class PanelSocial {
     if (this.chat.fase() === 'finalizado') return 'Directo finalizado';
     if (this.chat.estado() === 'conectado') return 'En directo';
     if (this.chat.estado() === 'reconectando') return 'Reconectando…';
-    return 'Sin conexión';
+    // UX4-R1-9: the first attempt is not an outage
+    return this.primera() ? 'Conectando…' : 'Sin conexión';
   });
   protected readonly puntoClase = computed(() => {
     if (this.chat.cerrado()) return 'bg-text-muted';
@@ -172,6 +180,8 @@ export class PanelSocial {
       if (!n) return;
       untracked(() => void this.don.cargarRanking(this.chat.dia()));
     });
+    effect(() => { if (this.chat.estado() !== 'sin-conexion') untracked(() => this.primera.set(false)); });
+    if (this.browser) { const t = setTimeout(() => this.primera.set(false), 8000); inject(DestroyRef).onDestroy(() => clearTimeout(t)); }
     inject(DestroyRef).onDestroy(() => this.chat.desconectar());
   }
 

@@ -108,14 +108,21 @@ const euros2 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EU
       }
     </div>
     <div class="shrink-0 border-t border-line-subtle bg-bg-card px-4 pt-3 pb-4">
-      <button type="button" grButton variant="primary" size="l" [block]="true" icon="heart" (click)="donar.emit()">Donar y entrar en el ranking</button>
-      <p class="mt-2 flex items-center justify-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />Pago seguro · no guardamos tu tarjeta</p>
+      @if (activo()) {
+        <button type="button" grButton variant="primary" size="l" [block]="true" icon="heart" (click)="donar.emit()">Donar y entrar en el ranking</button>
+        <p class="mt-2 flex items-center justify-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />Pago seguro · no guardamos tu tarjeta</p>
+      } @else {
+        <!-- UX4-R1-2: no primary CTA for a module that is off -->
+        <p class="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-body-s text-warning" role="status"><gr-icon name="triangle-alert" [size]="16" class="mt-0.5 shrink-0" />Las donaciones aún no están activas. Vuelve en unos días.</p>
+      }
     </div>
   `,
 })
 export class DonantesView {
   private readonly don = inject(Donaciones);
   private readonly http = inject(HttpClient);
+  /** Donations are on (until the config says otherwise). */
+  protected readonly activo = computed(() => this.don.config()?.activo !== false);
 
   /** Day of the ranking (the day shown in the panel). */
   readonly diaSala = input<string>('');
@@ -140,6 +147,7 @@ export class DonantesView {
   private readonly imagenFalla = signal<ReadonlySet<string>>(new Set());
 
   constructor() {
+    if (!this.don.config()) void this.don.cargarConfig();
     effect(() => {
       const dia = this.diaSala();
       this.cargando.set(true);

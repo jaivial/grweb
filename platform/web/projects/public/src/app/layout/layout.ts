@@ -85,12 +85,12 @@ const UI = {
   imports: [RouterLink, GrButton, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   // UX1-R1-1: on phones the navbar stays visible during the intro (hidden only from md). UX1-R1-5: above the bottom bar and FAB while the menu is open.
-  host: { class: 'fixed inset-x-0 top-0 pr-[max(20px,env(safe-area-inset-right))] pl-[max(20px,env(safe-area-inset-left))] pt-[max(12px,env(safe-area-inset-top))] max-[239px]:px-2 transition-[opacity,transform] duration-300 md:pr-[max(32px,env(safe-area-inset-right))] md:pl-[max(32px,env(safe-area-inset-left))] md:pt-[max(16px,env(safe-area-inset-top))] xl:px-[120px]', '(document:click)': 'fuera($event)', '(document:keydown.escape)': 'mega.set(false); open.set(false)', '[class.z-40]': '!open()', '[class.z-60]': 'open()', '[class.md:opacity-0]': 'hidden()', '[class.md:-translate-y-4]': 'hidden()', '[class.md:pointer-events-none]': 'hidden()', '[attr.aria-hidden]': '(hidden() && ancho()) || null' },
+  host: { class: 'fixed inset-x-0 top-0 pr-[max(20px,env(safe-area-inset-right))] pl-[max(20px,env(safe-area-inset-left))] pt-[max(12px,env(safe-area-inset-top))] max-[239px]:px-2 transition-[opacity,transform,translate] duration-300 ease-[cubic-bezier(.22,1,.36,1)] md:pr-[max(32px,env(safe-area-inset-right))] md:pl-[max(32px,env(safe-area-inset-left))] md:pt-[max(16px,env(safe-area-inset-top))] xl:px-[120px]', '(document:click)': 'fuera($event)', '(document:keydown.escape)': 'mega.set(false); open.set(false)', '[class.z-40]': '!open()', '[class.z-60]': 'open()', '[class.md:opacity-0]': 'hidden()', '[class.md:-translate-y-4]': 'hidden()', '[class.md:pointer-events-none]': 'hidden()', '[attr.aria-hidden]': '(hidden() && ancho()) || null', '[style.translate]': "oculta() && !open() ? '0 calc(-100% - 8px)' : null", '(window:scroll)': 'alScroll()' },
   template: `
     <nav class="@container relative mx-auto flex min-h-16 max-w-[1200px] items-center gap-2 overflow-hidden md:gap-4 lg:gap-6 rounded-md border border-accent-deep/35 bg-bg-deep/72 px-3 max-[239px]:px-1.5 backdrop-blur-[10px] md:min-h-[72px] md:px-6" aria-label="Principal">
       <span class="pointer-events-none absolute -top-20 -left-10 size-40 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]" aria-hidden="true"></span>
       <span class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(90deg,transparent,rgb(196_43_62/0.6),transparent)]" aria-hidden="true"></span>
-      <a [routerLink]="lang() === 'en' ? '/en' : '/'" class="relative shrink-0" [attr.aria-label]="ui().home"><img [src]="logo" alt="GR Strength Cup" class="h-9 w-24 object-contain max-[239px]:w-20 md:h-10 md:w-[116px]" /></a>
+      <a [routerLink]="lang() === 'en' ? '/en' : '/'" class="relative shrink-0" [attr.aria-label]="ui().home"><img [src]="logo" alt="GR Strength Cup" class="h-[36px] w-24 object-contain max-[239px]:w-20 md:h-[40px] md:w-[116px]" /></a>
       <!-- Figma «Navbar»: tablet keeps the first three links (the rest is in «Competición ▾»), desktop all five -->
       <ul class="relative -mr-2 ml-auto hidden items-center md:flex lg:gap-2">
         @for (l of links(); track l.href; let i = $index) {
@@ -181,6 +181,16 @@ export class Navbar {
   /** md+ viewport: only there does `hidden` apply (UX1-R1-1). */
   protected readonly ancho = signal(false);
   protected readonly open = signal(false);
+  /** UX4-R1-4: on phones in /en-directo the bar hides while scrolling down and comes back on scroll up (iOS). */
+  protected readonly oculta = signal(false);
+  private ultimoY = 0;
+  protected alScroll(): void {
+    const y = window.scrollY;
+    if (window.innerWidth >= 768 || this.open() || y < 120 || !this.actual().startsWith('/en-directo')) this.oculta.set(false);
+    else if (y > this.ultimoY + 4) this.oculta.set(true);
+    else if (y < this.ultimoY - 4) this.oculta.set(false);
+    this.ultimoY = y;
+  }
   protected readonly barraCta = inject(BarraCta);
   protected readonly mega = signal(false);
   private readonly el = inject(ElementRef<HTMLElement>);
@@ -317,19 +327,19 @@ export class Overlays {
           <!-- Tablet/desktop: open column. Mobile: accordion. -->
           <nav class="hidden md:block" [attr.aria-label]="col.titulo">
             <p class="text-label-xs text-text-muted">{{ col.titulo }}</p>
-            <ul class="mt-4 flex flex-col gap-3 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [routerLink]="l.href" class="hover:text-text-primary">{{ l.label }}</a></li> }</ul>
+            <ul class="mt-4 flex flex-col md:gap-3 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [routerLink]="l.href" class="flex min-h-11 items-center hover:text-text-primary md:min-h-0">{{ l.label }}</a></li> }</ul>
           </nav>
           <details class="group border-b border-line-subtle md:hidden">
             <summary class="flex h-15 cursor-pointer list-none items-center justify-between text-label-m">{{ col.titulo }}<gr-icon name="chevron-down" [size]="18" class="transition-transform group-open:rotate-180" /></summary>
-            <ul class="flex flex-col gap-3 pb-4 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [routerLink]="l.href" class="hover:text-text-primary">{{ l.label }}</a></li> }</ul>
+            <ul class="flex flex-col pb-4 md:gap-3 text-body-s text-text-secondary">@for (l of col.links; track l.href) { <li><a [routerLink]="l.href" class="flex min-h-11 items-center hover:text-text-primary md:min-h-0">{{ l.label }}</a></li> }</ul>
           </details>
         }
       </div>
       @if (logos().length) {
         <ul class="flex flex-wrap items-center justify-center gap-x-5 gap-y-4 md:gap-x-10 md:gap-y-5 md:py-2" aria-label="Patrocinadores">
           @for (p of logos(); track p.nombre) {
-            <li><a [href]="p.url || '/patrocinadores'" [attr.target]="p.url ? '_blank' : null" rel="noopener" class="block opacity-60 grayscale transition hover:opacity-100 hover:grayscale-0">
-              <img [src]="p.logoUrl" [alt]="p.nombre" class="h-[22px] w-auto max-w-[150px] object-contain md:h-7" loading="lazy" /></a></li>
+            <li><a [href]="p.url || '/patrocinadores'" [attr.target]="p.url ? '_blank' : null" rel="noopener" class="flex min-h-11 items-center opacity-60 grayscale transition hover:opacity-100 hover:grayscale-0">
+              <img [src]="p.logoUrl" [alt]="p.nombre" class="h-8 w-auto max-w-[150px] object-contain md:h-7" loading="lazy" /></a></li>
           }
         </ul>
       }
@@ -380,7 +390,7 @@ export class Footer {
   private readonly url = signal('');
   /** Mobile CTA bar (Figma Mobile, every public page): on the home only once the trophy intro is over; not on flows with their own bottom action. */
   protected readonly barra = computed(() => this.scrolled() && this.comp.data()?.modulos?.['entradas'] !== false &&
-    !/^\/(inscripcion|pago|entradas|area-atleta|alta-atleta|novedades|baja|en)(\/|$|\?)/.test(this.url()));
+    !/^\/(inscripcion|pago|entradas|area-atleta|alta-atleta|novedades|baja|en|en-directo)(\/|$|\?)/.test(this.url()));
   protected readonly columnas = [
     { titulo: 'Competición', links: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Horarios', href: '/horarios' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },
     { titulo: 'El evento', links: [{ label: 'Entradas', href: '/entradas' }, { label: 'Atletas', href: '/atletas' }, { label: 'Sorteo', href: '/sorteo' }, { label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Edición 2025', href: '/ediciones/2025' }, { label: 'Galería', href: '/galeria' }] },
