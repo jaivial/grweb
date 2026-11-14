@@ -124,8 +124,8 @@ interface Fila {
                       <span class="font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">Patrocinado</span>
                       @if (it.tier) { <span class="inline-flex h-5 items-center rounded-pill border px-2 font-mono text-[11px] tracking-[0.08em] uppercase" [class]="tier(it.tier)">{{ it.tier }}</span> }
                     </p>
-                    @if (imagen(it); as img) {
-                      <img [src]="img" [alt]="'Banner de ' + it.patrocinador" class="aspect-[3/1] w-full object-cover" loading="lazy" (error)="falloImagen(it.id)" />
+                    @if (browser && imagen(it); as img) {
+                      <img [src]="img" [alt]="'Banner de ' + it.patrocinador" class="aspect-[3/1] w-full bg-bg-surface object-cover" loading="lazy" (error)="falloImagen(it.id)" />
                     } @else {
                       <!-- la imagen no carga: bloque de marca del diseño (degradado + nombre del patrocinador) -->
                       <div class="flex aspect-[3/1] w-full items-center justify-center bg-[linear-gradient(135deg,#4c111b,#281112_55%,#170c0e)] px-4">
@@ -257,7 +257,7 @@ interface Fila {
 export class ChatView {
   readonly chat = inject(ChatService);
   protected readonly fan = inject(FanSession);
-  private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
+  protected readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
 
   /** The panel asks for the donate dialog (kept for the panel binding; Donar lives in the header). */
   readonly donar = output<void>();
