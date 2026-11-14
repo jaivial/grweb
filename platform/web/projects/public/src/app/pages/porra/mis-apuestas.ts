@@ -26,7 +26,7 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
     <gr-page title="Mis apuestas" [juego]="true">
       <gr-porra-cabecera [titulo]="'Mis apuestas ' + jornadaTxt()" tituloMovil="Mis apuestas" [asideMovil]="true" crumb="Mis apuestas" activa="apuestas"
         descripcion="Tu boleto de la jornada: lo que sigue en juego, lo cobrado y lo perdido. Se liquida al publicarse los resultados.">
-        <gr-coin-balance aside [valor]="saldo()" moneda="porra" motivo="porra" />
+        <gr-coin-balance aside [valor]="saldo()" moneda="porra" motivo="porra" [etiquetaMovil]="false" />
       </gr-porra-cabecera>
 
       @if (!fan.conSesion()) {

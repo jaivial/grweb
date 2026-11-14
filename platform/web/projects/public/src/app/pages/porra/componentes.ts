@@ -179,7 +179,7 @@ export class JuegosNav {
         <gr-icon name="zap" [size]="15" />
       </span>
       <span class="font-mono text-[1rem] font-bold tabular-nums">{{ monedas(valor()) }}</span>
-      <span class="text-mono-xs text-text-secondary">· {{ moneda() === 'porra' ? 'Porra' : 'Fantasy' }}</span>
+      <span class="text-mono-xs text-text-secondary" [class]="etiquetaMovil() ? '' : 'max-md:hidden'">· {{ moneda() === 'porra' ? 'Porra' : 'Fantasy' }}</span>
     } @else if (!fan.cargada()) {
       <!-- UX5-R1-6: sesión sin resolver (SSR / primera carga): esqueleto del saldo, nunca «Entrar» -->
       <span class="size-8 shrink-0 animate-pulse rounded-full bg-bg-field motion-reduce:animate-none" aria-hidden="true"></span>
@@ -194,6 +194,8 @@ export class JuegosNav {
 export class CoinBalance {
   readonly valor = input(0);
   readonly moneda = input<'porra' | 'fantasy'>('porra');
+  /** UX5-R4-1: false oculta «· Porra» en móvil (cabeceras compactas). */
+  readonly etiquetaMovil = input(true);
   /** El motivo del acceso: 'porra' o 'fantasy' (lo usa el modal de acceso). */
   readonly motivo = input<'porra' | 'fantasy'>('porra');
   protected readonly fan = inject(FanSession);
@@ -774,10 +776,10 @@ export class LeaderboardRow {
     <nav class="text-body-xs text-text-tertiary" aria-label="Migas">
       <a routerLink="/" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Inicio</a> · Juegos · @if (crumb()) { <a routerLink="/porra" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Porra</a> · {{ crumb() }} } @else { Porra }
     </nav>
-    <div class="flex items-start justify-between gap-4 md:gap-8">
+    <div class="flex items-start justify-between gap-3 md:gap-8">
       <div class="flex min-w-0 flex-1 flex-col gap-2.5">
         <!-- UX5-R3-2: en móvil un título corto de una línea (large title HIG) -->
-        <h1 class="text-display-s md:text-display-m">@if (tituloMovil(); as t) { <span class="md:hidden">{{ t }}</span><span class="hidden md:inline">{{ titulo() }}</span> } @else { {{ titulo() }} }</h1>
+        <h1 class="text-display-s md:text-display-m">@if (tituloMovil(); as t) { <span class="block truncate whitespace-nowrap md:hidden">{{ t }}</span><span class="hidden md:inline">{{ titulo() }}</span> } @else { {{ titulo() }} }</h1>
         @if (descripcion()) { <p class="max-w-[1064px] text-body-m text-text-secondary md:block md:line-clamp-none" [class]="descMovil() ? 'line-clamp-1' : 'hidden'">{{ descripcion() }}</p> }
       </div>
       <div class="shrink-0 flex-col items-end gap-2.5 md:flex" [class]="asideMovil() ? 'flex' : 'hidden'"><ng-content select="[aside]" /></div>
