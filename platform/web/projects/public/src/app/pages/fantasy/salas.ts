@@ -10,7 +10,7 @@ import { FormsModule } from '@angular/forms';
 import { GrButton, GrIcon } from '@grcup/ui';
 import { Cms } from '../../core/cms';
 import { FanSession, codigoError } from '../../core/fan';
-import { Juegos, JuegosEnVivo, JuegosEstado, mensajeError, nota2, type Lobby, type SalaVista } from '../../core/juegos';
+import { Juegos, JuegosEnVivo, JuegosEstado, mensajeError, nota2, recargaAgrupada, type Lobby, type SalaVista } from '../../core/juegos';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
@@ -208,7 +208,8 @@ export class SalasPage {
   private origenPopover: HTMLElement | null = null;
   private esperaHover: ReturnType<typeof setTimeout> | undefined;
   private esperaBusqueda: ReturnType<typeof setTimeout> | undefined;
-  private esperaVivo: ReturnType<typeof setTimeout> | undefined;
+  /** ST3-R1-3: 800 ms de margen y como mucho una recarga cada 3 s. */
+  private readonly agrupada = recargaAgrupada(() => void this.recargar());
 
   protected readonly salas = computed(() => this.lobby()?.salas ?? []);
   /** Las favoritas y mi sala van primero; dentro, el orden del servidor. */
@@ -252,17 +253,20 @@ export class SalasPage {
       // Salas, solicitudes, notas y fichajes cambian en vivo: se recarga el lobby agrupando los eventos seguidos.
       let primera = true;
       effect(() => {
+        const l = this.lobby();
+        if (l?.jornada) untracked(() => this.vivo.enfocar(l.jornada!.id, l.miSala ?? ''));
+      });
+      effect(() => {
         this.vivo.versionSalas();
         this.vivo.versionNotas();
         this.vivo.version();
         untracked(() => {
           if (primera) return void (primera = false);
-          clearTimeout(this.esperaVivo);
-          this.esperaVivo = setTimeout(() => void this.recargar(), 800);
+          this.agrupada.pedir();
         });
       });
       inject(DestroyRef).onDestroy(() => {
-        clearTimeout(this.esperaVivo);
+        this.agrupada.cancelar();
         clearTimeout(this.esperaHover);
         clearTimeout(this.esperaBusqueda);
         this.vivo.desconectar();

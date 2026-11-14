@@ -107,7 +107,8 @@ type atletaSala struct {
 }
 
 // bloquearAtletaTx checks that the fan plays in a live room (shared lock on the room: a close or the start of the
-// day cannot interleave), locks the athlete row of the jornada and reads his ownership inside the room.
+// day cannot interleave), share-locks the athlete row of the jornada (the clause cannot move under the signing,
+// yet signings in different rooms no longer queue on it, ST3-R1-5) and locks his ownership row inside the room.
 func bloquearAtletaTx(ctx context.Context, tx pgx.Tx, j jornada, salaID, fanID, atletaID uuid.UUID) (atletaSala, error) {
 	var a atletaSala
 	var ok bool
@@ -119,7 +120,7 @@ func bloquearAtletaTx(ctx context.Context, tx pgx.Tx, j jornada, salaID, fanID, 
 	if err != nil {
 		return a, err
 	}
-	err = tx.QueryRow(ctx, `SELECT clausula FROM fantasy_atletas WHERE jornada_id = $1 AND atleta_id = $2 FOR UPDATE`, j.ID, atletaID).Scan(&a.Base)
+	err = tx.QueryRow(ctx, `SELECT clausula FROM fantasy_atletas WHERE jornada_id = $1 AND atleta_id = $2 FOR SHARE`, j.ID, atletaID).Scan(&a.Base)
 	if db.IsNoRows(err) {
 		return a, problem.NotFound("Ese atleta no está en la jornada.")
 	}
@@ -130,7 +131,7 @@ func bloquearAtletaTx(ctx context.Context, tx pgx.Tx, j jornada, salaID, fanID, 
 		return a, err
 	}
 	err = tx.QueryRow(ctx, `SELECT `+precioSala+`, sa.dueno_fan_id, sa.dueno_alias, sa.protegido_hasta FROM sala_atletas sa
-		JOIN fantasy_atletas fa ON fa.jornada_id = sa.jornada_id AND fa.atleta_id = sa.atleta_id WHERE sa.sala_id = $1 AND sa.atleta_id = $2`, salaID, atletaID).
+		JOIN fantasy_atletas fa ON fa.jornada_id = sa.jornada_id AND fa.atleta_id = sa.atleta_id WHERE sa.sala_id = $1 AND sa.atleta_id = $2 FOR UPDATE OF sa`, salaID, atletaID).
 		Scan(&a.Clausula, &a.Dueno, &a.DuenoAlias, &a.Protegido)
 	return a, err
 }

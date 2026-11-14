@@ -37,6 +37,25 @@ type msg struct {
 	// the public/admin SSE frame is built once per event, not once per subscriber (ST2-R2-1, ST2-R5-1)
 	pubOnce, admOnce sync.Once
 	pub, adm         []byte
+	// jornada/room of a fantasy.* event, parsed once (ST3-R1-4: public streams may follow one jornada/room)
+	ambOnce   sync.Once
+	jor, sala string
+}
+
+func (m *msg) ambito() (string, string) {
+	m.ambOnce.Do(func() {
+		if !strings.HasPrefix(m.ev.Type, "fantasy.") {
+			return
+		}
+		var d struct {
+			JornadaID string `json:"jornadaId"`
+			SalaID    string `json:"salaId"`
+		}
+		if json.Unmarshal(m.ev.Data, &d) == nil {
+			m.jor, m.sala = d.JornadaID, d.SalaID
+		}
+	})
+	return m.jor, m.sala
 }
 
 // frame is the whole SSE frame of the event with the given data.
@@ -380,13 +399,31 @@ func (s *Svc) public(w http.ResponseWriter, r *http.Request) {
 		s.pub[cid]-- // kept at 0 until the next report writes it
 		s.pubMu.Unlock()
 	}()
+	// ST3-R1-4: ?jornada= drops the fantasy.* events of other jornadas and ?sala= the signings of other rooms
+	// (a «solo enlace» signing carries no room and still goes out), so a spectator's volume no longer grows with
+	// every signing of the competition.
+	jornada, sala := uuidParam(r, "jornada"), uuidParam(r, "sala")
 	// Public connections are recycled every 30 min so they spread over the pods after scaling.
 	s.stream(w, r, time.Now().Add(30*time.Minute), "reconectar", func(m *msg) ([]byte, bool) {
 		if m.ev.CompetitionID != cid || m.ev.Audience != events.Public {
 			return nil, false
 		}
+		if jornada != "" {
+			if j, sl := m.ambito(); j != "" && (j != jornada || (sala != "" && sl != "" && sl != sala && m.ev.Type == "fantasy.fichaje")) {
+				return nil, false
+			}
+		}
 		return m.publicFrame(), true
 	})
+}
+
+// uuidParam is the query parameter when it is a valid uuid ("" otherwise).
+func uuidParam(r *http.Request, k string) string {
+	u, err := uuid.Parse(r.URL.Query().Get(k))
+	if err != nil {
+		return ""
+	}
+	return u.String()
 }
 
 func (s *Svc) admin(w http.ResponseWriter, r *http.Request) {

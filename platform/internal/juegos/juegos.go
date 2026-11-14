@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/jaivial/grweb/platform/pkg/app"
 	"github.com/jaivial/grweb/platform/pkg/cache"
@@ -55,6 +56,7 @@ type Svc struct {
 	marc   map[string]marcEntrada
 	resum  memo // public summaries of the home (10 s, singleflight)
 	hor    map[string]horEntrada
+	horSF  singleflight.Group // one schedule call per key at a time
 	// horarioFijo replaces the published schedule in the tests.
 	horarioFijo *horarioDia
 }
