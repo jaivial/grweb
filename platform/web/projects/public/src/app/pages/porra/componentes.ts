@@ -130,7 +130,7 @@ export class GrSelector {
     @if (juego() === 'fantasy') { <gr-selector class="md:hidden" etiqueta="GRS Fantasy" [opciones]="opciones()" [valor]="activa()" /> }
     <nav class="w-full rounded-pill border border-line-subtle bg-bg-surface p-1 md:w-auto" [class]="juego() === 'fantasy' ? 'hidden gap-1 md:flex' : 'flex'" [attr.aria-label]="juego() === 'porra' ? 'Porra' : 'GRS Fantasy'">
       @for (t of tabs(); track t.href) {
-        <a [routerLink]="t.href" class="flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-pill px-2 text-label-s whitespace-nowrap transition-colors md:h-10 md:flex-none"
+        <a [routerLink]="t.href" class="flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-pill px-2 text-label-s whitespace-nowrap transition-colors md:h-10 md:flex-none md:pointer-coarse:h-11"
           [class]="(juego() === 'fantasy' ? 'md:w-[120px] md:px-0 ' : 'md:px-4 ') + (t.id === activa() ? 'border border-line-strong bg-bg-raised text-text-primary shadow-[0_2px_8px_rgb(0_0_0/0.35)]' : 'border border-transparent text-text-tertiary hover:text-text-primary')"
           [attr.aria-current]="t.id === activa() ? 'page' : null">
           <span class="truncate sm:hidden">{{ t.corto }}</span><span class="hidden truncate sm:inline">{{ t.label }}</span>
@@ -490,16 +490,20 @@ export class MarketCard {
             </p>
           }
           <gr-aviso-juegos />
-          @if (exito()) {
-            <p class="flex items-start gap-2 rounded-md border border-success/30 bg-success/8 px-3 py-2.5 text-body-xs text-success" role="status">
-              <gr-icon name="circle-check" [size]="16" class="mt-0.5 shrink-0" /><span class="text-label-s">{{ exito() }}</span>
-            </p>
-            <a grButton variant="secondary" size="l" [block]="true" routerLink="/porra/mis-apuestas" iconRight="arrow-right">Ver mis apuestas</a>
-          } @else {
-            <button grButton variant="primary" size="l" [block]="true" [loading]="cargando()" [disabled]="!puedeApostar()" (click)="confirmar.emit({ atletaId: elegido()?.atletaId ?? '', importe: importe() })">
+          <!-- éxito y confirmar comparten celda: el alto del boleto no salta al confirmar -->
+          <div class="grid">
+            <div class="flex flex-col gap-2 [grid-area:1/1]" [class.invisible]="!exito()" [attr.aria-hidden]="!exito() || null">
+              <p class="flex items-start gap-2 rounded-md border border-success/30 bg-success/8 px-3 py-2.5 text-body-xs text-success" role="status">
+                <gr-icon name="circle-check" [size]="16" class="mt-0.5 shrink-0" /><span class="text-label-s">{{ exito() || 'Apuesta registrada' }}</span>
+              </p>
+              <a grButton variant="secondary" size="l" [block]="true" routerLink="/porra/mis-apuestas" iconRight="arrow-right" [attr.tabindex]="exito() ? null : -1">Ver mis apuestas</a>
+            </div>
+            @if (!exito()) {
+            <button grButton variant="primary" size="l" [block]="true" class="self-end [grid-area:1/1]" [loading]="cargando()" [disabled]="!puedeApostar()" (click)="confirmar.emit({ atletaId: elegido()?.atletaId ?? '', importe: importe() })">
               {{ insuficiente() ? 'Saldo insuficiente' : !elegido() ? 'Elige un atleta' : 'Confirmar apuesta de ' + monedas(importe()) }}
             </button>
-          }
+            }
+          </div>
           <p class="flex items-center justify-between gap-3 text-body-xs text-text-secondary">Saldo disponible <b class="font-mono text-[0.875rem] text-text-primary tabular-nums">{{ monedas(saldo()) }}</b></p>
         </div>
       </div>
@@ -768,12 +772,12 @@ export class LeaderboardRow {
   host: { class: 'contents' },
   template: `
     <nav class="text-body-xs text-text-tertiary" aria-label="Migas">
-      <a routerLink="/" class="-mx-2 px-2 py-3.5 hover:text-text-primary">Inicio</a> · Juegos · @if (crumb()) { <a routerLink="/porra" class="-mx-2 px-2 py-3.5 hover:text-text-primary">Porra</a> · {{ crumb() }} } @else { Porra }
+      <a routerLink="/" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Inicio</a> · Juegos · @if (crumb()) { <a routerLink="/porra" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Porra</a> · {{ crumb() }} } @else { Porra }
     </nav>
     <div class="flex items-start justify-between gap-8">
       <div class="flex min-w-0 flex-1 flex-col gap-2.5">
         <h1 class="text-display-s md:text-display-m">{{ titulo() }}</h1>
-        @if (descripcion()) { <p class="max-w-[1064px] text-body-m text-text-secondary md:block" [class.hidden]="!descMovil()">{{ descripcion() }}</p> }
+        @if (descripcion()) { <p class="max-w-[1064px] text-body-m text-text-secondary md:block md:line-clamp-none" [class]="descMovil() ? 'line-clamp-1' : 'hidden'">{{ descripcion() }}</p> }
       </div>
       <div class="hidden shrink-0 flex-col items-end gap-2.5 md:flex"><ng-content select="[aside]" /></div>
     </div>
@@ -792,7 +796,7 @@ export class LeaderboardRow {
     <div class="hidden items-center justify-between gap-4 md:flex">
       <nav class="flex gap-1 rounded-pill border border-line-subtle bg-bg-surface p-1" aria-label="Porra">
         @for (t of tabs; track t.id) {
-          <a [routerLink]="t.href" class="flex h-10 items-center rounded-pill border px-[18px] text-label-s whitespace-nowrap transition-colors"
+          <a [routerLink]="t.href" class="flex h-10 items-center rounded-pill border px-[18px] text-label-s whitespace-nowrap transition-colors pointer-coarse:h-11"
             [class]="t.id === activa() ? 'border-line-strong bg-bg-raised text-text-primary shadow-[0_2px_8px_rgb(0_0_0/0.35)]' : 'border-transparent text-text-tertiary hover:text-text-primary'"
             [attr.aria-current]="t.id === activa() ? 'page' : null">{{ t.label }}</a>
         }
