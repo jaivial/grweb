@@ -8,7 +8,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTas
 import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { Cms } from '../../core/cms';
 import { FanSession, codigoError } from '../../core/fan';
-import { FantasyStore, Juegos, JuegosEnVivo, JuegosEstado, type AtletaDetalle, type AtletaMercado, mensajeError, nota2 } from '../../core/juegos';
+import { FantasyStore, Juegos, JuegosEnVivo, JuegosEstado, recargaAgrupada, type AtletaDetalle, type AtletaMercado, mensajeError, nota2 } from '../../core/juegos';
 import { monedas } from '../porra/formato';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
@@ -190,26 +190,25 @@ export class MiEquipoPage {
         untracked(() => this.recargar());
       });
       inject(DestroyRef).onDestroy(() => {
-        clearTimeout(this.temporizador);
+        this.agrupada.cancelar();
         this.vivo.desconectar();
       });
     }
   }
 
-  private temporizador: ReturnType<typeof setTimeout> | undefined;
   private primera = true;
-  /** Recarga con un margen de 800 ms (varios eventos seguidos = una sola petición). */
+  /** Recarga agrupada: 800 ms de margen y como mucho una cada 3 s (ST3-R1-3). */
+  private readonly agrupada = recargaAgrupada(() => {
+    if (!this.fan.conSesion()) return;
+    void this.store.cargarEquipo();
+    void this.store.cargarClasificacion();
+  });
   private recargar(): void {
     if (this.primera) {
       this.primera = false;
       return;
     }
-    clearTimeout(this.temporizador);
-    this.temporizador = setTimeout(() => {
-      if (!this.fan.conSesion()) return;
-      void this.store.cargarEquipo();
-      void this.store.cargarClasificacion();
-    }, 800);
+    this.agrupada.pedir();
   }
 
   protected entrar(): void {

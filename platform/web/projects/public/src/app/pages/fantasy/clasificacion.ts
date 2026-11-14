@@ -10,7 +10,7 @@ import { ActivatedRoute } from '@angular/router';
 import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { Cms } from '../../core/cms';
 import { FanSession } from '../../core/fan';
-import { FantasyStore, JuegosEnVivo, JuegosEstado, fusionaFichajes, nota2, type FilaSala } from '../../core/juegos';
+import { FantasyStore, JuegosEnVivo, JuegosEstado, fusionaFichajes, recargaAgrupada, nota2, type FilaSala } from '../../core/juegos';
 import { monedas } from '../porra/formato';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
@@ -127,15 +127,14 @@ export class FantasyClasificacionPage {
       this.vivo.conectar();
       // el ranking se actualiza en vivo (notas, fichajes y la clasificación emitida), agrupando los eventos seguidos
       let primera = true;
-      let espera: ReturnType<typeof setTimeout> | undefined;
+      const agrupada = recargaAgrupada(() => void this.store.cargarClasificacion());
       effect(() => {
         this.vivo.podios();
         this.vivo.versionNotas();
         this.vivo.version();
         untracked(() => {
           if (primera) return void (primera = false);
-          clearTimeout(espera);
-          espera = setTimeout(() => void this.store.cargarClasificacion(), 800);
+          agrupada.pedir();
         });
       });
       void this.fan.cargar().then(async () => {
@@ -145,7 +144,7 @@ export class FantasyClasificacionPage {
         void this.store.cargarFichajes();
       });
       inject(DestroyRef).onDestroy(() => {
-        clearTimeout(espera);
+        agrupada.cancelar();
         this.vivo.desconectar();
       });
     }

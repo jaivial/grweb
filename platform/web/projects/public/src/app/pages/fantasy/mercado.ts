@@ -11,7 +11,7 @@ import { FormsModule } from '@angular/forms';
 import { GrButton, GrIcon, GrSelect, GrSkeleton } from '@grcup/ui';
 import { Cms } from '../../core/cms';
 import { FanSession, codigoError } from '../../core/fan';
-import { FantasyStore, Juegos, JuegosEnVivo, JuegosEstado, fusionaFichajes, horaTxt, type AtletaDetalle, type AtletaMercado, mensajeError } from '../../core/juegos';
+import { FantasyStore, Juegos, JuegosEnVivo, JuegosEstado, fusionaFichajes, horaTxt, recargaAgrupada, type AtletaDetalle, type AtletaMercado, mensajeError } from '../../core/juegos';
 import { monedas } from '../porra/formato';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
@@ -291,18 +291,17 @@ export class MercadoFantasyPage {
       });
       // Notas, fichajes y salas cambian en vivo: se recarga sin esqueleto (un margen agrupa los eventos seguidos).
       let primera = true;
-      let espera: ReturnType<typeof setTimeout> | undefined;
+      const agrupada = recargaAgrupada(() => void this.store.recargar());
       effect(() => {
         this.vivo.versionNotas();
         this.vivo.versionSalas();
         this.vivo.version();
         untracked(() => {
           if (primera) return void (primera = false);
-          clearTimeout(espera);
-          espera = setTimeout(() => void this.store.recargar(), 800);
+          agrupada.pedir();
         });
       });
-      inject(DestroyRef).onDestroy(() => clearTimeout(espera));
+      inject(DestroyRef).onDestroy(() => agrupada.cancelar());
       const t = setInterval(() => this.ahora.set(Date.now()), 1000);
       inject(DestroyRef).onDestroy(() => {
         clearInterval(t);

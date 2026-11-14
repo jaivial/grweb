@@ -7,7 +7,7 @@
  */
 import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
-import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
+import { Injectable, PLATFORM_ID, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG } from './competition';
@@ -837,6 +837,29 @@ export function pctClausula(clausula: number, delta: number): number {
 }
 
 /**
+ * Recarga agrupada (ST3-R1-3): la primera petición espera `espera` ms y, después, como mucho una recarga cada
+ * `intervalo` ms. A diferencia de un debounce, un chorro de eventos no la aplaza para siempre.
+ */
+export function recargaAgrupada(fn: () => void, espera = 800, intervalo = 3000): { pedir(): void; cancelar(): void } {
+  let t: ReturnType<typeof setTimeout> | undefined;
+  let ultima = 0;
+  return {
+    pedir() {
+      if (t) return;
+      t = setTimeout(() => {
+        t = undefined;
+        ultima = Date.now();
+        fn();
+      }, Math.max(espera, ultima + intervalo - Date.now()));
+    },
+    cancelar() {
+      clearTimeout(t);
+      t = undefined;
+    },
+  };
+}
+
+/**
  * Tiempo real de los juegos: se suscribe al SSE público de la competición (realtime reenvía los eventos
  * `fantasy.clausula`, `fantasy.fichaje`, `fantasy.sala`, `fantasy.solicitud`, `fantasy.nota`, `porra.mercado` y
  * `juegos.clasificacion`) y los deja en signals.
@@ -847,6 +870,35 @@ export class JuegosEnVivo {
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private es: EventSource | null = null;
   private usos = 0;
+  /** ST3-R1-4: jornada y sala que siguen las pantallas; el stream solo trae los eventos fantasy.* de ese ámbito. */
+  private readonly jornadaFoco = signal('');
+  private readonly salaFoco = signal('');
+  /** Sala que se está mirando (/fantasy/salas/:id); manda sobre la sala del store. */
+  private readonly salaVista = signal('');
+  private readonly foco = computed(() => ({ jornada: this.jornadaFoco(), sala: this.salaVista() || this.salaFoco() }));
+  private abierto = '';
+  private ultimoId = '';
+
+  constructor() {
+    // cambiar de ámbito reabre el stream desde el último evento recibido (sin perder ninguno)
+    effect(() => {
+      const f = this.foco();
+      untracked(() => {
+        if (this.es && this.clave(f) !== this.abierto) this.abrir();
+      });
+    });
+  }
+
+  /** Fija la jornada y, si se pasa, mi sala (las ponen el FantasyStore y el lobby). */
+  enfocar(jornadaId: string, salaId?: string): void {
+    this.jornadaFoco.set(jornadaId);
+    if (salaId !== undefined) this.salaFoco.set(salaId);
+  }
+
+  /** Fija (o limpia con '') la sala que se está mirando. */
+  verSala(salaId: string): void {
+    this.salaVista.set(salaId);
+  }
 
   readonly conectado = signal(false);
   /** La conexión en vivo se ha perdido (el navegador reintenta solo): las pantallas avisan «Sin conexión en tiempo real». */
@@ -877,7 +929,23 @@ export class JuegosEnVivo {
     if (!this.browser) return;
     this.usos++;
     if (this.es) return;
-    const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
+    this.abrir();
+  }
+
+  private clave(f: { jornada: string; sala: string }): string {
+    const q = new URLSearchParams();
+    if (f.jornada) q.set('jornada', f.jornada);
+    if (f.jornada && f.sala) q.set('sala', f.sala);
+    return q.toString();
+  }
+
+  private abrir(): void {
+    this.es?.close();
+    this.abierto = this.clave(this.foco());
+    const q = new URLSearchParams(this.abierto);
+    if (this.ultimoId) q.set('desde', this.ultimoId);
+    const qs = q.toString();
+    const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream${qs ? '?' + qs : ''}`);
     this.es = es;
     es.onopen = () => {
       this.conectado.set(true);
@@ -903,6 +971,8 @@ export class JuegosEnVivo {
     if (this.usos > 0) return;
     this.es?.close();
     this.es = null;
+    this.abierto = '';
+    this.ultimoId = '';
     this.conectado.set(false);
     this.caida.set(false);
   }
@@ -918,12 +988,25 @@ export class JuegosEnVivo {
   }
 
   private datos(e: Event): Record<string, unknown> | null {
+    const id = (e as MessageEvent).lastEventId;
+    if (id) this.ultimoId = id;
     try {
       const env = JSON.parse((e as MessageEvent).data as string) as { datos?: Record<string, unknown> };
-      return env?.datos ?? null;
+      const d = env?.datos ?? null;
+      return d && this.ajeno(e.type, d) ? null : d;
     } catch {
       return null;
     }
+  }
+
+  /** Evento fantasy.* de otra jornada (o fichaje de otra sala): no toca la vista (ST3-R1-3). */
+  private ajeno(tipo: string, d: Record<string, unknown>): boolean {
+    if (!tipo.startsWith('fantasy.')) return false;
+    const { jornada, sala } = this.foco();
+    const j = typeof d['jornadaId'] === 'string' ? d['jornadaId'] : '';
+    if (jornada && j && j !== jornada) return true;
+    const s = typeof d['salaId'] === 'string' ? d['salaId'] : '';
+    return tipo === 'fantasy.fichaje' && !!sala && !!s && s !== sala;
   }
 
   private clausula(e: Event): void {
@@ -1153,6 +1236,8 @@ export class FantasyStore {
   readonly sala = signal<SalaResumen | null>(null);
   /** Si los clausulazos siguen abiertos y a qué hora se cierran. */
   readonly clausulazo = signal<Clausulazo | null>(null);
+  /** El stream sigue la jornada y la sala de la vista (ST3-R1-4). */
+  private readonly focoVivo = effect(() => this.vivo.enfocar(this.jornada()?.id ?? '', this.sala()?.id ?? ''));
 
   readonly cargandoEquipo = signal(false);
   readonly equipo = signal<MiEquipo | null>(null);

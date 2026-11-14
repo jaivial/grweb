@@ -8,7 +8,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTas
 import { ActivatedRoute, Router } from '@angular/router';
 import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { FanSession, codigoError } from '../../core/fan';
-import { Juegos, JuegosEnVivo, mensajeError, nota2, type FilaSala, type SalaDetalle } from '../../core/juegos';
+import { Juegos, JuegosEnVivo, mensajeError, nota2, recargaAgrupada, type FilaSala, type SalaDetalle } from '../../core/juegos';
 import { monedas } from '../porra/formato';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
@@ -209,7 +209,8 @@ export class SalaPage {
   protected readonly confirmarSalida = signal(false);
   protected readonly ahora = signal(Date.now());
   private origenPopover: HTMLElement | null = null;
-  private espera: ReturnType<typeof setTimeout> | undefined;
+  /** ST3-R1-3: 800 ms de margen y como mucho una recarga cada 3 s. */
+  private readonly agrupada = recargaAgrupada(() => void this.recargar());
   private esperaToast: ReturnType<typeof setTimeout> | undefined;
 
   protected readonly sala = computed(() => this.detalle()?.sala ?? null);
@@ -274,6 +275,12 @@ export class SalaPage {
     void inject(PendingTasks).run(() => this.cargar());
     if (this.browser) {
       this.vivo.conectar();
+      // el stream sigue esta sala y su jornada (ST3-R1-4)
+      this.vivo.verSala(this.id);
+      effect(() => {
+        const j = this.detalle()?.jornada?.id;
+        if (j) untracked(() => this.vivo.enfocar(j));
+      });
       void this.fan.cargar().then((f) => f && this.recargar());
       const reloj = setInterval(() => this.ahora.set(Date.now()), 30000);
       // Miembros, solicitudes, notas y fichajes cambian en vivo: se recarga la sala agrupando los eventos seguidos.
@@ -284,8 +291,7 @@ export class SalaPage {
         this.vivo.version();
         untracked(() => {
           if (primera) return void (primera = false);
-          clearTimeout(this.espera);
-          this.espera = setTimeout(() => void this.recargar(), 800);
+          this.agrupada.pedir();
         });
       });
       // Aviso en vivo al anfitrión cuando llega una solicitud nueva a esta sala.
@@ -300,7 +306,8 @@ export class SalaPage {
       });
       inject(DestroyRef).onDestroy(() => {
         clearInterval(reloj);
-        clearTimeout(this.espera);
+        this.agrupada.cancelar();
+        this.vivo.verSala('');
         clearTimeout(this.esperaToast);
         this.vivo.desconectar();
       });
