@@ -100,7 +100,9 @@ const coalesceEvery = 400 * time.Millisecond
 // entregaEvery is how often every other event (signings, rooms, bets…) is fanned out (ST3-R3-4: waiting for the
 // odds tick put up to 400 ms on every delivery and its tail grew past 1.6 s at peak). Odds keep coalesceEvery;
 // they are sent without an id line when they go out after a newer event (see write), so order is never broken.
-const entregaEvery = 100 * time.Millisecond
+// ST3-R4-2: 100 ms meant 10 wakes/writes per client per second at peak, stealing CPU from the HTTP pods (p99
+// 1.2 s); 200 ms halves them and still adds at most 100 ms to a delivery (well under the 400 ms odds tick).
+const entregaEvery = 200 * time.Millisecond
 
 // hub fans the stream out to the connected clients of this pod in batches, one every coalesceEvery. Live odds
 // (porra.mercado of an open market) are coalesced per market (latest wins); every other event is queued as is.
