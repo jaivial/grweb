@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, model, output } from '@angular/core';
-import { GrIcon, type GrIconName, type GrTone } from '@grcup/ui';
+import { GrIcon, GrSelect, type GrIconName, type GrTone } from '@grcup/ui';
 
 /** Figma 50 «Mapa de estados»: one table so each domain state gets the same badge tone everywhere (BO and public web). */
 export const BO_ESTADOS: Record<string, [string, GrTone][]> = {
@@ -38,7 +38,7 @@ const MODES: [BoEditorMode, GrIconName, string][] = [['design', 'pen-tool', 'Dis
 /** Figma 50 «BO / Editor toolbar»: panel · mode · device · undo/redo (Ctrl+Z / Ctrl+Shift+Z) · zoom · AI assistant. */
 @Component({
   selector: 'bo-editor-toolbar',
-  imports: [GrIcon, BoDeviceSwitch],
+  imports: [GrIcon, GrSelect, BoDeviceSwitch],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-wrap items-center gap-2 border-b border-line-subtle bg-bg-base px-3 py-2', role: 'toolbar', 'aria-label': 'Editor' },
   template: `
@@ -53,10 +53,9 @@ const MODES: [BoEditorMode, GrIconName, string][] = [['design', 'pen-tool', 'Dis
     <span class="flex-1"></span>
     <button type="button" class="flex size-8 items-center justify-center rounded-sm text-text-secondary hover:bg-bg-hover disabled:text-text-disabled" aria-label="Deshacer" [disabled]="!puedeDeshacer()" (click)="deshacer.emit()"><gr-icon name="undo" [size]="16" /></button>
     <button type="button" class="flex size-8 items-center justify-center rounded-sm text-text-secondary hover:bg-bg-hover disabled:text-text-disabled" aria-label="Rehacer" [disabled]="!puedeRehacer()" (click)="rehacer.emit()"><gr-icon name="redo" [size]="16" /></button>
-    <label class="relative"><span class="sr-only">Zoom</span>
-      <select class="h-9 appearance-none rounded-sm border border-line-strong bg-transparent pr-8 pl-3 text-[14px] font-semibold text-text-secondary" [value]="zoom()" (change)="zoom.set($any($event.target).value)">
-        @for (z of zooms; track z) { <option [value]="z" class="bg-bg-card">{{ z === 'fit' ? 'Ajustar' : z + ' %' }}</option> }
-      </select><gr-icon name="chevron-down" [size]="14" class="pointer-events-none absolute top-2.5 right-2.5 text-text-tertiary" /></label>
+    <gr-select tipo="filtro" [resaltar]="false" aria-label="Zoom" [value]="zoom()" (valorChange)="zoom.set($any($event))">
+      @for (z of zooms; track z) { <option [value]="z">{{ z === 'fit' ? 'Ajustar' : z + ' %' }}</option> }
+    </gr-select>
     <button type="button" class="flex h-9 items-center gap-1.5 rounded-sm px-2 text-[14px] font-semibold text-text-secondary hover:bg-bg-hover" (click)="ia.emit()"><gr-icon name="wand" [size]="16" class="text-[#b9a8ff]" />IA</button>
   `,
 })

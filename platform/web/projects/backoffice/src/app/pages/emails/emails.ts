@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, afterNextRe
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrPopover, GrSkeleton, GrToasts } from '@grcup/ui';
+import { GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrPopover, GrSelect, GrSkeleton, GrToasts } from '@grcup/ui';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoDrawer, BoPageHeader, BoToggle, errText } from '../../shared/ui';
@@ -18,7 +18,7 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
 /** «Emails y avisos» (Figma page 62): templates, WhatsApp templates, outbox with retries and the SMTP state, automations. */
 @Component({
   selector: 'bo-emails',
-  imports: [FormsModule, RouterLink, BoPageHeader, BoDrawer, BoToggle, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrPopover, GrSkeleton, WhatsAppMeta],
+  imports: [FormsModule, RouterLink, BoPageHeader, BoDrawer, BoToggle, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrPopover, GrSelect, GrSkeleton, WhatsAppMeta],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = resumen();
@@ -113,9 +113,9 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
               <button type="button" (click)="filtrar(fx.v)" [attr.aria-pressed]="estado() === fx.v" class="inline-flex h-9 items-center rounded-pill border px-3 text-label-s"
                 [class]="estado() === fx.v ? 'border-accent-text bg-accent-deep/40' : 'border-line-strong text-text-secondary hover:text-text-primary'">{{ fx.label }}</button>
             }
-            <select class="h-9 rounded-md border border-line-strong bg-bg-field px-2 text-body-s" aria-label="Canal" [ngModel]="canal()" (ngModelChange)="canal.set($event); pagina.set(1); cargarSalida()">
+            <gr-select tipo="filtro" etiqueta="Canal" [ngModel]="canal()" (ngModelChange)="canal.set($event); pagina.set(1); cargarSalida()">
               @for (c of canales; track c.v) { <option [value]="c.v">{{ c.label }}</option> }
-            </select>
+            </gr-select>
             <input class="h-9 w-full rounded-md border border-line-strong bg-bg-field px-3 text-body-s sm:ml-auto sm:w-56" placeholder="Buscar destinatario" [ngModel]="q()" (ngModelChange)="q.set($event); buscar()" aria-label="Buscar destinatario" />
           </div>
           @if (sel().size) {
