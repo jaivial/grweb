@@ -276,7 +276,11 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                   <gr-checkbox name="nov" [(checked)]="f.novedades">Quiero recibir novedades de la GRStrength Cup y de otras competiciones de GRStrength. <span class="text-text-tertiary">(Opcional)</span></gr-checkbox>
                   <p class="rounded-md bg-white/4 p-3 text-body-xs text-text-tertiary">Responsable: GRStrength · Finalidad: gestionar tu entrada y, solo si lo marcas, enviarte novedades · Legitimación: tu consentimiento · Derechos: acceso, rectificación, supresión y baja escribiendo a {{ comp.data()?.evento?.emailContacto || 'la organización' }} o desde cualquier email.</p>
                 </div>
-                <button grButton variant="primary" size="l" type="submit" class="w-full" [disabled]="!hidratado()" [loading]="enviando()">Reservar entrada gratis</button>
+                <!-- UX8-R1-3: sticky CTA (phones) while the real submit button is off screen -->
+                <div class="sticky bottom-0 z-10 -mx-5 border-t border-line-subtle bg-bg-base/95 px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur-[10px] transition-opacity duration-200 ease-[cubic-bezier(.2,.8,.2,1)] md:hidden" [class.opacity-0]="enviarVisible()" [class.pointer-events-none]="enviarVisible()" [attr.inert]="enviarVisible() || null">
+                  <button grButton variant="primary" size="l" type="submit" class="w-full" [disabled]="!hidratado()" [loading]="enviando()">Reservar · {{ f.personas }} {{ f.personas === 1 ? 'persona' : 'personas' }}@if (sesSel(); as s) { · {{ s.nombre }} }</button>
+                </div>
+                <button #enviarBtn grButton variant="primary" size="l" type="submit" class="w-full" [disabled]="!hidratado()" [loading]="enviando()">Reservar entrada gratis</button>
                 <p class="flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />Solo usamos tus datos para tu entrada. Sin spam.</p>
               </form>
             }
@@ -380,6 +384,8 @@ export class EntradasPage {
   protected readonly comp = inject(Competition);
   protected readonly fallo = inject(FalloApi);
   private readonly reservarEl = viewChild<ElementRef<HTMLElement>>('reservarEl');
+  private readonly enviarBtn = viewChild('enviarBtn', { read: ElementRef<HTMLElement> });
+  protected readonly enviarVisible = signal(true);
   protected readonly hora = hora;
   protected readonly estado = ESTADO;
   protected readonly euros = euros;
@@ -469,6 +475,13 @@ export class EntradasPage {
       await applySeo(cms, seo, '/entradas', 'Entradas gratis · GR Strength Cup', 'Reserva gratis tu entrada para la GR Strength Cup en Almussafes: elige sesión, recibe tu QR por email y entra sin colas.');
     });
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
+      effect((onCleanup) => {
+        const b = this.enviarBtn()?.nativeElement as HTMLElement | undefined;
+        if (!b) return this.enviarVisible.set(true);
+        const o = new IntersectionObserver(([e]) => this.enviarVisible.set(e.isIntersecting));
+        o.observe(b);
+        onCleanup(() => o.disconnect());
+      });
       const destroy = inject(DestroyRef);
       const cd = inject(ChangeDetectorRef);
       afterNextRender(() => {
