@@ -229,6 +229,8 @@ export class SalaPage {
   protected readonly confirmarCierre = signal(false);
   protected readonly confirmarSalida = signal(false);
   protected readonly ahora = signal(Date.now());
+  /** Ya juega en otra sala hoy (el lobby lo dice): no se le ofrece solicitar. */
+  protected readonly otraSala = signal(false);
   private origenPopover: HTMLElement | null = null;
   /** ST3-R1-3: 800 ms de margen y como mucho una recarga cada 3 s. */
   private readonly agrupada = recargaAgrupada(() => void this.recargar());
@@ -240,7 +242,7 @@ export class SalaPage {
   /** UX6-R1-1: lo que puede hacer quien no es miembro (sala pública, abierta y sin empezar). */
   protected readonly accionUnirse = computed<'solicitar' | 'cancelar' | null>(() => {
     const d = this.detalle();
-    if (!d || d.sala.esMia || d.empezada || !d.sala.publica) return null;
+    if (!d || d.sala.esMia || d.empezada || !d.sala.publica || this.otraSala()) return null;
     if (d.sala.miSolicitud === 'pendiente') return 'cancelar';
     const ok = (d.sala.estado === 'esperando' || d.sala.estado === 'lista') && d.sala.miSolicitud !== 'rechazada' && d.sala.miSolicitud !== 'expulsada';
     return ok ? 'solicitar' : null;
@@ -356,6 +358,11 @@ export class SalaPage {
       this.noExiste.set(false);
       this.errorCarga.set(false);
       this.seo.set({ title: `${d.sala.nombre} · Salas de GRS Fantasy`, description: `La sala «${d.sala.nombre}» de GRS Fantasy: jugadores, clasificación en directo y mercado.`, path: '/fantasy/salas/' + this.id });
+      if (!d.sala.esMia && !d.empezada && this.fan.conSesion())
+        void this.juegos
+          .salas(undefined, d.jornada?.id, 1)
+          .then((l) => this.otraSala.set(!!l.miSala && l.miSala !== this.id))
+          .catch(() => undefined);
       void this.juegos
         .fantasyMercado(d.jornada?.id, this.id)
         .then((m) => this.mercado.set({ libres: m.atletas.filter((a) => a.libre).length, total: m.atletas.length }))
