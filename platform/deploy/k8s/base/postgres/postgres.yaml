@@ -58,7 +58,7 @@ spec:
       containers:
         - name: postgres
           image: postgres:17-alpine
-          args: ["-c", "max_connections=300", "-c", "shared_buffers=256MB", "-c", "log_min_duration_statement=500"]
+          args: ["-c", "max_connections=400", "-c", "shared_buffers=256MB", "-c", "log_min_duration_statement=500"]
           ports:
             - { name: postgres, containerPort: 5432 }
           env:

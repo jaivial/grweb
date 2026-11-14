@@ -56,7 +56,8 @@ spec:
           env:
             - name: DB_PASSWORD
               valueFrom: { secretKeyRef: { name: grcup-db, key: PW_JUEGOS } }
-            - { name: DATABASE_URL, value: "postgres://grcup_juegos:$(DB_PASSWORD)@postgres:5432/grcup_juegos?sslmode=disable&$(DB_POOL)" }
+            # ST2-R1-1: the porra hot path (bets, wallet, ranking) needs more than the shared 5 conns; 6 pods × (12 + 1 relay) = 78
+            - { name: DATABASE_URL, value: "postgres://grcup_juegos:$(DB_PASSWORD)@postgres:5432/grcup_juegos?sslmode=disable&pool_max_conns=12" }
             - name: REDIS_PASSWORD
               valueFrom: { secretKeyRef: { name: grcup-redis, key: REDIS_PASSWORD } }
             - name: INTERNAL_TOKEN_SECRET

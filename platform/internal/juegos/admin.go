@@ -146,10 +146,14 @@ func (s *Svc) registerAdmin() {
 			// BIZ-143: the rooms follow the jornada, in the same transaction (a failure leaves the jornada as it was).
 			// en_juego starts them (1-member rooms are cancelled, pending requests expire); cerrada writes the palmarés.
 			return nil, db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				// ST2-R1-5: lock first and stamp after the lock, so updated_at is later than every bet that got in
+				if _, err := tx.Exec(ctx, `SELECT 1 FROM jornadas WHERE id = $1 AND competition_id = $2 FOR UPDATE`, in.JID, in.CID); err != nil {
+					return err
+				}
 				tag, err := tx.Exec(ctx, `UPDATE jornadas SET
 					nombre = COALESCE($3, nombre), estado = COALESCE($4, estado),
 					hora_cierre = CASE WHEN $5::text IS NULL THEN hora_cierre WHEN $5::text = '' THEN NULL ELSE $5::text::time END,
-					version = version + 1, updated_at = now()
+					version = version + 1, updated_at = clock_timestamp()
 					WHERE id = $1 AND competition_id = $2`, in.JID, in.CID, b.Nombre, b.Estado, b.HoraCierre)
 				if err != nil {
 					return err
@@ -165,6 +169,9 @@ func (s *Svc) registerAdmin() {
 					return err
 				}
 				if *b.Estado == "cerrada" {
+					if err := cerrarMercadosJornadaTx(ctx, tx, in.CID, j.ID); err != nil {
+						return err
+					}
 					return s.finalizarSalasTx(ctx, tx, in.CID, j)
 				}
 				return iniciarSalasTx(ctx, tx, in.CID, j)

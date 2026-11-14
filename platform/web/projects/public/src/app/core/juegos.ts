@@ -45,6 +45,15 @@ export interface OpcionMercado {
   cuota?: number;
 }
 
+/** Cambio en vivo de un mercado (evento porra.mercado); seq ordena los cambios recibidos. */
+export interface CambioMercado {
+  seq: number;
+  id: string;
+  estado: EstadoMercado;
+  bote?: number;
+  opciones?: { atletaId: string; apostado: number; cuota?: number }[];
+}
+
 /** Un mercado de porra con su bote y sus cuotas. */
 export interface Mercado {
   id: string;
@@ -855,8 +864,9 @@ export class JuegosEnVivo {
   readonly series = signal<Map<string, number[]>>(new Map());
   /** Feed de movimientos del mercado (los últimos, del más nuevo al más viejo). */
   readonly feed = signal<MovimientoFeed[]>([]);
-  /** Estado de los mercados de porra que cambian en vivo. */
-  readonly mercados = signal<Map<string, string>>(new Map());
+  /** Último cambio en vivo de cada mercado de porra (estado y, con cada apuesta, bote y cuotas). */
+  readonly mercados = signal<Map<string, CambioMercado>>(new Map());
+  private seqMercado = 0;
   /** Podios de la última clasificación emitida (alias). */
   readonly podios = signal<{ porra: string[]; fantasy: string[] } | null>(null);
   /** Si algo cambió (para recargar la vista sin perder el scroll). */
@@ -990,8 +1000,17 @@ export class JuegosEnVivo {
     const id = typeof d?.['mercadoId'] === 'string' ? (d['mercadoId'] as string) : '';
     const estado = typeof d?.['estado'] === 'string' ? (d['estado'] as string) : '';
     if (!id || !estado) return;
+    // ST2-R1-3: el evento trae bote y cuotas; la pantalla los aplica sin volver a pedir los mercados
+    const opciones = Array.isArray(d!['opciones'])
+      ? (d!['opciones'] as Record<string, unknown>[]).map((o) => ({
+          atletaId: String(o['atletaId'] ?? ''),
+          apostado: Number(o['apostado'] ?? 0),
+          cuota: typeof o['cuota'] === 'number' ? (o['cuota'] as number) : undefined,
+        }))
+      : undefined;
+    const bote = typeof d!['bote'] === 'number' ? (d!['bote'] as number) : undefined;
     const copia = new Map(this.mercados());
-    copia.set(id, estado);
+    copia.set(id, { seq: ++this.seqMercado, id, estado: estado as EstadoMercado, bote, opciones });
     this.mercados.set(copia);
     this.version.update((v) => v + 1);
   }
@@ -1056,6 +1075,27 @@ export class PorraStore {
     } catch {
       /* se mantiene lo anterior */
     }
+  }
+
+  /**
+   * Aplica un cambio en vivo a un mercado ya cargado (ST2-R1-3). Devuelve false si hace falta recargar:
+   * mercado desconocido o liquidado (el ganador no viaja en el evento).
+   */
+  aplicarCambio(c: CambioMercado): boolean {
+    const lista = this.mercados();
+    const i = lista.findIndex((m) => m.id === c.id);
+    if (i < 0 || c.estado === 'liquidado') return false;
+    const m = lista[i];
+    const opciones = c.opciones
+      ? m.opciones.map((o) => {
+          const n = c.opciones!.find((x) => x.atletaId === o.atletaId);
+          return n ? { ...o, apostado: n.apostado, cuota: n.cuota } : o;
+        })
+      : m.opciones;
+    const copia = [...lista];
+    copia[i] = { ...m, estado: c.estado, bote: c.bote ?? m.bote, opciones, apuestas: c.bote !== undefined && c.bote !== m.bote ? m.apuestas + 1 : m.apuestas };
+    this.mercados.set(copia);
+    return true;
   }
 
   /** Mis apuestas (solo con sesión). */

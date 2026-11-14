@@ -5,6 +5,7 @@ package juegos
 
 import (
 	"context"
+	"golang.org/x/sync/singleflight"
 	"time"
 
 	"github.com/google/uuid"
@@ -41,18 +42,25 @@ func publicaPorra(filas []filaPorra) []filaPorraPublic {
 	return out
 }
 
-// rankingPorra returns the top 50 of the porra (cached 3 s) and the fan's own place.
+// rankingPorra returns the top 50 of the porra (cached 3 s, one loader per pod and jornada) and the fan's own place.
 func (s *Svc) rankingPorra(ctx context.Context, j jornada, fanID uuid.UUID) ([]filaPorra, int) {
 	key := "rank:porra:" + j.ID.String()
 	var top []filaPorra
-	if !s.cache.Get(ctx, key, &top) {
+	if s.cache.Get(ctx, key, &top) {
+		return top, s.miPuesto(ctx, j, fanID, Porra)
+	}
+	v, _, _ := rankingVuelo.Do(key, func() (any, error) {
+		var top []filaPorra
+		if s.cache.Get(ctx, key, &top) { // another pod or flight filled it meanwhile
+			return top, nil
+		}
 		// wallets opened before the alias was stored have it empty: borrow it from another wallet of the same fan
 		rows, err := s.a.DB.Query(ctx, `SELECT s.fan_id,
 				COALESCE(NULLIF(s.alias, ''), (SELECT o.alias FROM saldos o WHERE o.fan_id = s.fan_id AND o.alias <> '' ORDER BY o.updated_at DESC LIMIT 1), ''),
 				s.saldo, rank() OVER (ORDER BY s.saldo DESC, s.updated_at ASC)
 			FROM saldos s WHERE s.jornada_id = $1 AND s.moneda = 'porra' ORDER BY s.saldo DESC, s.updated_at ASC LIMIT 50`, j.ID)
 		if err != nil {
-			return []filaPorra{}, 0
+			return []filaPorra{}, err
 		}
 		defer rows.Close()
 		top = []filaPorra{}
@@ -63,19 +71,25 @@ func (s *Svc) rankingPorra(ctx context.Context, j jornada, fanID uuid.UUID) ([]f
 			}
 		}
 		s.cache.Set(ctx, key, top, 3*time.Second)
-	}
-	return top, s.miPuesto(ctx, j, fanID, Porra)
+		return top, nil
+	})
+	return v.([]filaPorra), s.miPuesto(ctx, j, fanID, Porra)
 }
 
-// miPuesto is the fan's place in the whole porra ranking (same order as the top): rank() over all the wallets.
+// rankingVuelo collapses concurrent loads of the same top (ST2-R1-1: no singleflight meant N identical queries).
+var rankingVuelo singleflight.Group
+
+// miPuesto is the fan's place in the whole ranking (same order and ties as rank() in the top): 1 + the wallets
+// strictly ahead, counted as two index-only ranges of saldos_orden instead of sorting every wallet (ST2-R1-1).
 func (s *Svc) miPuesto(ctx context.Context, j jornada, fanID uuid.UUID, m Moneda) int {
 	if fanID == uuid.Nil {
 		return 0
 	}
 	var puesto int
-	if err := s.a.DB.QueryRow(ctx, `SELECT puesto FROM (
-			SELECT fan_id, rank() OVER (ORDER BY saldo DESC, updated_at ASC) puesto
-			FROM saldos WHERE jornada_id = $1 AND moneda = $2) r WHERE r.fan_id = $3`, j.ID, m, fanID).Scan(&puesto); err != nil {
+	if err := s.a.DB.QueryRow(ctx, `SELECT 1
+			+ (SELECT count(*) FROM saldos s WHERE s.jornada_id = $1 AND s.moneda = $2 AND s.saldo > m.saldo)
+			+ (SELECT count(*) FROM saldos s WHERE s.jornada_id = $1 AND s.moneda = $2 AND s.saldo = m.saldo AND s.updated_at < m.updated_at)
+		FROM saldos m WHERE m.jornada_id = $1 AND m.fan_id = $3 AND m.moneda = $2`, j.ID, m, fanID).Scan(&puesto); err != nil {
 		return 0
 	}
 	return puesto
