@@ -1,4 +1,4 @@
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, input, signal } from '@angular/core';
 import { GrButton, GrIcon, GrSkeleton, type GrIconName } from '@grcup/ui';
 import { Cms, type Landing, type Seccion } from '../core/cms';
@@ -8,7 +8,6 @@ import { GrCabecera } from '../home/bloques';
 import { Footer, Navbar, instagramOf, type Lang } from '../layout/layout';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
-import { GrChipsAncla } from './seo-bloques';
 
 const str = (s: Seccion | undefined, k: string) => (s?.[k] as string | undefined) ?? '';
 const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefined) ?? []);
@@ -51,7 +50,7 @@ export class Related {
   readonly nivel = input<'h2' | 'h3'>('h2');
 }
 
-/** «Sigue la GRStrength Cup»: Instagram band before the footer. */
+/** «Sigue la GRS Cup 2»: Instagram band before the footer. */
 @Component({
   selector: 'gr-community',
   imports: [GrButton],
@@ -61,8 +60,8 @@ export class Related {
     <section class="relative overflow-hidden rounded-2xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-6 shadow-glow-deep md:flex md:items-center md:justify-between md:gap-8 md:p-10">
       <div>
         <p class="flex items-center gap-3 text-mono-xs text-text-tertiary">{{ en() ? 'Community' : 'Comunidad' }}</p>
-        @if (nivel() === 'h3') { <h3 class="mt-3 text-display-xs md:text-display-m">{{ en() ? 'Follow the GRStrength Cup' : 'Sigue la GRStrength Cup' }}</h3> }
-        @else { <h2 class="mt-3 text-display-xs md:text-display-m">{{ en() ? 'Follow the GRStrength Cup' : 'Sigue la GRStrength Cup' }}</h2> }
+        @if (nivel() === 'h3') { <h3 class="mt-3 text-display-xs md:text-display-m">{{ en() ? 'Follow the GRS Cup 2' : 'Sigue la GRS Cup 2' }}</h3> }
+        @else { <h2 class="mt-3 text-display-xs md:text-display-m">{{ en() ? 'Follow the GRS Cup 2' : 'Sigue la GRS Cup 2' }}</h2> }
         <p class="mt-2 text-body-s text-text-secondary md:text-body-m">{{ en() ? 'Dates, schedule, raffle and results first on Instagram.' : 'Fechas, horarios, sorteo y resultados primero en Instagram.' }}</p>
       </div>
       <a grButton icon="camera" class="mt-5 w-full md:mt-0 md:w-auto" [href]="instagram()" target="_blank" rel="noopener">{{ en() ? 'Follow on Instagram' : 'Seguir en Instagram' }}</a>
@@ -83,25 +82,38 @@ export class Community {
 /** /publico (Figma page 29): what spectators will see, how an attempt is judged and the stand rules. All sections come from the CMS. */
 @Component({
   selector: 'gr-publico-page',
-  imports: [Page, GrIcon, GrSkeleton, GrCabecera, GrChipsAncla, Related, Community],
+  imports: [Page, GrIcon, GrSkeleton, GrCabecera, GrSelect, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styles: `
+    .gr-vista { animation: gr-vista-in 180ms ease-out; }
+    @keyframes gr-vista-in { from { opacity: 0; } to { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { .gr-vista { animation: none; } }
+  `,
   template: `
     @let l = land();
     <gr-page separacion="mt-[132px] block md:mt-[180px]" [title]="t('intro', 'titulo') || 'Ven a ver'" [accent]="t('intro', 'tituloAcento') || 'la competición'" [eyebrow]="t('intro', 'eyebrow')" [subtitle]="t('intro', 'texto')" section="Visita" crumb="Público">
-      <gr-chips-ancla [anclas]="anchors" />
+      <!-- Figma 46:23: the page tabs are one dropdown (not sticky); each view has its own ?vista= -->
+      <div class="mb-8 flex flex-col gap-2 md:mb-12 md:max-w-80">
+        <label class="text-label-s text-text-secondary" for="publico-vista">Sección</label>
+        <gr-select id="publico-vista" tam="l" [value]="vista()" (valorChange)="verVista($event)">
+          @for (a of anchors; track a.id) { <option [value]="a.id">{{ a.t }}</option> }
+        </gr-select>
+      </div>
       @if (l === undefined) {
         <div class="grid grid-cols-2 gap-3 md:grid-cols-4">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-24 rounded-md" /> }</div>
       }
       <div class="flex flex-col gap-12 md:gap-20">
+        @for (v of [vista()]; track v) {
+        <div class="gr-vista flex flex-col gap-12 md:gap-20">
         @for (k of l?.orden ?? []; track k) {
           @let s = l!.secciones[k];
+          @if (k === 'interesar' || k === SECCION[v]) {
           @switch (k) {
             @case ('datos') {
               <ul id="info" class="grid scroll-mt-32 grid-cols-2 gap-2 md:grid-cols-4 md:gap-4">
                 @for (d of items(s, 'items'); track d['etiqueta']) {
-                  <li class="flex flex-col gap-1.5 rounded-lg border border-line-subtle bg-bg-card p-4 md:p-5">
-                    <gr-icon [name]="ic(d['icono'])" [size]="18" class="mb-1.5 self-start text-accent-text" />
-                    <p class="text-label-xs text-text-muted uppercase">{{ d['etiqueta'] }}</p>
+                  <li class="flex min-w-0 flex-col gap-1.5 rounded-lg border border-line-subtle bg-bg-card p-4 md:p-5">
+                    <p class="flex items-center gap-2 text-label-xs text-text-muted uppercase"><gr-icon [name]="ic(d['icono'])" [size]="18" class="shrink-0 text-accent-text" />{{ d['etiqueta'] }}</p>
                     <p class="text-label-m">{{ d['valor'] }}</p>
                   </li>
                 }
@@ -109,7 +121,7 @@ export class Community {
             }
             @case ('movimientos') {
               <section id="que-veras" class="flex scroll-mt-32 flex-col gap-5 md:gap-7">
-                <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [texto]="str(s, 'texto')" [centro]="false" tam="m" />
+                <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [texto]="txt(str(s, 'texto'))" [centro]="false" tam="m" />
                 <!-- Figma 29: three 300 × 420 cards on desktop; a swipe row with dots on mobile -->
                 <ul #fila class="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:max-w-[932px] md:grid-cols-3 md:gap-4 md:overflow-visible md:px-0" (scroll)="alDeslizar(fila)">
                   @for (m of items(s, 'items'); track m['titulo']; let i = $index) {
@@ -135,9 +147,8 @@ export class Community {
                 <ol class="grid gap-3 md:grid-cols-4 md:gap-4">
                   @for (p of items(s, 'pasos'); track p['titulo']; let i = $index, last = $last) {
                     <li class="rounded-lg border border-line-subtle bg-bg-card p-[25px]">
-                      <span class="flex size-8 items-center justify-center rounded-full bg-accent text-label-s text-white">{{ i + 1 }}</span>
-                      <p class="mt-2 text-label-m">{{ p['titulo'] }}</p>
-                      <p class="mt-2 text-body-s text-text-tertiary">{{ p['texto'] }}</p>
+                      <p class="flex items-center gap-3 text-label-m"><span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-label-s text-white">{{ i + 1 }}</span>{{ txt(p['titulo']) }}</p>
+                      <p class="mt-2 text-body-s text-text-tertiary">{{ txt(p['texto']) }}</p>
                       @if (last) {
                         <p class="mt-2 flex gap-2" aria-label="Ejemplo: dos luces blancas y una roja, intento válido">
                           <span class="size-5 rounded-full bg-white"></span><span class="size-5 rounded-full bg-white"></span><span class="size-5 rounded-full bg-accent"></span>
@@ -153,7 +164,7 @@ export class Community {
                 <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [centro]="false" tam="m" />
                 <ul class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-5 md:p-6">
                   @for (n of items(s, 'items'); track n['texto']) {
-                    <li class="flex gap-3 text-body-m text-text-secondary"><span class="mt-2.5 size-1.5 shrink-0 rounded-full bg-accent"></span>{{ n['texto'] }}</li>
+                    <li class="flex gap-3 text-body-m text-text-secondary"><span class="mt-2.5 size-1.5 shrink-0 rounded-full bg-accent"></span>{{ txt(n['texto']) }}</li>
                   }
                 </ul>
               </section>
@@ -162,6 +173,9 @@ export class Community {
               <gr-related [titulo]="str(s, 'titulo') || 'Te puede interesar'" [items]="related(s)" />
             }
           }
+          }
+        }
+        </div>
         }
         <gr-community />
       </div>
@@ -170,7 +184,21 @@ export class Community {
 })
 export class PublicoPage {
   protected readonly land = signal<Landing | null | undefined>(undefined);
-  protected readonly anchors = [{ id: 'info', t: 'Info' }, { id: 'que-veras', t: 'Qué verás' }, { id: 'como-se-juzga', t: 'Cómo se juzga' }, { id: 'normas', t: 'Normas' }];
+  protected readonly anchors = [{ id: 'info', t: 'Info práctica' }, { id: 'que-veras', t: 'Qué verás' }, { id: 'como-se-juzga', t: 'Cómo se juzga' }, { id: 'normas', t: 'Normas en la grada' }];
+  /** CMS section shown by each ?vista= («Te puede interesar» goes with all of them). */
+  protected readonly SECCION: Record<string, string> = { info: 'datos', 'que-veras': 'movimientos', 'como-se-juzga': 'juicio', normas: 'normas' };
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly qp = signal(this.route.snapshot.queryParamMap.get('vista') ?? '');
+  protected readonly vista = computed(() => (this.qp() in this.SECCION ? this.qp() : 'info'));
+  /** Changes the view in place (no scroll jump); the canonical stays on /publico. */
+  protected verVista(v: string) {
+    if (v === this.vista()) return;
+    this.qp.set(v);
+    void this.router.navigate([], { relativeTo: this.route, queryParams: { vista: v === 'info' ? null : v }, queryParamsHandling: 'merge', replaceUrl: true });
+  }
+  /** Jaime: the stage is «tarima», never «plataforma». */
+  protected txt = (t: string | undefined) => (t ?? '').replace(/plataforma/g, 'tarima').replace(/Plataforma/g, 'Tarima');
   /** Card in view in the mobile swipe row (dots). */
   protected readonly tarjeta = signal(0);
   protected alDeslizar(el: HTMLElement) {
@@ -193,7 +221,7 @@ export class PublicoPage {
       const [l, c] = await Promise.all([cms.landing('publico'), competition.load()]);
       this.land.set(l);
       if (!l) cms.notFound();
-      await applySeo(cms, seo, '/publico', 'Ver la competición · GR Strength Cup', 'Entrada gratuita con reserva: qué verás, cómo se juzga un intento y normas de la grada.', undefined,
+      await applySeo(cms, seo, '/publico', 'Ver la competición · GRS Cup 2', 'Entrada gratuita con reserva: qué verás, cómo se juzga un intento y normas de la grada.', undefined,
         { jsonLd: c ? eventLd(c, 'es') : undefined });
     });
   }
