@@ -115,7 +115,7 @@ const MAX_MARCA = 600;
                       <div #resumenErr tabindex="-1" class="scroll-mt-28 rounded-md border border-accent bg-accent/8 p-4 outline-none" role="alert">
                         <p class="flex items-center gap-2 text-label-s"><gr-icon name="circle-alert" [size]="18" class="text-accent-text" />Revisa {{ resumen().length === 1 ? 'un campo' : resumen().length + ' campos' }} antes de enviar</p>
                         <ul class="mt-2 flex flex-col gap-1 pl-1 text-body-s text-text-secondary">
-                          @for (e of resumen(); track e.campo) { <li>• <a [href]="'#c-' + e.campo" (click)="$event.preventDefault(); enfocar('#c-' + e.campo)" class="hover:text-text-primary hover:underline">{{ e.label }}: {{ e.msg }}</a></li> }
+                          @for (e of resumen(); track e.campo) { <li>• <a [href]="'#c-' + idCampo(e.campo)" (click)="$event.preventDefault(); enfocar('#c-' + idCampo(e.campo))" class="hover:text-text-primary hover:underline">{{ e.label }}: {{ e.msg }}</a></li> }
                         </ul>
                       </div>
                     }
@@ -345,7 +345,7 @@ const MAX_MARCA = 600;
                     </fieldset>
 
                     <!-- Consentimientos -->
-                    <fieldset class="flex min-w-0 flex-col gap-3">
+                    <fieldset id="c-consentimiento" tabindex="-1" class="flex min-w-0 scroll-mt-28 flex-col gap-3 outline-none">
                       <legend class="mb-5 text-display-2xs italic">Consentimientos</legend>
                       @for (c of casillas(); track c.k) {
                         <label class="flex min-h-11 items-start gap-2.5 py-1 text-body-s" [class]="c.req ? 'text-text-primary' : 'text-text-secondary'">
@@ -981,6 +981,11 @@ export class AltaAtletaPage {
     this.error.set(cuerpo.detail || 'No hemos podido enviar tu solicitud.');
     this.aviso.set('red');
     this.enfocar('#aviso-envio');
+  }
+
+  /** Id del control de cada campo del resumen (la fecha usa c-nacimiento). */
+  protected idCampo(campo: string): string {
+    return campo === 'fechaNacimiento' ? 'nacimiento' : campo;
   }
 
   /** Mueve el foco al bloque que acaba de aparecer (el botón que lo tenía puede quedar deshabilitado). */
