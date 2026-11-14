@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -216,43 +217,109 @@ func vistaDe(sl *salaRow, filas []filaSala, mia bool, sol *miSolicitud) salaVist
 	return v
 }
 
-// lobby lists the live rooms of a jornada: the public ones plus the fan's own, optionally filtered by name.
-func (s *Svc) lobby(ctx context.Context, cid uuid.UUID, j jornada, fanID uuid.UUID, buscar string) ([]salaVista, error) {
-	rows, err := s.a.DB.Query(ctx, selSala+` WHERE s.jornada_id = $1 AND s.estado IN ('abierta', 'en_juego')
-		AND (s.publica OR EXISTS (SELECT 1 FROM sala_miembros m WHERE m.sala_id = s.id AND m.fan_id = $2))
-		AND ($3 = '' OR position($3 in s.nombre_norm) > 0)
-		ORDER BY s.created_at DESC LIMIT 200`, j.ID, fanID, normalizarNombre(buscar))
-	if err != nil {
-		return nil, err
-	}
-	var salas []*salaRow
-	for rows.Next() {
-		sl, err := scanSala(rows)
+// salaClasificada is one room of the lobby with its classification (shared read-only between fans).
+type salaClasificada struct {
+	sl    *salaRow
+	filas []filaSala
+}
+
+// ttlLobby: the public part of the lobby is the same for every fan; it is rebuilt at most once per second and pod
+// (singleflight), so 1000 spectators cost one classification per second instead of one per request (ST3-R2-1).
+const ttlLobby = time.Second
+
+// lobbyPublico lists the public live rooms of a jornada (newest first, 200 at most) already classified, without
+// any fan's view. The unfiltered list is cached ttlLobby; a search goes to the database.
+func (s *Svc) lobbyPublico(ctx context.Context, cid uuid.UUID, j jornada, buscar string) ([]salaClasificada, error) {
+	load := func() (any, error) {
+		// shared by every waiter of the singleflight: a cancelled first request must not fail the others
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		rows, err := s.a.DB.Query(ctx, selSala+` WHERE s.jornada_id = $1 AND s.estado IN ('abierta', 'en_juego') AND s.publica
+			AND ($2 = '' OR position($2 in s.nombre_norm) > 0)
+			ORDER BY s.created_at DESC LIMIT 200`, j.ID, buscar)
 		if err != nil {
-			rows.Close()
 			return nil, err
 		}
-		salas = append(salas, sl)
+		var salas []*salaRow
+		for rows.Next() {
+			sl, err := scanSala(rows)
+			if err != nil {
+				rows.Close()
+				return nil, err
+			}
+			salas = append(salas, sl)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		clas, err := s.clasificarSalas(ctx, s.a.DB, cid, j, salas, uuid.Nil)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]salaClasificada, len(salas))
+		for i, sl := range salas {
+			out[i] = salaClasificada{sl, clas[sl.ID]}
+		}
+		return out, nil
 	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return nil, err
+	if buscar != "" {
+		v, err := load()
+		if err != nil {
+			return nil, err
+		}
+		return v.([]salaClasificada), nil
 	}
-	clas, err := s.clasificarSalas(ctx, s.a.DB, cid, j, salas, fanID)
+	v, err := s.lobbyMemo.get("lobby:"+j.ID.String(), ttlLobby, load)
 	if err != nil {
 		return nil, err
+	}
+	return v.([]salaClasificada), nil
+}
+
+// lobby lists the live rooms of a jornada: the public ones (shared, up to 1 s old) plus the fan's own room, always
+// fresh (a fan plays in one room per jornada), optionally filtered by name.
+func (s *Svc) lobby(ctx context.Context, cid uuid.UUID, j jornada, fanID uuid.UUID, buscar string) ([]salaVista, error) {
+	buscar = normalizarNombre(buscar)
+	pub, err := s.lobbyPublico(ctx, cid, j, buscar)
+	if err != nil {
+		return nil, err
+	}
+	mia, err := miSala(ctx, s.a.DB, j.ID, fanID)
+	if err != nil {
+		return nil, err
+	}
+	var propia []filaSala
+	if mia != nil && (mia.Estado == "abierta" || mia.Estado == "en_juego") && (buscar == "" || strings.Contains(normalizarNombre(mia.Nombre), buscar)) {
+		clas, err := s.clasificarSalas(ctx, s.a.DB, cid, j, []*salaRow{mia}, fanID)
+		if err != nil {
+			return nil, err
+		}
+		propia = clas[mia.ID]
+	} else {
+		mia = nil
 	}
 	solicitudes, err := misSolicitudes(ctx, s.a.DB, j.ID, fanID)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]salaVista, 0, len(salas))
-	for _, sl := range salas {
-		mia := false
-		for _, f := range clas[sl.ID] {
-			mia = mia || f.EsYo
+	out := make([]salaVista, 0, len(pub)+1)
+	miaID := uuid.Nil
+	if mia != nil {
+		miaID = mia.ID
+	}
+	for _, c := range pub {
+		if c.sl.ID == miaID {
+			continue // shown fresh, with the fan's view
 		}
-		out = append(out, vistaDe(sl, clas[sl.ID], mia, solicitudes[sl.ID]))
+		if mia != nil && !mia.CreatedAt.Before(c.sl.CreatedAt) {
+			out = append(out, vistaDe(mia, propia, true, solicitudes[mia.ID]))
+			mia = nil
+		}
+		out = append(out, vistaDe(c.sl, c.filas, false, solicitudes[c.sl.ID]))
+	}
+	if mia != nil {
+		out = append(out, vistaDe(mia, propia, true, solicitudes[mia.ID]))
 	}
 	return out, nil
 }

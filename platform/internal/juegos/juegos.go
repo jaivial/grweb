@@ -56,6 +56,8 @@ type Svc struct {
 	marc   map[string]marcEntrada
 	marcSF singleflight.Group // one live call per scoreboard key at a time
 	resum  memo // public summaries of the home (10 s, singleflight)
+	// lobbyMemo: the public part of the lobby per jornada (1 s, singleflight, ST3-R2-1)
+	lobbyMemo memo
 	hor    map[string]horEntrada
 	horSF  singleflight.Group // one schedule call per key at a time
 	// horarioFijo replaces the published schedule in the tests.

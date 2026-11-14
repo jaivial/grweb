@@ -79,8 +79,8 @@ spec:
             periodSeconds: 20
             failureThreshold: 6
           resources:
-            requests: { cpu: 100m, memory: 256Mi }
-            limits: { cpu: "2", memory: 1Gi }
+            requests: { cpu: 500m, memory: 512Mi }
+            limits: { cpu: "4", memory: 2Gi } # ST3-R2-1: 2 CPU / 1Gi was the ceiling with 500–1000 fantasy readers
       volumes:
         - name: data
           hostPath: { path: /var/lib/grcup-qa/postgres, type: DirectoryOrCreate }
