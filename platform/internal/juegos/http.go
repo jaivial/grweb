@@ -264,7 +264,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			if etag != "" && in.IfNoneMatch == etag {
+			if etag != "" && etagCoincide(in.IfNoneMatch, etag) {
 				return nil, huma.Status304NotModified()
 			}
 			o := &mercadosOut{ETag: etag, CacheControl: "no-cache", ContentType: "application/json", Vary: "Accept-Encoding", Body: cuerpo}
