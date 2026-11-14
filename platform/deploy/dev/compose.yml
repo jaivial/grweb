@@ -133,6 +133,13 @@ services:
       <<: *env
       DATABASE_URL: postgres://grcup_donaciones:dev_donaciones@postgres:5432/grcup_donaciones?sslmode=disable
 
+  raffle:
+    <<: *svc
+    build: { context: ../.., args: { SVC: raffle, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_raffle:dev_raffle@postgres:5432/grcup_raffle?sslmode=disable
+
   patrocinio:
     <<: *svc
     build: { context: ../.., args: { SVC: patrocinio, VERSION: "${VERSION:-dev}" } }
@@ -284,7 +291,7 @@ services:
     build: { context: ../.., args: { SVC: gateway, VERSION: "${VERSION:-dev}" } }
     environment:
       <<: *env
-      UPSTREAMS: identity,competition,audit,realtime,fans,chat,donaciones,patrocinio,juegos,athletes,schedule,live,cms,messaging,crm,ai
+      UPSTREAMS: identity,competition,audit,realtime,fans,chat,donaciones,raffle,patrocinio,juegos,athletes,schedule,live,cms,messaging,crm,ai
       CORS_ORIGINS: http://127.0.0.1:4200,http://127.0.0.1:4201,http://localhost:4200,http://localhost:4201
     ports:
       - "127.0.0.1:18300:8080"
