@@ -100,11 +100,11 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } f
                 <section class="flex flex-col gap-3 rounded-lg border border-line-accent bg-bg-surface p-5" aria-labelledby="sala-unirse">
                   <h2 id="sala-unirse" class="text-ui-h5 text-text-primary">{{ a === 'cancelar' ? 'Solicitud pendiente' : 'Únete a esta sala' }}</h2>
                   <p class="text-body-s text-text-secondary">{{ a === 'cancelar' ? 'El anfitrión decide quién entra. Te avisamos aquí cuando responda.' : 'El anfitrión aprueba tu solicitud. Puedes tener hasta 3 pendientes.' }}</p>
-                  <button type="button" grButton [variant]="a === 'cancelar' ? 'outline' : 'primary'" [block]="true" class="hidden md:flex" [loading]="operando() === 'solicitar'" (click)="a === 'cancelar' ? cancelarSolicitud() : solicitar()">{{ a === 'cancelar' ? 'Cancelar solicitud' : 'Solicitar unirse · ' + d.sala.miembros + '/' + d.sala.plazas }}</button>
+                  <div class="hidden md:block"><button type="button" grButton [variant]="a === 'cancelar' ? 'outline' : 'primary'" [block]="true" [loading]="operando() === 'solicitar'" (click)="a === 'cancelar' ? cancelarSolicitud() : solicitar()">{{ a === 'cancelar' ? 'Cancelar solicitud' : 'Solicitar unirse · ' + d.sala.miembros + '/' + d.sala.plazas }}</button></div>
                 </section>
                 <div class="h-20 md:hidden" aria-hidden="true"></div>
                 <div class="fixed inset-x-0 bottom-0 z-40 border-t border-line-subtle bg-bg-base/95 px-4 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[10px] md:hidden">
-                  <button type="button" grButton [variant]="a === 'cancelar' ? 'outline' : 'primary'" [block]="true" class="h-12" [loading]="operando() === 'solicitar'" (click)="a === 'cancelar' ? cancelarSolicitud() : solicitar()">{{ a === 'cancelar' ? 'Solicitud pendiente · Cancelar' : 'Solicitar unirse · ' + d.sala.miembros + '/' + d.sala.plazas }}</button>
+                  <button type="button" grButton [variant]="a === 'cancelar' ? 'outline' : 'primary'" [block]="true" size="l" [loading]="operando() === 'solicitar'" (click)="a === 'cancelar' ? cancelarSolicitud() : solicitar()">{{ a === 'cancelar' ? 'Solicitud pendiente · Cancelar' : 'Solicitar unirse · ' + d.sala.miembros + '/' + d.sala.plazas }}</button>
                 </div>
               }
               @if (esAnfitrion() && !d.empezada && abierta()) {

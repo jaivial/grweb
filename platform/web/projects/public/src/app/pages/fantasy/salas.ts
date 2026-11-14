@@ -21,7 +21,7 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado } from './salas-ui';
 type Filtro = 'todas' | 'abiertas' | 'en_juego' | 'cerradas';
 const FAVORITAS = 'grcup.fantasy.salas.favoritas';
 /** ST3-R6-3: salas públicas por página del lobby (el backend limita a 200). */
-const PAGINA_SALAS = 30;
+const PAGINA_SALAS = 10;
 const TOPE_SALAS = 200;
 const ABIERTA = new Set(['esperando', 'lista', 'llena']);
 const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
@@ -83,14 +83,19 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
         }
 
         <div class="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
-          <label class="flex h-12 min-w-0 flex-1 items-center gap-3 rounded-md border bg-bg-field px-4 focus-within:border-line-accent" [class]="q() ? 'border-line-accent' : 'border-line-strong'">
+          <label class="flex h-12 min-w-0 flex-1 items-center gap-3 rounded-md border bg-bg-field px-4 focus-within:border-line-accent" [class.border-line-accent]="!!q()" [class.border-line-strong]="!q()">
             <gr-icon name="search" [size]="20" class="shrink-0 text-text-muted" />
             <span class="sr-only">Buscar sala por nombre</span>
-            <input type="search" class="min-w-0 flex-1 bg-transparent text-body-m text-text-primary outline-none placeholder:text-text-muted [&::-webkit-search-cancel-button]:hidden" placeholder="Buscar sala por nombre…" autocomplete="off"
+            <input type="search" class="min-w-0 flex-1 bg-transparent text-body-m text-text-primary outline-none placeholder:text-text-muted [&::-webkit-search-cancel-button]:hidden" placeholder="Buscar sala por nombre…" autocomplete="off" enterkeyhint="search" inputmode="search"
               [ngModel]="q()" (ngModelChange)="buscar($event)" />
             @if (q()) { <button type="button" class="-mr-3 flex size-11 shrink-0 items-center justify-center text-text-secondary hover:text-text-primary" aria-label="Borrar búsqueda" (click)="buscar('')"><gr-icon name="x" [size]="20" /></button> }
           </label>
-          <button type="button" grButton variant="primary" class="w-full md:w-auto" (click)="abrirCrear()">Crear sala</button>
+          <div class="hidden md:block"><button type="button" grButton variant="primary" (click)="abrirCrear()">Crear sala</button></div>
+        </div>
+        <!-- UX6-R1-2: en móvil «Crear sala» siempre a mano, en la zona del pulgar -->
+        <div class="h-20 md:hidden" aria-hidden="true"></div>
+        <div class="fixed inset-x-0 bottom-0 z-40 border-t border-line-subtle bg-bg-base/95 px-4 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[10px] md:hidden">
+          <button type="button" grButton variant="primary" [block]="true" size="l" (click)="abrirCrear()">Crear sala</button>
         </div>
 
         <gr-selector class="md:hidden" etiqueta="Estado" [opciones]="opcionesFiltro()" [valor]="filtro()" (elegir)="filtro.set($any($event))" />
@@ -165,7 +170,7 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
                   </div>
                   <div class="xl:w-[180px]">
                     @switch (accion(s)) {
-                      @case ('solicitar') { <button type="button" grButton variant="primary" [block]="true" [loading]="operando() === s.id" (click)="solicitar(s)">Solicitar unirse</button> }
+                      @case ('solicitar') { <button type="button" grButton variant="outline" [block]="true" [loading]="operando() === s.id" (click)="solicitar(s)">Solicitar unirse</button> }
                       @case ('cancelar') { <button type="button" grButton variant="outline" [block]="true" [loading]="operando() === s.id" (click)="cancelar(s)">Cancelar solicitud</button> }
                       @case ('palmares') { <a grButton variant="outline" [block]="true" href="/fantasy/palmares">Ver palmarés</a> }
                       @default { <a grButton variant="outline" [block]="true" [href]="'/fantasy/salas/' + s.id">Ver sala</a> }
