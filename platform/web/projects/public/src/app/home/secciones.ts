@@ -260,7 +260,7 @@ export class SecAtletas {
   template: `
     <div [class]="ancho + ' flex flex-col items-center gap-7 md:gap-12'">
       <gr-cabecera [eyebrow]="t('eyebrow')" [titulo]="t('titulo')" [acento]="t('tituloAcento')" [texto]="t('texto')" />
-      <ul class="-mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:w-full md:grid-cols-2 md:gap-5 md:overflow-visible md:px-0" (scroll)="alDesplazar($event)">
+      <ul #pista class="-mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:w-full md:grid-cols-2 md:gap-5 md:overflow-visible md:px-0" (scroll)="alDesplazar($event)">
         @for (f of fotos(); track f.imagen) {
           <li class="relative aspect-[290/380] w-[290px] shrink-0 snap-center overflow-hidden rounded-lg md:aspect-[590/420] md:w-auto" [class]="foto">
             <img [src]="f.imagen" [attr.srcset]="srcset(f.imagen)" sizes="(min-width: 768px) 590px, 290px" [alt]="f.alt || f.titulo" class="absolute inset-0 size-full object-cover" loading="lazy" />
@@ -273,8 +273,8 @@ export class SecAtletas {
           </li>
         }
       </ul>
-      <div class="flex items-center gap-1.5 md:hidden" aria-hidden="true">
-        @for (f of fotos(); track f.imagen; let i = $index) { <span class="h-1.5 rounded-pill transition-all" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span> }
+      <div class="flex items-center md:hidden" role="group" aria-label="Fotos">
+        @for (f of fotos(); track f.imagen; let i = $index) { <button type="button" class="relative flex size-6 items-center justify-center before:absolute before:-inset-2.5 before:content-['']" [attr.aria-label]="'Ir a foto ' + (i + 1)" [attr.aria-current]="i === activa() || null" (click)="irA(pista, i)"><span class="h-1.5 rounded-pill transition-all motion-reduce:transition-none" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span></button> }
       </div>
     </div>
   `,
@@ -287,6 +287,7 @@ export class SecOrganizacion {
   protected readonly activa = signal(0);
   protected t = (k: string) => str(this.s(), k);
   protected readonly fotos = computed(() => list<{ imagen: string; alt: string; titulo: string; texto: string }>(this.s(), 'imagenes'));
+  protected readonly irA = irA;
   protected alDesplazar(e: Event): void { this.activa.set(Math.round((e.target as HTMLElement).scrollLeft / 302)); }
 }
 
@@ -476,7 +477,7 @@ export class SecHorarios {
       <gr-cabecera [eyebrow]="t('eyebrow')" [titulo]="t('titulo')" [acento]="t('tituloAcento')" [texto]="t('texto')" />
       <div class="flex w-full flex-col-reverse gap-6 lg:flex-row lg:gap-8">
         <div class="flex w-full flex-col gap-4 lg:w-[648px] lg:shrink-0">
-          <ul class="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0 lg:grid-cols-3" (scroll)="alDesplazar($event)">
+          <ul #pista class="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0 lg:grid-cols-3" (scroll)="alDesplazar($event)">
             @for (f of fotos(); track f.imagen; let i = $index) {
               <li class="relative aspect-[300/210] w-[300px] shrink-0 snap-center overflow-hidden rounded-lg md:w-auto md:aspect-[4/3]" [class]="(i === 0 ? 'lg:col-span-3 lg:aspect-[648/380] lg:rounded-xl ' : 'lg:aspect-[205/140] ') + foto">
                 <button type="button" class="group absolute inset-0 cursor-zoom-in" [attr.aria-label]="'Ampliar: ' + f.alt" (click)="ver.set(i)">
@@ -485,8 +486,8 @@ export class SecHorarios {
               </li>
             }
           </ul>
-          <div class="flex items-center justify-center gap-1.5 md:hidden" aria-hidden="true">
-            @for (f of fotos(); track f.imagen; let i = $index) { <span class="h-1.5 rounded-pill transition-all" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span> }
+          <div class="flex items-center justify-center md:hidden" role="group" aria-label="Fotos">
+            @for (f of fotos(); track f.imagen; let i = $index) { <button type="button" class="relative flex size-6 items-center justify-center before:absolute before:-inset-2.5 before:content-['']" [attr.aria-label]="'Ir a foto ' + (i + 1)" [attr.aria-current]="i === activa() || null" (click)="irA(pista, i)"><span class="h-1.5 rounded-pill transition-all motion-reduce:transition-none" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span></button> }
           </div>
           <gr-lightbox [fotos]="fotos()" [(indice)]="ver" />
         </div>
@@ -527,6 +528,7 @@ export class SecLocalizacion {
     const s = this.comp()?.sede;
     return s ? [s.direccion, [s.cp, s.ciudad].filter(Boolean).join(' ') + (s.provincia ? ` (${s.provincia})` : '')].filter(Boolean).join(' · ') : '';
   });
+  protected readonly irA = irA;
   protected alDesplazar(e: Event): void { this.activa.set(Math.round((e.target as HTMLElement).scrollLeft / 312)); }
   protected copiar(): void {
     void navigator.clipboard?.writeText(`${this.comp()?.sede.nombre}, ${this.direccion().replace(' · ', ', ')}`).then(() => {
@@ -571,4 +573,10 @@ export class SecFaq {
   protected readonly abierta = signal(0);
   protected t = (k: string) => str(this.s(), k);
   protected md = (s: string) => renderMarkdown(s).html;
+}
+
+/** UX1-R1-10: pagination dots are buttons that scroll the carousel to that card. */
+export function irA(pista: HTMLElement, i: number): void {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  (pista.children[i] as HTMLElement | undefined)?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest', inline: 'center' });
 }
