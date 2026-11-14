@@ -88,6 +88,7 @@ func (s *Svc) setup(ctx context.Context, a *app.App) error {
 	a.Go(s.presencia) // pods set + per-pod counter + estado frame every 10 s
 	a.Go(func(c context.Context) { s.hub.gc(c) })
 	a.Go(s.persistir) // consumer group chat-persistir: stream → tabla mensajes (lotes)
+	a.Go(s.drenarWS)  // keeps the process alive while the WS close with 1012 (hijacked: srv.Shutdown ignores them)
 	a.Go(s.eventos)   // grcup:events: donacion.confirmada, patrocinio.banner, fans.baneado
 	return nil
 }
@@ -391,4 +392,14 @@ func tsDeID(id string) int64 {
 		return 0
 	}
 	return ms
+}
+
+// drenarWS waits, after SIGTERM, until the WS of this pod have closed (each one at a random moment of drenajeWS)
+// or the window plus a margin has passed: without it the process exits as soon as srv.Shutdown returns.
+func (s *Svc) drenarWS(ctx context.Context) {
+	<-s.ctxRaiz.Done()
+	fin := time.Now().Add(drenajeWS + time.Second)
+	for conexActivas.Load() > 0 && time.Now().Before(fin) {
+		time.Sleep(50 * time.Millisecond)
+	}
 }
