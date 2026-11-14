@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injectable, PLATFORM_ID, PendingTasks, computed, effect, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { GrButton, GrIcon, GrLogo, GrToaster } from '@grcup/ui';
+import { GrButton, GrIcon, GrLogo } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import type { Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, Competition, type CompeticionPublica } from '../core/competition';
@@ -248,13 +248,13 @@ export class Navbar {
 
 /**
  * Overlays globales de la web: el modal de acceso al directo (una sola instancia: cualquier página puede pedirlo
- * con `FanSession.abrirAcceso()`) y el bandeja de avisos.
+ * con `FanSession.abrirAcceso()`). La bandeja de avisos vive solo en app.ts (UX3-R2-1).
  */
 @Component({
   selector: 'gr-overlays',
-  imports: [AccesoModal, GrToaster],
+  imports: [AccesoModal],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<gr-acceso-modal /><gr-toaster />`,
+  template: `<gr-acceso-modal />`,
 })
 export class Overlays {
   private readonly fan = inject(FanSession);

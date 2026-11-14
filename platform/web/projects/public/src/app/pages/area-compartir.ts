@@ -178,10 +178,10 @@ const ZOOM = 'gr-story-zoom';
                 <!-- UX3-R1-5: primary CTA fixed in the thumb zone on mobile, with a 9:16 thumbnail -->
                 <div class="max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-30 max-md:flex max-md:items-center max-md:gap-3 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-5 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]">
                   @if (url()) { <img [src]="url()" alt="" class="aspect-[9/16] w-10 shrink-0 rounded-xs object-cover md:hidden" [class.ajedrez]="formato() === 'sticker'" /> }
-                  <button grButton variant="primary" size="l" [block]="true" icon="instagram" class="min-w-0 flex-1" [loading]="busy()" [disabled]="!listo()" (click)="compartir()">{{ formato() === 'sticker' ? 'Compartir sticker' : 'Compartir en Instagram' }}</button>
+                  <button grButton variant="primary" size="l" [block]="true" icon="instagram" class="min-w-0 flex-1 overflow-hidden" [loading]="busy()" [disabled]="!listo()" (click)="compartir()"><span class="min-w-0 truncate">{{ formato() === 'sticker' ? 'Compartir sticker' : 'Compartir en Instagram' }}</span></button>
                 </div>
                 <button grButton variant="secondary" size="l" [block]="true" [disabled]="!listo()" (click)="descargar()">{{ formato() === 'sticker' ? 'Descargar PNG' : 'Descargar imagen' }}</button>
-                <a grButton variant="link" iconRight="arrow-right" href="https://instagram.com/grstrengthclub" target="_blank" rel="noopener" class="h-11! self-center">Síguenos en Instagram</a>
+                <a grButton variant="link" iconRight="arrow-right" href="https://instagram.com/grstrengthclub" target="_blank" rel="noopener" class="inline-flex min-h-11 items-center self-center">Síguenos en Instagram</a>
                 <p class="text-center text-[13px] text-text-tertiary">{{ ayudaBotones() }}</p>
               }
             </div>
