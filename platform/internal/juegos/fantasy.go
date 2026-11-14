@@ -173,27 +173,79 @@ func (s *Svc) comprarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada
 		return problem.Conflict("ATLETA_PROTEGIDO", "El atleta está protegido un rato después de su último fichaje.")
 	}
 	// The buyer's wallet row serializes his own signings: two concurrent purchases of different athletes cannot
-	// both see room in the lineup.
-	if err := bloquearCarterasTx(ctx, tx, j, fanID); err != nil {
+	// both see room in the lineup. ST3-R4-1: open + lock + count go in one round trip (the count runs after the
+	// lock is granted, so it sees the lineup committed by any purchase that held it).
+	b := &pgx.Batch{}
+	queueAltaCartera(b, j, fanID, Fantasy)
+	b.Queue(`SELECT fan_id FROM saldos WHERE jornada_id = $1 AND moneda = 'fantasy' AND fan_id = $2 FOR UPDATE`, j.ID, fanID)
+	b.Queue(`SELECT count(*) FROM sala_atletas WHERE sala_id = $1 AND dueno_fan_id = $2`, salaID, fanID)
+	var n int
+	if err := enviarBatch(ctx, tx, b, func(br pgx.BatchResults) error {
+		if _, err := br.Exec(); err != nil {
+			return err
+		}
+		if _, err := br.Exec(); err != nil {
+			return err
+		}
+		return br.QueryRow().Scan(&n)
+	}); err != nil {
 		return err
 	}
-	if n, err := contarAlineacionTx(ctx, tx, salaID, fanID); err != nil {
-		return err
-	} else if n >= cfg.PlantillaMax {
+	if n >= cfg.PlantillaMax {
 		return problem.Conflict("PLANTILLA_LLENA", "Tu alineación está completa ("+itoa(cfg.PlantillaMax)+" atletas). Vende alguien antes.")
 	}
+	// Every write of the signing in one more round trip. A failed spend (0 rows) still runs the rest of the batch,
+	// but the error rolls the whole transaction back, so nothing of it is committed.
 	fid := newID()
-	if err := gastarAbiertaTx(ctx, tx, j, fanID, Fantasy, a.Clausula, "compra", "compra:"+fid.String(), alias); err != nil {
+	b = &pgx.Batch{}
+	b.Queue(`UPDATE saldos SET saldo = saldo - $1, version = version + 1, updated_at = now(),
+		alias = CASE WHEN $4 <> '' THEN $4 ELSE alias END
+		WHERE jornada_id = $2 AND fan_id = $3 AND moneda = 'fantasy' AND saldo >= $1`, a.Clausula, j.ID, fanID, alias)
+	b.Queue(`INSERT INTO movimientos (id, jornada_id, fan_id, moneda, importe, motivo, ref) VALUES ($1,$2,$3,'fantasy',$4,'compra',$5)`,
+		newID(), j.ID, fanID, -a.Clausula, "compra:"+fid.String())
+	b.Queue(`UPDATE sala_atletas SET dueno_fan_id = $3, dueno_alias = $4, protegido_hasta = now() + make_interval(mins => $5),
+		demanda = round(demanda * (100 + $6::int) / 100, 4), updated_at = now()
+		WHERE sala_id = $1 AND atleta_id = $2`, salaID, atletaID, fanID, alias, cfg.ProteccionMin, cfg.PctDemanda)
+	b.Queue(`INSERT INTO fichajes (id, competition_id, jornada_id, sala_id, atleta_id, a_fan, tipo, precio) VALUES ($1,$2,$3,$4,$5,$6,'compra',$7)`,
+		fid, cid, j.ID, salaID, atletaID, fanID, a.Clausula)
+	if err := events.QueueBatch(b, nuevoEventoFichaje(ctx, cid, j.ID, salaID, a.Publica, atletaID, "compra", "", alias, a.Clausula)); err != nil {
 		return err
 	}
-	if err := asignarDuenoTx(ctx, tx, salaID, atletaID, &fanID, alias, cfg.ProteccionMin, cfg.PctDemanda); err != nil {
+	return enviarBatch(ctx, tx, b, func(br pgx.BatchResults) error {
+		tag, err := br.Exec()
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return problem.Conflict("SALDO_INSUFICIENTE", "No tienes monedas suficientes en la cartera.")
+		}
+		for i := 0; i < 4; i++ {
+			if _, err := br.Exec(); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// enviarBatch sends b and reads its results with read; the batch is always closed (its error wins when read did
+// not fail).
+func enviarBatch(ctx context.Context, tx pgx.Tx, b *pgx.Batch, read func(pgx.BatchResults) error) error {
+	br := tx.SendBatch(ctx, b)
+	if err := read(br); err != nil {
+		_ = br.Close()
 		return err
 	}
-	if _, err := tx.Exec(ctx, `INSERT INTO fichajes (id, competition_id, jornada_id, sala_id, atleta_id, a_fan, tipo, precio) VALUES ($1,$2,$3,$4,$5,$6,'compra',$7)`,
-		fid, cid, j.ID, salaID, atletaID, fanID, a.Clausula); err != nil {
-		return err
-	}
-	return eventoFichaje(ctx, tx, cid, j.ID, salaID, a.Publica, atletaID, "compra", "", alias, a.Clausula)
+	return br.Close()
+}
+
+// queueAltaCartera is altaCarteraTx as one statement on a batch: the wallet and its 'alta' movement only when the
+// wallet is new (same ref, so it stays idempotent).
+func queueAltaCartera(b *pgx.Batch, j jornada, fanID uuid.UUID, m Moneda) {
+	b.Queue(`WITH ins AS (INSERT INTO saldos (jornada_id, competition_id, fan_id, moneda, saldo, alias) VALUES ($1,$2,$3,$4,$5,'')
+		ON CONFLICT DO NOTHING RETURNING fan_id)
+		INSERT INTO movimientos (id, jornada_id, fan_id, moneda, importe, motivo, ref) SELECT $6, $1, fan_id, $4, $5, 'alta', $7 FROM ins`,
+		j.ID, j.CompetitionID, fanID, m, SaldoAlta(m), newID(), "alta:"+j.ID.String()+":"+fanID.String()+":"+string(m))
 }
 
 // venderTx returns an athlete to the market of the room. The seller receives the clause of the jornada (base ×
@@ -331,9 +383,13 @@ func contarAlineacionTx(ctx context.Context, tx pgx.Tx, salaID, fanID uuid.UUID)
 // eventoFichaje emits the signing event on the public stream. A room that is not public («solo enlace») only tells
 // that something changed (its members refetch): no room id, aliases or price leave the room.
 func eventoFichaje(ctx context.Context, tx pgx.Tx, cid, jid, salaID uuid.UUID, publica bool, atletaID uuid.UUID, tipo, aliasDe, aliasA string, precio int64) error {
+	return events.Enqueue(ctx, tx, nuevoEventoFichaje(ctx, cid, jid, salaID, publica, atletaID, tipo, aliasDe, aliasA, precio))
+}
+
+func nuevoEventoFichaje(ctx context.Context, cid, jid, salaID uuid.UUID, publica bool, atletaID uuid.UUID, tipo, aliasDe, aliasA string, precio int64) events.Event {
 	datos := map[string]any{"jornadaId": jid.String(), "salaId": salaID.String(), "atletaId": atletaID.String(), "tipo": tipo, "aliasDe": aliasDe, "aliasA": aliasA, "precio": precio}
 	if !publica {
 		datos = map[string]any{"jornadaId": jid.String(), "privada": true}
 	}
-	return events.Enqueue(ctx, tx, events.New(ctx, "fantasy.fichaje", datos, events.Competition(cid.String()), events.Audience(events.Public)))
+	return events.New(ctx, "fantasy.fichaje", datos, events.Competition(cid.String()), events.Audience(events.Public))
 }
