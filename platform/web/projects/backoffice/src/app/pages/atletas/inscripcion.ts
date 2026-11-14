@@ -8,6 +8,7 @@ import { GrAlert, GrAvatar, GrBadge, GrButton, GrIconButton, GrEmpty, GrField, G
 import { firstValueFrom } from 'rxjs';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
+import { BoDatePicker } from '../../shared/kit';
 import { BoDrawer, BoPageHeader, BoToggle, Confirm, TituloMovil, errText, BoTabsMovil } from '../../shared/ui';
 
 interface Referidos { activo: boolean; modo: 'basico' | 'acumulativo'; descTipo: 'porcentaje' | 'importe'; descValor: number; recompensa: number; maxUsos: number; acumModo: 'basica' | 'multiplicador'; multiplicador: number }
@@ -34,7 +35,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
 /** «Inscripción» (Figma page 66): own registration with payment, coupons, referrals and payments. */
 @Component({
   selector: 'bo-inscripcion',
-  imports: [BoTabsMovil, GrSelect, FormsModule, RouterLink, TitleCasePipe, BoPageHeader, BoToggle, BoDrawer, GrAlert, GrAvatar, GrBadge, GrButton, GrIconButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSegmented, GrSkeleton],
+  imports: [BoDatePicker, BoTabsMovil, GrSelect, FormsModule, RouterLink, TitleCasePipe, BoPageHeader, BoToggle, BoDrawer, GrAlert, GrAvatar, GrBadge, GrButton, GrIconButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSegmented, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex flex-col gap-6 pb-24">
@@ -105,8 +106,8 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                     <div class="mt-4 grid gap-4 md:grid-cols-2">
                       <gr-field label="Cuota de inscripción (€)" for="i-cuota" hint="IVA incluido"><input grInput id="i-cuota" type="number" min="0" step="0.5" [ngModel]="c.cuota / 100" (ngModelChange)="c.cuota = round($event); tocado.set(true)" [disabled]="!canEdit()" /></gr-field>
                       <gr-field label="Plazas" for="i-plazas" hint="El cupo de atletas del evento"><input grInput id="i-plazas" type="number" min="0" max="5000" [ngModel]="aep()?.plazas ?? plazas()" (ngModelChange)="ponerPlazas($event)" [disabled]="!canEditAep()" /></gr-field>
-                      <gr-field label="Abre" for="i-abre" [optional]="true"><input grInput id="i-abre" type="datetime-local" [ngModel]="local(c.abre)" (ngModelChange)="c.abre = iso($event); tocado.set(true)" [disabled]="!canEdit()" /></gr-field>
-                      <gr-field label="Cierra" for="i-cierra" [optional]="true"><input grInput id="i-cierra" type="datetime-local" [ngModel]="local(c.cierra)" (ngModelChange)="c.cierra = iso($event); tocado.set(true)" [disabled]="!canEdit()" /></gr-field>
+                      <gr-field label="Abre" for="i-abre" [optional]="true"><bo-date-picker tipo="datetime" id="i-abre" [ngModel]="local(c.abre)" (ngModelChange)="c.abre = iso($event); tocado.set(true)" [disabled]="!canEdit()" /></gr-field>
+                      <gr-field label="Cierra" for="i-cierra" [optional]="true"><bo-date-picker tipo="datetime" id="i-cierra" [ngModel]="local(c.cierra)" (ngModelChange)="c.cierra = iso($event); tocado.set(true)" [disabled]="!canEdit()" /></gr-field>
                     </div>
                     <ul class="mt-4">
                       <li class="flex items-center justify-between gap-4 border-b border-line-subtle py-2"><span><span class="block text-label-s">Lista de reserva al completarse</span><span class="block text-body-xs text-text-tertiary">Las inscripciones de más quedan en reserva, sin cobrar, hasta que haya plaza</span></span><bo-toggle [(value)]="c.reserva" label="Lista de reserva" [disabled]="!canEdit()" /></li>
@@ -335,7 +336,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
         <div class="flex items-center justify-between gap-4"><span><span class="block text-label-s">Límite de usos</span><span class="block text-body-xs text-text-tertiary">Máximo de inscripciones con este código</span></span><bo-toggle [(value)]="cupon.conLimite" label="Límite de usos" /></div>
         @if (cupon.conLimite) { <gr-field label="Usos máximos" for="c-lim"><input grInput id="c-lim" type="number" min="1" [(ngModel)]="cupon.limite" /></gr-field> }
         <div class="flex items-center justify-between gap-4"><span><span class="block text-label-s">Fecha de caducidad</span><span class="block text-body-xs text-text-tertiary">Deja de aceptarse a las 23:59 (Europe/Madrid)</span></span><bo-toggle [(value)]="cupon.conCaduca" label="Fecha de caducidad" /></div>
-        @if (cupon.conCaduca) { <gr-field label="Caduca" for="c-cad"><input grInput id="c-cad" type="date" [(ngModel)]="cupon.caducaDia" /></gr-field> }
+        @if (cupon.conCaduca) { <gr-field label="Caduca" for="c-cad"><bo-date-picker tipo="date" id="c-cad" [(ngModel)]="cupon.caducaDia" /></gr-field> }
         <div class="flex items-center justify-between gap-4"><span><span class="block text-label-s">Activo</span><span class="block text-body-xs text-text-tertiary">Si lo pausas, deja de aceptarse al momento</span></span><bo-toggle [(value)]="cupon.activo" label="Activo" /></div>
         @if (cupon.usos) { <p class="text-body-xs text-text-tertiary">Ya tiene {{ cupon.usos }} usos: el descuento no se puede cambiar.</p> }
       </div>

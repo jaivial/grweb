@@ -8,7 +8,7 @@ import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { urlSort } from '../../shared/url-sort';
-import { BO_ROW, BoMenu, type BoMenuItem, BoCapacityMeter, BoCheckbox, BoModalForm, BoSessionCard, type BoSesion, BoSortHeader, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoTableToolbar } from '../../shared/kit';
+import { BO_ROW, BoMenu, type BoMenuItem, BoCapacityMeter, BoCheckbox, BoModalForm, BoSessionCard, type BoSesion, BoSortHeader, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoTableToolbar, BoDatePicker } from '../../shared/kit';
 import { BoDrawer, BoPageHeader, BoTabs, BoToggle, type BoTab, Confirm, errText, BoTablaMovil } from '../../shared/ui';
 import { problemOf } from '../../core/api';
 import {
@@ -31,7 +31,7 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
 /** «Entradas y aforo» (Figma page 58): sessions with capacity, bookings, waiting list. */
 @Component({
   selector: 'bo-entradas',
-  imports: [BoTablaMovil, NgTemplateOutlet, BoMenu, GrSelect, GrAvatar, GrIconButton, BoModalForm, BoSessionCard, FormsModule, BoCapacityMeter, BoSortHeader, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoCheckbox, BoDrawer, BoTabs, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [BoDatePicker, BoTablaMovil, NgTemplateOutlet, BoMenu, GrSelect, GrAvatar, GrIconButton, BoModalForm, BoSessionCard, FormsModule, BoCapacityMeter, BoSortHeader, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoCheckbox, BoDrawer, BoTabs, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'menu.set(null)' },
   template: `
@@ -225,12 +225,12 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
         <gr-field label="Nombre" for="s-n"><input grInput id="s-n" maxlength="80" [(ngModel)]="sesEdit.nombre" /></gr-field>
         <gr-field label="Detalle (bloques, categorías)" for="s-d"><input grInput id="s-d" maxlength="160" [(ngModel)]="sesEdit.detalle" /></gr-field>
         <div class="grid grid-cols-2 gap-3">
-          <gr-field label="Puertas" for="s-p"><input grInput id="s-p" type="datetime-local" [(ngModel)]="sesEdit.puertas" /></gr-field>
-          <gr-field label="Inicio" for="s-i"><input grInput id="s-i" type="datetime-local" [(ngModel)]="sesEdit.inicio" /></gr-field>
-          <gr-field label="Fin" for="s-f"><input grInput id="s-f" type="datetime-local" [(ngModel)]="sesEdit.fin" /></gr-field>
+          <gr-field label="Puertas" for="s-p"><bo-date-picker tipo="datetime" id="s-p" [(ngModel)]="sesEdit.puertas" /></gr-field>
+          <gr-field label="Inicio" for="s-i"><bo-date-picker tipo="datetime" id="s-i" [(ngModel)]="sesEdit.inicio" /></gr-field>
+          <gr-field label="Fin" for="s-f"><bo-date-picker tipo="datetime" id="s-f" [(ngModel)]="sesEdit.fin" /></gr-field>
           <gr-field label="Aforo" for="s-a" [error]="sesErr()['aforo'] ?? null"><input grInput id="s-a" type="number" min="1" max="20000" [(ngModel)]="sesEdit.aforo" /></gr-field>
-          <gr-field label="Reservas desde" for="s-ra"><input grInput id="s-ra" type="datetime-local" [(ngModel)]="sesEdit.aperturaAt" /></gr-field>
-          <gr-field label="Reservas hasta" for="s-rc"><input grInput id="s-rc" type="datetime-local" [(ngModel)]="sesEdit.cierreAt" /></gr-field>
+          <gr-field label="Reservas desde" for="s-ra"><bo-date-picker tipo="datetime" id="s-ra" [(ngModel)]="sesEdit.aperturaAt" /></gr-field>
+          <gr-field label="Reservas hasta" for="s-rc"><bo-date-picker tipo="datetime" id="s-rc" [(ngModel)]="sesEdit.cierreAt" /></gr-field>
           <gr-field label="Máx. por reserva" for="s-m" [error]="sesErr()['max'] ?? null"><input grInput id="s-m" type="number" min="1" max="20" [(ngModel)]="sesEdit.maxPorReserva" /></gr-field>
         </div>
         <label class="flex items-center gap-2 text-body-s"><bo-toggle [(value)]="sesEdit.publicada" label="Publicada" />Publicada en /entradas</label>

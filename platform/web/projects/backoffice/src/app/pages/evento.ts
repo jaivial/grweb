@@ -11,6 +11,7 @@ import { problemOf } from '../core/api';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
 import { Realtime } from '../core/realtime';
+import { BoDatePicker } from '../shared/kit';
 import { BoPageHeader, BoToggle, Media, errText, BoTabsMovil } from '../shared/ui';
 
 interface Sede { nombre: string; direccion: string; cp: string; ciudad: string; provincia: string; lat?: number | null; lng?: number | null; mapsUrl: string }
@@ -38,7 +39,7 @@ const NIVELES = ['AEP 1 · Nacional', 'AEP 2 · Interregional', 'AEP 3 · Region
 /** «Evento y módulos» (Figma page 53): event data with a live preview, web state (with scheduled changes), modules, AEP registration and how to get there. */
 @Component({
   selector: 'bo-evento',
-  imports: [BoTabsMovil, A11yModule, RouterLink, GrSelect, GrSegmented, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [BoDatePicker, BoTabsMovil, A11yModule, RouterLink, GrSelect, GrSegmented, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = comp();
@@ -90,12 +91,10 @@ const NIVELES = ['AEP 1 · Nacional', 'AEP 2 · Interregional', 'AEP 3 · Region
                   </div></section>
                 <section class="rounded-lg border border-line-subtle bg-bg-card p-5"><h2 class="text-ui-h5">Fecha y horario</h2><p class="text-body-xs text-text-tertiary">Se usa en la cuenta atrás, el calendario .ics y los recordatorios</p>
                   <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                    <gr-field label="Día 1"><label class="relative block"><input grInput readonly tabindex="-1" class="pointer-events-none" [value]="dia(d.fechaInicio)" placeholder="Elige fecha" [disabled]="!puede()" />
-                      <input type="date" class="absolute inset-0 cursor-pointer opacity-0" aria-label="Día 1" [(ngModel)]="d.fechaInicio" (ngModelChange)="tocar()" (click)="picker($event)" [disabled]="!puede()" /></label></gr-field>
-                    <gr-field label="Día 2" [error]="err('fechaFin')"><label class="relative block"><input grInput readonly tabindex="-1" class="pointer-events-none" [value]="dia(d.fechaFin)" placeholder="Elige fecha" [disabled]="!puede()" />
-                      <input type="date" class="absolute inset-0 cursor-pointer opacity-0" aria-label="Día 2" [(ngModel)]="d.fechaFin" (ngModelChange)="tocar()" (click)="picker($event)" [disabled]="!puede()" /></label></gr-field>
-                    <gr-field label="Apertura de puertas" [error]="err('puertas')"><input grInput inputmode="numeric" maxlength="5" placeholder="08:30" [(ngModel)]="d.evento.puertas" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
-                    <gr-field label="Fin previsto" [error]="err('fin')"><input grInput inputmode="numeric" maxlength="5" placeholder="20:30" [(ngModel)]="d.evento.fin" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
+                    <gr-field label="Día 1"><bo-date-picker aria-label="Día 1" [(ngModel)]="d.fechaInicio" (ngModelChange)="tocar()" [disabled]="!puede()" [borrable]="false" /></gr-field>
+                    <gr-field label="Día 2" [error]="err('fechaFin')"><bo-date-picker aria-label="Día 2" [(ngModel)]="d.fechaFin" (ngModelChange)="tocar()" [disabled]="!puede()" [borrable]="false" /></gr-field>
+                    <gr-field label="Apertura de puertas" [error]="err('puertas')"><bo-date-picker tipo="time" placeholder="08:30" [(ngModel)]="d.evento.puertas" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
+                    <gr-field label="Fin previsto" [error]="err('fin')"><bo-date-picker tipo="time" placeholder="20:30" [(ngModel)]="d.evento.fin" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
                   </div>
                   <div class="mt-4 flex items-center gap-3"><div class="min-w-0 flex-1"><p class="text-label-s">Fecha por confirmar</p><p class="text-body-xs text-text-tertiary">La web mostrará «Fecha por confirmar» y ocultará la cuenta atrás</p></div>
                     <bo-toggle [value]="!!d.evento.fechaPorConfirmar" label="Fecha por confirmar" [disabled]="!puede()" (changed)="d.evento.fechaPorConfirmar = $event; tocar()" /></div></section>
@@ -150,7 +149,7 @@ const NIVELES = ['AEP 1 · Nacional', 'AEP 2 · Interregional', 'AEP 3 · Region
                 @if (puede()) {
                   <div class="mt-3 flex flex-wrap items-end gap-2">
                     <gr-field label="Estado"><gr-select [(ngModel)]="prog.estado">@for (e of estados; track e.v) { <option [value]="e.v">{{ e.l }}</option> }</gr-select></gr-field>
-                    <gr-field label="Cuándo"><input grInput type="datetime-local" [(ngModel)]="prog.en" /></gr-field>
+                    <gr-field label="Cuándo"><bo-date-picker tipo="datetime" [(ngModel)]="prog.en" /></gr-field>
                     <button grButton (click)="programar()" [disabled]="!prog.en">Programar</button>
                   </div>
                 }
@@ -321,11 +320,6 @@ export class EventoPage {
   protected miles(n: number): string { return n ? String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' personas' : ''; }
   /** Level options (Figma: select); keeps a legacy free-text value selectable. */
   protected niveles(): string[] { return this.d.evento.nivel && !NIVELES.includes(this.d.evento.nivel) ? [this.d.evento.nivel, ...NIVELES] : NIVELES; }
-  /** «sáb 25 jul 2026» */
-  protected dia(s?: string): string {
-    return s ? new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(s + 'T12:00:00Z')).replaceAll(',', '').replaceAll('.', '') : '';
-  }
-  protected picker(ev: Event): void { try { (ev.target as HTMLInputElement).showPicker(); } catch { /* unsupported: native focus */ } }
   protected descartar(): void { const c = this.comp(); if (c) this.aplicar(c); }
   protected coords(): string { return this.d.sede.lat != null && this.d.sede.lng != null ? `${this.d.sede.lat}, ${this.d.sede.lng}` : ''; }
   protected setCoords(v: string): void {

@@ -11,6 +11,7 @@ import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoDrawer, BoPageHeader, BoToggle, Confirm, errText, BoTabsMovil, BoTablaMovil } from '../../shared/ui';
 import { SolicitudesApi } from '../atletas/solicitudes-api';
+import { BoDatePicker } from '../../shared/kit';
 import { HorariosApi, cat, diaCorto, diaLargo, hora, kg, type AgendaItem, type Borrador, type Config, type Diff, type Flight, type FlightAtleta, type VersionInfo } from './api';
 
 interface Lista { id: string | null; atletas: FlightAtleta[] }
@@ -34,7 +35,7 @@ const ICONOS: { v: string; label: string }[] = [
 /** «Horarios y flights» (Figma page 56): planner with drag and drop, conflicts, weigh-ins, versions and publishing with notices. */
 @Component({
   selector: 'bo-horarios',
-  imports: [BoTabsMovil, BoTablaMovil, GrSelect, FormsModule, RouterLink, DatePipe, A11yModule, CdkDropListGroup, CdkDropList, CdkDrag, CdkDragHandle, BoPageHeader, BoDrawer, BoToggle,
+  imports: [BoDatePicker, BoTabsMovil, BoTablaMovil, GrSelect, FormsModule, RouterLink, DatePipe, A11yModule, CdkDropListGroup, CdkDropList, CdkDrag, CdkDragHandle, BoPageHeader, BoDrawer, BoToggle,
     GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSkeleton, GrSpinner],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
@@ -358,10 +359,10 @@ const ICONOS: { v: string; label: string }[] = [
           <div class="grid grid-cols-2 gap-3">
             <gr-field label="Día" for="f-dia"><gr-select id="f-dia" [(ngModel)]="fEdit.dia" [disabled]="!canEdit()">@for (d of data()?.config?.dias ?? []; track d.fecha) { <option [value]="d.fecha">{{ diaLargo(d.fecha) }}</option> }</gr-select></gr-field>
             <gr-field label="Plataforma" for="f-pl"><gr-select id="f-pl" [ngModel]="fEdit.plataforma" (ngModelChange)="fEdit.plataforma = +$event" [disabled]="!canEdit()">@for (n of [1, 2, 3, 4]; track n) { <option [value]="n">{{ n }}</option> }</gr-select></gr-field>
-            <gr-field label="Sale a plataforma" for="f-ini"><input grInput id="f-ini" type="time" step="300" [(ngModel)]="fEdit.inicio" [disabled]="!canEdit()" /></gr-field>
+            <gr-field label="Sale a plataforma" for="f-ini"><bo-date-picker tipo="time" id="f-ini" [(ngModel)]="fEdit.inicio" [disabled]="!canEdit()" /></gr-field>
             <gr-field label="Duración (min)" for="f-dur"><input grInput id="f-dur" type="number" min="10" max="600" step="5" [(ngModel)]="fEdit.duracionMin" [disabled]="!canEdit()" /></gr-field>
-            <gr-field label="Pesaje desde" for="f-pi"><input grInput id="f-pi" type="time" step="300" [(ngModel)]="fEdit.pesajeInicio" [disabled]="!canEdit()" /></gr-field>
-            <gr-field label="Pesaje hasta" for="f-pf"><input grInput id="f-pf" type="time" step="300" [(ngModel)]="fEdit.pesajeFin" [disabled]="!canEdit()" /></gr-field>
+            <gr-field label="Pesaje desde" for="f-pi"><bo-date-picker tipo="time" id="f-pi" [(ngModel)]="fEdit.pesajeInicio" [disabled]="!canEdit()" /></gr-field>
+            <gr-field label="Pesaje hasta" for="f-pf"><bo-date-picker tipo="time" id="f-pf" [(ngModel)]="fEdit.pesajeFin" [disabled]="!canEdit()" /></gr-field>
           </div>
           <p class="text-body-xs text-text-tertiary">Si cambias la hora y no tocas el pesaje, el pesaje se recalcula ({{ data()?.config?.pesajeAntesMin }} min antes, {{ data()?.config?.pesajeDuracionMin }} min).</p>
           @if (canDirecto() && enPublicada(f)) {
@@ -390,12 +391,12 @@ const ICONOS: { v: string; label: string }[] = [
     <bo-drawer [(open)]="diaOpen" [title]="'Ajustes · ' + diaLargo(dEditDia.fecha || dia())">
       <div class="flex flex-col gap-5">
         <section class="grid grid-cols-2 gap-3">
-          <gr-field label="Primer flight" for="a-ini"><input grInput id="a-ini" type="time" [(ngModel)]="dEditDia.inicio" [disabled]="!canEdit()" /></gr-field>
-          <gr-field label="Fin del día" for="a-fin"><input grInput id="a-fin" type="time" [(ngModel)]="dEditDia.fin" [disabled]="!canEdit()" /></gr-field>
-          <gr-field label="Apertura de puertas" for="a-pu"><input grInput id="a-pu" type="time" [(ngModel)]="dEditDia.puertas" [disabled]="!canEdit()" /></gr-field>
+          <gr-field label="Primer flight" for="a-ini"><bo-date-picker tipo="time" id="a-ini" [(ngModel)]="dEditDia.inicio" [disabled]="!canEdit()" /></gr-field>
+          <gr-field label="Fin del día" for="a-fin"><bo-date-picker tipo="time" id="a-fin" [(ngModel)]="dEditDia.fin" [disabled]="!canEdit()" /></gr-field>
+          <gr-field label="Apertura de puertas" for="a-pu"><bo-date-picker tipo="time" id="a-pu" [(ngModel)]="dEditDia.puertas" [disabled]="!canEdit()" /></gr-field>
           <span></span>
-          <gr-field label="Pausa desde" for="a-pi"><input grInput id="a-pi" type="time" [(ngModel)]="dEditDia.pausaInicio" [disabled]="!canEdit()" /></gr-field>
-          <gr-field label="Pausa hasta" for="a-pf"><input grInput id="a-pf" type="time" [(ngModel)]="dEditDia.pausaFin" [disabled]="!canEdit()" /></gr-field>
+          <gr-field label="Pausa desde" for="a-pi"><bo-date-picker tipo="time" id="a-pi" [(ngModel)]="dEditDia.pausaInicio" [disabled]="!canEdit()" /></gr-field>
+          <gr-field label="Pausa hasta" for="a-pf"><bo-date-picker tipo="time" id="a-pf" [(ngModel)]="dEditDia.pausaFin" [disabled]="!canEdit()" /></gr-field>
         </section>
         <gr-field label="Info del día (una por línea, se ve en /horarios)" for="a-no"><textarea grInput id="a-no" rows="3" [(ngModel)]="notas" [disabled]="!canEdit()"></textarea></gr-field>
         <section>
@@ -404,7 +405,7 @@ const ICONOS: { v: string; label: string }[] = [
           <ul class="mt-3 flex flex-col gap-2">
             @for (it of agendaDia; track $index) {
               <li class="grid grid-cols-[112px_minmax(0,1fr)_96px_44px] items-center gap-2">
-                <input grInput type="time" [(ngModel)]="it.hora" aria-label="Hora" [disabled]="!canEdit()" />
+                <bo-date-picker tipo="time" [(ngModel)]="it.hora" aria-label="Hora" [disabled]="!canEdit()" />
                 <input grInput [(ngModel)]="it.titulo" maxlength="120" aria-label="Qué pasa" [disabled]="!canEdit()" />
                 <gr-select [(ngModel)]="it.icono" aria-label="Icono" [disabled]="!canEdit()">@for (i of iconos; track i.v) { <option [value]="i.v">{{ i.label }}</option> }</gr-select>
                 @if (canEdit()) { <button grIconButton icon="trash" label="Quitar" (click)="agendaDia.splice($index, 1)"></button> }

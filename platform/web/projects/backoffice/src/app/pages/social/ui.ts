@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GrIcon, GrInput, type GrTone } from '@grcup/ui';
+import { BoDatePicker } from '../../shared/kit';
 import { Ban, Flag, Keyboard, VolumeX, type IconNode } from 'lucide';
 
 /** Small pieces shared by the «Directo social» screens (Figma page 73, UI v2). */
@@ -426,15 +427,11 @@ export const esDominio = (v: string) => /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,6
  */
 @Component({
   selector: 'so-fecha',
-  imports: [GrIcon],
+  imports: [BoDatePicker],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[class]': '"relative inline-flex h-11 items-center gap-2 rounded-sm border border-line-strong bg-bg-field px-3 text-label-s text-text-primary focus-within:border-accent-text focus-within:ring-2 focus-within:ring-accent/30 md:h-9 " + (bloque() ? "w-full" : "")' },
-  template: `
-    <gr-icon name="calendar" [size]="16" class="text-text-tertiary" />
-    <span class="truncate whitespace-nowrap" [class.text-text-muted]="!value()" aria-hidden="true">{{ texto() }}</span>
-    <input type="date" class="absolute inset-0 size-full cursor-pointer opacity-0 [color-scheme:dark]" [attr.aria-label]="label()" [value]="value()" [disabled]="disabled()"
-      (click)="abrir($event)" (change)="changed.emit($any($event.target).value)" />
-  `,
+  host: { '[class]': '"inline-flex " + (bloque() ? "w-full" : "w-[200px] max-w-full")' },
+  // the backoffice date picker (no native control); `formato`/`sufijo` only shape the placeholder now
+  template: `<bo-date-picker [value]="value()" (valueChange)="changed.emit($event)" [aria-label]="label()" [disabled]="disabled()" [placeholder]="texto()" />`,
 })
 export class SoFecha {
   readonly value = input('');
@@ -451,13 +448,6 @@ export class SoFecha {
     const t = this.formato() === 'num' ? v.split('-').reverse().join('/') : diaCorto(v);
     return this.sufijo() ? `${t} · ${this.sufijo()}` : t;
   });
-  protected abrir(e: Event): void {
-    try {
-      (e.target as HTMLInputElement).showPicker?.();
-    } catch {
-      /* not allowed (no user gesture): the native input still opens */
-    }
-  }
 }
 
 export const fecha = (iso?: string | null) => (iso ? new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso)).replace(',', '') : '—');

@@ -9,6 +9,7 @@ import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoCount, BoToggle, Confirm, Media, errText, BoTabsMovil } from '../../shared/ui';
 import { AtletasApi, CATEGORIAS, DIVISIONES, cat, kg, type Atleta, type Historial, type Marcas } from './api';
+import { BoDatePicker } from '../../shared/kit';
 import { ESTADO } from './list';
 
 type Tab = 'perfil' | 'competicion' | 'comunicaciones' | 'historial';
@@ -18,7 +19,7 @@ const PUBLIC_WEB = webPublica();
 /** Athlete record (Figma page 55 · «Atletas · ficha (perfil público)»). */
 @Component({
   selector: 'bo-atleta-ficha',
-  imports: [BoTabsMovil, GrSelect, FormsModule, RouterLink, BoCount, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [BoDatePicker, BoTabsMovil, GrSelect, FormsModule, RouterLink, BoCount, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let a = atleta();
@@ -192,7 +193,7 @@ const PUBLIC_WEB = webPublica();
                   <gr-field label="Nombre" for="d-n"><input grInput id="d-n" [(ngModel)]="d.nombre" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Apellidos" for="d-a"><input grInput id="d-a" [(ngModel)]="d.apellidos" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Licencia AEP" for="d-l" [error]="errLicencia()"><input grInput id="d-l" [(ngModel)]="d.licencia" (ngModelChange)="errLicencia.set('')" [invalid]="!!errLicencia()" [attr.aria-describedby]="errLicencia() ? 'd-l-error' : null" [disabled]="!canEdit()" /></gr-field>
-                  <gr-field label="Fecha de nacimiento" for="d-f" [hint]="a.edad !== undefined ? a.edad + ' años el día de la competición' : null"><input grInput id="d-f" type="date" [(ngModel)]="d.fechaNacimiento" [disabled]="!canEdit()" /></gr-field>
+                  <gr-field label="Fecha de nacimiento" for="d-f" [hint]="a.edad !== undefined ? a.edad + ' años el día de la competición' : null"><bo-date-picker tipo="date" id="d-f" [(ngModel)]="d.fechaNacimiento" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Sexo" for="d-s"><gr-select id="d-s" [(ngModel)]="d.sexo" [disabled]="!canEdit()"><option value="F">Femenino</option><option value="M">Masculino</option></gr-select></gr-field>
                   <gr-field label="Categoría de peso" for="d-c"><gr-select id="d-c" [(ngModel)]="d.categoria" [disabled]="!canEdit()">@if (!d.categoria) { <option value="">Sin categoría</option> }@for (c of categorias(); track c) { <option [value]="c">{{ cat(c) }} kg</option> }@if (d.categoria && !categorias().includes(d.categoria)) { <option [value]="d.categoria">{{ d.categoria }} (no válida)</option> }</gr-select></gr-field>
                   <gr-field label="División" for="d-d"><gr-select id="d-d" [(ngModel)]="d.division" [disabled]="!canEdit()">@for (v of divisiones; track v.value) { <option [value]="v.value">{{ v.label }}</option> }</gr-select></gr-field>

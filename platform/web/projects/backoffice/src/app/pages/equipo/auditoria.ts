@@ -12,10 +12,11 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrButton, GrEmpty, GrIcon, GrInput, GrPopover, GrSkeleton, GrToasts } from '@grcup/ui';
+import { GrButton, GrEmpty, GrIcon, GrPopover, GrSkeleton, GrToasts } from '@grcup/ui';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoPageHeader, errText } from '../../shared/ui';
+import { BoDatePicker } from '../../shared/kit';
 import { diffLegible, dispositivo, type Entrada } from './comun';
 
 interface Facetas {
@@ -72,7 +73,7 @@ const dia = (d: Date) =>
 /** «Auditoría · registro» (Figma 63): who changed what, when and from where, with before → after; filters and CSV export. */
 @Component({
   selector: 'bo-auditoria',
-  imports: [FormsModule, BoPageHeader, GrButton, GrEmpty, GrIcon, GrInput, GrPopover, GrSkeleton],
+  imports: [BoDatePicker, FormsModule, BoPageHeader, GrButton, GrEmpty, GrIcon, GrPopover, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'det.set(null)' },
   template: `
@@ -115,11 +116,9 @@ const dia = (d: Date) =>
               </div>
               <div class="grid grid-cols-2 gap-2">
                 <label class="flex flex-col gap-1 text-label-s text-text-secondary"
-                  >Desde<input grInput type="date" [(ngModel)]="f.desde" [max]="f.hasta || null"
-                /></label>
+                  >Desde<bo-date-picker tipo="date" [(ngModel)]="f.desde" [max]="f.hasta || ''" /></label>
                 <label class="flex flex-col gap-1 text-label-s text-text-secondary"
-                  >Hasta<input grInput type="date" [(ngModel)]="f.hasta" [min]="f.desde || null"
-                /></label>
+                  >Hasta<bo-date-picker tipo="date" [(ngModel)]="f.hasta" [min]="f.desde || ''" /></label>
               </div>
               <div class="flex justify-between gap-2">
                 <button grButton variant="ghost" (click)="f.desde = ''; f.hasta = ''; aplicar()">

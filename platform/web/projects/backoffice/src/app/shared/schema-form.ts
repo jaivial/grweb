@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, input, model, signal } from
 import { marked } from 'marked';
 import { GrButton, GrField, GrIcon, GrIconButton, GrInput, GrToasts, GrSelect } from '@grcup/ui';
 import { webPublica } from '../core/web';
+import { BoDatePicker } from './kit';
 import { BoCount, BoToggle, Media, errText } from './ui';
 
 export interface FieldDef {
@@ -25,7 +26,7 @@ type Obj = Record<string, unknown>;
 /** Form rendered from a field schema (the same schema the API returns for home sections). Lists nest recursively. */
 @Component({
   selector: 'bo-schema-form',
-  imports: [GrSelect, GrField, GrInput, GrButton, GrIcon, GrIconButton, BoCount, BoToggle],
+  imports: [BoDatePicker, GrSelect, GrField, GrInput, GrButton, GrIcon, GrIconButton, BoCount, BoToggle],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'grid grid-cols-1 gap-4 sm:grid-cols-2' },
   template: `
@@ -81,7 +82,7 @@ type Obj = Record<string, unknown>;
                   </div>
                 }
                 @case ('numero') { <input grInput [id]="id" type="number" inputmode="numeric" [value]="get(f.clave) ?? ''" (input)="set(f.clave, num($any($event.target).value))" /> }
-                @case ('fecha') { <input grInput [id]="id" type="datetime-local" [value]="local(f.clave)" (input)="set(f.clave, iso($any($event.target).value))" /> }
+                @case ('fecha') { <bo-date-picker tipo="datetime" [id]="id" [value]="local(f.clave)" (valueChange)="set(f.clave, iso($event))" /> }
                 @case ('select') {
                   <gr-select [id]="id" [value]="get(f.clave)" [attr.aria-describedby]="aviso ? id + '-aviso' : null" (valorChange)="set(f.clave, opcion(f, $event))">
                     <!-- a stored value that is not in the list (e.g. an old category) stays visible and selectable -->

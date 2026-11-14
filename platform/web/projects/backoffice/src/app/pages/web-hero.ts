@@ -1,19 +1,20 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, input, output, signal } from '@angular/core';
-import { GrAlert, GrBadge, GrButton, GrIcon, GrInput, GrToasts, fmtAgo } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrIcon, GrToasts, fmtAgo } from '@grcup/ui';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
 import { webPublica } from '../core/web';
 import { BoFocal } from '../shared/focal';
 import { BoSchemaForm, type FieldDef } from '../shared/schema-form';
 import { Confirm, errText } from '../shared/ui';
+import { BoDatePicker } from '../shared/kit';
 import { WebSections, type Seccion } from './web';
 
 /** Figma 54 «Web · editar hero»: texts, background image with focal point and crops, desktop/mobile preview,
  * autosaved draft, discard, schedule and publish. */
 @Component({
   selector: 'bo-web-hero',
-  imports: [GrAlert, GrBadge, GrButton, GrIcon, GrInput, BoSchemaForm, BoFocal],
+  imports: [BoDatePicker, GrAlert, GrBadge, GrButton, GrIcon, BoSchemaForm, BoFocal],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-6' },
   template: `
@@ -32,7 +33,7 @@ import { WebSections, type Seccion } from './web';
     @if (programando()) {
       <div class="flex flex-wrap items-end gap-3 rounded-lg border border-line-subtle bg-bg-card p-4">
         <label class="flex flex-col gap-1 text-label-s" for="hero-programar">Publicar el
-          <input grInput id="hero-programar" type="datetime-local" [value]="cuando()" (input)="cuando.set($any($event.target).value)" /></label>
+          <bo-date-picker tipo="datetime" id="hero-programar" [value]="cuando()" (valueChange)="cuando.set($event)" /></label>
         <button grButton variant="primary" [disabled]="!cuando()" [loading]="busy()" (click)="schedule()">Programar publicación</button>
       </div>
     }
