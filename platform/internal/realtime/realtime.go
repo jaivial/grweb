@@ -52,8 +52,9 @@ func (m *msg) adminJSON() []byte {
 }
 
 // coalesceEvery is how often the live odds of an open market are fanned out at most (ST2-R2-1: one porra.mercado
-// per bet × N spectators saturated the pods; the client only needs the latest pot/odds of each market).
-const coalesceEvery = 250 * time.Millisecond
+// per bet × N spectators saturated the pods; the client only needs the latest pot/odds of each market). 100 ms
+// keeps the fan-out bounded (≤10 msgs/s per market) while lowering the delivery floor (ST2-R3-1/R3-3).
+const coalesceEvery = 100 * time.Millisecond
 
 // hub fans the stream out to the connected clients of this pod. Live odds (porra.mercado of an open market) are
 // coalesced per market (latest wins) and flushed every coalesceEvery; any other event flushes the pending ones
