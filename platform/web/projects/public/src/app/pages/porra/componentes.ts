@@ -178,8 +178,8 @@ export class JuegosNav {
         [class]="moneda() === 'porra' ? 'border-accent-text/60 bg-accent text-white shadow-glow' : 'border-info/60 bg-info/20 text-info'">
         <gr-icon name="zap" [size]="15" />
       </span>
-      <span class="font-mono text-[16px] font-bold tabular-nums">{{ monedas(valor()) }}</span>
-      <span class="text-mono-xs" [class]="moneda() === 'porra' ? 'text-accent-text' : 'text-info'">· {{ moneda() === 'porra' ? 'Porra' : 'Fantasy' }}</span>
+      <span class="font-mono text-[1rem] font-bold tabular-nums">{{ monedas(valor()) }}</span>
+      <span class="text-mono-xs text-text-secondary">· {{ moneda() === 'porra' ? 'Porra' : 'Fantasy' }}</span>
     } @else {
       <button type="button" class="-my-1 -mr-3.5 -ml-1 flex h-10 items-center gap-2 rounded-pill pr-4 pl-1 text-label-s text-accent-text" (click)="entrar()">
         <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-white"><gr-icon name="user-plus" [size]="15" /></span>Entrar para jugar
@@ -236,19 +236,19 @@ export class GrupoChips<T extends string = string> {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block w-full' },
   template: `
-    <button type="button" class="group flex w-full max-w-[336px] flex-col gap-2 rounded-md pt-1.5 pb-2 text-left disabled:cursor-default max-md:max-w-none" [disabled]="!activo()" (click)="elegir.emit()"
+    <button type="button" class="group flex w-full max-w-[336px] flex-col gap-2 rounded-md pt-1.5 pb-2 text-left transition-[transform,background-color] duration-100 enabled:active:scale-[.98] enabled:active:bg-white/5 disabled:cursor-default max-md:max-w-none motion-reduce:enabled:active:scale-100" [disabled]="!activo()" (click)="elegir.emit()"
       [attr.aria-label]="(activo() ? 'Apostar por ' : '') + opcion().nombre + ', cuota ' + cuotaTxt() + ', ' + apostado() + ' % del bote'">
       <span class="flex w-full items-center gap-3">
         <span class="flex size-9 shrink-0 items-center justify-center rounded-full border font-display text-[13px] tracking-[0.1em]"
           [class]="lider() ? 'border-accent bg-accent-deep text-accent-text' : 'border-line-strong bg-bg-raised text-text-secondary'">{{ ini() }}</span>
         <span class="flex min-w-0 flex-1 flex-col gap-0.5">
           <span class="truncate text-body-s text-text-primary">{{ opcion().nombre }}</span>
-          <span class="truncate text-body-xs text-text-muted">{{ opcion().sexoTxt }}@if (opcion().categoria !== ' kg') { · {{ opcion().categoria }}}</span>
+          <span class="truncate text-body-xs text-text-secondary">{{ opcion().sexoTxt }}@if (opcion().categoria !== ' kg') { · {{ opcion().categoria }}}</span>
         </span>
         <span class="flex shrink-0 flex-col items-center rounded-sm border px-3 py-1 font-mono tabular-nums transition-colors"
-          [class]="lider() && cuotaNum() > 0 ? 'border-accent bg-accent-deep text-accent-text group-enabled:group-hover:bg-accent-deep/80' : cuotaNum() > 0 ? 'border-line-strong bg-bg-raised text-text-primary group-enabled:group-hover:border-text-muted' : 'border-line-subtle bg-bg-surface text-text-muted'">
-          <span class="text-[16px] leading-[22px] font-bold">{{ cuotaTxt() }}</span>
-          <span class="text-[10px] leading-[13px] whitespace-nowrap" [class]="delta() > 0 ? 'text-success' : delta() < 0 ? 'text-[#f87171]' : 'text-text-tertiary'">{{ deltaTxt() }}</span>
+          [class]="lider() && cuotaNum() > 0 ? 'border-accent bg-accent-deep text-white group-enabled:group-hover:bg-accent-deep/80' : cuotaNum() > 0 ? 'border-line-strong bg-bg-raised text-text-primary group-enabled:group-hover:border-text-muted' : 'border-line-subtle bg-bg-surface text-text-muted'">
+          <span class="text-[1rem] leading-[1.375rem] font-bold">{{ cuotaTxt() }}</span>
+          <span class="text-[0.6875rem] leading-[0.875rem] font-semibold whitespace-nowrap" [class]="delta() > 0 ? 'text-success' : delta() < 0 ? 'text-[#f87171]' : 'text-text-secondary'">{{ deltaTxt() }}</span>
         </span>
       </span>
       <span class="block h-1 w-full overflow-hidden rounded-pill bg-bg-raised" aria-hidden="true">
@@ -330,7 +330,7 @@ export class OddsRow {
     </ul>
     @if (puedeApostar()) {
       <div class="px-4 pt-2 pb-4">
-        <button grButton variant="primary" size="l" class="!text-label-s" [block]="true" (click)="apostar.emit({ mercado: mercado(), atletaId: '' })">Apostar en este mercado</button>
+        <button grButton variant="primary" size="l" class="!text-label-s transition-transform duration-100 active:scale-[.98] motion-reduce:active:scale-100" [block]="true" (click)="apostar.emit({ mercado: mercado(), atletaId: '' })">Apostar en este mercado</button>
         <p class="mt-2 text-body-xs text-text-muted">Mín. {{ monedas(minimo()) }} · Máx. {{ monedas(maximoApuesta()) }} · cuota estimada, el reparto final depende del bote</p>
       </div>
     } @else if (mercado().estado === 'abierto' && !soloLectura() && !mercado().opciones.length) {
@@ -463,7 +463,7 @@ export class MarketCard {
             </span>
             <span id="importe-apuesta-ayuda" class="grid grid-cols-4 gap-2">
               @for (a of atajos(); track a) {
-                <button type="button" class="h-11 min-w-0 truncate rounded-pill border px-1 font-mono text-[12px] transition-colors md:h-10"
+                <button type="button" class="h-11 min-w-0 truncate rounded-pill border px-1 font-mono text-[0.8125rem] transition-[transform,color,border-color] duration-100 active:scale-95 motion-reduce:active:scale-100"
                   [class]="esAtajo(a) ? 'border-accent bg-accent-deep/55 text-accent-text' : 'border-line-strong bg-bg-card text-text-secondary hover:border-text-muted hover:text-text-primary'"
                   [attr.aria-pressed]="esAtajo(a)" (click)="atajo(a)">{{ a === 'max' ? 'Máx.' : monedas(a) }}</button>
               }
@@ -472,7 +472,7 @@ export class MarketCard {
           <p class="flex items-center justify-between gap-3 rounded-md px-3.5 py-3" [class]="insuficiente() ? 'border border-warning/35 bg-warning/8' : 'bg-success text-black'" aria-live="polite">
             <span class="min-w-0">
               <span class="block text-label-s">{{ hecho() ? 'Si acierta cobrarías' : 'Si acierta cobras' }} (estimado)</span>
-              <span class="block font-mono text-[11px]" [class]="insuficiente() ? 'text-text-tertiary' : 'text-black/70'">{{ detalleCobro() }}</span>
+              <span class="block font-mono text-[0.8125rem]" [class]="insuficiente() ? 'text-text-secondary' : 'text-black/85'">{{ detalleCobro() }}</span>
             </span>
             <span class="shrink-0 font-mono text-[22px] font-bold tabular-nums" [class]="insuficiente() ? 'text-warning' : 'text-black'">{{ cobro() }}</span>
           </p>
