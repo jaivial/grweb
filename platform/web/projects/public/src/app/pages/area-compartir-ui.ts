@@ -55,7 +55,7 @@ export class StoryMovil {
   selector: 'gr-story-recorte',
   imports: [GrButton, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: `dialog::backdrop{background:rgb(0 0 0/.7)} input[type=range]{accent-color:#c4283a;height:44px} input[type=range]::-webkit-slider-thumb{width:28px;height:28px} input[type=range]::-moz-range-thumb{width:28px;height:28px} @media (max-width:639px){dialog[open]{animation:gr-hoja .3s cubic-bezier(.32,.72,0,1)}} @media (prefers-reduced-motion:reduce){dialog[open]{animation:none}}`,
+  styles: `dialog::backdrop{background:rgb(0 0 0/.7)} input[type=range]{accent-color:#c4283a;height:44px} @media (max-width:639px){dialog[open]{animation:gr-hoja .3s cubic-bezier(.32,.72,0,1)}} @media (prefers-reduced-motion:reduce){dialog[open]{animation:none}}`,
   template: `
     <dialog #dlg class="m-auto w-full max-w-[610px] rounded-lg border border-line-subtle bg-bg-card p-5 text-text-primary shadow-2xl max-sm:h-dvh max-sm:max-h-none max-sm:max-w-none max-sm:rounded-none max-sm:pt-[max(20px,env(safe-area-inset-top))] max-sm:pb-[max(20px,env(safe-area-inset-bottom))]"
       aria-labelledby="recorte-titulo" (cancel)="$event.preventDefault(); cancelar.emit()" (keydown)="tecla($event)">
