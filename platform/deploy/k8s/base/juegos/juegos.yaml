@@ -103,7 +103,9 @@ metadata:
   name: juegos
 spec:
   scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: juegos }
-  minReplicas: 3 # ST2-R5-1/R5-2: 100 bets/s with 500 SSE no longer waits for the HPA
+  # ST3-R8-1/R8-2: the load chain always settled at 5–6 pods; starting at 5 removes the cold pods (and the 5→6
+  # rescale mid-run) that put the tail of the first spike (03, 07, 09) above target.
+  minReplicas: 5
   maxReplicas: 6
   metrics:
     - type: Resource
@@ -111,7 +113,8 @@ spec:
   # CPU only: Go's heap stays high after a spike and a memory target would keep pods that are idle.
   behavior:
     scaleUp: { stabilizationWindowSeconds: 0, policies: [{ type: Pods, value: 2, periodSeconds: 30 }] }
-    scaleDown: { stabilizationWindowSeconds: 300, policies: [{ type: Pods, value: 1, periodSeconds: 60 }] }
+    # ST3-R8-2: 5 min dropped pods between steps of the chain, so each new spike started cold again.
+    scaleDown: { stabilizationWindowSeconds: 1200, policies: [{ type: Pods, value: 1, periodSeconds: 60 }] }
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
