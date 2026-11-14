@@ -62,7 +62,11 @@ func (s *Svc) rankingPorra(ctx context.Context, j jornada, fanID uuid.UUID) ([]f
 		p, saldo := s.puestoPorra(ctx, j, top, fanID)
 		return top, p, saldo
 	}
-	v, _, _ := rankingVuelo.Do(key, func() (any, error) {
+	// ST2-R8-4: the flight runs on its own bounded context (a cancelled first caller no longer fails or hangs
+	// the rest) and each caller stops waiting when its request ends.
+	ch := rankingVuelo.DoChan(key, func() (any, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 		var top []filaPorra
 		if s.cache.Get(ctx, key, &top) { // another pod or flight filled it meanwhile
 			return top, nil
@@ -86,7 +90,12 @@ func (s *Svc) rankingPorra(ctx context.Context, j jornada, fanID uuid.UUID) ([]f
 		s.cache.Set(ctx, key, top, 3*time.Second)
 		return top, nil
 	})
-	top = v.([]filaPorra)
+	select {
+	case <-ctx.Done():
+		return []filaPorra{}, 0, 0
+	case res := <-ch:
+		top = res.Val.([]filaPorra)
+	}
 	topLocal.Store(key, &topEntrada{top: top, exp: time.Now().Add(time.Second)})
 	p, saldo := s.puestoPorra(ctx, j, top, fanID)
 	return top, p, saldo

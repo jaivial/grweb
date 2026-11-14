@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/sync/singleflight"
 )
 
 // mercadosTTL bounds how stale the public odds may be: the live changes still arrive at once over porra.mercado.
@@ -107,17 +108,40 @@ func (s *Svc) mercadosVistaCache(ctx context.Context, cid uuid.UUID, j *jornada)
 		e.mu.Unlock()
 		return cuerpo, gz, etag, nil
 	}
-	defer e.mu.Unlock()
-	ms, err := s.mercadosVista(ctx, cid, j)
-	if err != nil {
-		return nil, nil, "", err
+	e.mu.Unlock()
+	// ST2-R8-4: the inline load used to run under e.mu with the caller's context, so a slow query queued every
+	// request of the jornada on a mutex they could not leave (374 s GETs). Now one flight per jornada and pod,
+	// on its own bounded context, and each waiter leaves when its own request ends.
+	jj := *j
+	ch := mercadosVuelo.DoChan(j.ID.String(), func() (any, error) {
+		lctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		ms, err := s.mercadosVista(lctx, cid, &jj)
+		if err != nil {
+			return nil, err
+		}
+		c, g, t, err := serializarMercados(&jj, ms)
+		if err != nil {
+			return nil, err
+		}
+		e.mu.Lock()
+		e.cuerpo, e.gz, e.etag, e.exp = c, g, t, time.Now().Add(mercadosTTL)
+		e.mu.Unlock()
+		return [3]any{c, g, t}, nil
+	})
+	select {
+	case <-ctx.Done():
+		return nil, nil, "", ctx.Err()
+	case r := <-ch:
+		if r.Err != nil {
+			return nil, nil, "", r.Err
+		}
+		v := r.Val.([3]any)
+		return v[0].([]byte), v[1].([]byte), v[2].(string), nil
 	}
-	if cuerpo, gz, etag, err = serializarMercados(j, ms); err != nil {
-		return nil, nil, "", err
-	}
-	e.cuerpo, e.gz, e.etag, e.exp = cuerpo, gz, etag, time.Now().Add(mercadosTTL)
-	return cuerpo, gz, etag, nil
 }
+
+var mercadosVuelo singleflight.Group
 
 func (s *Svc) refrescarMercados(e *mercadosEntrada, cid uuid.UUID, j jornada) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
