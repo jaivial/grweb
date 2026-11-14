@@ -73,7 +73,7 @@ import { CoinBalance, JuegosNav, LeaderboardRow, Podio, PremioCard, type PlazaPo
               </ul>
               <a routerLink="/fantasy/mercado" class="mt-3 inline-flex h-11 items-center gap-1 text-label-s text-accent-text hover:underline underline-offset-4 md:h-auto">Ir al mercado<gr-icon name="chevron-right" [size]="16" /></a>
             } @else {
-              <p class="mt-2 text-body-xs text-text-tertiary">Todavía no hay movimientos en el mercado.</p>
+              <p class="mt-2 text-body-s text-text-tertiary">Todavía no hay movimientos en el mercado.</p>
             }
           </section>
         </div>

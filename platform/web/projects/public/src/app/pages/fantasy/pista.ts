@@ -197,7 +197,7 @@ export class PistaFutsal {
 
           <section class="flex items-center justify-between gap-4 rounded-lg border border-line-subtle bg-bg-card p-3.5" aria-label="Cláusula">
             <span class="min-w-0">
-              <span class="block text-mono-xs text-text-tertiary">Cláusula · {{ dueno() }}</span>
+              <span class="block text-meta text-text-tertiary">Cláusula · {{ dueno() }}</span>
               <span class="mt-1 flex items-center gap-2"><span class="font-mono text-[24px] leading-none font-bold text-text-primary tabular-nums">{{ monedas(atleta().clausula) }}</span><gr-clause-trend [delta]="delta()" /></span>
             </span>
             <svg class="h-8 w-28 shrink-0" viewBox="0 0 112 32" fill="none" role="img" [attr.aria-label]="resumenSerie()">
@@ -207,7 +207,7 @@ export class PistaFutsal {
 
           <section class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-3.5" aria-labelledby="hoja-nota">
             <p class="flex items-center justify-between gap-2">
-              <span id="hoja-nota" class="text-mono-xs text-text-tertiary">Nota media</span>
+              <span id="hoja-nota" class="text-meta text-text-tertiary">Nota media</span>
               <span class="font-mono text-[22px] leading-[1.3] font-bold tabular-nums" [class]="colorNota()">{{ notaTxt() }}</span>
             </p>
             @for (l of lineas(); track l.concepto) {
@@ -221,11 +221,11 @@ export class PistaFutsal {
           <div class="flex flex-col gap-3 pt-1">
             <button type="button" class="h-12 w-full rounded-sm bg-accent-grain px-6 text-label-m text-white transition-shadow hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-45" [disabled]="bloqueado()" (click)="vender.emit()">Vender · {{ monedas(atleta().clausula) }}</button>
             @if (atleta().flightEnCurso) {
-              <p class="text-body-xs text-warning">Mientras compite no se puede vender ni cambiar de sitio.</p>
+              <p class="text-body-s text-warning">Mientras compite no se puede vender ni cambiar de sitio.</p>
             }
-            @if (cargando()) { <p class="text-body-xs text-text-tertiary" role="status">Guardando…</p> }
+            @if (cargando()) { <p class="text-body-s text-text-tertiary" role="status">Guardando…</p> }
             @if (error() && !cargando()) {
-              <p class="flex items-center gap-2 rounded-md border border-crimson bg-bg-deep p-3 text-body-xs text-text-secondary" role="alert"><gr-icon name="circle-alert" [size]="16" class="shrink-0 text-crimson" />{{ error() }}</p>
+              <p class="flex items-center gap-2 rounded-md border border-crimson bg-bg-deep p-3 text-body-s text-text-secondary" role="alert"><gr-icon name="circle-alert" [size]="16" class="shrink-0 text-crimson" />{{ error() }}</p>
             }
           </div>
         </div>

@@ -30,8 +30,8 @@ const ICONO_TARJETA = { neutro: 'text-text-secondary', exito: 'text-success', av
   template: `
     <gr-icon [name]="icono()" [size]="32" [class]="color()" />
     <p class="text-ui-h5 text-text-primary">{{ titulo() }}</p>
-    <div class="text-body-s text-text-secondary"><ng-content /></div>
-    @if (meta()) { <p class="text-body-xs text-text-tertiary">{{ meta() }}</p> }
+    <div class="text-body-m text-text-secondary"><ng-content /></div>
+    @if (meta()) { <p class="text-body-s text-text-tertiary">{{ meta() }}</p> }
     <div class="flex flex-col gap-2 empty:hidden"><ng-content select="[acciones]" /></div>
   `,
 })
@@ -99,9 +99,14 @@ export interface SalaEditable {
   host: { class: 'contents', '(document:keydown.escape)': 'cerrar.emit()' },
   template: `
     <div class="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6">
-      <button type="button" tabindex="-1" class="absolute inset-0 bg-bg-deep/80" aria-label="Cerrar" (click)="cerrar.emit()"></button>
-      <form class="relative flex max-h-[94dvh] w-full max-w-[560px] flex-col gap-4 overflow-y-auto overscroll-contain rounded-t-2xl border border-line-strong bg-bg-surface px-5 pt-5 pb-7 md:rounded-2xl md:p-8"
+      <button type="button" tabindex="-1" class="absolute inset-0 bg-bg-deep/80 transition-opacity duration-200 starting:opacity-0 motion-reduce:transition-none" aria-label="Cerrar" (click)="cerrar.emit()"></button>
+      <!-- UX6-R1-4: hoja inferior iOS: tirador, safe-area, entrada deslizando y arrastrar hacia abajo para cerrar -->
+      <form class="relative flex max-h-[94dvh] w-full max-w-[560px] flex-col gap-4 overflow-y-auto overscroll-contain rounded-t-2xl border border-line-strong bg-bg-surface px-5 pt-6 pb-[max(28px,env(safe-area-inset-bottom))] transition-transform duration-300 ease-[cubic-bezier(.22,1,.36,1)] starting:translate-y-full motion-reduce:transition-none md:rounded-2xl md:p-8 md:starting:translate-y-0"
+        [style.transform]="arrastre() ? 'translateY(' + arrastre() + 'px)' : null" [class.transition-none]="arrastrando"
         role="dialog" aria-modal="true" aria-labelledby="crear-sala-titulo" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (ngSubmit)="enviar()">
+        <div class="absolute inset-x-0 top-0 flex h-6 touch-none justify-center pt-2 md:hidden" aria-hidden="true" (pointerdown)="empezarArrastre($event)" (pointermove)="moverArrastre($event)" (pointerup)="soltarArrastre()" (pointercancel)="soltarArrastre()">
+          <span class="h-[5px] w-9 rounded-full bg-line-strong"></span>
+        </div>
         <header class="flex items-start gap-3">
           <div class="flex min-w-0 flex-1 flex-col gap-1">
             <h2 id="crear-sala-titulo" class="text-ui-h3 text-text-primary">{{ editar() ? 'Editar sala' : 'Crear sala' }}</h2>
@@ -118,13 +123,13 @@ export interface SalaEditable {
 
         <label class="flex flex-col gap-1.5" [class.opacity-50]="!puede()">
           <span class="text-label-s text-text-secondary">Nombre de la sala</span>
-          <span class="flex h-12 items-center gap-2 rounded-md border bg-bg-field px-3 focus-within:border-line-accent" [class]="errorNombre() ? 'border-2 border-crimson' : 'border-line-strong'">
-            <input type="text" name="nombre" class="min-w-0 flex-1 bg-transparent text-body-m text-text-primary outline-none placeholder:text-text-muted" maxlength="32" autocomplete="off" placeholder="Los Cuervos de Gonzalo"
-              [disabled]="!puede()" [attr.aria-invalid]="!!errorNombre()" aria-describedby="crear-sala-ayuda" [ngModel]="nombre()" (ngModelChange)="nombre.set($event); errorNombre.set(null)" />
-            <span class="shrink-0 text-mono-xs" [class]="errorNombre() ? 'text-crimson' : 'text-text-muted'">{{ nombre().trim().length }}/32</span>
+          <span class="flex h-12 items-center gap-2 rounded-md border bg-bg-field px-3 focus-within:border-line-accent" [class.border-2]="!!errorNombre()" [class.border-crimson]="!!errorNombre()" [class.border-line-strong]="!errorNombre()">
+            <input type="text" name="nombre" class="min-w-0 flex-1 bg-transparent text-body-m text-text-primary outline-none placeholder:text-text-muted" maxlength="32" autocomplete="off" enterkeyhint="done" autocapitalize="words" spellcheck="false" placeholder="Los Cuervos de Gonzalo"
+              [disabled]="!puede()" [attr.aria-invalid]="!!errorNombre()" aria-describedby="crear-sala-ayuda" [ngModel]="nombre()" (ngModelChange)="nombre.set($event); errorNombre.set(null)" (blur)="validarNombre(true)" />
+            <span class="shrink-0 text-meta" [class]="errorNombre() ? 'text-crimson' : 'text-text-tertiary'">{{ nombre().trim().length }}/32</span>
           </span>
           @if (puede()) {
-            <span id="crear-sala-ayuda" class="text-body-xs" [class]="errorNombre() ? 'text-crimson' : 'text-text-tertiary'">{{ errorNombre() || (publica() ? 'Visible para todos en el lobby. 3–32 caracteres, único por día.' : 'Solo lo ve quien tenga el enlace. 3–32 caracteres, único por día.') }}</span>
+            <span id="crear-sala-ayuda" class="text-body-s" [class]="errorNombre() ? 'text-crimson' : 'text-text-tertiary'">{{ errorNombre() || (publica() ? 'Visible para todos en el lobby. 3–32 caracteres, único por día.' : 'Solo lo ve quien tenga el enlace. 3–32 caracteres, único por día.') }}</span>
           }
         </label>
 
@@ -136,13 +141,9 @@ export interface SalaEditable {
               <output class="flex h-11 w-20 items-center justify-center rounded-md border border-line-strong bg-bg-field text-mono-s text-text-primary tabular-nums" aria-live="polite">{{ plazas() }}</output>
               <button type="button" class="flex size-11 items-center justify-center rounded-md border border-line-strong bg-bg-raised text-text-primary disabled:opacity-40" aria-label="Una plaza más" [disabled]="plazas() >= plazasMax()" (click)="plazas.set(plazas() + 1)"><gr-icon name="plus" [size]="20" /></button>
             </div>
-            <ol class="flex flex-wrap gap-1.5" aria-hidden="true">
-              @for (n of escala(); track n) {
-                <li class="flex size-7 items-center justify-center rounded-sm text-mono-xs text-text-primary" [class]="n <= plazas() ? 'bg-accent' : 'bg-bg-raised'">{{ n }}</li>
-              }
-            </ol>
+            <span class="block h-1.5 max-w-[236px] overflow-hidden rounded-pill bg-bg-raised" aria-hidden="true"><span class="block h-full rounded-pill bg-accent" [style.width.%]="plazasMax() ? (plazas() / plazasMax()) * 100 : 0"></span></span>
           </div>
-          <p class="text-body-xs text-text-tertiary">Máximo hoy: {{ plazasMax() }} ({{ atletas() }} atletas ÷ 5, tope 10). Mínimo 2. Si hay menos atletas, las plazas se ajustan solas.</p>
+          <p class="text-body-s text-text-tertiary">Máximo hoy: {{ plazasMax() }} ({{ atletas() }} atletas ÷ 5, tope 10). Mínimo 2. Si hay menos atletas, las plazas se ajustan solas.</p>
 
           <div class="flex flex-col gap-1.5" role="radiogroup" aria-labelledby="crear-sala-vis">
             <span id="crear-sala-vis" class="text-label-s text-text-secondary">Visibilidad</span>
@@ -150,21 +151,21 @@ export interface SalaEditable {
               @for (o of visibilidades; track o.l) {
                 <button type="button" role="radio" [attr.aria-checked]="publica() === o.v" class="flex min-h-11 flex-col gap-0.5 rounded-sm border px-3 py-2 text-left" [class]="publica() === o.v ? 'border-line-accent bg-bg-raised' : 'border-transparent'" (click)="publica.set(o.v)">
                   <span class="text-label-s" [class]="publica() === o.v ? 'text-text-primary' : 'text-text-tertiary'">{{ o.l }}</span>
-                  <span class="text-body-xs text-text-muted">{{ o.d }}</span>
+                  <span class="text-body-s text-text-tertiary">{{ o.d }}</span>
                 </button>
               }
             </div>
           </div>
 
           <p class="flex flex-col gap-1.5 rounded-md border border-line-subtle bg-bg-card p-3">
-            <span class="text-mono-xs text-text-muted">Así se publicará</span>
+            <span class="text-meta text-text-tertiary">Así se publicará</span>
             <span class="text-body-s text-text-secondary">{{ vistaPrevia() }}</span>
           </p>
         }
 
         <div class="flex flex-col-reverse gap-2 md:flex-row">
           <button type="button" grButton variant="outline" class="w-full md:w-auto" (click)="cerrar.emit()">Cancelar</button>
-          <button type="submit" grButton variant="primary" class="w-full md:w-auto" [loading]="enviando()" [disabled]="!valido()">{{ editar() ? 'Guardar cambios' : 'Crear sala' }}</button>
+          <button type="submit" grButton variant="primary" class="w-full md:w-auto" [loading]="enviando()" [disabled]="!puede()">{{ editar() ? 'Guardar cambios' : 'Crear sala' }}</button>
         </div>
       </form>
     </div>
@@ -198,13 +199,14 @@ export class CrearSalaModal {
   protected readonly puede = computed(() => !!this.editar() || (this.puedeCrear() && this.plazasMax() >= 2));
   /** No se puede bajar de los jugadores que ya hay. */
   protected readonly minimo = computed(() => Math.max(2, this.editar()?.miembros ?? 2));
-  protected readonly escala = computed(() => Array.from({ length: Math.max(0, this.plazasMax() - 1) }, (_, i) => i + 2));
+  protected readonly arrastre = signal(0);
+  protected arrastrando = false;
+  private inicioArrastre = 0;
   /** «Así se publicará»: sigue al nombre y a las plazas elegidas. */
   protected readonly vistaPrevia = computed(() => {
     const m = this.editar()?.miembros ?? 1;
     return `${this.nombre().trim() || 'Tu sala'} · ${m}/${this.plazas()} jugadores · ${m < 2 ? 'Esperando (mín. 2)' : 'Abierta'} · Anfitrión @${this.alias()}`;
   });
-  protected readonly valido = computed(() => this.puede() && this.nombre().trim().length >= 3 && this.nombre().trim().length <= 32 && !this.enviando());
 
   constructor() {
     // El formulario arranca con la sala que se edita o, al crear, con el cupo completo del día.
@@ -216,8 +218,30 @@ export class CrearSalaModal {
     });
   }
 
+  /** UX6-R1-8: el botón no se deshabilita; el nombre se valida al salir del campo y al enviar. */
+  protected validarNombre(blur = false): boolean {
+    const n = this.nombre().trim().length;
+    if (blur && !n) return false;
+    if (n < 3) this.errorNombre.set('Mínimo 3 caracteres.');
+    return n >= 3;
+  }
+  protected empezarArrastre(e: PointerEvent): void {
+    this.arrastrando = true;
+    this.inicioArrastre = e.clientY;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+  protected moverArrastre(e: PointerEvent): void {
+    if (this.arrastrando) this.arrastre.set(Math.max(0, e.clientY - this.inicioArrastre));
+  }
+  protected soltarArrastre(): void {
+    if (!this.arrastrando) return;
+    this.arrastrando = false;
+    if (this.arrastre() > 80) this.cerrar.emit();
+    else this.arrastre.set(0);
+  }
+
   protected async enviar(): Promise<void> {
-    if (!this.valido()) return;
+    if (this.enviando() || !this.puede() || !this.validarNombre()) return;
     this.enviando.set(true);
     this.errorNombre.set(null);
     this.errorGeneral.set(null);

@@ -36,7 +36,7 @@ const muestra = (valor: number): Nota => ({ valor, tieneNota: valor > 0, blanque
             <span class="pointer-events-none absolute -top-4 right-3 font-display text-[88px] leading-none text-white/[0.04] italic" aria-hidden="true">{{ i + 1 }}</span>
             <h2 class="flex items-center gap-3 text-ui-h5">
               <span class="flex size-10 shrink-0 items-center justify-center rounded-sm border border-accent/40 bg-accent-deep/40 text-accent-text"><gr-icon [name]="b.icono" [size]="18" /></span>
-              <span><span class="block text-mono-xs text-text-tertiary">Paso {{ i + 1 }}</span>{{ b.titulo }}</span>
+              <span><span class="block text-meta text-text-tertiary">Paso {{ i + 1 }}</span>{{ b.titulo }}</span>
             </h2>
             <ul class="mt-4 flex flex-col gap-2.5">
               @for (p of b.puntos; track p) {
@@ -55,12 +55,12 @@ const muestra = (valor: number): Nota => ({ valor, tieneNota: valor > 0, blanque
         <gr-aviso tono="error" titulo="Blanqueo = nota 0,0">Tres nulos en un mismo movimiento (bomb-out) o descalificación dejan la nota del atleta en 0,0 absoluto: se anula todo lo acumulado y su cláusula baja un 30 %.</gr-aviso>
 
         <div class="overflow-hidden rounded-lg border border-line-subtle bg-bg-surface" role="table" aria-label="Tabla de la nota">
-          <p class="flex items-center gap-3 bg-bg-raised px-4 py-3 text-mono-xs text-text-muted" role="row"><span class="flex-1" role="columnheader">Componente</span><span role="columnheader">Valor</span></p>
+          <p class="flex items-center gap-3 bg-bg-raised px-4 py-3 text-meta text-text-tertiary" role="row"><span class="flex-1" role="columnheader">Componente</span><span role="columnheader">Valor</span></p>
           @for (f of tabla(); track f.concepto) {
             <p class="flex flex-col gap-1 border-t border-line-subtle px-4 py-3 sm:flex-row sm:items-center sm:gap-3" [class.bg-bg-deep]="f.fondo" role="row">
               <span class="flex min-w-0 flex-1 flex-col gap-0.5" role="cell">
                 <span class="text-label-s text-text-primary">{{ f.concepto }}</span>
-                <span class="text-body-xs text-text-tertiary">{{ f.detalle }}</span>
+                <span class="text-body-s text-text-tertiary">{{ f.detalle }}</span>
               </span>
               <span class="shrink-0 text-mono-s tabular-nums" [class]="f.tono === 'rojo' ? 'text-nota-rojo' : 'text-text-primary'" role="cell">{{ f.valor }}</span>
             </p>
@@ -74,7 +74,7 @@ const muestra = (valor: number): Nota => ({ valor, tieneNota: valor > 0, blanque
               @for (t of tramos; track t.rango) {
                 <li class="flex items-center gap-3">
                   <gr-nota [nota]="t.nota" />
-                  <span class="flex min-w-0 flex-col gap-0.5"><span class="text-mono-s text-text-primary">{{ t.rango }}</span><span class="text-body-xs text-text-tertiary">{{ t.nombre }}</span></span>
+                  <span class="flex min-w-0 flex-col gap-0.5"><span class="text-mono-s text-text-primary">{{ t.rango }}</span><span class="text-body-s text-text-tertiary">{{ t.nombre }}</span></span>
                 </li>
               }
             </ul>
@@ -83,11 +83,11 @@ const muestra = (valor: number): Nota => ({ valor, tieneNota: valor > 0, blanque
             @for (e of ejemplos; track e.titulo) {
               <section class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-surface p-5">
                 <h3 class="text-ui-h5">{{ e.titulo }}</h3>
-                <p class="text-body-xs text-text-tertiary">{{ e.detalle }}</p>
+                <p class="text-body-s text-text-tertiary">{{ e.detalle }}</p>
                 @for (f of e.filas; track f.l) {
                   <p class="flex items-center gap-3"><span class="min-w-0 flex-1 text-body-s text-text-secondary">{{ f.l }}</span><span class="shrink-0 text-mono-s tabular-nums" [class]="f.rojo ? 'text-nota-rojo' : 'text-text-primary'">{{ f.v }}</span></p>
                 }
-                <p class="flex items-center gap-3 pt-2"><span class="flex-1 text-mono-xs text-text-muted">Nota</span><gr-nota [nota]="e.nota" /></p>
+                <p class="flex items-center gap-3 pt-2"><span class="flex-1 text-meta text-text-tertiary">Nota</span><gr-nota [nota]="e.nota" /></p>
               </section>
             }
           </div>
@@ -103,8 +103,8 @@ const muestra = (valor: number): Nota => ({ valor, tieneNota: valor > 0, blanque
       </section>
 
       <section class="mt-4 flex flex-col gap-1.5 rounded-md bg-bg-surface px-4 py-3">
-        <p class="text-label-xs text-text-muted">Desempate del ranking</p>
-        <p class="text-body-xs text-text-secondary">1.º valor de la alineación → 2.º saldo → 3.º quién llegó antes.</p>
+        <p class="text-label-xs text-text-tertiary">Desempate del ranking</p>
+        <p class="text-body-s text-text-secondary">1.º valor de la alineación → 2.º saldo → 3.º quién llegó antes.</p>
       </section>
 
       <div class="mt-8 flex flex-col items-center gap-3 rounded-2xl border border-line-strong bg-bg-surface px-6 py-8 text-center">

@@ -22,9 +22,10 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } f
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page [title]="sala()?.nombre ?? 'Sala'" [juego]="true">
-      <gr-fantasy-cabecera [titulo]="sala()?.nombre ?? 'Sala'" [migas]="['Salas', sala()?.nombre ?? 'Sala']" [descripcion]="subtitulo()" />
+      <gr-fantasy-cabecera [titulo]="sala()?.nombre ?? 'Sala'" [migas]="['Salas', sala()?.nombre ?? 'Sala']" [descripcion]="subtitulo()" [reservar]="true" />
       <div class="flex flex-col gap-4 md:gap-6">
-        <gr-juegos-nav juego="fantasy" activa="salas" />
+        <!-- UX6-R1-7: dentro de la sala, en móvil basta la barra de sala y las migas -->
+        <div class="hidden md:block"><gr-juegos-nav juego="fantasy" activa="salas" /></div>
 
         @if (cargando()) {
           <div class="flex flex-col gap-3" aria-busy="true">
@@ -60,12 +61,12 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } f
                         <span class="truncate text-label-s text-text-primary">&#64;{{ f.alias }}{{ f.esYo ? ' · tú' : '' }}</span>
                         @if (f.esAnfitrion) { <span class="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-pill border border-warning bg-warning/12 px-2.5 text-label-xs text-warning">Anfitrión</span> }
                       </span>
-                      <span class="text-body-xs text-text-tertiary">{{ d.empezada ? 'Alineación ' + f.conNota + '/5 con nota' : f.alineacion.length >= 5 ? 'Alineación completa 5/5' : 'Alineación ' + f.alineacion.length + '/5' }}</span>
+                      <span class="text-body-s text-text-tertiary">{{ d.empezada ? 'Alineación ' + f.conNota + '/5 con nota' : f.alineacion.length >= 5 ? 'Alineación completa 5/5' : 'Alineación ' + f.alineacion.length + '/5' }}</span>
                     </p>
                     @if (d.empezada) {
-                      <p class="flex shrink-0 flex-col gap-0.5 text-right"><span class="text-mono-s tabular-nums" [class]="color(f)">{{ n2(f.nota) }}</span><span class="text-mono-xs text-text-muted">nota media</span></p>
+                      <p class="flex shrink-0 flex-col gap-0.5 text-right"><span class="text-mono-s tabular-nums" [class]="color(f)">{{ n2(f.nota) }}</span><span class="text-meta text-text-tertiary">nota media</span></p>
                     } @else {
-                      <p class="flex shrink-0 flex-col gap-0.5 text-right"><span class="text-mono-s text-accent-text tabular-nums">{{ monedas(f.saldo) }}</span><span class="text-mono-xs text-text-muted">monedas</span></p>
+                      <p class="flex shrink-0 flex-col gap-0.5 text-right"><span class="text-mono-s text-accent-text tabular-nums">{{ monedas(f.saldo) }}</span><span class="text-meta text-text-tertiary">monedas</span></p>
                     }
                     <button type="button" class="-m-2 flex size-11 shrink-0 items-center justify-center rounded-full text-text-tertiary hover:text-text-primary" aria-haspopup="dialog" [attr.aria-expanded]="popover() === f.miembroId" [attr.aria-label]="'Ver la alineación de @' + f.alias" (click)="alternarPopover(f.miembroId, $event)">
                       <gr-icon name="eye" [size]="16" />
@@ -81,25 +82,45 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } f
                   </li>
                 }
                 @if (!d.empezada && d.sala.miembros < d.sala.plazas && abierta()) {
-                  <li class="flex items-center gap-3 rounded-[14px] border border-dashed border-line-strong px-4 py-3 text-body-s text-text-muted"><gr-icon name="plus" [size]="16" class="shrink-0" />Plaza libre · comparte el enlace</li>
+                  <li>
+                    @if (puedeSolicitar()) {
+                      <button type="button" class="flex min-h-11 w-full items-center gap-3 rounded-[14px] border border-dashed border-line-strong px-4 py-3 text-left text-body-s text-text-secondary hover:text-text-primary disabled:opacity-40" [disabled]="operando() === 'solicitar'" (click)="solicitar()"><gr-icon name="plus" [size]="16" class="shrink-0" />Plaza libre · solicitar unirse</button>
+                    } @else if (d.codigo) {
+                      <button type="button" class="flex min-h-11 w-full items-center gap-3 rounded-[14px] border border-dashed border-line-strong px-4 py-3 text-left text-body-s text-text-secondary hover:text-text-primary" (click)="compartir()"><gr-icon name="share" [size]="16" class="shrink-0" />Plaza libre · compartir enlace</button>
+                    } @else {
+                      <p class="flex items-center gap-3 rounded-[14px] border border-dashed border-line-strong px-4 py-3 text-body-s text-text-tertiary"><gr-icon name="plus" [size]="16" class="shrink-0" />Plaza libre</p>
+                    }
+                  </li>
                 }
               </ul>
             </section>
 
             <aside class="flex min-w-0 flex-col gap-4 lg:w-[420px] lg:shrink-0">
+              @if (accionUnirse(); as a) {
+                <!-- UX6-R1-1: no miembro: solicitar o cancelar; en móvil, barra fija en la zona del pulgar -->
+                <section class="flex flex-col gap-3 rounded-lg border border-line-accent bg-bg-surface p-5" aria-labelledby="sala-unirse">
+                  <h2 id="sala-unirse" class="text-ui-h5 text-text-primary">{{ a === 'cancelar' ? 'Solicitud pendiente' : 'Únete a esta sala' }}</h2>
+                  <p class="text-body-s text-text-secondary">{{ a === 'cancelar' ? 'El anfitrión decide quién entra. Te avisamos aquí cuando responda.' : 'El anfitrión aprueba tu solicitud. Puedes tener hasta 3 pendientes.' }}</p>
+                  <div class="hidden md:block"><button type="button" grButton [variant]="a === 'cancelar' ? 'outline' : 'primary'" [block]="true" [loading]="operando() === 'solicitar'" (click)="a === 'cancelar' ? cancelarSolicitud() : solicitar()">{{ a === 'cancelar' ? 'Cancelar solicitud' : 'Solicitar unirse · ' + d.sala.miembros + '/' + d.sala.plazas }}</button></div>
+                </section>
+                <div class="h-20 md:hidden" aria-hidden="true"></div>
+                <div class="fixed inset-x-0 bottom-0 z-40 border-t border-line-subtle bg-bg-base/95 px-4 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[10px] md:hidden">
+                  <button type="button" grButton [variant]="a === 'cancelar' ? 'outline' : 'primary'" [block]="true" size="l" [loading]="operando() === 'solicitar'" (click)="a === 'cancelar' ? cancelarSolicitud() : solicitar()">{{ a === 'cancelar' ? 'Solicitud pendiente · Cancelar' : 'Solicitar unirse · ' + d.sala.miembros + '/' + d.sala.plazas }}</button>
+                </div>
+              }
               @if (esAnfitrion() && !d.empezada && abierta()) {
                 <section id="solicitudes" class="flex flex-col gap-3 rounded-lg border border-line-accent bg-bg-surface p-5" aria-labelledby="sala-solicitudes">
                   <div class="flex items-center gap-2">
                     <h2 id="sala-solicitudes" class="min-w-0 flex-1 text-ui-h5 text-text-primary">Solicitudes de unión</h2>
                     @if (d.solicitudes.length) { <span class="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-pill border border-warning bg-warning/12 px-2.5 text-label-xs text-warning">{{ d.solicitudes.length }} {{ d.solicitudes.length === 1 ? 'pendiente' : 'pendientes' }}</span> }
                   </div>
-                  <p class="text-body-xs text-text-tertiary">{{ textoSolicitudes() }}</p>
+                  <p class="text-body-s text-text-tertiary">{{ textoSolicitudes() }}</p>
                   <ul class="flex flex-col gap-3 empty:hidden" aria-live="polite">
                     @for (s of d.solicitudes; track s.id) {
                       <li class="flex flex-col gap-3 rounded-md bg-bg-card p-3">
                         <p class="flex items-center gap-3">
                           <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-700 text-display-label text-text-primary">{{ ini(s.alias) }}</span>
-                          <span class="flex min-w-0 flex-col gap-0.5"><span class="truncate text-label-s text-text-primary">&#64;{{ s.alias }}</span><span class="text-body-xs text-text-tertiary">Solicitud {{ hace(s.createdAt) }}</span></span>
+                          <span class="flex min-w-0 flex-col gap-0.5"><span class="truncate text-label-s text-text-primary">&#64;{{ s.alias }}</span><span class="text-body-s text-text-tertiary">Solicitud {{ hace(s.createdAt) }}</span></span>
                         </p>
                         <div class="grid grid-cols-2 gap-2">
                           <button type="button" grButton variant="primary" [block]="true" [loading]="operando() === s.id" [disabled]="llena()" (click)="responder(s.id, true)">Aceptar</button>
@@ -127,7 +148,7 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } f
                   </div>
                   @if (qr(); as q) { <img [src]="q" width="180" height="180" class="self-start rounded-md" alt="Código QR del enlace de invitación a la sala" /> }
                   @if (esAnfitrion()) {
-                    <button type="button" class="inline-flex min-h-11 items-center gap-2 self-start text-body-xs text-text-tertiary hover:text-text-primary md:min-h-0" [disabled]="operando() === 'enlace'" (click)="regenerar()"><gr-icon name="shuffle" [size]="16" />Regenerar enlace (invalida el anterior)</button>
+                    <button type="button" class="inline-flex min-h-11 items-center gap-2 self-start text-body-s text-text-tertiary hover:text-text-primary md:min-h-0" [disabled]="operando() === 'enlace'" (click)="regenerar()"><gr-icon name="shuffle" [size]="16" />Regenerar enlace (invalida el anterior)</button>
                   }
                 </section>
               }
@@ -137,7 +158,7 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } f
                   <h2 id="sala-acciones" class="text-ui-h5 text-text-primary">Acciones del anfitrión</h2>
                   <button type="button" grButton variant="outline" [block]="true" (click)="editando.set(true)">Editar sala</button>
                   <button type="button" class="flex h-11 w-full items-center justify-center rounded-md border border-crimson px-5 text-label-s text-crimson disabled:opacity-40" [disabled]="operando() === 'cerrar'" (click)="cerrarSala()">{{ confirmarCierre() ? 'Pulsa otra vez para cerrar la sala' : 'Cerrar sala' }}</button>
-                  <p class="text-body-xs text-text-tertiary">Cerrar sala rechaza las solicitudes, expulsa a todos y libera sus atletas. No se puede si el día ya empezó.</p>
+                  <p class="text-body-s text-text-tertiary">Cerrar sala rechaza las solicitudes, expulsa a todos y libera sus atletas. No se puede si el día ya empezó.</p>
                 </section>
               }
 
@@ -147,10 +168,10 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } f
                   <a grButton variant="primary" [block]="true" [href]="'/fantasy/salas/' + d.sala.id + '/equipo'">Ir a mi alineación</a>
                   <a grButton variant="outline" [block]="true" [href]="'/fantasy/salas/' + d.sala.id + '/mercado'">Ver mercado de la sala</a>
                   @if (d.empezada) {
-                    <p class="text-body-xs text-text-tertiary">No puedes salir una vez iniciado el día: tu nota cuenta en el palmarés.</p>
+                    <p class="text-body-s text-text-tertiary">No puedes salir una vez iniciado el día: tu nota cuenta en el palmarés.</p>
                   } @else if (abierta()) {
                     <button type="button" grButton variant="outline" [block]="true" [disabled]="operando() === 'salir'" (click)="salir()">{{ confirmarSalida() ? 'Pulsa otra vez para salir' : 'Salir de la sala' }}</button>
-                    <p class="text-body-xs text-text-tertiary">{{ esAnfitrion() ? 'Si sales, el anfitrión pasa al jugador más antiguo; si eres el único, la sala se cierra.' : 'Podrás salir hasta que empiece el día.' }}</p>
+                    <p class="text-body-s text-text-tertiary">{{ esAnfitrion() ? 'Si sales, el anfitrión pasa al jugador más antiguo; si eres el único, la sala se cierra.' : 'Podrás salir hasta que empiece el día.' }}</p>
                   }
                 </section>
               }
@@ -161,7 +182,7 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } f
                   <p class="text-mono-s text-accent-text tabular-nums">{{ m.libres }} de {{ m.total }} atletas libres</p>
                   <span class="block h-1.5 overflow-hidden rounded-pill bg-bg-field" aria-hidden="true"><span class="block h-full rounded-pill bg-warning" [style.width.%]="m.total ? (m.libres / m.total) * 100 : 0"></span></span>
                 }
-                <p class="text-body-xs text-text-tertiary">Cada atleta tiene un solo dueño por sala. Alineación de exactamente 5 atletas{{ mercado()?.total ? ': ' + mercado()!.total + ' ÷ 5 = ' + d.plazasMax + ' plazas' : '' }}.</p>
+                <p class="text-body-s text-text-tertiary">Cada atleta tiene un solo dueño por sala. Alineación de exactamente 5 atletas{{ mercado()?.total ? ': ' + mercado()!.total + ' ÷ 5 = ' + d.plazasMax + ' plazas' : '' }}.</p>
               </section>
             </aside>
           </div>
@@ -172,7 +193,7 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado, type SalaEditable } f
     @if (toast(); as t) {
       <div class="fixed inset-x-4 top-20 z-40 flex items-center gap-3 rounded-md border border-line-accent bg-bg-deep px-4 py-3 shadow-card md:inset-x-auto md:top-24 md:right-6 md:w-[380px]" role="status" aria-live="polite">
         <gr-icon name="bell" [size]="20" class="shrink-0 text-text-secondary" />
-        <p class="flex min-w-0 flex-1 flex-col gap-0.5"><span class="truncate text-label-s text-text-primary">Nueva solicitud de &#64;{{ t }}</span><span class="text-body-xs text-text-tertiary">Quiere unirse a tu sala · ahora</span></p>
+        <p class="flex min-w-0 flex-1 flex-col gap-0.5"><span class="truncate text-label-s text-text-primary">Nueva solicitud de &#64;{{ t }}</span><span class="text-body-s text-text-tertiary">Quiere unirse a tu sala · ahora</span></p>
         <a href="#solicitudes" class="flex min-h-11 shrink-0 items-center text-label-s text-accent-text hover:underline" (click)="toast.set(null)">Ver</a>
       </div>
     }
@@ -208,6 +229,8 @@ export class SalaPage {
   protected readonly confirmarCierre = signal(false);
   protected readonly confirmarSalida = signal(false);
   protected readonly ahora = signal(Date.now());
+  /** Ya juega en otra sala hoy (el lobby lo dice): no se le ofrece solicitar. */
+  protected readonly otraSala = signal(false);
   private origenPopover: HTMLElement | null = null;
   /** ST3-R1-3: 800 ms de margen y como mucho una recarga cada 3 s. */
   private readonly agrupada = recargaAgrupada(() => void this.recargar());
@@ -216,10 +239,19 @@ export class SalaPage {
   protected readonly sala = computed(() => this.detalle()?.sala ?? null);
   protected readonly esAnfitrion = computed(() => this.detalle()?.filas.some((f) => f.esYo && f.esAnfitrion) ?? false);
   protected readonly abierta = computed(() => ['esperando', 'lista', 'llena'].includes(this.sala()?.estado ?? ''));
+  /** UX6-R1-1: lo que puede hacer quien no es miembro (sala pública, abierta y sin empezar). */
+  protected readonly accionUnirse = computed<'solicitar' | 'cancelar' | null>(() => {
+    const d = this.detalle();
+    if (!d || d.sala.esMia || d.empezada || !d.sala.publica || this.otraSala()) return null;
+    if (d.sala.miSolicitud === 'pendiente') return 'cancelar';
+    const ok = (d.sala.estado === 'esperando' || d.sala.estado === 'lista') && d.sala.miSolicitud !== 'rechazada' && d.sala.miSolicitud !== 'expulsada';
+    return ok ? 'solicitar' : null;
+  });
+  protected readonly puedeSolicitar = computed(() => this.accionUnirse() === 'solicitar');
   protected readonly llena = computed(() => (this.sala()?.miembros ?? 0) >= (this.sala()?.plazas ?? 0));
   protected readonly subtitulo = computed(() => {
     const d = this.detalle();
-    if (!d) return '';
+    if (!d) return '\u00a0'; // UX6-R1-9: reserva la línea mientras carga
     const dia = d.jornada?.dia ? ' · día ' + new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short' }).format(new Date(d.jornada.dia)) : '';
     return `${this.esAnfitrion() ? 'Eres el anfitrión' : 'Anfitrión @' + d.sala.anfitrion}${dia} · ${d.sala.miembros}/${d.sala.plazas} jugadores`;
   });
@@ -326,6 +358,11 @@ export class SalaPage {
       this.noExiste.set(false);
       this.errorCarga.set(false);
       this.seo.set({ title: `${d.sala.nombre} · Salas de GRS Fantasy`, description: `La sala «${d.sala.nombre}» de GRS Fantasy: jugadores, clasificación en directo y mercado.`, path: '/fantasy/salas/' + this.id });
+      if (!d.sala.esMia && !d.empezada && this.fan.conSesion())
+        void this.juegos
+          .salas(undefined, d.jornada?.id, 1)
+          .then((l) => this.otraSala.set(!!l.miSala && l.miSala !== this.id))
+          .catch(() => undefined);
       void this.juegos
         .fantasyMercado(d.jornada?.id, this.id)
         .then((m) => this.mercado.set({ libres: m.atletas.filter((a) => a.libre).length, total: m.atletas.length }))
@@ -372,6 +409,13 @@ export class SalaPage {
   }
   protected responder(solicitudId: string, aceptar: boolean): void {
     void this.operar(solicitudId, () => this.juegos.responderSolicitud(this.id, solicitudId, aceptar));
+  }
+  protected solicitar(): void {
+    if (!this.fan.conSesion()) return this.fan.abrirAcceso('fantasy', '/fantasy/salas/' + this.id);
+    void this.operar('solicitar', () => this.juegos.solicitar(this.id));
+  }
+  protected cancelarSolicitud(): void {
+    void this.operar('solicitar', () => this.juegos.cancelarSolicitud(this.id));
   }
   protected expulsar(f: FilaSala): void {
     void this.operar(f.miembroId, () => this.juegos.expulsar(this.id, f.miembroId));

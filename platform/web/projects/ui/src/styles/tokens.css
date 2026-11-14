@@ -103,6 +103,8 @@
 @utility text-label-s { font-family: var(--font-sans); font-weight: 600; font-size: 0.875rem; line-height: 1.2; }
 @utility text-label-xs { font-family: var(--font-sans); font-weight: 500; font-size: 0.75rem; line-height: 1.2; letter-spacing: 0.04em; text-transform: uppercase; }
 @utility text-mono-s { font-family: var(--font-mono); font-weight: 400; font-size: 0.8125rem; line-height: 1.4; }
+/* UX6-R1-5: metadata on mobile game cards, >= 13 px */
+@utility text-meta { font-family: var(--font-mono); font-weight: 500; font-size: 0.8125rem; line-height: 1.4; letter-spacing: 0.06em; text-transform: uppercase; }
 @utility text-mono-xs { font-family: var(--font-mono); font-weight: 500; font-size: 0.6875rem; line-height: 1.4; letter-spacing: 0.08em; text-transform: uppercase; }
 
 /* ---- Grain (effect styles Grain/Fondo, Grain/Fondo suave, Grain/Acento) ---- */

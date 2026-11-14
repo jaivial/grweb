@@ -67,7 +67,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
             </gr-select>
           </div>
         </div>
-        <p class="mt-3 font-mono text-[12px] font-medium text-text-muted">{{ atletas().length }} atletas en juego</p>
+        <p class="mt-3 font-mono text-[12px] font-medium text-text-tertiary">{{ atletas().length }} atletas en juego</p>
 
         @if (error()) {
           <gr-aviso class="mt-4" tono="error" titulo="No hemos podido completar la operación">{{ error() }}</gr-aviso>
@@ -81,10 +81,10 @@ type FiltroSexo = 'todos' | 'F' | 'M';
             @if (equipo()) {
               <a routerLink="/fantasy" class="mb-4 flex items-center gap-3 rounded-md border border-info/30 bg-info/5 px-4 py-3 lg:hidden">
                 <span class="min-w-0 flex-1">
-                  <span class="block text-mono-xs text-info">Mi alineación · {{ fichados() }}/{{ plantillaMax() }}</span>
+                  <span class="block text-meta text-info">Mi alineación · {{ fichados() }}/{{ plantillaMax() }}</span>
                   <span class="mt-1.5 block h-1.5 overflow-hidden rounded-pill bg-bg-raised"><span class="block h-full rounded-pill bg-info" [style.width.%]="porcentajePlantilla()"></span></span>
                 </span>
-                <span class="shrink-0 text-right"><span class="block font-mono text-label-s text-text-primary">{{ clausulazosUsados() }}/{{ maxClausulazos() }}</span><span class="block text-mono-xs text-text-muted">clausulazos</span></span>
+                <span class="shrink-0 text-right"><span class="block font-mono text-label-s text-text-primary">{{ clausulazosUsados() }}/{{ maxClausulazos() }}</span><span class="block text-meta text-text-tertiary">clausulazos</span></span>
                 <gr-icon name="chevron-right" [size]="18" class="shrink-0 text-text-tertiary" />
               </a>
             }
@@ -97,7 +97,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
               </div>
             } @else {
               <!-- Cabecera de la tabla (escritorio) -->
-              <p class="mb-2 hidden items-center gap-4 pr-3 pl-[70px] text-mono-xs text-text-muted lg:flex" aria-hidden="true">
+              <p class="mb-2 hidden items-center gap-4 pr-3 pl-[70px] text-meta text-text-tertiary lg:flex" aria-hidden="true">
                 <span class="flex-1">Atleta</span>
                 <span class="w-[72px]">Tendencia</span>
                 <span class="w-24 text-right">Cláusula</span>
@@ -115,11 +115,11 @@ type FiltroSexo = 'todos' | 'F' | 'M';
               @if (visibles().length > pagina().length) {
                 <div class="mt-4 flex flex-col items-center gap-2">
                   <button grButton variant="secondary" iconRight="chevron-down" (click)="limite.set(limite() + PAGINA)">Ver {{ Math.min(PAGINA, visibles().length - pagina().length) }} atletas más</button>
-                  <p class="font-mono text-[11px] text-text-tertiary uppercase">{{ pagina().length }} de {{ visibles().length }}</p>
+                  <p class="font-mono text-[13px] text-text-tertiary uppercase">{{ pagina().length }} de {{ visibles().length }}</p>
                 </div>
               }
             }
-            <p class="mt-5 flex items-start gap-2 text-body-xs text-text-tertiary">
+            <p class="mt-5 flex items-start gap-2 text-body-s text-text-tertiary">
               <gr-icon name="zap" [size]="15" class="mt-px shrink-0 text-accent-text" />
               Clausulazo: pagas la cláusula y el dinero va al dueño anterior. Máximo {{ maxClausulazos() }} clausulazos por usuario y jornada; sin deuda: no se puede dejar el saldo en negativo.
             </p>
@@ -128,12 +128,12 @@ type FiltroSexo = 'todos' | 'F' | 'M';
           <!-- La columna de la derecha del diseño -->
           <aside class="flex min-w-0 flex-col gap-4 lg:sticky lg:top-28 lg:self-start">
             <section class="hidden rounded-lg border border-line-subtle bg-bg-card p-4 lg:block">
-              <p class="flex items-center justify-between gap-2"><span class="text-mono-xs text-info">Mi alineación</span><span class="font-mono text-label-s text-text-primary">{{ fichados() }}/{{ plantillaMax() }}</span></p>
-              <p class="mt-1 text-body-xs text-text-tertiary">{{ descripcionPlantilla() }}</p>
+              <p class="flex items-center justify-between gap-2"><span class="text-meta text-info">Mi alineación</span><span class="font-mono text-label-s text-text-primary">{{ fichados() }}/{{ plantillaMax() }}</span></p>
+              <p class="mt-1 text-body-s text-text-tertiary">{{ descripcionPlantilla() }}</p>
               <span class="mt-3 block h-1.5 w-full overflow-hidden rounded-pill bg-bg-raised">
                 <span class="block h-full rounded-pill bg-info" [style.width.%]="porcentajePlantilla()"></span>
               </span>
-              <dl class="mt-4 flex flex-col gap-1.5 text-body-xs">
+              <dl class="mt-4 flex flex-col gap-1.5 text-body-s">
                 <div class="flex items-center justify-between gap-2"><dt class="text-text-tertiary">Saldo fantasy</dt><dd class="font-mono font-bold text-info tabular-nums">{{ saldo() !== null ? monedas(saldo()!) : '—' }}</dd></div>
                 <div class="flex items-center justify-between gap-2"><dt class="text-text-tertiary">Valor de la alineación</dt><dd class="font-mono text-text-primary tabular-nums">{{ gastado() !== null ? monedas(gastado()!) : '—' }}</dd></div>
                 <div class="flex items-center justify-between gap-2"><dt class="text-text-tertiary">Clausulazos usados</dt><dd class="font-mono text-text-primary">{{ clausulazosUsados() !== null ? clausulazosUsados() + ' de ' + maxClausulazos() : '—' }}</dd></div>
@@ -141,7 +141,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
             </section>
 
             <section class="rounded-lg border border-line-subtle bg-bg-card p-4" aria-labelledby="feed-mercado">
-              <p id="feed-mercado" class="text-mono-xs text-accent-text">Últimos movimientos</p>
+              <p id="feed-mercado" class="text-meta text-accent-text">Últimos movimientos</p>
               @if (feed().length) {
                 <ul class="mt-3 flex flex-col gap-2" aria-live="polite">
                   @for (m of feed().slice(0, verFeed() ? 20 : 6); track m.fecha + m.atletaId) {
@@ -152,7 +152,7 @@ type FiltroSexo = 'todos' | 'F' | 'M';
                   <button type="button" class="mt-2 h-11 w-full text-label-s text-accent-text hover:underline underline-offset-4 md:h-9" (click)="verFeed.set(!verFeed())">{{ verFeed() ? 'Ver menos' : 'Ver más movimientos' }}</button>
                 }
               } @else {
-                <p class="mt-2 text-body-xs text-text-tertiary">Todavía no hay movimientos: el primer fichaje de la jornada puede ser el tuyo.</p>
+                <p class="mt-2 text-body-s text-text-tertiary">Todavía no hay movimientos: el primer fichaje de la jornada puede ser el tuyo.</p>
               }
             </section>
           </aside>

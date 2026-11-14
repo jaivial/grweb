@@ -21,7 +21,7 @@ import { CrearSalaModal, PopoverAlineacion, TarjetaEstado } from './salas-ui';
 type Filtro = 'todas' | 'abiertas' | 'en_juego' | 'cerradas';
 const FAVORITAS = 'grcup.fantasy.salas.favoritas';
 /** ST3-R6-3: salas públicas por página del lobby (el backend limita a 200). */
-const PAGINA_SALAS = 30;
+const PAGINA_SALAS = 10;
 const TOPE_SALAS = 200;
 const ABIERTA = new Set(['esperando', 'lista', 'llena']);
 const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
@@ -83,14 +83,19 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
         }
 
         <div class="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
-          <label class="flex h-12 min-w-0 flex-1 items-center gap-3 rounded-md border bg-bg-field px-4 focus-within:border-line-accent" [class]="q() ? 'border-line-accent' : 'border-line-strong'">
-            <gr-icon name="search" [size]="20" class="shrink-0 text-text-muted" />
+          <label class="flex h-12 min-w-0 flex-1 items-center gap-3 rounded-md border bg-bg-field px-4 focus-within:border-line-accent" [class.border-line-accent]="!!q()" [class.border-line-strong]="!q()">
+            <gr-icon name="search" [size]="20" class="shrink-0 text-text-tertiary" />
             <span class="sr-only">Buscar sala por nombre</span>
-            <input type="search" class="min-w-0 flex-1 bg-transparent text-body-m text-text-primary outline-none placeholder:text-text-muted [&::-webkit-search-cancel-button]:hidden" placeholder="Buscar sala por nombre…" autocomplete="off"
+            <input type="search" class="min-w-0 flex-1 bg-transparent text-body-m text-text-primary outline-none placeholder:text-text-muted [&::-webkit-search-cancel-button]:hidden" placeholder="Buscar sala por nombre…" autocomplete="off" enterkeyhint="search" inputmode="search"
               [ngModel]="q()" (ngModelChange)="buscar($event)" />
             @if (q()) { <button type="button" class="-mr-3 flex size-11 shrink-0 items-center justify-center text-text-secondary hover:text-text-primary" aria-label="Borrar búsqueda" (click)="buscar('')"><gr-icon name="x" [size]="20" /></button> }
           </label>
-          <button type="button" grButton variant="primary" class="w-full md:w-auto" (click)="abrirCrear()">Crear sala</button>
+          <div class="hidden md:block"><button type="button" grButton variant="primary" (click)="abrirCrear()">Crear sala</button></div>
+        </div>
+        <!-- UX6-R1-2: en móvil «Crear sala» siempre a mano, en la zona del pulgar -->
+        <div class="h-20 md:hidden" aria-hidden="true"></div>
+        <div class="fixed inset-x-0 bottom-0 z-40 border-t border-line-subtle bg-bg-base/95 px-4 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgb(0_0_0/0.45)] backdrop-blur-[10px] md:hidden">
+          <button type="button" grButton variant="primary" [block]="true" size="l" (click)="abrirCrear()">Crear sala</button>
         </div>
 
         <gr-selector class="md:hidden" etiqueta="Estado" [opciones]="opcionesFiltro()" [valor]="filtro()" (elegir)="filtro.set($any($event))" />
@@ -122,7 +127,7 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
           </div>
         } @else {
           <div class="flex flex-col gap-3" [class.opacity-55]="vivo.caida()">
-            <p class="hidden items-center gap-6 px-5 text-mono-xs text-text-muted xl:flex" aria-hidden="true">
+            <p class="hidden items-center gap-6 px-5 text-meta text-text-tertiary xl:flex" aria-hidden="true">
               <span class="min-w-0 flex-1">Sala</span><span class="w-40">Jugadores</span><span class="w-[190px]">Estado</span><span class="w-[260px]">Va ganando (media)</span><span class="w-[180px]"></span><span class="w-11"></span>
             </p>
             <ul class="flex flex-col gap-3" aria-live="polite">
@@ -131,14 +136,14 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
                   <div class="flex min-w-0 items-center gap-2 xl:flex-1">
                     <p class="flex min-w-0 flex-1 flex-col gap-1">
                       <a [href]="'/fantasy/salas/' + s.id" class="truncate text-ui-h5 text-text-primary hover:underline underline-offset-4">{{ s.nombre }}</a>
-                      <span class="flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="user" [size]="16" class="shrink-0" /><span class="truncate">Anfitrión &#64;{{ s.anfitrion }}{{ s.esMia ? ' · tu sala' : '' }}</span></span>
+                      <span class="flex items-center gap-1.5 text-body-s text-text-tertiary"><gr-icon name="user" [size]="16" class="shrink-0" /><span class="truncate">Anfitrión &#64;{{ s.anfitrion }}{{ s.esMia ? ' · tu sala' : '' }}</span></span>
                     </p>
                     <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-full xl:hidden" [class]="favoritas().has(s.id) ? 'text-warning' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-pressed]="favoritas().has(s.id)" [attr.aria-label]="(favoritas().has(s.id) ? 'Quitar de favoritas: ' : 'Marcar como favorita: ') + s.nombre" (click)="favorita(s)">
                       <gr-icon name="star" [size]="20" />
                     </button>
                   </div>
                   <p class="flex flex-col gap-1.5 xl:w-40">
-                    <span class="flex items-center gap-2"><span class="text-mono-s text-text-primary tabular-nums">{{ s.miembros }}/{{ s.plazas }}</span><span class="text-mono-xs text-text-muted">jugadores</span></span>
+                    <span class="flex items-center gap-2"><span class="text-mono-s text-text-primary tabular-nums">{{ s.miembros }}/{{ s.plazas }}</span><span class="text-meta text-text-tertiary">jugadores</span></span>
                     <span class="block h-1.5 overflow-hidden rounded-pill bg-bg-field" aria-hidden="true"><span class="block h-full rounded-pill" [class]="s.plazas - s.miembros <= 1 && s.estado !== 'en_juego' ? 'bg-warning' : 'bg-accent'" [style.width.%]="s.plazas ? (s.miembros / s.plazas) * 100 : 0"></span></span>
                   </p>
                   <p class="flex flex-wrap items-center gap-2 xl:w-[190px] xl:flex-col xl:items-start xl:gap-1">
@@ -152,7 +157,7 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
                         <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-700 text-display-label text-text-primary">{{ ini(l.alias) }}</span>
                         <span class="flex min-w-0 flex-col gap-0.5">
                           <span class="truncate text-label-s text-text-primary">&#64;{{ l.alias }}</span>
-                          <span class="truncate text-mono-xs text-accent-text">Media {{ n2(l.nota) }} · {{ cerrada(s) ? 'ganó' : 'va ganando' }}</span>
+                          <span class="truncate text-meta text-accent-text">Media {{ n2(l.nota) }} · {{ cerrada(s) ? 'ganó' : 'va ganando' }}</span>
                         </span>
                         <gr-icon name="eye" [size]="16" class="shrink-0 text-text-tertiary" />
                       </button>
@@ -160,12 +165,12 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
                         <gr-popover-alineacion [fila]="l" [sala]="s.nombre" [final]="cerrada(s)" [verSala]="'/fantasy/salas/' + s.id" (cerrar)="cerrarPopover()" />
                       }
                     } @else {
-                      <span class="text-body-xs text-text-muted">Sin clasificar todavía</span>
+                      <span class="text-body-s text-text-tertiary">Sin clasificar todavía</span>
                     }
                   </div>
                   <div class="xl:w-[180px]">
                     @switch (accion(s)) {
-                      @case ('solicitar') { <button type="button" grButton variant="primary" [block]="true" [loading]="operando() === s.id" (click)="solicitar(s)">Solicitar unirse</button> }
+                      @case ('solicitar') { <button type="button" grButton variant="outline" [block]="true" [loading]="operando() === s.id" (click)="solicitar(s)">Solicitar unirse</button> }
                       @case ('cancelar') { <button type="button" grButton variant="outline" [block]="true" [loading]="operando() === s.id" (click)="cancelar(s)">Cancelar solicitud</button> }
                       @case ('palmares') { <a grButton variant="outline" [block]="true" href="/fantasy/palmares">Ver palmarés</a> }
                       @default { <a grButton variant="outline" [block]="true" [href]="'/fantasy/salas/' + s.id">Ver sala</a> }
@@ -190,6 +195,10 @@ const CERRADA = new Set(['cerrada', 'cancelada', 'finalizada']);
       </div>
     </gr-page>
 
+    @if (toast(); as t) {
+      <!-- UX6-R1-6: feedback sin mover la lista -->
+      <p class="fixed inset-x-4 bottom-[calc(96px+env(safe-area-inset-bottom))] z-50 rounded-md border border-line-accent bg-bg-deep px-4 py-3 text-body-s text-text-primary shadow-card md:inset-x-auto md:right-6 md:bottom-6 md:w-[380px]" role="status">{{ t }}</p>
+    }
     @if (crear()) {
       <gr-crear-sala-modal [atletas]="lobby()?.atletas ?? 0" [plazasMax]="lobby()?.plazasMax ?? 0" [puedeCrear]="lobby()?.puedeCrear ?? false" [alias]="fan.yo()?.alias ?? ''"
         (cerrar)="crear.set(false)" (hecho)="creada($event)" />
@@ -220,6 +229,8 @@ export class SalasPage {
   protected readonly crear = signal(false);
   protected readonly popover = signal<string | null>(null);
   protected readonly favoritas = signal<Set<string>>(new Set());
+  protected readonly toast = signal<string | null>(null);
+  private esperaToast: ReturnType<typeof setTimeout> | undefined;
   private origenPopover: HTMLElement | null = null;
   private esperaHover: ReturnType<typeof setTimeout> | undefined;
   private esperaBusqueda: ReturnType<typeof setTimeout> | undefined;
@@ -250,7 +261,7 @@ export class SalasPage {
     ];
   });
   /** Las salas con una solicitud mía que tiene algo que contar (pendiente, aceptada, rechazada…). */
-  protected readonly misSolicitudes = computed(() => this.salas().filter((s) => s.miSolicitud && s.miSolicitud !== 'cancelada' && s.miSolicitud !== 'expulsada' && !(s.miSolicitud === 'aceptada' && s.esMia)));
+  protected readonly misSolicitudes = computed(() => this.salas().filter((s) => s.miSolicitud && s.miSolicitud !== 'pendiente' && s.miSolicitud !== 'cancelada' && s.miSolicitud !== 'expulsada' && !(s.miSolicitud === 'aceptada' && s.esMia)));
 
   constructor() {
     const seo = inject(Seo);
@@ -286,6 +297,7 @@ export class SalasPage {
         this.agrupada.cancelar();
         clearTimeout(this.esperaHover);
         clearTimeout(this.esperaBusqueda);
+        clearTimeout(this.esperaToast);
         this.vivo.desconectar();
       });
     }
@@ -344,6 +356,9 @@ export class SalasPage {
     try {
       await this.juegos.solicitar(s.id);
       await this.recargar();
+      const l = this.lobby();
+      this.avisar(`Solicitud enviada a @${s.anfitrion} · ${l?.solicitudesPendientes ?? 1} de ${l?.solicitudesMax ?? 3} pendientes`);
+      return;
     } catch (e) {
       const c = codigoError(e);
       if (c === 'MAX_SOLICITUDES') this.maximo.set(true);
@@ -353,6 +368,11 @@ export class SalasPage {
     } finally {
       this.operando.set(null);
     }
+  }
+  private avisar(t: string): void {
+    this.toast.set(t);
+    clearTimeout(this.esperaToast);
+    this.esperaToast = setTimeout(() => this.toast.set(null), 4000);
   }
   protected async cancelar(s: SalaVista): Promise<void> {
     this.operando.set(s.id);
