@@ -1,281 +1,293 @@
 /**
- * porra/porra.ts — /porra (Figma «71 · /porra» · Mercados): los mercados de la jornada con su bote y sus cuotas
- * en vivo, el boleto de apuesta, el selector de jornada y los premios como gancho.
+ * porra/porra.ts — /porra (Figma 211:141707 «Hacer porra», 211:143732 estados y 211:163291 «En vivo»): dos pestañas
+ * por query param (`?vista=en-vivo`). «Hacer porra»: jornada, buscador global y un acordeón por sexo + categoría de
+ * peso con su buscador y sus atletas; al tocar uno, chips de monedas + stepper y «Confirmar porra · N». «En vivo»:
+ * el ranking de atletas por monedas apostadas (sin agrupar por categoría), con refresco en vivo y reordenación FLIP.
  */
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, effect, inject, signal, untracked } from '@angular/core';
-import { GrAlert, GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router } from '@angular/router';
+import { GrAlert, GrIcon, GrSkeleton } from '@grcup/ui';
+import { map } from 'rxjs';
 import { Cms } from '../../core/cms';
 import { FanSession, codigoError } from '../../core/fan';
-import { Juegos, JuegosEnVivo, JuegosEstado, PorraStore, TIPO_MERCADO, type Mercado, type TipoMercado, mensajeError } from '../../core/juegos';
-import { monedas } from './formato';
+import { Juegos, JuegosEnVivo, JuegosEstado, PorraStore, type Jornada, type Mercado, type Sexo, mensajeError } from '../../core/juegos';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
-import { BoletoApuesta, CoinBalance, MarketCard, PorraCabecera, PremioCard } from './componentes';
+import { CoinBalance } from './componentes';
+import { monedas } from './formato';
+import { RankingPorra, kg, mercadosCategoria, misPorras, rankingAtletas, sexoTxt } from './ranking';
 
-type FiltroTipo = 'todas' | TipoMercado;
-type FiltroSexo = 'todos' | 'F' | 'M';
+type Vista = 'hacer' | 'en-vivo';
+
+/** Sin tildes ni mayúsculas, para los buscadores. */
+const norm = (s: string): string => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+/** El peso de la categoría como número para ordenar («-63» → 63, «84+» → 84.5). */
+const peso = (c: string | undefined): number => (c ? parseFloat(c.replace('-', '')) + (c.endsWith('+') ? 0.5 : 0) : 999);
+/** «Sáb 19» a partir de la fecha ISO del día. */
+export function diaCorto(dia: string): string {
+  if (!dia) return '';
+  const d = new Intl.DateTimeFormat('es-ES', { weekday: 'short', timeZone: 'UTC' }).format(new Date(dia + 'T12:00:00Z')).replace('.', '');
+  return d.charAt(0).toUpperCase() + d.slice(1) + ' ' + Number(dia.slice(8, 10));
+}
+
+const VISIBLES = 5;
+const TOP = 10;
 
 @Component({
   selector: 'gr-porra-page',
-  imports: [Page, GrAlert, GrButton, GrIcon, GrSkeleton, BoletoApuesta, CoinBalance, MarketCard, PorraCabecera, PremioCard],
+  imports: [Page, GrAlert, GrIcon, GrSkeleton, CoinBalance, RankingPorra],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Porra" [juego]="true">
-      <gr-porra-cabecera [titulo]="'Porra ' + jornadaTxt() + (jornadaActiva()?.estado === 'cerrada' ? ' · Cerrada' : '')" activa="mercados"
-        descripcion="Apuesta con monedas virtuales a la ganadora de cada categoría, al mejor IPF GL por sexo y a cada movimiento. La cuota se mueve en vivo con cada apuesta y es estimada: el reparto final depende del bote.">
-        <ng-container aside>
-          <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" />
-          @if (fan.conSesion()) {
-            <button type="button" class="inline-flex min-h-11 items-center font-mono text-[0.8125rem] text-info underline-offset-4 hover:underline" [attr.aria-expanded]="verCartera()" (click)="verCartera.set(!verCartera())">{{ verCartera() ? 'Ocultar cartera' : 'Ver cartera y movimientos' }} →</button>
-          }
-        </ng-container>
-      </gr-porra-cabecera>
-      <!-- UX5-R1-2: saldo + «gana monedas» en una fila con disclosure -->
-      <div class="flex min-h-11 items-center justify-between gap-3 md:hidden">
-        <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" />
-        <button type="button" class="-mr-2 inline-flex min-h-11 items-center gap-1 px-2 text-label-s text-accent-text" [attr.aria-expanded]="verChat()" aria-controls="porra-chat" (click)="verChat.set(!verChat())">
-          Gana monedas <gr-icon name="chevron-down" [size]="16" class="transition-transform motion-reduce:transition-none" [class.rotate-180]="verChat()" /></button>
-      </div>
-
-      @if (soloLectura()) {
-        <p class="flex items-start gap-2 rounded-md border border-line-subtle bg-bg-card px-4 py-3 text-body-s text-text-secondary" role="status">
-          <gr-icon name="eye" [size]="16" class="mt-0.5 shrink-0 text-info" />
-          <span>@if (jornadaActiva()?.estado === 'cerrada') { Estás viendo el histórico de {{ jornadaNombre() }} en solo lectura.@if (otraAbierta(); as o) { Para apostar, cambia a {{ o }}.} } @else { La hora de cierre de {{ jornadaNombre() }} ya ha pasado: puedes consultar los mercados, pero no apostar. }</span>
-        </p>
-      }
-
-      @if (verCartera() && cartera()) {
-        <section class="rounded-lg border border-line-subtle bg-bg-card p-5" aria-label="Mi cartera">
-          <div class="flex flex-wrap items-center gap-x-8 gap-y-3">
-            <p class="flex items-baseline gap-2"><span class="text-mono-xs text-text-tertiary">Porra</span><span class="font-mono text-[1.25rem] font-bold text-accent-text tabular-nums">{{ monedas(cartera()!.porra) }}</span></p>
-            <p class="flex items-baseline gap-2"><span class="text-mono-xs text-text-tertiary">Fantasy</span><span class="font-mono text-[1.25rem] font-bold text-info tabular-nums">{{ monedas(cartera()!.fantasy) }}</span></p>
+      <div class="mx-auto flex w-full max-w-[640px] flex-col gap-5">
+        <!-- cabecera: migas, título y saldo -->
+        <div class="flex flex-col gap-2">
+          <nav class="text-body-xs text-text-tertiary" aria-label="Migas">
+            <a href="/" class="hover:text-text-primary">Inicio</a> · Juegos · Porra@if (vista() === 'en-vivo') { · En vivo }
+          </nav>
+          <div class="flex items-center justify-between gap-3">
+            <h1 class="bg-[linear-gradient(180deg,#ff5a6e,#c8102e)] bg-clip-text pr-1.5 font-display text-[2rem] leading-none text-transparent uppercase italic">Porra</h1>
+            <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" [etiquetaMovil]="false" />
           </div>
-          @if (cartera()!.movimientos.length) {
-            <ul class="mt-4 flex flex-col divide-y divide-line-subtle border-t border-line-subtle">
-              @for (m of cartera()!.movimientos; track m.createdAt + m.motivo) {
-                <li class="flex items-center justify-between gap-3 py-2.5 text-body-xs">
-                  <span class="min-w-0 truncate text-text-secondary">{{ m.motivo }}</span>
-                  <span class="shrink-0 font-mono tabular-nums" [class]="m.importe >= 0 ? 'text-success' : 'text-accent-text'">{{ m.importe >= 0 ? '+' : '' }}{{ monedas(m.importe) }}</span>
-                </li>
-              }
-            </ul>
-          } @else {
-            <p class="mt-3 text-body-xs text-text-tertiary">Todavía no hay movimientos en la cartera.</p>
-          }
-        </section>
-      }
-
-      <!-- Figma «Cómo ganar monedas» + «Selector · jornada» (en móvil el selector va debajo, como un desplegable) -->
-      <section id="porra-chat" class="flex-col gap-2.5 rounded-lg border border-line-subtle bg-bg-card p-3 md:flex md:flex-row md:items-center md:justify-between md:gap-6 md:p-4" [class]="verChat() ? 'flex' : 'hidden'">
-        <div class="flex min-w-0 flex-col gap-2.5 md:gap-2">
-          <p class="text-[0.75rem] leading-[1.2] font-medium tracking-[0.04em] text-accent-text uppercase"><span class="md:hidden">Gana más monedas en el chat</span><span class="hidden md:inline">Gana más monedas escribiendo en el chat</span></p>
-          <p class="flex items-center gap-2 text-body-s text-text-primary"><gr-icon name="zap" [size]="14" class="shrink-0 text-accent-text" /><span>5 mensajes<span class="hidden md:inline"> en el chat</span>: +{{ hito5() }}</span></p>
-          <p class="flex flex-wrap items-center gap-x-2 text-body-s text-text-primary"><gr-icon name="zap" [size]="14" class="shrink-0 text-accent-text" /><span>10 mensajes: +{{ hito10() }} (se suma<span class="hidden md:inline"> al de 5</span>)</span><span class="hidden font-mono text-[0.75rem] font-medium text-text-tertiary md:inline">máx. 100 hitos por jornada</span></p>
         </div>
-        <div class="hidden w-[320px] shrink-0 flex-col items-end gap-2 md:flex">
-          @if (jornadas().length > 3) {
-            <!-- UX5-R1-9: con muchas jornadas, desplegable en lugar del segmented -->
-            <label class="relative block w-full">
-              <span class="sr-only">Jornada</span>
-              <select class="h-11 w-full appearance-none rounded-md border border-line-strong bg-bg-field pr-12 pl-4 text-label-s text-text-primary" (change)="elegirJornada($any($event.target).value)">
-                @for (j of jornadas(); track j.id) { <option [value]="j.id" [selected]="j.id === jornadaActiva()?.id">{{ etiquetaJornada(j) }}</option> }
-              </select>
-              <gr-icon name="chevron-down" [size]="20" class="pointer-events-none absolute top-3 right-4" />
-            </label>
-          } @else {
-          <div class="flex w-full gap-1 rounded-md border border-line-subtle bg-bg-field p-1" role="group" aria-label="Jornada">
-            @for (j of jornadas(); track j.id) {
-              <button type="button" class="h-11 min-w-0 flex-1 truncate rounded-xs px-2 text-label-s transition-colors"
-                [class]="j.id === jornadaActiva()?.id ? 'bg-accent-grain text-white shadow-glow-deep' : 'text-text-tertiary hover:text-text-primary'"
-                [attr.aria-pressed]="j.id === jornadaActiva()?.id" (click)="elegirJornada(j.id)">{{ etiquetaJornada(j) }}</button>
-            } @empty { <gr-skeleton class="h-11 w-full rounded-xs" /> }
-          </div>
-          }
-          @if (jornadaNombre()) { <p class="text-body-xs text-text-tertiary">El histórico de {{ jornadaNombre() }} se guarda al cerrar</p> }
-        </div>
-      </section>
 
-      <!-- móvil: jornada y filtro como desplegables (Figma «Selector · jornada» / «Selector · filtro») -->
-      <div class="grid grid-cols-2 gap-2 md:hidden">
-      <label class="relative block min-w-0">
-        <span class="sr-only">Jornada</span>
-        <select class="h-11 w-full appearance-none truncate rounded-md border border-line-strong bg-bg-field pr-9 pl-3 text-label-s text-text-primary" (change)="elegirJornada($any($event.target).value)">
-          @for (j of jornadas(); track j.id) { <option [value]="j.id" [selected]="j.id === jornadaActiva()?.id">{{ etiquetaJornada(j) }}</option> }
-        </select>
-        <gr-icon name="chevron-down" [size]="20" class="pointer-events-none absolute top-3 right-3" />
-      </label>
-      <label class="relative block min-w-0">
-        <span class="sr-only">Tipo de mercado</span>
-        <select class="h-11 w-full appearance-none truncate rounded-md border border-line-strong bg-bg-field pr-9 pl-3 text-label-s text-text-primary" (change)="filtroMovil($any($event.target).value)">
-          @for (o of tipos; track o.v) { <option [value]="'t:' + o.v" [selected]="o.v === filtroTipo() && filtroSexo() === 'todos'">{{ o.l }}</option> }
-          @for (o of sexos.slice(1); track o.v) { <option [value]="'s:' + o.v" [selected]="o.v === filtroSexo()">{{ o.l }}</option> }
-        </select>
-        <gr-icon name="chevron-down" [size]="20" class="pointer-events-none absolute top-3 right-3" />
-      </label>
-      </div>
-
-      <!-- escritorio: chips de tipo · sexo · recuento en una fila -->
-      <div class="hidden flex-wrap items-center gap-2 md:flex">
-        <div class="flex gap-2" role="group" aria-label="Tipo de mercado">
-          @for (o of tipos; track o.v) {
-            <button type="button" class="h-11 rounded-pill border px-3 text-label-xs transition-colors pointer-fine:h-8" [class]="chip(o.v === filtroTipo())" [attr.aria-pressed]="o.v === filtroTipo()" (click)="filtroTipo.set(o.v)">{{ o.l }}</button>
+        <!-- pestañas Hacer porra / En vivo -->
+        <div class="flex border-b border-line-subtle" role="tablist" aria-label="Porra">
+          @for (t of pestanas; track t.v) {
+            <button type="button" role="tab" class="-mb-px h-11 flex-1 border-b-2 text-label-s transition-colors motion-reduce:transition-none"
+              [class]="vista() === t.v ? 'border-accent text-text-primary' : 'border-transparent text-text-tertiary hover:text-text-primary'"
+              [attr.aria-selected]="vista() === t.v" (click)="irA(t.v)">{{ t.l }}</button>
           }
         </div>
-        <span class="size-3 shrink-0" aria-hidden="true"></span>
-        <div class="flex gap-2" role="group" aria-label="Sexo">
-          @for (o of sexos; track o.v) {
-            <button type="button" class="h-11 rounded-pill border px-3 text-label-xs transition-colors pointer-fine:h-8" [class]="chip(o.v === filtroSexo())" [attr.aria-pressed]="o.v === filtroSexo()" (click)="filtroSexo.set(o.v)">{{ o.l }}</button>
-          }
-        </div>
-        <span class="size-3 shrink-0" aria-hidden="true"></span>
-        @if (!store.cargando() && !store.error()) {
-          <p class="font-mono text-[0.75rem] font-medium text-text-tertiary">{{ n('abierto') }} abiertos · {{ n('cerrado') }} cerrados · {{ n('liquidado') }} liquidados</p>
-        }
-      </div>
 
-      @if (store.cargando()) {
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-busy="true">
-          @for (i of [1, 2, 3]; track i) { <gr-skeleton class="h-[480px] rounded-lg" /> }
-        </div>
-      } @else if (store.error(); as e) {
-        <gr-alert tone="warning" title="No hemos podido cargar los mercados">{{ e }}</gr-alert>
-      } @else if (!mercadosVisibles().length) {
-        <div class="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line-strong bg-bg-card/40 px-6 py-14 text-center">
-          <span class="flex size-14 items-center justify-center rounded-full border border-accent/50 bg-accent-deep/40 text-accent-text shadow-glow-deep"><gr-icon name="trophy" [size]="24" /></span>
-          <p class="text-display-xs">{{ todosMercados().length ? 'Ningún mercado con estos filtros' : 'Los mercados abren con la jornada' }}</p>
-          <p class="max-w-md text-body-s text-text-tertiary">{{ todosMercados().length ? 'Prueba con otro tipo o con ambos sexos.' : 'Se generan cuando empieza la competición. Vuelve en unos minutos: tienes 100.000 monedas esperando.' }}</p>
-          @if (todosMercados().length) { <button grButton variant="secondary" (click)="filtroTipo.set('todas'); filtroSexo.set('todos')">Quitar filtros</button> }
-        </div>
-      } @else {
-        <div class="grid gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
-          @for (m of mercadosVisibles(); track m.id) {
-            <gr-market-card [mercado]="m" [soloLectura]="soloLectura()" [minimo]="estado.porraMin()" [maximoApuesta]="estado.porraMax()" (apostar)="apostar($event)" />
-          }
-        </div>
-        @if (filtrados().length > 6) {
-          <button type="button" class="-my-2 inline-flex min-h-11 items-center self-start text-label-s text-text-primary underline-offset-4 hover:underline" (click)="verTodos.set(!verTodos())">
-            {{ verTodos() ? 'Ver menos mercados ←' : 'Ver todos los mercados (' + filtrados().length + ') →' }}
-          </button>
-        }
-      }
-
-      <!-- Premios de la jornada (gancho) -->
-      <section class="flex flex-col gap-3 md:gap-4" aria-labelledby="premios-porra">
-          <div class="flex flex-col gap-4">
-            <h2 id="premios-porra" class="text-[1.125rem] leading-[1.3] font-semibold text-text-primary uppercase md:font-display md:text-[0.75rem] md:font-normal md:leading-[1.25]">Premios de la jornada</h2>
-            <p class="hidden text-body-xs text-text-tertiary md:block">Los premios se abonan en monedas al liquidar la jornada. Gestionados en el backoffice, anunciados aquí y en directo.</p>
-          </div>
-          @if (premios().length) {
-            <div class="grid gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-[repeat(3,372px)]">
-              @for (p of premios(); track p.id) { <gr-premio-card [premio]="p" /> }
+        @if (store.cargando()) {
+          <div class="flex flex-col gap-3" aria-busy="true">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-16 rounded-md" /> }</div>
+        } @else if (store.error(); as e) {
+          <gr-alert tone="warning" title="No hemos podido cargar la porra">{{ e }}</gr-alert>
+        } @else if (vista() === 'hacer') {
+          <!-- jornada -->
+          @if (jornadas().length) {
+            <div class="flex flex-col gap-2">
+              <p class="font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">Jornada</p>
+              <div class="flex flex-wrap gap-2" role="group" aria-label="Jornada">
+                @for (j of jornadas(); track j.id) {
+                  <button type="button" class="flex min-h-11 flex-col items-start justify-center rounded-md border px-3 py-1.5 text-left transition-colors"
+                    [class]="j.id === jornadaActiva()?.id ? 'border-accent bg-accent/16' : 'border-line-subtle bg-bg-field hover:border-line-strong'"
+                    [attr.aria-pressed]="j.id === jornadaActiva()?.id" (click)="elegirJornada(j.id)">
+                    <span class="text-label-s text-text-primary">{{ diaCorto(j.dia) || j.nombre }}</span>
+                    <span class="text-[11px] leading-[1.3] text-text-tertiary">{{ nombreJornada(j) }}</span>
+                  </button>
+                }
+              </div>
             </div>
-          } @else {
-            <p class="rounded-lg border border-dashed border-line-strong bg-bg-card/40 px-4 py-6 text-body-s text-text-tertiary">Todavía no hay premios publicados para esta jornada.</p>
           }
-      </section>
-    </gr-page>
 
-    @if (boleto(); as b) {
-      <gr-boleto-apuesta [mercado]="boletoMercado()!" [opciones]="opciones(boletoMercado()!)" [atletaId]="b.atletaId" [saldo]="saldo()" [jornada]="jornadaTxt()"
-        [minimo]="estado.porraMin()" [maximoApuesta]="estado.porraMax()" [cargando]="enviando()" [error]="errorBoleto()" [exito]="exitoBoleto()" [hecho]="hecho()"
-        (cerrar)="cerrarBoleto()" (elegir)="elegirAtleta($event)" (confirmar)="confirmar($event)" />
-    }
+          <!-- buscador global -->
+          <label class="relative block">
+            <span class="sr-only">Busca un atleta por nombre</span>
+            <gr-icon name="search" [size]="18" class="pointer-events-none absolute top-3.5 left-3.5 text-text-tertiary" />
+            <input type="search" class="h-12 w-full rounded-md border border-line-subtle bg-bg-field pr-4 pl-11 text-body-s text-text-primary outline-none placeholder:text-text-muted focus-visible:border-accent-text"
+              placeholder="Busca un atleta por nombre" autocomplete="off" [value]="q()" (input)="q.set($any($event.target).value)" />
+          </label>
+
+          <div class="flex flex-col">
+            <p class="flex items-center justify-between gap-2 pb-2 font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">
+              <span>Categorías@if (jornadaActiva(); as j) { · {{ diaCorto(j.dia) }} }</span><span>{{ categorias().length }} {{ categorias().length === 1 ? 'categoría' : 'categorías' }}</span>
+            </p>
+            @for (m of categoriasVisibles(); track m.id) {
+              @let cerrada = cerradaM(m);
+              @let abierta = !cerrada && (abiertas().has(m.id) || !!q());
+              <section class="border-b border-line-subtle">
+                <button type="button" class="flex min-h-16 w-full items-center gap-3 py-3 text-left" [attr.aria-expanded]="cerrada ? null : abierta" [attr.aria-disabled]="cerrada || null"
+                  [attr.aria-controls]="'cat-' + m.id" (click)="alternar(m)">
+                  <span class="min-w-0 flex-1">
+                    <span class="block text-label-m" [class]="cerrada ? 'text-text-tertiary' : 'text-text-primary'">{{ etiqueta(m) }}</span>
+                    <span class="block text-body-xs text-text-tertiary">{{ m.opciones.length }} atletas · {{ cerrada ? (m.estado === 'liquidado' ? 'resuelta' : 'cerrada') : 'bote ' + monedas(m.bote) }}</span>
+                  </span>
+                  @if (miImporteMercado(m.id); as t) { <span class="inline-flex shrink-0 items-center gap-1 font-mono text-[12px] text-warning"><span class="size-2 rounded-full bg-warning" aria-hidden="true"></span>{{ monedas(t) }}</span> }
+                  @if (cerrada) { <gr-icon name="lock" [size]="16" class="shrink-0 text-text-tertiary" /><span class="sr-only">Categoría cerrada: ya no se puede hacer porra</span> }
+                  @else { <gr-icon name="chevron-down" [size]="18" class="shrink-0 text-text-secondary transition-transform duration-[240ms] motion-reduce:transition-none" [class.rotate-180]="abierta" /> }
+                </button>
+                @if (abierta) {
+                  <div [id]="'cat-' + m.id" class="flex flex-col gap-1 pb-4 motion-safe:animate-[gr-desplegar_240ms_ease-out]">
+                    @if (!q()) {
+                      <label class="relative mb-1 block">
+                        <span class="sr-only">Buscar en {{ etiqueta(m) }}</span>
+                        <gr-icon name="search" [size]="16" class="pointer-events-none absolute top-3 left-3 text-text-tertiary" />
+                        <input type="search" class="h-10 w-full rounded-md border border-line-subtle bg-bg-field pr-3 pl-9 text-body-s text-text-primary outline-none placeholder:text-text-muted focus-visible:border-accent-text"
+                          [placeholder]="'Buscar en ' + kg(m.categoria)" autocomplete="off" [value]="qCat()[m.id] ?? ''" (input)="buscarEn(m.id, $any($event.target).value)" />
+                      </label>
+                    }
+                    @let lista = atletas(m);
+                    @for (o of (verTodos().has(m.id) ? lista : lista.slice(0, visibles)); track o.atletaId) {
+                      @if (sel()?.mercadoId === m.id && sel()?.atletaId === o.atletaId) {
+                        <div class="my-1 flex flex-col gap-3 rounded-md border border-line-strong bg-bg-raised p-3.5 motion-safe:animate-[gr-desplegar_200ms_ease-out]">
+                          <p class="flex items-center gap-2.5">
+                            <gr-icon name="circle-check" [size]="18" class="shrink-0 text-accent-text" />
+                            <span class="min-w-0 flex-1 truncate text-label-m text-text-primary">{{ o.nombre }}</span>
+                            <button type="button" class="-my-2 min-h-11 px-1 text-label-s text-text-secondary hover:text-text-primary" (click)="sel.set(null)">Cambiar</button>
+                          </p>
+                          @if (exito(); as ok) {
+                            <p class="flex items-center gap-2 rounded-sm bg-success/10 px-3 py-2.5 text-body-s text-success" role="status"><gr-icon name="circle-check" [size]="16" class="shrink-0" />{{ ok }}</p>
+                          } @else {
+                            <p class="font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">¿Cuántas monedas?</p>
+                            <div class="grid grid-cols-5 gap-1.5" role="group" aria-label="Importe">
+                              @for (c of chips(); track c.l) {
+                                <button type="button" class="h-11 rounded-pill border font-mono text-[12px] transition-colors"
+                                  [class]="importe() === c.v ? 'border-accent bg-accent text-white' : 'border-line-subtle bg-bg-field text-text-secondary hover:text-text-primary'"
+                                  [attr.aria-pressed]="importe() === c.v" (click)="importe.set(c.v)">{{ c.l }}</button>
+                              }
+                            </div>
+                            <div class="flex items-center justify-between gap-3">
+                              <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong text-text-primary disabled:opacity-40" aria-label="Menos monedas" [disabled]="importe() <= minimo()" (click)="paso(-1)"><gr-icon name="minus" [size]="18" /></button>
+                              <p class="flex items-center gap-2 font-display text-[1.75rem] leading-none text-text-primary tabular-nums italic" aria-live="polite"><span class="size-4 rounded-full bg-warning" aria-hidden="true"></span>{{ monedas(importe()) }}<span class="sr-only"> monedas</span></p>
+                              <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong text-text-primary disabled:opacity-40" aria-label="Más monedas" [disabled]="importe() >= maximo()" (click)="paso(1)"><gr-icon name="plus" [size]="18" /></button>
+                            </div>
+                            @if (sinSaldo()) {
+                              <p class="text-body-xs text-accent-text" role="alert">No tienes monedas suficientes: tu saldo es {{ monedas(saldo()) }}. Gana más escribiendo en el chat del directo.</p>
+                            } @else {
+                              <p class="text-body-xs text-text-tertiary">Saldo tras la porra: {{ monedas(saldo() - importe()) }} monedas · puedes sumar más mientras la categoría siga abierta.</p>
+                            }
+                            @if (errorPorra(); as e) { <p class="text-body-xs text-accent-text" role="alert">{{ e }}</p> }
+                            <button type="button" class="flex h-12 items-center justify-center rounded-md bg-accent-grain text-label-m text-white shadow-glow-deep transition-opacity disabled:bg-bg-field disabled:text-text-muted disabled:shadow-none"
+                              [disabled]="sinSaldo() || enviando() || importe() < minimo()" (click)="confirmar(m, o.atletaId, o.nombre)">{{ enviando() ? 'Enviando…' : 'Confirmar porra · ' + monedas(importe()) }}</button>
+                          }
+                        </div>
+                      } @else {
+                        <button type="button" class="flex min-h-12 items-center gap-3 rounded-sm py-1.5 text-left hover:bg-white/3" (click)="elegir(m, o.atletaId)">
+                          <span class="min-w-0 flex-1">
+                            <span class="block truncate text-label-s text-text-primary">{{ o.nombre }}</span>
+                            @if (q()) { <span class="block text-[11px] leading-[1.3] text-text-tertiary">{{ etiqueta(m) }}</span> }
+                          </span>
+                          @if (mias().get(m.id + ':' + o.atletaId); as mio) { <span class="shrink-0 rounded-pill border border-warning/50 px-2 py-0.5 text-[11px] leading-none text-warning">Tu porra {{ monedas(mio) }}</span> }
+                          <span class="inline-flex shrink-0 items-center gap-0.5 text-label-s text-accent-text">Elegir <gr-icon name="chevron-right" [size]="16" /></span>
+                        </button>
+                      }
+                    } @empty {
+                      <p class="py-3 text-body-s text-text-tertiary">Ningún atleta coincide con «{{ qCat()[m.id] }}».</p>
+                    }
+                    @if (lista.length > visibles && !verTodos().has(m.id)) {
+                      <button type="button" class="mx-auto min-h-11 px-3 text-label-s text-accent-text" (click)="mostrarTodos(m.id)">Ver los {{ lista.length }} atletas</button>
+                    }
+                  </div>
+                }
+              </section>
+            } @empty {
+              @if (q()) {
+                <div class="flex flex-col items-center gap-2 py-10 text-center">
+                  <gr-icon name="search" [size]="24" class="text-text-tertiary" />
+                  <p class="text-label-m text-text-primary">Sin resultados para «{{ q() }}»</p>
+                  <p class="text-body-xs text-text-tertiary">Revisa el nombre o busca por apellido.</p>
+                  <button type="button" class="min-h-11 px-3 text-label-s text-accent-text" (click)="q.set('')">Borrar búsqueda</button>
+                </div>
+              } @else {
+                <p class="py-10 text-center text-body-s text-text-tertiary">Las categorías de esta jornada aparecerán aquí cuando se publiquen.</p>
+              }
+            }
+          </div>
+        } @else {
+          <!-- En vivo -->
+          <div class="flex rounded-pill border border-line-subtle bg-bg-surface p-1" role="group" aria-label="Sexo">
+            @for (s of sexosVivo; track s.v) {
+              <button type="button" class="h-10 flex-1 rounded-pill border text-label-s transition-colors"
+                [class]="sexo() === s.v ? 'border-line-strong bg-bg-raised text-text-primary' : 'border-transparent text-text-tertiary hover:text-text-primary'"
+                [attr.aria-pressed]="sexo() === s.v" (click)="sexo.set(s.v)">{{ s.l }}</button>
+            }
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <p class="flex items-center justify-between gap-2 font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">
+              <span>Más apostados · todas las categorías</span>@if (jornadaActiva(); as j) { <span>{{ diaCorto(j.dia) }}</span> }
+            </p>
+            <p class="flex items-center gap-1.5 font-mono text-[12px] text-text-secondary">{{ monedas(resumen().porras) }} porras · <span class="size-2.5 rounded-full bg-warning" aria-hidden="true"></span>{{ monedas(resumen().bote) }} monedas en juego</p>
+          </div>
+          @if (ranking().length) {
+            <gr-ranking-porra [filas]="verRanking() ? ranking() : ranking().slice(0, top)" aria-live="polite" />
+            @if (ranking().length > top && !verRanking()) {
+              <button type="button" class="mx-auto -mt-2 min-h-11 px-3 text-label-s text-accent-text" (click)="verRanking.set(true)">Ver los {{ ranking().length }} atletas</button>
+            }
+          } @else {
+            <p class="py-10 text-center text-body-s text-text-tertiary">Todavía no hay atletas {{ sexo() === 'F' ? 'femeninas' : 'masculinos' }} en la porra de esta jornada.</p>
+          }
+        }
+
+        <p class="flex items-start gap-2 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="14" class="mt-0.5 shrink-0" />Monedas de juego: nunca se compran con dinero ni se canjean por dinero.</p>
+      </div>
+    </gr-page>
   `,
 })
 export class PorraPage {
   protected readonly monedas = monedas;
+  protected readonly kg = kg;
+  protected readonly diaCorto = diaCorto;
+  protected readonly visibles = VISIBLES;
+  protected readonly top = TOP;
   protected readonly store = inject(PorraStore);
   protected readonly estado = inject(JuegosEstado);
   private readonly juegos = inject(Juegos);
   private readonly vivo = inject(JuegosEnVivo);
   protected readonly fan = inject(FanSession);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
-  protected readonly filtroTipo = signal<FiltroTipo>('todas');
-  protected readonly filtroSexo = signal<FiltroSexo>('todos');
-  protected readonly verTodos = signal(false);
-  protected readonly verCartera = signal(false);
-  protected readonly verChat = signal(false);
-  protected readonly boleto = signal<{ mercado: Mercado; atletaId: string } | null>(null);
-  protected readonly enviando = signal(false);
-  protected readonly errorBoleto = signal<string | null>(null);
-  protected readonly exitoBoleto = signal<string | null>(null);
-  /** Importe de la apuesta ya confirmada en el boleto (0 = ninguna). */
-  protected readonly hecho = signal(0);
-  /** El mercado del boleto con el bote y las cuotas más recientes (se recargan tras apostar y en vivo). */
-  protected readonly boletoMercado = computed(() => {
-    const b = this.boleto();
-    return b ? (this.store.mercados().find((m) => m.id === b.mercado.id) ?? b.mercado) : null;
-  });
-
-  protected readonly tipos: { v: FiltroTipo; l: string }[] = [
-    { v: 'todas', l: 'Todas' },
-    { v: 'categoria', l: TIPO_MERCADO.categoria },
-    { v: 'gl', l: TIPO_MERCADO.gl },
-    { v: 'movimiento', l: TIPO_MERCADO.movimiento },
+  protected readonly pestanas: { v: Vista; l: string }[] = [
+    { v: 'hacer', l: 'Hacer porra' },
+    { v: 'en-vivo', l: 'En vivo' },
   ];
-  protected readonly sexos: { v: FiltroSexo; l: string }[] = [
-    { v: 'todos', l: 'Ambos sexos' },
-    { v: 'F', l: 'Femenino' },
+  protected readonly sexosVivo: { v: Sexo; l: string }[] = [
     { v: 'M', l: 'Masculino' },
+    { v: 'F', l: 'Femenino' },
   ];
+
+  protected readonly vista = toSignal(this.route.queryParamMap.pipe(map((p): Vista => (p.get('vista') === 'en-vivo' ? 'en-vivo' : 'hacer'))), { initialValue: 'hacer' as Vista });
+  protected readonly q = signal(this.route.snapshot.queryParamMap.get('q') ?? '');
+  protected readonly qCat = signal<Record<string, string>>({});
+  protected readonly abiertas = signal<Set<string>>(new Set());
+  protected readonly verTodos = signal<Set<string>>(new Set());
+  protected readonly sel = signal<{ mercadoId: string; atletaId: string } | null>(null);
+  protected readonly importe = signal(500);
+  protected readonly enviando = signal(false);
+  protected readonly errorPorra = signal<string | null>(null);
+  protected readonly exito = signal<string | null>(null);
+  protected readonly sexo = signal<Sexo>(this.route.snapshot.queryParamMap.get('sexo') === 'M' ? 'M' : 'F');
+  protected readonly verRanking = signal(false);
 
   protected readonly jornadas = this.estado.jornadas;
   protected readonly jornadaActiva = computed(() => this.store.jornada() ?? this.estado.jornada());
-  protected readonly cartera = this.estado.cartera;
   protected readonly saldo = computed(() => this.estado.saldoPorra());
-  protected readonly premios = computed(() => this.store.premios().filter((p) => p.ranking === 'porra'));
-  protected readonly subtitulo = computed(() =>
-    'Apuesta con monedas virtuales a la ganadora de cada categoría, al mejor IPF GL por sexo y a cada movimiento. Bote parimutuel: todo el bote se reparte entre quien acierte.',
-  );
-  protected readonly jornadaNombre = computed(() => {
-    const j = this.jornadaActiva();
-    return j ? j.nombre.replace(/\s*\(.*\)$/, '') : '';
-  });
-  protected readonly jornadaTxt = computed(() => (this.jornadaNombre() ? '· ' + this.jornadaNombre() : ''));
+  protected readonly minimo = computed(() => this.estado.porraMin());
+  protected readonly maximo = computed(() => Math.max(this.minimo(), this.estado.porraMax()));
+  protected readonly sinSaldo = computed(() => this.fan.conSesion() && this.importe() > this.saldo());
+  /** Chips de importe (Figma «¿Cuántas monedas?»): 100 · 250 · 500 · 1.000 · Todo (el saldo, hasta el máximo). */
+  protected readonly chips = computed(() => [
+    ...[100, 250, 500, 1000].map((v) => ({ v, l: monedas(v) })),
+    { v: Math.max(this.minimo(), Math.min(this.saldo(), this.maximo())), l: 'Todo' },
+  ]);
 
-  protected readonly todosMercados = computed(() => this.store.mercados());
-  /** Los mercados que pasan los filtros (tipo y sexo). */
-  protected readonly filtrados = computed(() => {
-    const t = this.filtroTipo();
-    const s = this.filtroSexo();
-    return this.todosMercados().filter((m) => (t === 'todas' || m.tipo === t) && (s === 'todos' || m.sexo === s));
-  });
-  protected readonly mercadosVisibles = computed(() => (this.verTodos() ? this.filtrados() : this.filtrados().slice(0, 6)));
-  /** Con la jornada cerrada los mercados solo se consultan. */
   private readonly ahora = signal(Date.now());
-  /** La hora de cierre de las apuestas ya pasó. */
-  protected readonly apuestasCerradas = computed(() => {
-    const c = this.jornadaActiva()?.cierreAt;
-    return !!c && Date.parse(c) <= this.ahora();
+  /** La jornada está cerrada o ya pasó la hora de cierre: no se puede hacer porra en ninguna categoría. */
+  private readonly soloLectura = computed(() => {
+    const j = this.jornadaActiva();
+    return j?.estado === 'cerrada' || (!!j?.cierreAt && Date.parse(j.cierreAt) <= this.ahora());
   });
-  protected readonly soloLectura = computed(() => this.jornadaActiva()?.estado === 'cerrada' || this.apuestasCerradas());
-  /** La jornada abierta o en juego distinta de la mostrada (para el aviso del histórico). */
-  protected readonly otraAbierta = computed(() => {
-    const j = this.jornadas().find((x) => x.id !== this.jornadaActiva()?.id && (x.estado === 'abierta' || x.estado === 'en_juego'));
-    return j ? this.etiquetaJornada(j) : '';
+
+  /** Los mercados por categoría, de femenino a masculino y de menos a más peso. */
+  protected readonly categorias = computed(() =>
+    mercadosCategoria(this.store.mercados()).sort((a, b) => (a.sexo === b.sexo ? peso(a.categoria) - peso(b.categoria) : a.sexo === 'F' ? -1 : 1)),
+  );
+  /** Con búsqueda global, solo las categorías con algún atleta que coincide. */
+  protected readonly categoriasVisibles = computed(() => {
+    const q = norm(this.q());
+    return q ? this.categorias().filter((m) => m.opciones.some((o) => norm(o.nombre).includes(q))) : this.categorias();
   });
-  protected readonly hito5 = computed(() => monedas(this.estado.config()?.hito5Porra ?? 100));
-  protected readonly hito10 = computed(() => monedas(this.estado.config()?.hito10Porra ?? 500));
-  /** Chip de filtro (Figma «Filtro»): activo rojo translúcido con borde; inactivo sobre campo. */
-  protected chip(on: boolean): string {
-    return on ? 'border-accent bg-accent/16 text-accent-text' : 'border-transparent bg-bg-field text-text-secondary hover:text-text-primary';
-  }
-  /** El desplegable móvil combina tipo («t:…») y sexo («s:…»). */
-  protected filtroMovil(v: string): void {
-    if (v.startsWith('s:')) {
-      this.filtroTipo.set('todas');
-      this.filtroSexo.set(v.slice(2) as FiltroSexo);
-    } else {
-      this.filtroTipo.set(v.slice(2) as FiltroTipo);
-      this.filtroSexo.set('todos');
-    }
-  }
-  /** Cuántos mercados filtrados hay en un estado (abierto · cerrado · liquidado). */
-  protected n(estado: string): number {
-    return this.filtrados().filter((m) => m.estado === estado).length;
-  }
+  protected readonly mias = computed(() => misPorras(this.store.apuestas()));
+  protected readonly ranking = computed(() => rankingAtletas(this.store.mercados(), this.sexo(), this.mias()));
+  protected readonly resumen = computed(() => {
+    const ms = mercadosCategoria(this.store.mercados()).filter((m) => m.sexo === this.sexo());
+    return { porras: ms.reduce((s, m) => s + m.apuestas, 0), bote: ms.reduce((s, m) => s + m.bote, 0) };
+  });
 
   constructor() {
     const seo = inject(Seo);
@@ -285,13 +297,22 @@ export class PorraPage {
     void inject(PendingTasks).run(async () => {
       await this.estado.cargar();
       await this.store.cargar();
-      await applySeo(cms, seo, '/porra', 'Porra · GR Strength Cup', 'Apuesta con monedas virtuales en la GR Strength Cup: bote parimutuel, cuotas en vivo y premios por jornada.');
+      await applySeo(cms, seo, '/porra', 'Porra · GRS Cup', 'Haz tu porra con monedas de juego en la GRS Cup: elige atleta en cada categoría y sigue en vivo a los más apostados.');
+    });
+
+    // al cambiar de atleta se limpian los mensajes del anterior
+    effect(() => {
+      this.sel();
+      untracked(() => {
+        this.errorPorra.set(null);
+        this.exito.set(null);
+      });
     });
 
     if (browser) {
       this.vivo.conectar();
-      // ST2-R1-3: los cambios en vivo se aplican en el cliente; solo se recarga (como mucho 1 vez cada 5 s)
-      // si llega un mercado desconocido o liquidado
+      // los cambios en vivo se aplican en el cliente; solo se recarga (como mucho 1 vez cada 5 s) si llega un
+      // mercado desconocido o liquidado
       let visto = 0;
       let recarga: ReturnType<typeof setTimeout> | null = null;
       effect(() => {
@@ -310,13 +331,14 @@ export class PorraPage {
           }
         });
       });
-      // las cuotas cambian con cada apuesta: un refresco ligero cada 20 s
+      // los botes cambian con cada porra: un refresco ligero cada 20 s
       const t = setInterval(() => {
         if (!document.hidden) void this.store.recargarMercados();
       }, 20000);
       const reloj = setInterval(() => this.ahora.set(Date.now()), 1000);
       void this.fan.cargar().then(() => {
         void this.estado.cargarCartera();
+        void this.store.cargarApuestas();
       });
       inject(DestroyRef).onDestroy(() => {
         clearInterval(t);
@@ -327,64 +349,84 @@ export class PorraPage {
     }
   }
 
-  protected etiquetaJornada(j: { nombre: string; dia: string; estado: string }): string {
-    const d = j.dia
-      ? new Intl.DateTimeFormat('es-ES', { weekday: 'short', timeZone: 'UTC' }).format(new Date(j.dia + 'T12:00:00Z')).replace('.', '') + ' ' + Number(j.dia.slice(8, 10))
-      : '';
-    return d ? `${j.nombre.replace(/\s*\(.*\)$/, '')} · ${d}` : j.nombre;
+  protected irA(v: Vista): void {
+    void this.router.navigate([], { relativeTo: this.route, queryParams: { vista: v === 'en-vivo' ? 'en-vivo' : null }, queryParamsHandling: 'merge', replaceUrl: true });
   }
 
-  protected elegirJornada(id: string): void {
-    this.estado.elegir(id);
-    this.estado.cargarCartera();
-    void this.store.cargar();
-    void this.store.cargarApuestas();
-    void this.store.cargarClasificacion();
+  protected nombreJornada(j: Jornada): string {
+    return j.nombre.replace(/\s*\(.*\)$/, '');
   }
 
-  protected opciones(m: Mercado) {
-    return m.opciones.map((o) => ({ ...o, sexoTxt: m.sexo === 'F' ? 'Femenino' : 'Masculino', categoria: (m.categoria ?? '').replace('-', '−') + ' kg' }));
+  protected etiqueta(m: Mercado): string {
+    return sexoTxt(m.sexo) + ' · ' + kg(m.categoria);
   }
 
-  protected apostar(e: { mercado: Mercado; atletaId: string }): void {
+  protected cerradaM(m: Mercado): boolean {
+    return m.estado !== 'abierto' || this.soloLectura();
+  }
+
+  /** Lo que llevo apostado en un mercado (0 = nada). */
+  protected miImporteMercado(id: string): number {
+    let t = 0;
+    for (const [k, v] of this.mias()) if (k.startsWith(id + ':')) t += v;
+    return t;
+  }
+
+  /** Los atletas del acordeón filtrados por su buscador (o por el global), de la A a la Z. */
+  protected atletas(m: Mercado) {
+    const q = norm(this.q() || this.qCat()[m.id] || '');
+    return m.opciones.filter((o) => !q || norm(o.nombre).includes(q)).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  }
+
+  protected alternar(m: Mercado): void {
+    if (this.cerradaM(m) || this.q()) return;
+    const s = new Set(this.abiertas());
+    if (s.has(m.id)) s.delete(m.id);
+    else s.add(m.id);
+    this.abiertas.set(s);
+  }
+
+  protected buscarEn(id: string, v: string): void {
+    this.qCat.set({ ...this.qCat(), [id]: v });
+  }
+
+  protected mostrarTodos(id: string): void {
+    this.verTodos.set(new Set(this.verTodos()).add(id));
+  }
+
+  protected elegir(m: Mercado, atletaId: string): void {
     if (!this.fan.conSesion()) {
       this.fan.abrirAcceso('porra');
       return;
     }
-    this.errorBoleto.set(null);
-    this.exitoBoleto.set(null);
-    this.hecho.set(0);
-    this.boleto.set({ mercado: e.mercado, atletaId: e.atletaId || (e.mercado.opciones.length === 1 ? e.mercado.opciones[0].atletaId : '') });
+    this.importe.set(Math.min(Math.max(this.minimo(), 500), this.maximo()));
+    this.sel.set({ mercadoId: m.id, atletaId });
     void this.estado.cargarCartera();
   }
-  protected cerrarBoleto(): void {
-    this.boleto.set(null);
-    this.errorBoleto.set(null);
-    this.exitoBoleto.set(null);
-    this.hecho.set(0);
+
+  protected paso(dir: 1 | -1): void {
+    const v = this.importe() + dir * 100;
+    this.importe.set(Math.min(this.maximo(), Math.max(this.minimo(), v)));
   }
-  protected elegirAtleta(id: string): void {
-    const b = this.boleto();
-    if (!b) return;
-    this.exitoBoleto.set(null);
-    this.hecho.set(0);
-    this.boleto.set({ ...b, atletaId: id });
+
+  protected elegirJornada(id: string): void {
+    this.estado.elegir(id);
+    this.sel.set(null);
+    void this.estado.cargarCartera();
+    void this.store.cargar();
+    void this.store.cargarApuestas();
   }
-  protected async confirmar(e: { atletaId: string; importe: number }): Promise<void> {
-    const b = this.boleto();
-    if (!b) return;
+
+  protected async confirmar(m: Mercado, atletaId: string, nombre: string): Promise<void> {
     this.enviando.set(true);
-    this.errorBoleto.set(null);
-    this.exitoBoleto.set(null);
+    this.errorPorra.set(null);
     try {
-      await this.juegos.porraApostar(b.mercado.id, e.atletaId, e.importe, this.estado.jornadaActual());
-      const nombre = b.mercado.opciones.find((o) => o.atletaId === e.atletaId)?.nombre ?? '';
-      this.exitoBoleto.set(`Apuesta registrada: ${monedas(e.importe)} a ${nombre}`);
-      this.hecho.set(e.importe);
-      await this.estado.cargarCartera();
-      await this.store.recargarMercados();
+      const importe = this.importe();
+      await this.juegos.porraApostar(m.id, atletaId, importe, this.estado.jornadaActual());
+      this.exito.set(`Porra hecha: ${monedas(importe)} monedas a ${nombre}.`);
+      await Promise.all([this.estado.cargarCartera(), this.store.recargarMercados(), this.store.cargarApuestas()]);
     } catch (err) {
-      this.errorBoleto.set(mensajeError(err));
+      this.errorPorra.set(mensajeError(err));
       if (codigoError(err).startsWith('SESION_FAN')) this.fan.sesionPerdida();
     } finally {
       this.enviando.set(false);
