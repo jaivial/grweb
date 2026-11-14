@@ -81,9 +81,9 @@ export class EyebrowJuego {
             <span class="text-[10px] text-[#34d399]" aria-hidden="true">●</span>
             <span class="md:hidden">Sin dinero real · monedas virtuales</span><span class="hidden md:inline">Juego sin dinero real · las monedas no se compran ni se canjean</span>
           </p>
-          <div class="flex w-full gap-3 md:w-auto">
-            <a grButton variant="primary" size="l" routerLink="/porra" class="flex-1 md:flex-none">Jugar a la Porra</a>
-            <a grButton variant="outline" size="l" routerLink="/porra" fragment="como-se-juega" class="flex-1 md:flex-none">Cómo se juega</a>
+          <div class="flex w-full min-w-0 gap-3 max-[379px]:flex-col md:w-auto">
+            <a grButton variant="primary" size="l" routerLink="/porra" class="min-w-0 flex-1 basis-0 px-4! max-md:text-[15px]! md:flex-none md:basis-auto">Jugar a la Porra</a>
+            <a grButton variant="outline" size="l" routerLink="/porra" fragment="como-se-juega" class="min-w-0 flex-1 basis-0 px-4! max-md:text-[15px]! md:flex-none md:basis-auto">Cómo se juega</a>
           </div>
           <p class="text-[13px] leading-4 text-text-muted">Para jugar necesitas cuenta de fan o de atleta · consultar es libre</p>
         </div>
@@ -92,7 +92,7 @@ export class EyebrowJuego {
           <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <div [class]="card + ' flex min-w-0 flex-col gap-2.5 p-6'">
               <span [class]="etiqueta">Bote de la jornada{{ r?.jornada ? ' · ' + r!.jornada!.nombre : '' }}</span>
-              <span class="flex items-baseline gap-2"><span class="font-display text-[48px] leading-[60px] tracking-[0.04em]">{{ monedas(r?.bote ?? 0) }}</span><span class="text-[14px] font-medium text-text-tertiary">monedas</span></span>
+              <span class="flex min-w-0 flex-wrap items-baseline gap-x-2"><span class="min-w-0 font-display text-[clamp(32px,10vw,48px)] leading-[1.25] tracking-[0.04em]">{{ monedas(r?.bote ?? 0) }}</span><span class="text-[14px] font-medium text-text-tertiary">monedas</span></span>
               <span class="h-1.5 overflow-hidden rounded-pill bg-white/8"><span class="block h-full rounded-pill bg-[linear-gradient(90deg,#c42b3e,#e6606b)]" [style.width.%]="r?.bote ? 100 : 0"></span></span>
               <span class="text-[13px] text-[#d1d5db]">{{ num(r?.participantes ?? 0) }} participantes · {{ cerrada() ? 'apuestas cerradas' : (r?.mercadosAbiertos ?? 0) + ((r?.mercadosAbiertos ?? 0) === 1 ? ' mercado abierto' : ' mercados abiertos') }}</span>
             </div>
@@ -145,7 +145,7 @@ export class EyebrowJuego {
                   <span class="min-w-0 truncate font-display text-[22px] leading-7 tracking-[0.04em]" [title]="o.nombre">{{ o.nombre }}</span>
                 </span>
                 <span class="flex items-end border-t border-white/8 pt-3">
-                  <span class="flex flex-col"><span class="text-[10px] tracking-[0.08em] text-text-tertiary uppercase">Cuota</span><span class="font-mono text-[18px] font-medium">{{ cuota(o.cuota) }}</span></span>
+                  <span class="flex flex-col"><span class="text-[11px] tracking-[0.08em] text-text-tertiary uppercase">Cuota</span><span class="font-mono text-[18px] font-medium">{{ cuota(o.cuota) }}</span></span>
                   @if (!cerrada()) {
                     <a routerLink="/porra" [queryParams]="{ mercado: d.mercadoId }" class="ml-1 flex items-center gap-2 rounded-pill border border-white/12 bg-white/6 px-3 py-2 text-[13px] font-semibold text-[#d1d5db] hover:bg-white/10" [attr.aria-label]="'Elegir a ' + o.nombre">
                       <span class="size-3.5 rounded-full border-[1.5px] border-white/60" aria-hidden="true"></span>Elegir
