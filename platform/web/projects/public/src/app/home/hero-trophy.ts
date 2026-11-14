@@ -146,6 +146,10 @@ const PUFFS = [
       /* the sponsors also run in the marquee below; here they would sit under «Saltar intro» */
       .gr-intro-patros { display: none; }
     }
+    /* UX1-R3-1: at 320×568 the compact CTA reaches «Desliza»; «Saltar intro» already tells the user to scroll */
+    @media (max-width: 767px) and (max-height: 600px) {
+      .gr-desliza { display: none; }
+    }
     @media (max-height: 560px) {
       .gr-intro { top: 64px; }
       .gr-intro > * + * { margin-top: 12px !important; }
