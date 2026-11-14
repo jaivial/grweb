@@ -31,25 +31,23 @@ import { Footer, Navbar, type Lang } from './layout';
             @if (subtitle()) { @if (subtitleHtml()) { <p class="text-body-s text-text-secondary md:text-body-l" [innerHTML]="subtitleHtml()"></p> } @else { <p class="text-body-s text-text-secondary md:text-body-l">{{ subtitle() }}</p> } }
           </header>
         }
-        <!-- Figma «Cabecera» v2: 92 (mobile) / 148 (desktop) from the top, breadcrumbs Body/S, eyebrow Label/XS with
-             the dash, Display/M → Display/XL title, tertiary Body/M → Body/L intro, «Updated stamp» -->
+        <!-- Figma «Cabecera de página» (387:116856, Jaime 14-nov): only breadcrumbs + title on every page. The eyebrow stays
+             as sr-only text (SEO), the intro is not painted (sr-only; the page's meta description carries it) and the
+             «Meta» row (updated stamp / pageStamps badges) is gone. -->
         @if (cabecera() && !centrado() && !juego()) {
-          <header class="max-w-[900px] flex-col gap-3 md:flex md:gap-4" [class.flex]="cabeceraMovil()" [class.hidden]="!cabeceraMovil()">
+          <header class="max-w-[900px] flex-col gap-4 md:flex md:gap-6" [class.flex]="cabeceraMovil()" [class.hidden]="!cabeceraMovil()">
             <nav class="flex-wrap items-center gap-1.5 text-body-s text-text-tertiary md:flex" [class.flex]="migasMovil()" [class.hidden]="!migasMovil()" aria-label="Migas">
               <a routerLink="/" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Inicio</a>
               @if (section()) { <gr-icon name="chevron-right" [size]="14" /><span>{{ section() }}</span> }
               <gr-icon name="chevron-right" [size]="14" /><span class="text-text-secondary">{{ crumb() || (title() + (accent() ? ' ' + accent() : '')) }}</span>
             </nav>
-            <div class="flex flex-col gap-3 md:gap-4">
-              @if (eyebrow()) { <p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase"><span class="h-px w-6 bg-accent" aria-hidden="true"></span>{{ eyebrow() }}</p> }
+            <div class="flex flex-col">
+              @if (eyebrow()) { <p class="sr-only">{{ eyebrow() }}</p> }
               <h1 [class.text-display-l]="tituloMovilGrande()" [class.text-display-m]="!tituloMovilGrande()" class="[overflow-wrap:anywhere] hyphens-auto [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-xl" [class.sr-only]="hideTitle()">{{ title() }} @if (accent()) { <span [class]="tituloMovilGrande() ? 'text-accent' : 'text-accent-text'">{{ accent() }}</span> }@if (suffix()) { {{ ' ' + suffix() }} }</h1>
-              @if (subtitle()) { @if (subtitleHtml()) { <p class="md:text-body-l" [class]="tituloMovilGrande() ? 'text-body-l text-text-secondary' : 'text-body-m text-text-tertiary'" [innerHTML]="subtitleHtml()"></p> } @else { <p class="md:text-body-l" [class]="tituloMovilGrande() ? 'text-body-l text-text-secondary' : 'text-body-m text-text-tertiary'">{{ subtitle() }}</p> } }
+              @if (subtitle()) { @if (subtitleHtml()) { <p class="sr-only" [innerHTML]="subtitleHtml()"></p> } @else { <p class="sr-only">{{ subtitle() }}</p> } }
             </div>
-            <!-- Figma «Meta»: the updated stamp and the badges in one row -->
-            <div class="flex flex-wrap items-center gap-3 empty:hidden">
-              @if (stamp()) { <p class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" class="shrink-0" />{{ stamp() }}</p> }
-              <ng-content select="[pageStamps]" />
-            </div>
+            <!-- pageStamps content is no longer shown; the hidden slot keeps it out of the default <ng-content> -->
+            <div hidden><ng-content select="[pageStamps]" /></div>
           </header>
         }
         @if (!centrado() && cms.limitado()) {
@@ -81,6 +79,7 @@ export class Page {
   /** Middle breadcrumb (e.g. «Visita», «Comunidad»). */
   readonly section = input('');
   readonly lang = input<Lang>('es');
+  /** Ignored since the «Cabecera de página» redesign (no updated stamp in the header); kept so pages still compile. */
   readonly stamp = input('');
   readonly centrado = input(false);
   /** Game pages (Figma 71 /porra): 64 px sides, 120 px top, the content brings its own header; children stack with 28/24 px gaps. */
