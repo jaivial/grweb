@@ -116,25 +116,35 @@ type atletaSala struct {
 func bloquearAtletaTx(ctx context.Context, tx pgx.Tx, j jornada, salaID, fanID, atletaID uuid.UUID) (atletaSala, error) {
 	var a atletaSala
 	var ok bool
-	err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM sala_miembros WHERE sala_id = s.id AND fan_id = $2), s.publica
-		FROM salas s WHERE s.id = $1 AND s.jornada_id = $3 AND s.estado IN ('abierta', 'en_juego') FOR SHARE`, salaID, fanID, j.ID).Scan(&ok, &a.Publica)
+	// ST3-R3-1: the three statements go in one round trip (a batch runs in order inside the transaction; any
+	// failure below returns an error and the caller rolls back the whole transaction, the insert included).
+	b := &pgx.Batch{}
+	b.Queue(`SELECT EXISTS (SELECT 1 FROM sala_miembros WHERE sala_id = s.id AND fan_id = $2), s.publica
+		FROM salas s WHERE s.id = $1 AND s.jornada_id = $3 AND s.estado IN ('abierta', 'en_juego') FOR SHARE`, salaID, fanID, j.ID)
+	b.Queue(`INSERT INTO sala_atletas (sala_id, jornada_id, atleta_id)
+		SELECT $1, $2, $3 WHERE EXISTS (SELECT 1 FROM fantasy_atletas WHERE jornada_id = $2 AND atleta_id = $3) ON CONFLICT DO NOTHING`, salaID, j.ID, atletaID)
+	b.Queue(`SELECT `+precioSala+`, fa.clausula, sa.dueno_fan_id, sa.dueno_alias, sa.protegido_hasta FROM sala_atletas sa
+		JOIN fantasy_atletas fa ON fa.jornada_id = sa.jornada_id AND fa.atleta_id = sa.atleta_id WHERE sa.sala_id = $1 AND sa.atleta_id = $2 FOR UPDATE OF sa`, salaID, atletaID)
+	br := tx.SendBatch(ctx, b)
+	defer br.Close()
+	err := br.QueryRow().Scan(&ok, &a.Publica)
 	if db.IsNoRows(err) || (err == nil && !ok) {
 		return a, problem.Conflict("SIN_SALA", "Necesitas estar en una sala abierta o en juego para fichar.")
 	}
 	if err != nil {
 		return a, err
 	}
-	if _, err := tx.Exec(ctx, `INSERT INTO sala_atletas (sala_id, jornada_id, atleta_id)
-		SELECT $1, $2, $3 WHERE EXISTS (SELECT 1 FROM fantasy_atletas WHERE jornada_id = $2 AND atleta_id = $3) ON CONFLICT DO NOTHING`, salaID, j.ID, atletaID); err != nil {
+	if _, err := br.Exec(); err != nil {
 		return a, err
 	}
-	err = tx.QueryRow(ctx, `SELECT `+precioSala+`, fa.clausula, sa.dueno_fan_id, sa.dueno_alias, sa.protegido_hasta FROM sala_atletas sa
-		JOIN fantasy_atletas fa ON fa.jornada_id = sa.jornada_id AND fa.atleta_id = sa.atleta_id WHERE sa.sala_id = $1 AND sa.atleta_id = $2 FOR UPDATE OF sa`, salaID, atletaID).
-		Scan(&a.Clausula, &a.Base, &a.Dueno, &a.DuenoAlias, &a.Protegido)
+	err = br.QueryRow().Scan(&a.Clausula, &a.Base, &a.Dueno, &a.DuenoAlias, &a.Protegido)
 	if db.IsNoRows(err) {
 		return a, problem.NotFound("Ese atleta no está en la jornada.")
 	}
-	return a, err
+	if err != nil {
+		return a, err
+	}
+	return a, br.Close()
 }
 
 // asignarDuenoTx changes the owner of an athlete inside the room and raises its demand there by pctDemanda % (the
@@ -173,7 +183,7 @@ func (s *Svc) comprarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada
 		return problem.Conflict("PLANTILLA_LLENA", "Tu alineación está completa ("+itoa(cfg.PlantillaMax)+" atletas). Vende alguien antes.")
 	}
 	fid := newID()
-	if err := gastarTx(ctx, tx, j, fanID, Fantasy, a.Clausula, "compra", "compra:"+fid.String(), alias); err != nil {
+	if err := gastarAbiertaTx(ctx, tx, j, fanID, Fantasy, a.Clausula, "compra", "compra:"+fid.String(), alias); err != nil {
 		return err
 	}
 	if err := asignarDuenoTx(ctx, tx, salaID, atletaID, &fanID, alias, cfg.ProteccionMin, cfg.PctDemanda); err != nil {
@@ -255,7 +265,7 @@ func (s *Svc) clausulazoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jorn
 	}
 	previo := *a.Dueno
 	fid := newID()
-	if err := gastarTx(ctx, tx, j, fanID, Fantasy, a.Clausula, "clausulazo", "clausulazo-out:"+fid.String(), alias); err != nil {
+	if err := gastarAbiertaTx(ctx, tx, j, fanID, Fantasy, a.Clausula, "clausulazo", "clausulazo-out:"+fid.String(), alias); err != nil {
 		return err
 	}
 	if _, err := acreditarTx(ctx, tx, j, previo, Fantasy, a.Clausula, "clausulazo", "clausulazo-in:"+fid.String(), ""); err != nil {
@@ -305,7 +315,7 @@ func liberarAtletasTx(ctx context.Context, tx pgx.Tx, j jornada, salaID, fanID u
 // payouts by fan_id too): two operations that run at the same time cannot deadlock each other (contract §6.3).
 func bloquearCarterasTx(ctx context.Context, tx pgx.Tx, j jornada, fans ...uuid.UUID) error {
 	for _, f := range fans {
-		if _, err := abrirCarteraTx(ctx, tx, j, f, Fantasy, ""); err != nil {
+		if _, err := altaCarteraTx(ctx, tx, j, f, Fantasy, ""); err != nil {
 			return err
 		}
 	}

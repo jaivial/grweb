@@ -68,26 +68,34 @@ func (j jornada) out() jornadaOut {
 // the first bet.
 func abrirCarteraTx(ctx context.Context, q querier, j jornada, fanID uuid.UUID, m Moneda, alias string) (int64, error) {
 	var saldo int64
-	ins, err := q.Exec(ctx, `INSERT INTO saldos (jornada_id, competition_id, fan_id, moneda, saldo, alias) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING`,
-		j.ID, j.CompetitionID, fanID, m, SaldoAlta(m), alias)
+	nueva, err := altaCarteraTx(ctx, q, j, fanID, m, alias)
 	if err != nil {
 		return 0, err
 	}
-	if ins.RowsAffected() == 0 && alias != "" {
+	if nueva {
+		return SaldoAlta(m), nil
+	}
+	if alias != "" {
 		if _, err := q.Exec(ctx, `UPDATE saldos SET alias = $4 WHERE jornada_id = $1 AND fan_id = $2 AND moneda = $3 AND alias IS DISTINCT FROM $4`,
 			j.ID, fanID, m, alias); err != nil {
 			return 0, err
 		}
 	}
-	if ins.RowsAffected() > 0 {
-		if _, err := q.Exec(ctx, `INSERT INTO movimientos (id, jornada_id, fan_id, moneda, importe, motivo, ref) VALUES ($1,$2,$3,$4,$5,'alta',$6)`,
-			newID(), j.ID, fanID, m, SaldoAlta(m), "alta:"+j.ID.String()+":"+fanID.String()+":"+string(m)); err != nil {
-			return 0, err
-		}
-		return SaldoAlta(m), nil
-	}
 	err = q.QueryRow(ctx, `SELECT saldo FROM saldos WHERE jornada_id = $1 AND fan_id = $2 AND moneda = $3`, j.ID, fanID, m).Scan(&saldo)
 	return saldo, err
+}
+
+// altaCarteraTx creates the wallet if it does not exist yet (with its 'alta' ledger row); true when it was created.
+// Idempotent under races: ON CONFLICT DO NOTHING, only the winner writes the ledger row.
+func altaCarteraTx(ctx context.Context, q querier, j jornada, fanID uuid.UUID, m Moneda, alias string) (bool, error) {
+	ins, err := q.Exec(ctx, `INSERT INTO saldos (jornada_id, competition_id, fan_id, moneda, saldo, alias) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING`,
+		j.ID, j.CompetitionID, fanID, m, SaldoAlta(m), alias)
+	if err != nil || ins.RowsAffected() == 0 {
+		return false, err
+	}
+	_, err = q.Exec(ctx, `INSERT INTO movimientos (id, jornada_id, fan_id, moneda, importe, motivo, ref) VALUES ($1,$2,$3,$4,$5,'alta',$6)`,
+		newID(), j.ID, fanID, m, SaldoAlta(m), "alta:"+j.ID.String()+":"+fanID.String()+":"+string(m))
+	return err == nil, err
 }
 
 // gastarTx spends coins atomically (contract §6.1): UPDATE … WHERE saldo >= importe (a concurrent request that
@@ -100,6 +108,15 @@ func gastarTx(ctx context.Context, tx pgx.Tx, j jornada, fanID uuid.UUID, m Mone
 	}
 	if _, err := abrirCarteraTx(ctx, tx, j, fanID, m, alias); err != nil {
 		return err
+	}
+	return gastarAbiertaTx(ctx, tx, j, fanID, m, importe, motivo, ref, alias)
+}
+
+// gastarAbiertaTx is gastarTx for a wallet the caller already opened and locked (bloquearCarterasTx): two round
+// trips less on the hot signing path (ST3-R3-1).
+func gastarAbiertaTx(ctx context.Context, tx pgx.Tx, j jornada, fanID uuid.UUID, m Moneda, importe int64, motivo, ref, alias string) error {
+	if importe <= 0 {
+		return problem.BadRequest("IMPORTE_NO_VALIDO", "El importe debe ser positivo.")
 	}
 	tag, err := tx.Exec(ctx, `UPDATE saldos SET saldo = saldo - $1, version = version + 1, updated_at = now(),
 		alias = CASE WHEN $5 <> '' THEN $5 ELSE alias END

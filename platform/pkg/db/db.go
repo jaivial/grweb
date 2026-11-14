@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -36,6 +37,9 @@ func ConnectMax(ctx context.Context, url string, max int32) (*pgxpool.Pool, erro
 	}
 	if max > 0 {
 		cfg.MaxConns, cfg.MinConns = max, 0
+	} else if !strings.Contains(url, "pool_min_conns") {
+		// ST3-R3-1: keep half the pool open from boot, so a burst does not pay the TCP + auth of new connections
+		cfg.MinConns = (cfg.MaxConns + 1) / 2
 	}
 	cfg.MaxConnLifetime = 30 * time.Minute
 	cfg.MaxConnIdleTime = 5 * time.Minute
