@@ -881,13 +881,15 @@ export class JuegosEnVivo {
   private abierto = '';
   private ultimoId = '';
   private cierre: ReturnType<typeof setTimeout> | undefined;
+  /** ST3-R3-3: conectar() sin jornada espera a enfocar(); si ninguna vista la fija, abre sin filtro tras un momento. */
+  private espera: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
     // cambiar de ámbito reabre el stream desde el último evento recibido (sin perder ninguno)
     effect(() => {
       const f = this.foco();
       untracked(() => {
-        if (this.es && this.clave(f) !== this.abierto) this.abrir();
+        if (this.es ? this.clave(f) !== this.abierto : this.espera !== undefined && !!f.jornada) this.abrir();
       });
     });
   }
@@ -936,8 +938,12 @@ export class JuegosEnVivo {
     if (!this.browser) return;
     this.usos++;
     clearTimeout(this.cierre);
-    if (this.es) return;
-    this.abrir();
+    if (this.es || this.espera !== undefined) return;
+    if (this.jornadaFoco()) {
+      this.abrir();
+      return;
+    }
+    this.espera = setTimeout(() => this.abrir(), 1500);
   }
 
   private clave(f: { jornada: string; sala: string }): string {
@@ -948,6 +954,8 @@ export class JuegosEnVivo {
   }
 
   private abrir(): void {
+    clearTimeout(this.espera);
+    this.espera = undefined;
     this.es?.close();
     this.abierto = this.clave(this.foco());
     const q = new URLSearchParams(this.abierto);
@@ -983,6 +991,8 @@ export class JuegosEnVivo {
     clearTimeout(this.cierre);
     this.cierre = setTimeout(() => {
       if (this.usos > 0) return;
+      clearTimeout(this.espera);
+      this.espera = undefined;
       this.es?.close();
       this.es = null;
       this.abierto = '';
