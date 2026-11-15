@@ -6,6 +6,7 @@ name: grcup-dev
 x-svc: &svc
   restart: unless-stopped
   mem_limit: 256m
+  cpus: 1.0  # perf-20261115: per-service CPU cap (mirrors the k8s limits), so one hot service cannot starve the rest
   depends_on:
     postgres: { condition: service_healthy }
     redis: { condition: service_healthy }
@@ -24,6 +25,7 @@ services:
   postgres:
     image: postgres:17-alpine
     mem_limit: 512m
+    cpus: 2.0
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: dev-postgres
@@ -118,6 +120,7 @@ services:
   chat:
     <<: *svc
     mem_limit: 768m  # ~200 KiB per connection (docs/carga/2026-11-08-chat.md)
+    cpus: 2.0
     build: { context: ../.., args: { SVC: chat, VERSION: "${VERSION:-dev}" } }
     environment:
       <<: *env
@@ -289,11 +292,14 @@ services:
 
   gateway:
     <<: *svc
+    cpus: 2.0
     build: { context: ../.., args: { SVC: gateway, VERSION: "${VERSION:-dev}" } }
     environment:
       <<: *env
       UPSTREAMS: identity,competition,audit,realtime,fans,chat,donaciones,raffle,patrocinio,juegos,athletes,schedule,live,cms,messaging,crm,ai
       CORS_ORIGINS: http://127.0.0.1:4200,http://127.0.0.1:4201,http://localhost:4200,http://localhost:4201
+      # Overload protection (internal/gateway/proteccion.go): waiting room off by default (ADMISION_MAX=0).
+      UPSTREAM_MAX_INFLIGHT: "128"
     ports:
       - "127.0.0.1:18300:8080"
 

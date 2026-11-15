@@ -4,11 +4,12 @@ import { provideClientHydration, withEventReplay, withHttpTransferCacheOptions }
 import { NavigationEnd, NavigationStart, Router, provideRouter, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
 import { routes } from './app.routes';
 import { apiBaseInterceptor, noEncontradoInterceptor } from './core/competition';
+import { colaInterceptor } from './core/cola';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideHttpClient(withFetch(), withInterceptors([noEncontradoInterceptor, apiBaseInterceptor])),
+    provideHttpClient(withFetch(), withInterceptors([noEncontradoInterceptor, apiBaseInterceptor, colaInterceptor])),
     // Position restoration is done in App (instant, after the page settles): html{scroll-behavior:smooth} broke the router's own.
     provideRouter(routes, withInMemoryScrolling({ anchorScrolling: 'enabled', scrollPositionRestoration: 'disabled' }), withComponentInputBinding()),
     provideClientHydration(withEventReplay(), withHttpTransferCacheOptions({ includePostRequests: false })),
