@@ -142,7 +142,7 @@ type Modo = 'entrar' | 'crear' | 'recuperar';
               @if (modo() === 'crear') {
               <label class="mt-3 flex min-h-11 cursor-pointer items-center gap-3">
                 <input type="checkbox" class="size-5 shrink-0 accent-[#c42b3e]" [ngModel]="normas()" (ngModelChange)="normas.set($event)" />
-                <span class="text-body-s text-text-secondary">{{ inscripcion() || entradas() || seguir() || formulario() ? 'Acepto las normas de participación de GR Strength Cup.' : 'Acepto las normas del chat: sin enlaces, sin insultos, sin spam.' }}</span>
+                <span class="text-body-s text-text-secondary">{{ inscripcion() || entradas() || seguir() || formulario() ? 'Acepto las normas de participación de GRS Cup 2.' : 'Acepto las normas del chat: sin enlaces, sin insultos, sin spam.' }}</span>
               </label>
               @if (errorNormas()) { <span class="mt-1 flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />Marca la casilla para continuar.</span> }
               }
@@ -200,7 +200,7 @@ export class AccesoModal {
   protected readonly entradas = computed(() => this.fan.motivoAcceso() === 'entradas');
   protected readonly seguir = computed(() => this.fan.motivoAcceso() === 'seguir');
   protected readonly formulario = computed(() => this.fan.motivoAcceso() === 'formulario');
-  protected readonly pasos = computed(() => ['Abre el email de GR Strength Cup',
+  protected readonly pasos = computed(() => ['Abre el email de GRS Cup 2',
     ...(this.inscripcion() ? ['Pulsa «Continuar la inscripción»', 'Vuelves al formulario de inscripción'] : this.entradas() ? ['Pulsa el enlace del email', 'Vuelves a tu reserva con lo que ya has rellenado']
       : this.seguir() ? ['Pulsa el enlace del email', 'Vuelves a la ficha y le sigues sin repetir nada'] : this.formulario() ? ['Pulsa el enlace del email', 'Vuelves al formulario y lo envías'] : ['Pulsa «Entrar al directo»', this.fan.destino() ? 'Vuelves a la sala con tu alias' : 'Vuelves al chat con tu alias'])]);
 
@@ -210,9 +210,9 @@ export class AccesoModal {
     if (this.estado() === 'enviado') return this.modo() === 'recuperar' ? 'Abre el enlace y elige tu contraseña nueva.' : 'Abre el enlace para verificar tu email y elegir tu contraseña.';
     if (this.modo() === 'recuperar') return 'Te enviamos un enlace a tu email: al abrirlo eliges la contraseña nueva. Sirve también para cuentas antiguas sin contraseña.';
     if (this.estado() === 'atleta') return 'Comprobamos tu email contra la inscripción de la AEP.';
-    return this.inscripcion() ? 'Necesitas tu cuenta de GR Strength Cup para inscribirte. Vuelves al formulario con lo que ya has rellenado.' : this.entradas() ? 'Tu entrada va asociada a tu cuenta de GR Strength Cup. Vuelves a la reserva con lo que ya has rellenado.'
-      : this.formulario() ? 'La solicitud va asociada a tu cuenta de GR Strength Cup. Vuelves al formulario para enviarla.'
-      : this.seguir() ? 'Sigue a tus atletas con tu cuenta de GR Strength Cup: te avisamos por email antes de que compitan.' : this.textos[this.fan.motivoAcceso() ?? '']?.[1] ?? 'Chatea, dona y juega con tu cuenta de directo.';
+    return this.inscripcion() ? 'Necesitas tu cuenta de GRS Cup 2 para inscribirte. Vuelves al formulario con lo que ya has rellenado.' : this.entradas() ? 'Tu entrada va asociada a tu cuenta de GRS Cup 2. Vuelves a la reserva con lo que ya has rellenado.'
+      : this.formulario() ? 'La solicitud va asociada a tu cuenta de GRS Cup 2. Vuelves al formulario para enviarla.'
+      : this.seguir() ? 'Sigue a tus atletas con tu cuenta de GRS Cup 2: te avisamos por email antes de que compitan.' : this.textos[this.fan.motivoAcceso() ?? '']?.[1] ?? 'Chatea, dona y juega con tu cuenta de directo.';
   });
   protected readonly puedeEnviar = computed(() => this.email().includes('@') && (this.modo() !== 'entrar' || this.clave().length > 0)
     && (this.modo() !== 'crear' || (this.alias().trim().length >= 3 && this.alias().trim().length <= 20 && this.normas())));

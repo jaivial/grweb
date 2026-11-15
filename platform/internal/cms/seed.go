@@ -156,14 +156,14 @@ var seedClubs = []clubIn{
 
 // SEO of the routes added after the first seed, inserted when their content is seeded.
 var seedSeoRutas = map[string][3]string{
-	"/publico": {"/publico", "Ver la competición · GR Strength Cup", "Entrada gratuita con reserva: qué verás, cómo se juzga un intento y normas de la grada en Almussafes."},
-	"/clubs":   {"/clubs", "Clubs de powerlifting en Valencia · GR Strength Cup", "Clubs y gimnasios de la Comunitat Valenciana, Murcia y Baleares donde entrenar powerlifting."},
-	"/en":      {"/en", "GRStrength Cup 2026 · Powerlifting competition in Valencia, Spain", "AEP powerlifting championship in Almussafes, 20 km south of Valencia. Free spectator entry, raffle and travel tips."},
+	"/publico": {"/publico", "Ver la competición · GRS Cup 2", "Entrada gratuita con reserva: qué verás, cómo se juzga un intento y normas de la grada en Almussafes."},
+	"/clubs":   {"/clubs", "Clubs de powerlifting en Valencia · GRS Cup 2", "Clubs y gimnasios de la Comunitat Valenciana, Murcia y Baleares donde entrenar powerlifting."},
+	"/en":      {"/en", "GRS Cup 2 · Powerlifting competition in Valencia, Spain", "AEP powerlifting championship in Almussafes, 20 km south of Valencia. Free spectator entry, raffle and travel tips."},
 }
 
 // seedSeoAltaAtleta is the SEO row of the public athlete sign-up page (indexable).
-var seedSeoAltaAtleta = [3]string{"/alta-atleta", "Alta de atleta de powerlifting | GR Strength Cup",
-	"Date de alta como atleta de la GR Strength Cup: crea tu perfil, sube tu foto y tus marcas AEP y compite con tu ficha lista para el pesaje."}
+var seedSeoAltaAtleta = [3]string{"/alta-atleta", "Alta de atleta de powerlifting | GRS Cup 2",
+	"Date de alta como atleta de la GRS Cup 2: crea tu perfil, sube tu foto y tus marcas AEP y compite con tu ficha lista para el pesaje."}
 
 func seedSeo(ctx context.Context, tx pgx.Tx, cid uuid.UUID, r [3]string) error {
 	_, err := tx.Exec(ctx, `INSERT INTO seo (id, competition_id, ruta, title, description, indexable) VALUES ($1,$2,$3,$4,$5,true) ON CONFLICT (competition_id, ruta) DO NOTHING`, newID(), cid, r[0], r[1], r[2])
@@ -542,7 +542,7 @@ type legalBorrador struct {
 // organiser has to review them with the legal advice before publishing them.
 var seedLegalBorrador = map[string]legalBorrador{
 	"consentimiento": {Version: "2026-11", Titulo: "Consentimiento de datos e imagen", Contenido: ejemplo + `## Qué autorizas
-Al marcar esta casilla autorizas a GR Strength (organizador de la GR Strength Cup) a publicar tu nombre, tus datos deportivos (club, categoría, división y marcas) y tu foto en la web de la competición, en la pantalla del pabellón y en la retransmisión en directo de la GR Cup.
+Al marcar esta casilla autorizas a GR Strength (organizador de la GRS Cup 2) a publicar tu nombre, tus datos deportivos (club, categoría, división y marcas) y tu foto en la web de la competición, en la pantalla del pabellón y en la retransmisión en directo de la GR Cup.
 
 ## Quién ve esos datos
 El público que visite la web o la pantalla del pabellón y los espectadores de la retransmisión en directo. Tu email y tu teléfono no se publican.
@@ -699,9 +699,9 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, args []string) error {
 			}
 		}
 		if empty(tx, "seo") {
-			for _, r := range [][3]string{{"/", "GR Strength Cup 2026 · Campeonato de powerlifting en Almussafes", "Campeonato de powerlifting AEP en Almussafes (Valencia). Entradas gratuitas con reserva, atletas, horarios y directo."},
-				{"/preguntas-frecuentes", "Preguntas frecuentes · GR Strength Cup", "Entradas gratuitas, horarios, sorteo y cómo llegar al pabellón de Almussafes."},
-				{"/patrocinadores", "Patrocinadores · GR Strength Cup", "Marcas y entidades que hacen posible la GR Strength Cup."}} {
+			for _, r := range [][3]string{{"/", "GRS Cup 2 · Campeonato de powerlifting en Almussafes", "Campeonato de powerlifting AEP en Almussafes (Valencia). Entradas gratuitas con reserva, atletas, horarios y directo."},
+				{"/preguntas-frecuentes", "Preguntas frecuentes · GRS Cup 2", "Entradas gratuitas, horarios, sorteo y cómo llegar al pabellón de Almussafes."},
+				{"/patrocinadores", "Patrocinadores · GRS Cup 2", "Marcas y entidades que hacen posible la GRS Cup 2."}} {
 				if err := seedSeo(ctx, tx, cid, r); err != nil {
 					return err
 				}

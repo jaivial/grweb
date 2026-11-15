@@ -109,7 +109,7 @@ export class LegalPage {
       this.html.set(this.sanitizer.bypassSecurityTrustHtml(limpio));
       this.toc.set(r.headings);
       this.doc.set(d);
-      seo.set({ title: `${d.titulo} · GR Strength Cup`, description: `${d.titulo} de la GR Strength Cup (versión ${d.version}).`, path: location0(this.tipo()) });
+      seo.set({ title: `${d.titulo} · GRS Cup 2`, description: `${d.titulo} de la GRS Cup 2 (versión ${d.version}).`, path: location0(this.tipo()) });
     });
   }
 }
@@ -154,13 +154,13 @@ export class ContentPage {
       if (!p) {
         this.p.set(null);
         this.cms.notFound();
-        seo.set({ title: this.cms.failed() ? 'GR Strength Cup' : 'Página no encontrada · GR Strength Cup', description: this.cms.failed() ? 'Contenido no disponible ahora mismo.' : 'La página no existe.', path: '/' + slug, ...(this.cms.failed() ? {} : { robots: 'noindex' }) });
+        seo.set({ title: this.cms.failed() ? 'GRS Cup 2' : 'Página no encontrada · GRS Cup 2', description: this.cms.failed() ? 'Contenido no disponible ahora mismo.' : 'La página no existe.', path: '/' + slug, ...(this.cms.failed() ? {} : { robots: 'noindex' }) });
         return;
       }
       this.html.set(renderMarkdown(p.cuerpo ?? '').html);
       this.p.set(p);
       const path = (blog ? '/blog/' : '/') + slug;
-      await applySeo(this.cms, seo, path, `${p.titulo} · GR Strength Cup`, p.resumen || p.titulo, p.portadaUrl || undefined);
+      await applySeo(this.cms, seo, path, `${p.titulo} · GRS Cup 2`, p.resumen || p.titulo, p.portadaUrl || undefined);
     });
   }
 }
