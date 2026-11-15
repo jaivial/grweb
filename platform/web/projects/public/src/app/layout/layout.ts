@@ -68,8 +68,8 @@ const MEGA: { titulo: string; items: MegaItem[] }[] = [
 const GRUPOS_MOVIL: { titulo: string; items: NavLink[] }[] = [
   { titulo: 'Competición', items: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },
   { titulo: 'El evento', items: [{ label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Galería', href: '/galeria' }, { label: 'Edición 2025', href: '/ediciones/2025' }] },
-  { titulo: 'Juegos y atletas', items: [{ label: 'GRS Fantasy', href: '/fantasy' }, { label: 'Porra', href: '/porra' }, { label: 'Rifa', href: '/sorteo' }, { label: 'Tu perfil de atleta', href: '/area-atleta' }] },
-  { titulo: 'Visita y comunidad', items: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Público', href: '/publico' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Clubs', href: '/clubs' }, { label: 'Blog', href: '/blog' }] },
+  { titulo: 'Juegos', items: [{ label: 'GRS Fantasy', href: '/fantasy' }, { label: 'Porra', href: '/porra' }, { label: 'Rifa', href: '/sorteo' }] },
+  { titulo: 'Visita y comunidad', items: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Blog', href: '/blog' }] },
 ];
 
 const UI = {
@@ -223,10 +223,10 @@ export class Navbar {
   protected frag(href: string): string | undefined { return href.split('#')[1]; }
   protected activo(href: string): boolean { const a = this.actual(); return a === href || a.startsWith(href + '/'); }
   protected readonly grupos = GRUPOS_MOVIL;
-  /** The four main links of the mobile menu (only the current section is marked, underlined). */
+  /** The main links of the mobile menu (only the current section is marked, underlined). */
   protected readonly accesos = computed(() => this.lang() === 'en'
     ? [{ label: 'Home', href: '/en' }, { label: 'Free tickets', href: '/entradas' }, ...LINKS.en.slice(1, 3)]
-    : [{ label: 'Inicio', href: '/' }, { label: 'Entradas', href: '/entradas' }, { label: 'Atletas', href: '/atletas' }, { label: 'Horarios', href: '/horarios' }]);
+    : [{ label: 'Inicio', href: '/' }, { label: 'Entradas', href: '/entradas' }, { label: 'Horarios', href: '/horarios' }, { label: 'Área de atleta', href: '/area-atleta' }, { label: 'Para el público', href: '/publico' }]);
   protected readonly edicion = computed(() => {
     const c = this.comp.data();
     const f = c?.fechaInicio ? new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(c.fechaInicio + 'T12:00:00Z')) : 'fecha por confirmar';
