@@ -98,11 +98,7 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
                 </button></li>
               } @empty { <li><bo-empty-state [kind]="filtrado() ? 'no-results' : 'no-data'" [title]="filtrado() ? 'Nada coincide con los filtros' : 'Todavía no hay reservas'" /></li> }
             </ul>
-            <div class="flex items-center justify-between gap-2 md:hidden">
-              <button grButton icon="chevron-left" [disabled]="l.pagina <= 1" (click)="filtrar({ pagina: l.pagina - 1 }, false)">Anterior</button>
-              <span class="font-mono text-mono-xs text-text-tertiary">Página {{ l.pagina }} de {{ pages(l) }}</span>
-              <button grButton [disabled]="l.pagina >= pages(l)" (click)="filtrar({ pagina: l.pagina + 1 }, false)">Siguiente<gr-icon name="chevron-right" [size]="16" /></button>
-            </div>
+            <bo-pagination class="md:hidden" [page]="l.pagina" [pages]="pages(l)" (change)="filtrar({ pagina: $event }, false)" />
             <section class="hidden overflow-x-auto rounded-lg border border-line-subtle bg-bg-card md:block">
               <table class="w-full table-fixed text-left text-body-s">
                 <thead class="border-b border-line-subtle text-[11px] font-semibold tracking-[0.04em] text-text-tertiary uppercase"><tr><th class="w-10 px-3 py-3"><bo-checkbox [value]="todos()" (valueChange)="selTodos()" aria="Seleccionar todas las de esta página" /></th><th boSort class="py-3" [sort]="srt.sortDe('titular')" (toggle)="ordenar('titular')">Titular</th><th boSort class="w-28 py-3" [sort]="srt.sortDe('codigo')" (toggle)="ordenar('codigo')">Código</th><th boSort class="py-3" [sort]="srt.sortDe('sesion')" (toggle)="ordenar('sesion')">Sesión</th><th boSort class="w-20 py-3" [sort]="srt.sortDe('personas')" (toggle)="ordenar('personas')">Pers.</th><th boSort class="w-32 py-3" [sort]="srt.sortDe('estado')" (toggle)="ordenar('estado')">Estado</th><th class="hidden w-28 px-3 py-3 2xl:table-cell">Novedades</th><th class="hidden w-28 px-3 py-3 2xl:table-cell">Origen</th><th boSort class="w-28 py-3" [sort]="srt.sortDe('fecha')" (toggle)="ordenar('fecha')">Fecha</th><th class="w-12"></th></tr></thead>
