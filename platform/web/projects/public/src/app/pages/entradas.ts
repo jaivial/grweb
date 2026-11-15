@@ -20,6 +20,7 @@ import { I18n, LocPipe, type Lang } from '../core/i18n';
 
 const T = {
   es: {
+    elDia: 'El día',
     est: { disponible: 'Disponible', ultimas: 'Últimas', agotada: 'Agotada', cerrada: 'Cerrada', proximamente: 'Próximamente' },
     tk: {
       sorteo: (n: number) => `Sorteo · ${n} ${n === 1 ? 'boleto pagado' : 'boletos pagados'}`,
@@ -199,6 +200,7 @@ const T = {
     },
   },
   en: {
+    elDia: 'The day',
     est: { disponible: 'Available', ultimas: 'Last few', agotada: 'Sold out', cerrada: 'Closed', proximamente: 'Coming soon' },
     tk: {
       sorteo: (n: number) => `Prize draw · ${n} ${n === 1 ? 'ticket paid' : 'tickets paid'}`,
@@ -682,7 +684,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
 
         <div class="flex flex-col gap-16 md:gap-20 lg:col-start-1 lg:row-start-1">
           <section class="flex flex-col gap-5 md:gap-7">
-            <p class="sr-only">El día</p>
+            <p class="sr-only">{{ t().elDia }}</p>
             <gr-cabecera [titulo]="t().pg.verT" [centro]="false" tam="m" />
             <ul class="grid grid-cols-2 gap-3 md:gap-4">
               @for (x of queVer; track x.t) {

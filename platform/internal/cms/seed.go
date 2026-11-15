@@ -67,32 +67,32 @@ var seedSecciones = map[string]any{
 }
 
 var seedFAQ = []faqIn{
-	{"Llegar", "¿Dónde se celebra la competición?", "En el Pabellón Municipal de Almussafes (Pavelló Poliesportiu, Avda. Laura Méndez s/n, 46440 Almussafes, Valencia). En la sección Localización tienes el mapa y el enlace a Google Maps.", true, true},
-	{"Atletas", "¿Cómo completo mi ficha de atleta?", "Rellena el [formulario de alta de atleta](/alta-atleta) con tu nombre, el email con el que te inscribiste en la AEP, tu club y tus mejores marcas. Añade una foto si quieres: se publica en blanco y negro y recortada. El equipo revisa cada solicitud a mano y, cuando la aprueba, tu ficha aparece en la [lista de atletas](/atletas).", true, true},
-	{"Competición", "¿Cómo participo en la GR Cup?", "La inscripción y la lista de espera las gestiona la **AEP** y la plantilla está completa. Si compites en esta edición, lo que te falta es la ficha: [da de alta tu atleta](/alta-atleta) y te la revisamos a mano.", true, true},
-	{"Competición", "¿Qué categorías de peso hay?", "Las categorías oficiales de la AEP para hombres y mujeres. Consulta la página de [categorías de peso](/categorias-de-peso).", true, true},
-	{"Competición", "¿Necesito una marca mínima?", "Para esta competición no hace falta marca mínima. Las [marcas mínimas](/marcas-minimas) sirven para clasificar a otras competiciones AEP.", true, true},
-	{"Entradas", "¿Puede venir público? ¿Cuánto cuesta?", "Sí. La entrada es **gratuita**, pero hay que reservarla para controlar el aforo: te llega un QR por email para ti y hasta 3 acompañantes.", true, true},
-	{"Sorteo", "¿Cómo funciona la rifa?", "La rifa es presencial: los boletos se compran en efectivo en el stand de la rifa durante el evento. No hay venta online. Consulta los objetos en la [página de la rifa](/sorteo).", true, true},
-	{"Entradas", "¿Cuántas personas puedo incluir en una reserva?", "Hasta 4 personas por reserva (tú y 3 acompañantes). Los menores entran con la reserva de un adulto.", false, true},
-	{"Entradas", "¿Puedo entrar y salir del pabellón?", "Sí, conserva tu QR en el móvil: se puede volver a mostrar en la puerta.", false, true},
-	{"Llegar", "¿Hay aparcamiento?", "Sí, hay aparcamiento junto al pabellón.", false, true},
+	{"Llegar", "¿Dónde se celebra la competición?", "En el Pabellón Municipal de Almussafes (Pavelló Poliesportiu, Avda. Laura Méndez s/n, 46440 Almussafes, Valencia). En la sección Localización tienes el mapa y el enlace a Google Maps.", true, true, enField{}},
+	{"Atletas", "¿Cómo completo mi ficha de atleta?", "Rellena el [formulario de alta de atleta](/alta-atleta) con tu nombre, el email con el que te inscribiste en la AEP, tu club y tus mejores marcas. Añade una foto si quieres: se publica en blanco y negro y recortada. El equipo revisa cada solicitud a mano y, cuando la aprueba, tu ficha aparece en la [lista de atletas](/atletas).", true, true, enField{}},
+	{"Competición", "¿Cómo participo en la GR Cup?", "La inscripción y la lista de espera las gestiona la **AEP** y la plantilla está completa. Si compites en esta edición, lo que te falta es la ficha: [da de alta tu atleta](/alta-atleta) y te la revisamos a mano.", true, true, enField{}},
+	{"Competición", "¿Qué categorías de peso hay?", "Las categorías oficiales de la AEP para hombres y mujeres. Consulta la página de [categorías de peso](/categorias-de-peso).", true, true, enField{}},
+	{"Competición", "¿Necesito una marca mínima?", "Para esta competición no hace falta marca mínima. Las [marcas mínimas](/marcas-minimas) sirven para clasificar a otras competiciones AEP.", true, true, enField{}},
+	{"Entradas", "¿Puede venir público? ¿Cuánto cuesta?", "Sí. La entrada es **gratuita**, pero hay que reservarla para controlar el aforo: te llega un QR por email para ti y hasta 3 acompañantes.", true, true, enField{}},
+	{"Sorteo", "¿Cómo funciona la rifa?", "La rifa es presencial: los boletos se compran en efectivo en el stand de la rifa durante el evento. No hay venta online. Consulta los objetos en la [página de la rifa](/sorteo).", true, true, enField{}},
+	{"Entradas", "¿Cuántas personas puedo incluir en una reserva?", "Hasta 4 personas por reserva (tú y 3 acompañantes). Los menores entran con la reserva de un adulto.", false, true, enField{}},
+	{"Entradas", "¿Puedo entrar y salir del pabellón?", "Sí, conserva tu QR en el móvil: se puede volver a mostrar en la puerta.", false, true, enField{}},
+	{"Llegar", "¿Hay aparcamiento?", "Sí, hay aparcamiento junto al pabellón.", false, true, enField{}},
 }
 
 var yes = true
 
 var seedPatro = []patroIn{
-	{"AEP", "institucional", bcdn + "sponsors/compressedAEP.webp", "https://powerliftingspain.es/", &yes, "Asociación Española de Powerlifting: avala la competición y aporta los jueces.", nil, "", 50, 50, ""},
-	{"A7", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp", "", &yes, "", nil, "", 50, 50, ""},
-	{"Maniak Fitness", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp", "", &yes, "", nil, "", 50, 50, ""},
-	{"Valkyria Powerlifting Center", "plata", logoValkyria, "", &yes, "", nil, "", 50, 50, ""},
-	{"PHED", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp", "", &yes, "", nil, "", 50, 50, ""},
-	{"CF Isabel Atlas", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp", "", &yes, "", nil, "", 50, 50, ""},
-	{"Gym Mediterrani", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp", "", &yes, "", nil, "", 50, 50, ""},
+	{"AEP", "institucional", bcdn + "sponsors/compressedAEP.webp", "https://powerliftingspain.es/", &yes, "Asociación Española de Powerlifting: avala la competición y aporta los jueces.", nil, "", 50, 50, "", enField{}},
+	{"A7", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"Maniak Fitness", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"Valkyria Powerlifting Center", "plata", logoValkyria, "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"PHED", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"CF Isabel Atlas", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"Gym Mediterrani", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
 	// BIZ-144: the three logos of the hero row (Figma 199:100283), the only ones with «Mostrar en hero» on.
-	{"GRStrength", "principal", "/img/home/patro-str.webp", "https://grstrength.com", &yes, "", &enHero, "", 50, 50, ""},
-	{"GRS Powerlifting Coaching", "principal", "/img/home/patro-coa.webp", "", &yes, "", &enHero, "", 50, 50, ""},
-	{"Ajuntament d'Almussafes", "institucional", "/img/home/patro-alm.webp", "https://www.almussafes.net", &yes, "", &enHero, "", 50, 50, ""},
+	{"GRStrength", "principal", "/img/home/patro-str.webp", "https://grstrength.com", &yes, "", &enHero, "", 50, 50, "", enField{}},
+	{"GRS Powerlifting Coaching", "principal", "/img/home/patro-coa.webp", "", &yes, "", &enHero, "", 50, 50, "", enField{}},
+	{"Ajuntament d'Almussafes", "institucional", "/img/home/patro-alm.webp", "https://www.almussafes.net", &yes, "", &enHero, "", 50, 50, "", enField{}},
 }
 
 var enHero = true

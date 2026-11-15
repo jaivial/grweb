@@ -1,3 +1,4 @@
+import { errorEn, textoError } from '../core/errores';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { mascaraFecha } from './fecha-mascara';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, signal } from '@angular/core';
@@ -9,7 +10,7 @@ import { firstValueFrom } from 'rxjs';
 import { CATEGORIAS_IPF, cat } from '../core/atletas';
 import { COMPETITION_SLUG, Competition, type CompeticionPublica } from '../core/competition';
 import { FanSession, codigoError } from '../core/fan';
-import { I18n, LocPipe } from '../core/i18n';
+import { I18n, LocPipe, idiomaActual } from '../core/i18n';
 import { Seo } from '../core/seo';
 import { instagramOf } from '../layout/layout';
 import { Page } from '../layout/page';
@@ -685,7 +686,7 @@ export class InscripcionPage {
       this.precio.set(await firstValueFrom(this.http.post<Precio>(`${base}/precio`, { cupon: this.cupon, referido: this.referido, email: this.d.email })));
     } catch (e) {
       if (codigoError(e).startsWith('SESION_FAN')) return this.pedirAcceso();
-      this.error.set((e as { error?: { detail?: string } }).error?.detail ?? this.t().noComprobar);
+      this.error.set(textoError(e, this.t().noComprobar));
     }
   }
 
@@ -773,12 +774,14 @@ export class InscripcionPage {
   private erroresServidor(err: unknown): boolean {
     const b = (err as { error?: { code?: string; detail?: string; errors?: { location?: string; message?: string }[] } }).error;
     const e: Record<string, string> = {};
+    // EN: never the raw Spanish detail / message of the API
+    const en = idiomaActual() === 'en' ? errorEn(b?.code) ?? 'This field is not valid.' : '';
     for (const x of b?.errors ?? []) {
       const k = x.location?.replace(/^body\./, '');
-      if (k && this.campos.some((f) => f.k === k)) e[k] = x.message || b?.detail || '';
+      if (k && this.campos.some((f) => f.k === k)) e[k] = en || x.message || b?.detail || '';
     }
     const k = CAMPO_DE_CODIGO[b?.code ?? ''];
-    if (k && !e[k]) e[k] = b?.detail ?? '';
+    if (k && !e[k]) e[k] = en || (b?.detail ?? '');
     if (!Object.keys(e).length) return false;
     this.err.set(e);
     this.enfocarResumen();
@@ -815,7 +818,7 @@ export class InscripcionPage {
       if (c !== 'INSCRIPCION_EN_CURSO' && !c.startsWith('HTTP_0') && !c.startsWith('HTTP_5')) this.idem = ''; // a rejected form gets a new key once fixed
       if (c.startsWith('SESION_FAN')) return this.pedirAcceso();
       if (this.erroresServidor(err)) return;
-      this.error.set((err as { error?: { detail?: string } }).error?.detail ?? this.t().noCompletar);
+      this.error.set(textoError(err, this.t().noCompletar));
     } finally {
       this.enviando.set(false);
     }
@@ -1078,7 +1081,7 @@ export class PagoSimuladoPage {
       this.verMensaje();
     } catch (e) {
       this.tresDS.set(false);
-      this.mensaje.set((e as { error?: { detail?: string } }).error?.detail ?? this.t().noPago);
+      this.mensaje.set(textoError(e, this.t().noPago));
       this.verMensaje();
     } finally {
       this.pagando.set(false);

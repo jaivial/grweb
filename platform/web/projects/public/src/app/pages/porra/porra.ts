@@ -12,7 +12,7 @@ import { GrAlert, GrIcon, GrSkeleton } from '@grcup/ui';
 import { map } from 'rxjs';
 import { Cms } from '../../core/cms';
 import { FanSession, codigoError } from '../../core/fan';
-import { Juegos, JuegosEnVivo, JuegosEstado, PorraStore, type Jornada, type Mercado, type Sexo, mensajeError } from '../../core/juegos';
+import { Juegos, JuegosEnVivo, JuegosEstado, PorraStore, type Jornada, type Mercado, type Sexo, mensajeError, nombreJornadaLoc } from '../../core/juegos';
 import { I18n, LocPipe } from '../../core/i18n';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
@@ -457,7 +457,7 @@ export class PorraPage {
   }
 
   protected nombreJornada(j: Jornada): string {
-    return j.nombre.replace(/\s*\(.*\)$/, '');
+    return nombreJornadaLoc(j, this.i18n.locale());
   }
 
   protected etiqueta(m: Mercado): string {

@@ -1,3 +1,4 @@
+import type { HttpInterceptorFn } from '@angular/common/http';
 import { DOCUMENT } from '@angular/common';
 import { Injectable, Pipe, type PipeTransform, computed, inject, signal } from '@angular/core';
 import { NavigationStart, Router } from '@angular/router';
@@ -23,6 +24,10 @@ export function sinPrefijo(p: string): string {
   return resto.startsWith('/') ? resto : '/' + resto;
 }
 
+let actual: Lang = 'es';
+/** Language of the page being shown (for plain helpers called without a lang, e.g. API error texts). */
+export const idiomaActual = (): Lang => actual;
+
 @Injectable({ providedIn: 'root' })
 export class I18n {
   private readonly router = inject(Router);
@@ -32,8 +37,9 @@ export class I18n {
   readonly locale = computed(() => (this.lang() === 'en' ? 'en-GB' : 'es-ES'));
 
   constructor() {
+    actual = this.lang();
     this.router.events.subscribe((e) => {
-      if (e instanceof NavigationStart) this.lang.set(langDe(e.url));
+      if (e instanceof NavigationStart) this.lang.set((actual = langDe(e.url)));
     });
   }
 
@@ -65,3 +71,26 @@ export class LocPipe implements PipeTransform {
     return p == null ? '' : this.i18n.path(p);
   }
 }
+
+/** Public APIs (outside the CMS) whose texts have English overrides: competition, schedule, tickets and raffle. */
+/** Age division names come in Spanish from the data («Máster 1», «Júnior», «Subjúnior»…): English labels in EN. */
+export function divisionEn(d: string | null | undefined, lang: Lang = actual): string {
+  if (!d || lang !== 'en') return d ?? '';
+  return d.replace(/M[áa]ster/gi, 'Master').replace(/Sub-?\s?j[úu]nior/gi, 'Sub-junior').replace(/J[úu]nior/gi, 'Junior')
+    .replace(/Absoluta|Absoluto/gi, 'Open').replace(/Abierta/gi, 'Open');
+}
+
+/** {{ a.divisionNombre | division }}. Impure: it follows the language signal. */
+@Pipe({ name: 'division', pure: false })
+export class DivisionPipe implements PipeTransform {
+  private readonly i18n = inject(I18n);
+  transform(d: string | null | undefined): string {
+    return divisionEn(d, this.i18n.lang());
+  }
+}
+
+const CON_EN = /^\/api\/competiciones\/[a-z0-9-]+(\/(horarios|entradas|rifa(\/items)?))?$/;
+
+/** On /en pages, GETs to those APIs carry ?lang=en so the API overlays its English texts. */
+export const langInterceptor: HttpInterceptorFn = (req, next) =>
+  req.method === 'GET' && inject(I18n).lang() === 'en' && CON_EN.test(req.url.split('?')[0]) ? next(req.clone({ setParams: { lang: 'en' } })) : next(req);

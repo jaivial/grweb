@@ -40,6 +40,33 @@ func (s *Svc) out(ctx context.Context, cid uuid.UUID) (*borradorOut, error) {
 
 func (s *Svc) registerAdmin() {
 	api := s.a.API
+	type enOut struct {
+		Body map[string]string
+	}
+	huma.Register(api, huma.Operation{OperationID: "horarios-en-get", Method: http.MethodGet, Path: base + "/en", Summary: "Textos en inglés del horario público (texto en español → inglés)", Tags: tagAdmin, Security: bearer},
+		func(ctx context.Context, in *cidIn) (*enOut, error) {
+			if _, err := requireAny(ctx, in.CID, readPerms...); err != nil {
+				return nil, err
+			}
+			out := &enOut{Body: map[string]string{}}
+			_ = s.a.DB.QueryRow(ctx, `SELECT en FROM config WHERE competition_id = $1`, in.CID).Scan(&out.Body)
+			return out, nil
+		})
+	type enIn struct {
+		CID  uuid.UUID `path:"cid"`
+		Body map[string]string
+	}
+	huma.Register(api, huma.Operation{OperationID: "horarios-en-put", Method: http.MethodPut, Path: base + "/en", Summary: "Guarda los textos en inglés del horario público", Tags: tagAdmin, Security: bearer},
+		func(ctx context.Context, in *enIn) (*enOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "horarios.publicar"); err != nil {
+				return nil, err
+			}
+			if _, err := s.a.DB.Exec(ctx, `UPDATE config SET en = $2 WHERE competition_id = $1`, in.CID, in.Body); err != nil {
+				return nil, err
+			}
+			return &enOut{Body: in.Body}, nil
+		})
+
 	huma.Register(api, huma.Operation{OperationID: "horarios-get", Method: http.MethodGet, Path: base, Summary: "Planificador: sesiones, atletas sin sesión, conflictos y versión publicada", Tags: tagAdmin, Security: bearer},
 		func(ctx context.Context, in *cidIn) (*borradorOut, error) {
 			if _, err := requireAny(ctx, in.CID, readPerms...); err != nil {

@@ -128,6 +128,8 @@ const SHELL = (() => {
     return null;
   }
 })();
+/** Same shell for /en/...: English document language and title. */
+const SHELL_EN = SHELL?.replace('<html lang="es"', '<html lang="en"').replace(/<title>[^<]*<\/title>/, '<title>Page not found · GR Strength Cup</title>') ?? null;
 async function desconocida(path: string): Promise<boolean> {
   // /en/... mounts the same pages (i18n): check the Spanish path
   if (path === '/en' || path.startsWith('/en/')) path = path.slice(3) || '/';
@@ -139,7 +141,7 @@ async function desconocida(path: string): Promise<boolean> {
 }
 app.use(async (req, res, next) => {
   if (!SHELL || (req.method !== 'GET' && req.method !== 'HEAD') || !(await desconocida(req.path))) return next();
-  res.status(404).set({ 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex' }).type('html').send(SHELL);
+  res.status(404).set({ 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex' }).type('html').send(req.path === '/en' || req.path.startsWith('/en/') ? SHELL_EN : SHELL);
 });
 
 /**

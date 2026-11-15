@@ -12,7 +12,7 @@ import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG } from './competition';
 import { FanSession, codigoError, detalleError } from './fan';
-import type { Lang } from './i18n';
+import { idiomaActual, type Lang } from './i18n';
 
 // ---------------------------------------------------------------------------------------------
 // Tipos (las etiquetas json del backend: internal/juegos/http.go, porra.go, fantasy.go, ranking.go)
@@ -41,6 +41,14 @@ export interface Jornada {
 }
 
 /** Una opción de mercado de porra: el atleta, lo apostado y su cuota orientativa en vivo. */
+/** The visible jornada name without «(…)»; automatic «Sábado 19» names are re-formatted in the locale from «dia». */
+export function nombreJornadaLoc(j: Pick<Jornada, 'nombre' | 'dia'>, locale: string): string {
+  const n = j.nombre.replace(/\s*\(.*\)$/, '');
+  if (!j.dia || locale.startsWith('es') || !/^(Domingo|Lunes|Martes|Miércoles|Jueves|Viernes|Sábado) \d{1,2}$/.test(n)) return n;
+  const s = new Date(j.dia.slice(0, 10) + 'T12:00:00Z').toLocaleDateString(locale, { weekday: 'long', day: 'numeric', timeZone: 'UTC' }).replace(',', '');
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 export interface OpcionMercado {
   atletaId: string;
   nombre: string;
@@ -470,7 +478,7 @@ const MENSAJES_EN: Record<string, string> = {
 };
 
 /** Traduce el error del API a un mensaje claro (usa el código; si no lo conoce, el detalle del backend). */
-export function mensajeError(e: unknown, lang: Lang = 'es'): string {
+export function mensajeError(e: unknown, lang: Lang = idiomaActual()): string {
   const codigo = codigoError(e);
   return (lang === 'en' ? MENSAJES_EN : MENSAJES)[codigo] ?? detalleError(e, lang);
 }

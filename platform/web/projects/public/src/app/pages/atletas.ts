@@ -1,3 +1,4 @@
+import { textoError } from '../core/errores';
 import { ChangeDetectionStrategy, Component, ElementRef, PLATFORM_ID, PendingTasks, DestroyRef, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -8,7 +9,7 @@ import { Cms } from '../core/cms';
 import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
 import { FanSession } from '../core/fan';
 import { ICS_URL } from '../core/horarios';
-import { I18n, LocPipe } from '../core/i18n';
+import { DivisionPipe, I18n, LocPipe, divisionEn } from '../core/i18n';
 import { Seo } from '../core/seo';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
@@ -73,7 +74,7 @@ export class Fav {
 /** /atletas (Figma page 39): search, filters, athlete cards (list grouped by class on mobile), load more. */
 @Component({
   selector: 'gr-atletas-page',
-  imports: [RouterLink, LocPipe, GrSelect, Page, FormsModule, GrAlert, GrIcon, GrButton, GrSkeleton, Fav, Related],
+  imports: [RouterLink, LocPipe, DivisionPipe, GrSelect, Page, FormsModule, GrAlert, GrIcon, GrButton, GrSkeleton, Fav, Related],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
@@ -104,7 +105,7 @@ export class Fav {
             <option value="">{{ t().todos }}</option>@for (c of clubs(); track c) { <option [value]="c">{{ c }}</option> }
           </gr-select>
           <gr-select tipo="filtro" [etiqueta]="t().division" [attr.aria-label]="t().division" class="md:max-lg:hidden" [ngModel]="division()" (ngModelChange)="division.set($event); limite.set(24)">
-            <option value="">{{ t().todas }}</option>@for (d of divisiones(); track d) { <option [value]="d">{{ d }}</option> }
+            <option value="">{{ t().todas }}</option>@for (d of divisiones(); track d) { <option [value]="d">{{ d | division }}</option> }
           </gr-select>
           <gr-select tipo="filtro" [etiqueta]="t().orden" [resaltar]="false" [attr.aria-label]="t().orden" class="md:max-lg:hidden" [ngModel]="orden()" (ngModelChange)="orden.set($event)">
             <option value="horario">{{ t().oHorario }}</option><option value="nombre">{{ t().oNombre }}</option><option value="categoria">{{ t().oCat }}</option>
@@ -156,7 +157,7 @@ export class Fav {
                   <span class="mt-1.5 text-body-xs text-text-tertiary">{{ a.club || t().independiente }}{{ a.ciudad ? ' · ' + a.ciudad : '' }}</span>
                   <span class="mt-3 mb-3 flex flex-wrap gap-1.5">
                     <span class="inline-flex h-6 items-center rounded-pill border border-accent/50 bg-accent/10 px-2 text-label-xs text-accent-text">{{ a.categoria.trim() ? a.sexo + ' ' + cat(a.categoria) + ' kg' : t().sinCat }}</span>
-                    @if (a.divisionNombre) { <span class="inline-flex h-6 items-center rounded-pill border border-line-strong bg-white/5 px-2 text-label-xs text-text-tertiary">{{ a.divisionNombre }}</span> }
+                    @if (a.divisionNombre) { <span class="inline-flex h-6 items-center rounded-pill border border-line-strong bg-white/5 px-2 text-label-xs text-text-tertiary">{{ a.divisionNombre | division }}</span> }
                   </span>
                   <span class="mt-auto flex items-center gap-1.5 border-t border-line-subtle pt-3 text-body-xs text-text-secondary"><gr-icon name="clock" [size]="12" />{{ a.horaInicio ? hora(a.horaInicio) : t().porPublicar }}</span>
                 </span>
@@ -175,7 +176,7 @@ export class Fav {
                     <a [routerLink]="'/atletas/' + a.slug | loc" class="flex min-h-16 items-center gap-3 py-2.5">
                       @if (a.fotoUrl) { <img [src]="a.fotoUrl" alt="" class="size-11 shrink-0 rounded-full object-cover" [style.object-position]="a.focalX + '% ' + a.focalY + '%'" loading="lazy" /> }
                       @else { <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-deep/50 text-label-m">{{ ini(a) }}</span> }
-                      <span class="min-w-0 flex-1"><span class="block text-label-m break-words">{{ a.nombre }} {{ a.apellidos }}</span><span class="line-clamp-2 block text-body-xs text-text-tertiary">{{ a.club || t().independiente }} · {{ a.categoria.trim() ? a.sexo + ' ' + cat(a.categoria) + ' kg' : t().sinCat }}{{ a.divisionNombre ? ' · ' + a.divisionNombre : '' }}</span></span>
+                      <span class="min-w-0 flex-1"><span class="block text-label-m break-words">{{ a.nombre }} {{ a.apellidos }}</span><span class="line-clamp-2 block text-body-xs text-text-tertiary">{{ a.club || t().independiente }} · {{ a.categoria.trim() ? a.sexo + ' ' + cat(a.categoria) + ' kg' : t().sinCat }}{{ a.divisionNombre ? ' · ' + (a.divisionNombre | division) : '' }}</span></span>
                       <span class="font-mono text-[13px] text-text-secondary">{{ a.horaInicio ? hora(a.horaInicio) : '' }}</span>
                       <gr-fav [slug]="a.slug" [nombre]="a.nombre" />
                     </a>
@@ -387,7 +388,7 @@ const T2 = {
 /** /atletas/:slug (Figma page 40): profile, «Avísame cuando compita», openers, day, best lifts, others in the class. */
 @Component({
   selector: 'gr-atleta-page',
-  imports: [RouterLink, LocPipe, Page, FormsModule, GrAlert, GrButton, GrIcon, GrSkeleton, Fav],
+  imports: [RouterLink, LocPipe, DivisionPipe, Page, FormsModule, GrAlert, GrButton, GrIcon, GrSkeleton, Fav],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let a = ficha();
@@ -414,7 +415,7 @@ const T2 = {
                 <div class="absolute inset-x-0 bottom-0 bg-[linear-gradient(transparent,rgb(14_12_13/0.95))] p-5" [class]="a.fotoUrl ? 'pt-16' : 'pt-[108px] max-lg:relative lg:pt-16'"><p class="font-display leading-[0.95] uppercase italic" [class]="a.fotoUrl ? 'text-[40px]' : 'text-[32px] lg:text-[40px]'">{{ a.nombre }} {{ a.apellidos }}</p></div>
               </div>
               <div class="p-5">
-                @if (a.categoria || a.divisionNombre) { <p class="text-label-m text-text-secondary">{{ a.categoria ? a.sexo + ' ' + cat(a.categoria) + ' kg' : '' }}{{ a.categoria && a.divisionNombre ? ' · ' : '' }}{{ a.divisionNombre }}</p> }
+                @if (a.categoria || a.divisionNombre) { <p class="text-label-m text-text-secondary">{{ a.categoria ? a.sexo + ' ' + cat(a.categoria) + ' kg' : '' }}{{ a.categoria && a.divisionNombre ? ' · ' : '' }}{{ a.divisionNombre | division }}</p> }
                 <ul class="mt-3 flex flex-col gap-2 text-body-s text-text-secondary">
                   <li class="flex items-center gap-2"><gr-icon name="users" [size]="16" class="shrink-0 text-text-tertiary" />{{ a.club || t().independiente }}{{ a.ciudad ? ' · ' + a.ciudad : '' }}</li>
                   <li class="flex items-center gap-2"><gr-icon name="clock" [size]="16" class="shrink-0 text-text-tertiary" />@if (a.horaInicio) { {{ t().compite(diaTxt(), hora(a.horaInicio)) }} } @else { {{ t().porPublicar }} }</li>
@@ -514,7 +515,7 @@ const T2 = {
                       <a [routerLink]="'/atletas/' + o.slug | loc" class="flex min-w-0 flex-1 items-center gap-3">
                         @if (o.fotoUrl) { <img [src]="o.fotoUrl" alt="" class="size-11 rounded-full object-cover" [style.object-position]="o.focalX + '% ' + o.focalY + '%'" loading="lazy" /> }
                         @else { <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-deep/50 text-label-s leading-none [text-box:trim-both_cap_alphabetic]">{{ ini(o) }}</span> }
-                        <span class="min-w-0 break-words"><span class="block text-label-m">{{ o.nombre }} {{ o.apellidos }}</span><span class="block text-body-xs text-text-tertiary">{{ o.club || t().independiente }} · {{ o.divisionNombre }}</span></span>
+                        <span class="min-w-0 break-words"><span class="block text-label-m">{{ o.nombre }} {{ o.apellidos }}</span><span class="block text-body-xs text-text-tertiary">{{ o.club || t().independiente }} · {{ o.divisionNombre | division }}</span></span>
                       </a>
                       @if (o.horaInicio) { <span class="text-mono-s">{{ hora(o.horaInicio) }}</span> }
                       <gr-fav [slug]="o.slug" [nombre]="o.nombre" />
@@ -598,7 +599,7 @@ export class AtletaPage {
       const nombre = `${f.nombre} ${f.apellidos}`;
       // Sin categoría (atleta recién creado desde una solicitud) no se pinta «M  kg».
       const catTxt = f.categoria ? `${f.sexo} ${cat(f.categoria)} kg` : '';
-      const desc = this.t().desc(nombre, f.club, f.sexo, f.categoria ? cat(f.categoria) : '', f.divisionNombre);
+      const desc = this.t().desc(nombre, f.club, f.sexo, f.categoria ? cat(f.categoria) : '', divisionEn(f.divisionNombre));
       seo.set({
         title: catTxt ? `${nombre} · ${catTxt} · GRS Cup` : `${nombre} · GRS Cup`,
         description: `${desc}${f.totalPrevisto ? ' ' + this.t().previsto + kg(f.totalPrevisto, this.i18n.lang()) + ' kg.' : ''}`,
@@ -657,7 +658,7 @@ export class AtletaPage {
       this.avisoEnviado.set(true);
     } catch (e) {
       if ((e as { status?: number }).status === 401) { this.fan.sesionPerdida(); return this.fav.pedirAcceso({ accion: 'avisar', slug: a.slug, email: this.email }); }
-      this.avisoError.set((e as { error?: { detail?: string } }).error?.detail ?? this.t().reintenta);
+      this.avisoError.set(textoError(e, this.t().reintenta));
     } finally {
       this.enviando.set(false);
     }

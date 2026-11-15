@@ -52,7 +52,7 @@ export const fechasHero = (ini?: string | null, fin?: string | null, lang: Lang 
     @let c = comp();
     <div class="relative mx-auto flex max-w-[1440px] flex-col items-center gap-6 px-5 pt-2 pb-18 text-center md:gap-8 md:px-20 md:pt-6 md:pb-32">
       <!-- Figma home R2 «Cabecera evento»: logo, organiser logos in B/N (2 × 2 on mobile, one row from md), level, dates and place -->
-      <img [src]="logo" alt="GRS Cup 2" class="h-[120px] w-auto select-none md:h-[200px]" draggable="false" />
+      <img [src]="logo" alt="GRS Cup 2" loading="lazy" decoding="async" class="h-[120px] w-auto select-none md:h-[200px]" draggable="false" />
       <ul class="grid w-full max-w-[350px] grid-cols-2 gap-x-5 gap-y-4 md:flex md:max-w-none md:justify-center md:gap-6" [attr.aria-label]="t().organizan">
         @for (o of organizadores; track o.nombre) {
           <li class="flex h-12 min-w-0 items-center justify-center md:h-14 md:w-40"><img [src]="o.logo" [alt]="o.nombre" width="114" height="40" class="h-10 w-auto max-w-full object-contain" loading="lazy" decoding="async" /></li>
@@ -83,7 +83,7 @@ export const fechasHero = (ini?: string | null, fin?: string | null, lang: Lang 
           <div class="flex w-max animate-[gr-marquesina_linear_infinite] items-center hover:[animation-play-state:paused] motion-reduce:animate-none" [style.animation-duration.s]="duracion()">
             @for (p of cinta(); track $index) {
               <a role="listitem" class="shrink-0 pr-9 md:pr-[72px]" [attr.href]="p.url || null" target="_blank" rel="noopener sponsored" [attr.aria-hidden]="$index >= patrocinadores().length || null" [attr.tabindex]="$index >= patrocinadores().length ? -1 : null">
-                @if (p.logoUrl) { <img [src]="p.logoUrl | cdn" [alt]="p.nombre" class="h-[34px] w-auto max-w-none opacity-90 transition-opacity hover:opacity-100 md:h-12" /> }
+                @if (p.logoUrl) { <img [src]="p.logoUrl | cdn" [alt]="p.nombre" loading="lazy" decoding="async" class="h-[34px] w-auto max-w-none opacity-90 transition-opacity hover:opacity-100 md:h-12" /> }
                 @else { <span class="flex h-[34px] items-center text-label-m whitespace-nowrap text-text-secondary md:h-12">{{ p.nombre }}</span> }
               </a>
             }

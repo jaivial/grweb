@@ -35,6 +35,7 @@ type faqRow struct {
 	Destacada bool      `json:"destacada" db:"destacada" doc:"Aparece en la home"`
 	Publicada bool      `json:"publicada" db:"publicada"`
 	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
+	enCol
 }
 
 type faqIn struct {
@@ -43,6 +44,7 @@ type faqIn struct {
 	Respuesta string `json:"respuesta" minLength:"1" maxLength:"4000" doc:"Markdown"`
 	Destacada bool   `json:"destacada,omitempty"`
 	Publicada bool   `json:"publicada,omitempty"`
+	enField
 }
 
 // ---- Patrocinadores ----
@@ -63,6 +65,7 @@ type patroRow struct {
 	FocalX        int    `json:"focalX" db:"focal_x"`
 	FocalY        int    `json:"focalY" db:"focal_y"`
 	Alt           string `json:"alt" db:"alt"`
+	enCol
 }
 
 type patroIn struct {
@@ -81,6 +84,7 @@ type patroIn struct {
 	FocalX  int    `json:"focalX" required:"false" minimum:"0" maximum:"100" default:"50"`
 	FocalY  int    `json:"focalY" required:"false" minimum:"0" maximum:"100" default:"50"`
 	Alt     string `json:"alt,omitempty" maxLength:"200"`
+	enField
 }
 
 // ---- SEO and redirects ----
@@ -93,6 +97,7 @@ type seoRow struct {
 	ImagenURL   string    `json:"imagenUrl" db:"imagen_url"`
 	Indexable   bool      `json:"indexable" db:"indexable"`
 	Orden       int       `json:"orden" db:"orden"`
+	enCol
 }
 
 type seoIn struct {
@@ -101,6 +106,7 @@ type seoIn struct {
 	Description string `json:"description,omitempty" maxLength:"170"`
 	ImagenURL   string `json:"imagenUrl,omitempty" maxLength:"500"`
 	Indexable   bool   `json:"indexable,omitempty"`
+	enField
 }
 
 type redirRow struct {
@@ -133,6 +139,7 @@ type paginaRow struct {
 	UpdatedAt  time.Time  `json:"updatedAt" db:"updated_at"`
 	Categoria  string     `json:"categoria" db:"categoria"`
 	Fuente     string     `json:"fuente" db:"fuente"`
+	enCol
 }
 
 type paginaIn struct {
@@ -146,6 +153,7 @@ type paginaIn struct {
 	// Blog only: category (filters of /blog) and the source line under the header.
 	Categoria string `json:"categoria,omitempty" maxLength:"20"`
 	Fuente    string `json:"fuente,omitempty" maxLength:"200"`
+	enField
 }
 
 // categoriasBlog are the categories of /blog (Figma 34).
@@ -224,6 +232,7 @@ type albumRow struct {
 	Fotos     json.RawMessage `json:"fotos" db:"fotos"`
 	Publicado bool            `json:"publicado" db:"publicado"`
 	Orden     int             `json:"orden" db:"orden"`
+	enCol
 }
 
 type albumIn struct {
@@ -231,6 +240,7 @@ type albumIn struct {
 	Slug      string `json:"slug" pattern:"^[a-z0-9][a-z0-9-]{0,80}$"`
 	Fotos     []foto `json:"fotos,omitempty" maxItems:"300"`
 	Publicado bool   `json:"publicado,omitempty"`
+	enField
 }
 
 // ---- Voluntarios (admin side; they are created from the public form) ----
@@ -271,7 +281,7 @@ func (s *Svc) registerCollections() {
 	tagWeb := "Web y contenidos"
 	register(s, collection[faqRow, faqIn]{
 		name: "faq", path: "/web/faq", table: "faq", tag: tagWeb, perm: "web.editar", order: "categoria, orden, pregunta",
-		cols:     "id, categoria, pregunta, respuesta, orden, destacada, publicada, updated_at",
+		cols:     "id, categoria, pregunta, respuesta, orden, destacada, publicada, updated_at, en",
 		validate: func(in *faqIn) error { trimAll(&in.Categoria, &in.Pregunta, &in.Respuesta); return nil },
 		insert: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *faqIn) error {
 			_, err := tx.Exec(ctx, `INSERT INTO faq (id, competition_id, categoria, pregunta, respuesta, destacada, publicada, orden)
@@ -286,7 +296,7 @@ func (s *Svc) registerCollections() {
 	})
 	register(s, collection[patroRow, patroIn]{
 		name: "patrocinadores", path: "/web/patrocinadores", table: "patrocinadores", tag: tagWeb, perm: "web.editar", order: "orden, nombre",
-		cols: "id, nombre, nivel, logo_url, url, orden, activo, descripcion, mostrar_en_hero, foto_url, focal_x, focal_y, alt",
+		cols: "id, nombre, nivel, logo_url, url, orden, activo, descripcion, mostrar_en_hero, foto_url, focal_x, focal_y, alt, en",
 		validate: func(in *patroIn) error {
 			trimAll(&in.Nombre, &in.LogoURL, &in.URL, &in.Descripcion, &in.FotoURL, &in.Alt)
 			if !validURL(in.URL, false) || !validURL(in.LogoURL, true) || !validURL(in.FotoURL, true) {
@@ -309,7 +319,7 @@ func (s *Svc) registerCollections() {
 	})
 	register(s, collection[seoRow, seoIn]{
 		name: "seo", path: "/web/seo", table: "seo", tag: tagWeb, perm: "web.editar", order: "ruta",
-		cols:     "id, ruta, title, description, imagen_url, indexable, orden",
+		cols:     "id, ruta, title, description, imagen_url, indexable, orden, en",
 		validate: func(in *seoIn) error { trimAll(&in.Title, &in.Description, &in.ImagenURL); return nil },
 		insert: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *seoIn) error {
 			_, err := tx.Exec(ctx, `INSERT INTO seo (id, competition_id, ruta, title, description, imagen_url, indexable) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
@@ -370,7 +380,7 @@ func (s *Svc) registerCollections() {
 		}
 		register(s, collection[paginaRow, paginaIn]{
 			name: name, path: path, table: "paginas", scope: "tipo = '" + tipo + "'", tag: tagWeb, perm: "web.editar", order: "orden, created_at DESC",
-			cols: "id, tipo, slug, titulo, resumen, cuerpo, portada_url, publicada, publicar_at, orden, updated_at, categoria, fuente",
+			cols: "id, tipo, slug, titulo, resumen, cuerpo, portada_url, publicada, publicar_at, orden, updated_at, categoria, fuente, en",
 			validate: func(in *paginaIn) error {
 				trimAll(&in.Titulo, &in.Resumen, &in.PortadaURL, &in.Fuente)
 				if !validURL(in.PortadaURL, true) {
@@ -397,7 +407,7 @@ func (s *Svc) registerCollections() {
 	}
 	register(s, collection[albumRow, albumIn]{
 		name: "albumes", path: "/web/albumes", table: "albumes", tag: tagWeb, perm: "web.editar", order: "orden, created_at DESC",
-		cols: "id, titulo, slug, fotos, publicado, orden",
+		cols: "id, titulo, slug, fotos, publicado, orden, en",
 		validate: func(in *albumIn) error {
 			for _, f := range in.Fotos {
 				if !validURL(f.URL, true) {

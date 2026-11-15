@@ -40,7 +40,8 @@ func (s *Svc) handleWhatsapp(ctx context.Context, e events.Event) error {
 	}
 	avisos := s.avisosDe(ctx, cid)
 	var destinos []string
-	if d.Para != "" && avisos.AlAtleta {
+	// «Avisar al atleta» only governs athlete messages; a público account that gave its phone asked for them.
+	if d.Para != "" && (avisos.AlAtleta || strings.HasPrefix(e.Type, "fans.")) {
 		if num := normTel(d.Para); num != "" {
 			destinos = append(destinos, num)
 		}

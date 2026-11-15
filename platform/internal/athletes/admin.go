@@ -519,6 +519,7 @@ func (s *Svc) registerAdmin() {
 			Caduca  time.Time `json:"caduca"`
 		}
 	}
+	s.registerAccionNecesaria(base)
 	huma.Register(api, huma.Operation{OperationID: "atletas-enlace-area", Method: http.MethodPost, Path: base + "/{id}/enlace-area", Summary: "Enviar al atleta un enlace a su área", Tags: tagAdmin, Security: bearer},
 		func(ctx context.Context, in *idIn) (*enlaceOut, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {

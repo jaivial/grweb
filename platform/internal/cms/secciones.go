@@ -237,6 +237,9 @@ type seccionRow struct {
 	// «Programar» (Figma 54): the draft is published automatically at this time.
 	ProgramadaAt *time.Time `json:"programadaAt,omitempty" db:"programada_at"`
 	UpdatedAt    time.Time  `json:"updatedAt" db:"updated_at"`
+	// English overrides, same shape as borrador / publicado (partial; empty strings fall back to Spanish).
+	EnBorrador  json.RawMessage `json:"enBorrador" db:"en_borrador"`
+	EnPublicado json.RawMessage `json:"enPublicado" db:"en_publicado"`
 }
 
 type seccionView struct {
@@ -247,7 +250,7 @@ type seccionView struct {
 	Estado      string  `json:"estado" enum:"publicada,cambios,sin_publicar" doc:"Si el borrador (contenido, visibilidad u orden) difiere de lo publicado"`
 }
 
-const selSeccion = `SELECT id, pagina, clave, orden, visible, borrador, publicado, pub_visible, pub_orden, publicado_at, version, rev, updated_at, programada_at FROM secciones`
+const selSeccion = `SELECT id, pagina, clave, orden, visible, borrador, publicado, pub_visible, pub_orden, publicado_at, version, rev, updated_at, programada_at, en_borrador, en_publicado FROM secciones`
 
 func view(r seccionRow) seccionView {
 	v := seccionView{seccionRow: r}
@@ -267,7 +270,7 @@ func view(r seccionRow) seccionView {
 
 // pending reports whether publishing would change what the public home shows.
 func pending(r seccionRow) bool {
-	return r.Publicado == nil || !jsonEqual(r.Borrador, r.Publicado) || r.Visible != r.PubVisible || r.Orden != r.PubOrden
+	return r.Publicado == nil || !jsonEqual(r.Borrador, r.Publicado) || !jsonEqual(r.EnBorrador, r.EnPublicado) || r.Visible != r.PubVisible || r.Orden != r.PubOrden
 }
 
 func etag(rev int) string { return `W/"` + strconv.Itoa(rev) + `"` }
@@ -339,8 +342,9 @@ func (s *Svc) registerSecciones() {
 		ID      uuid.UUID `path:"id"`
 		IfMatch string    `header:"If-Match" doc:"ETag de la revisión editada; si otra persona guardó antes → 409 CONFLICTO_EDICION"`
 		Body    struct {
-			Borrador json.RawMessage `json:"borrador,omitempty" doc:"Contenido (objeto JSON según los campos de la sección)"`
-			Visible  *bool           `json:"visible,omitempty"`
+			Borrador   json.RawMessage `json:"borrador,omitempty" doc:"Contenido (objeto JSON según los campos de la sección)"`
+			EnBorrador json.RawMessage `json:"enBorrador,omitempty" doc:"Textos en inglés: objeto parcial con la misma forma que borrador"`
+			Visible    *bool           `json:"visible,omitempty"`
 		}
 	}
 	type oneOut struct {
@@ -358,6 +362,12 @@ func (s *Svc) registerSecciones() {
 					return nil, problem.Unprocessable("JSON_INVALIDO", "El contenido debe ser un objeto JSON.")
 				}
 			}
+			if in.Body.EnBorrador != nil {
+				var obj map[string]any
+				if json.Unmarshal(in.Body.EnBorrador, &obj) != nil {
+					return nil, problem.Unprocessable("JSON_INVALIDO", "El contenido en inglés debe ser un objeto JSON.")
+				}
+			}
 			var out seccionView
 			err := s.change(ctx, in.CID, "cms.seccion_actualizada", map[string]any{"id": in.ID}, func(tx pgx.Tx) error {
 				var rev int
@@ -369,12 +379,13 @@ func (s *Svc) registerSecciones() {
 					return err
 				}
 				// Only content edits are guarded: a visibility switch in the list must not invalidate an open editor.
-				if in.Body.Borrador != nil && in.IfMatch != "" && ifMatch(in.IfMatch) != rev {
+				edit := in.Body.Borrador != nil || in.Body.EnBorrador != nil
+				if edit && in.IfMatch != "" && ifMatch(in.IfMatch) != rev {
 					return problem.Conflict("CONFLICTO_EDICION", "Otra persona ha guardado esta sección mientras la editabas. Recarga para ver sus cambios.")
 				}
-				if _, err := tx.Exec(ctx, `UPDATE secciones SET borrador = COALESCE($3, borrador), visible = COALESCE($4, visible),
-					rev = rev + CASE WHEN $3::jsonb IS NULL THEN 0 ELSE 1 END, updated_at = now() WHERE id = $1 AND competition_id = $2`,
-					in.ID, in.CID, nullRaw(in.Body.Borrador), in.Body.Visible); err != nil {
+				if _, err := tx.Exec(ctx, `UPDATE secciones SET borrador = COALESCE($3, borrador), visible = COALESCE($4, visible), en_borrador = COALESCE($5, en_borrador),
+					rev = rev + CASE WHEN $3::jsonb IS NULL AND $5::jsonb IS NULL THEN 0 ELSE 1 END, updated_at = now() WHERE id = $1 AND competition_id = $2`,
+					in.ID, in.CID, nullRaw(in.Body.Borrador), in.Body.Visible, nullRaw(in.Body.EnBorrador)); err != nil {
 					return err
 				}
 				rows, err := tx.Query(ctx, selSeccion+` WHERE id = $1`, in.ID)
@@ -469,7 +480,7 @@ func (s *Svc) registerSecciones() {
 			}
 			var out seccionView
 			err := s.change(ctx, in.CID, "cms.seccion_descartada", map[string]any{"id": in.ID}, func(tx pgx.Tx) error {
-				tag, err := tx.Exec(ctx, `UPDATE secciones SET borrador = COALESCE(publicado, '{}'::jsonb), visible = pub_visible, programada_at = NULL, rev = rev + 1, updated_at = now()
+				tag, err := tx.Exec(ctx, `UPDATE secciones SET borrador = COALESCE(publicado, '{}'::jsonb), en_borrador = en_publicado, visible = pub_visible, programada_at = NULL, rev = rev + 1, updated_at = now()
 					WHERE competition_id = $1 AND id = $2`, in.CID, in.ID)
 				if err != nil {
 					return err
@@ -515,7 +526,7 @@ func publishPage(ctx context.Context, tx pgx.Tx, cid uuid.UUID, pagina string, c
 		if err := validBorrador(r.Pagina, r.Clave, r.Borrador); err != nil {
 			return nil, err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE secciones SET publicado = borrador, pub_visible = visible, pub_orden = orden, publicado_at = now(), version = version + 1 WHERE id = $1`, r.ID); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE secciones SET publicado = borrador, en_publicado = en_borrador, pub_visible = visible, pub_orden = orden, publicado_at = now(), version = version + 1 WHERE id = $1`, r.ID); err != nil {
 			return nil, err
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO secciones_versiones (id, seccion_id, datos, publicado_por) VALUES ($1,$2,$3,$4)`, newID(), r.ID, r.Borrador, by); err != nil {

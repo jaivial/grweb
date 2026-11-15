@@ -24,6 +24,7 @@ var tagPub = []string{"Web pública"}
 
 type slugIn struct {
 	Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+	LangIn
 }
 
 // Home is what the public home renders: published sections + featured FAQ + sponsors.
@@ -114,7 +115,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			h, err := cached(ctx, s, cid, "home-v2", ttlContent, func() (Home, error) { return s.home(ctx, cid, in.Slug) })
+			h, err := cached(ctx, s, cid, in.key("home-v2"), ttlContent, func() (Home, error) { return s.home(ctx, cid, in.Slug, in.en()) })
 			return &homeOut{CacheControl: cacheHdr, Body: h}, err
 		})
 
@@ -128,8 +129,8 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			list, err := cached(ctx, s, cid, "faq", ttlContent, func() ([]faqPub, error) {
-				rows, err := s.a.DB.Query(ctx, `SELECT categoria, pregunta, respuesta FROM faq WHERE competition_id = $1 AND publicada ORDER BY categoria, orden`, cid)
+			list, err := cached(ctx, s, cid, in.key("faq"), ttlContent, func() ([]faqPub, error) {
+				rows, err := s.a.DB.Query(ctx, `SELECT `+tr(in.en(), "categoria", "pregunta", "respuesta")+` FROM faq WHERE competition_id = $1 AND publicada ORDER BY categoria, orden`, cid)
 				if err != nil {
 					return nil, err
 				}
@@ -145,6 +146,7 @@ func (s *Svc) registerPublic() {
 	type patroPubIn struct {
 		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		Hero bool   `query:"hero" required:"false" doc:"Solo los marcados «Mostrar en hero» (BIZ-144)"`
+		LangIn
 	}
 	huma.Register(api, huma.Operation{OperationID: "patrocinadores-public", Method: http.MethodGet, Path: pub + "/patrocinadores", Summary: "Patrocinadores activos", Tags: tagPub},
 		func(ctx context.Context, in *patroPubIn) (*patroOut, error) {
@@ -152,7 +154,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			list, err := cached(ctx, s, cid, "patrocinadores-v3", ttlContent, func() ([]patroPub, error) { return s.patrocinadores(ctx, cid, in.Slug) })
+			list, err := cached(ctx, s, cid, in.key("patrocinadores-v3"), ttlContent, func() ([]patroPub, error) { return s.patrocinadores(ctx, cid, in.Slug, in.en()) })
 			if err == nil && in.Hero {
 				hero := []patroPub{}
 				for _, p := range list {
@@ -168,6 +170,7 @@ func (s *Svc) registerPublic() {
 	type legalIn struct {
 		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		Tipo string `path:"tipo" enum:"privacidad,terminos,cookies,consentimiento,whatsapp,bases-sorteo"`
+		LangIn
 	}
 	type legalOut struct {
 		CacheControl string `header:"Cache-Control"`
@@ -179,8 +182,8 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			l, err := cached(ctx, s, cid, "legal:"+in.Tipo, ttlContent, func() (legalPub, error) {
-				rows, err := s.a.DB.Query(ctx, `SELECT tipo, version, titulo, contenido, hash, publicado_at FROM legal WHERE competition_id = $1 AND tipo = $2 AND publicado_at IS NOT NULL ORDER BY publicado_at DESC LIMIT 1`, cid, in.Tipo)
+			l, err := cached(ctx, s, cid, in.key("legal:"+in.Tipo), ttlContent, func() (legalPub, error) {
+				rows, err := s.a.DB.Query(ctx, `SELECT tipo, version, `+tr(in.en(), "titulo", "contenido")+`, hash, publicado_at FROM legal WHERE competition_id = $1 AND tipo = $2 AND publicado_at IS NOT NULL ORDER BY publicado_at DESC LIMIT 1`, cid, in.Tipo)
 				if err != nil {
 					return legalPub{}, err
 				}
@@ -196,6 +199,7 @@ func (s *Svc) registerPublic() {
 	type pagIn struct {
 		Slug  string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		PSlug string `path:"pslug" pattern:"^[a-z0-9-]{1,120}$"`
+		LangIn
 	}
 	type pagOut struct {
 		CacheControl string `header:"Cache-Control"`
@@ -212,8 +216,8 @@ func (s *Svc) registerPublic() {
 				if err != nil {
 					return nil, err
 				}
-				p, err := cached(ctx, s, cid, seg+":"+in.PSlug, ttlTimed, func() (paginaPub, error) {
-					rows, err := s.a.DB.Query(ctx, `SELECT slug, titulo, resumen, cuerpo, portada_url, COALESCE(publicar_at, updated_at) AS publicado, categoria, fuente, `+minutosLectura+` FROM paginas
+				p, err := cached(ctx, s, cid, in.key(seg+":"+in.PSlug), ttlTimed, func() (paginaPub, error) {
+					rows, err := s.a.DB.Query(ctx, `SELECT slug, `+tr(in.en(), "titulo", "resumen", "cuerpo")+`, portada_url, COALESCE(publicar_at, updated_at) AS publicado, categoria, fuente, `+minutosLectura+` FROM paginas
 						WHERE competition_id = $1 AND tipo = $2 AND slug = $3 AND `+visible, cid, tipo, in.PSlug)
 					if err != nil {
 						return paginaPub{}, err
@@ -235,6 +239,7 @@ func (s *Svc) registerPublic() {
 		Slug      string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		Page      int    `query:"page" minimum:"1" maximum:"1000" default:"1"`
 		Categoria string `query:"categoria" maxLength:"20"`
+		LangIn
 	}
 	huma.Register(api, huma.Operation{OperationID: "blog-public-list", Method: http.MethodGet, Path: pub + "/blog", Summary: "Entradas del blog publicadas (12 por página, filtro por categoría)", Tags: tagPub},
 		func(ctx context.Context, in *blogIn) (*blogOut, error) {
@@ -245,13 +250,13 @@ func (s *Svc) registerPublic() {
 			if !categoriasBlog[in.Categoria] {
 				in.Categoria = "" // unknown category → «Todos»
 			}
-			out, err := cached(ctx, s, cid, fmt.Sprintf("blog:%s:%d", in.Categoria, in.Page), ttlTimed, func() (blogPub, error) {
+			out, err := cached(ctx, s, cid, in.key(fmt.Sprintf("blog:%s:%d", in.Categoria, in.Page)), ttlTimed, func() (blogPub, error) {
 				b := blogPub{Pagina: in.Page, PorPagina: blogPorPagina, Categorias: []string{}}
 				if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FILTER (WHERE $2 = '' OR categoria = $2), COALESCE(array_agg(DISTINCT categoria) FILTER (WHERE categoria <> ''), '{}')
 					FROM paginas WHERE competition_id = $1 AND tipo = 'blog' AND `+visible, cid, in.Categoria).Scan(&b.Total, &b.Categorias); err != nil {
 					return b, err
 				}
-				rows, err := s.a.DB.Query(ctx, `SELECT slug, titulo, resumen, '' AS cuerpo, portada_url, COALESCE(publicar_at, updated_at) AS publicado, categoria, fuente, `+minutosLectura+` FROM paginas
+				rows, err := s.a.DB.Query(ctx, `SELECT slug, `+tr(in.en(), "titulo", "resumen")+`, '' AS cuerpo, portada_url, COALESCE(publicar_at, updated_at) AS publicado, categoria, fuente, `+minutosLectura+` FROM paginas
 					WHERE competition_id = $1 AND tipo = 'blog' AND `+visible+` AND ($2 = '' OR categoria = $2) ORDER BY publicado DESC, slug LIMIT $3 OFFSET $4`,
 					cid, in.Categoria, blogPorPagina, (in.Page-1)*blogPorPagina)
 				if err != nil {
@@ -273,14 +278,19 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			list, err := cached(ctx, s, cid, "galeria", ttlContent, func() ([]albumPub, error) {
-				rows, err := s.a.DB.Query(ctx, `SELECT titulo, slug, fotos FROM albumes WHERE competition_id = $1 AND publicado ORDER BY orden`, cid)
+			list, err := cached(ctx, s, cid, in.key("galeria"), ttlContent, func() ([]albumPub, error) {
+				rows, err := s.a.DB.Query(ctx, `SELECT `+tr(in.en(), "titulo")+`, slug, fotos, en->'fotos' AS en_fotos FROM albumes WHERE competition_id = $1 AND publicado ORDER BY orden`, cid)
 				if err != nil {
 					return nil, err
 				}
 				list, err := collect[albumPub](rows)
 				if err != nil {
 					return nil, err
+				}
+				if in.en() {
+					for i := range list {
+						list[i].Fotos = overlayRaw(list[i].Fotos, list[i].EnFotos)
+					}
 				}
 				return s.conMedidas(ctx, cid, list)
 			})
@@ -297,9 +307,9 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			out, err := cached(ctx, s, cid, "seo", ttlTimed, func() (seoPub, error) {
+			out, err := cached(ctx, s, cid, in.key("seo"), ttlTimed, func() (seoPub, error) {
 				var o seoPub
-				rows, err := s.a.DB.Query(ctx, `SELECT id, ruta, title, description, imagen_url, indexable, orden FROM seo WHERE competition_id = $1 ORDER BY ruta`, cid)
+				rows, err := s.a.DB.Query(ctx, `SELECT id, ruta, `+tr(in.en(), "title", "description")+`, imagen_url, indexable, orden, en FROM seo WHERE competition_id = $1 ORDER BY ruta`, cid)
 				if err != nil {
 					return o, err
 				}
@@ -466,6 +476,7 @@ func (s *Svc) registerPublicExtra() {
 	type landIn struct {
 		Slug   string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		Pagina string `path:"pagina" enum:"publico,en"`
+		LangIn
 	}
 	type landOut struct {
 		CacheControl string `header:"Cache-Control"`
@@ -477,8 +488,8 @@ func (s *Svc) registerPublicExtra() {
 			if err != nil {
 				return nil, err
 			}
-			l, err := cached(ctx, s, cid, "landing:"+in.Pagina, ttlContent, func() (Landing, error) {
-				secs, orden, err := s.publishedSections(ctx, cid, in.Pagina)
+			l, err := cached(ctx, s, cid, in.key("landing:"+in.Pagina), ttlContent, func() (Landing, error) {
+				secs, orden, err := s.publishedSections(ctx, cid, in.Pagina, in.en())
 				return Landing{Version: s.version(ctx, cid), Secciones: secs, Orden: orden}, err
 			})
 			return &landOut{CacheControl: cacheHdr, Body: l}, err
@@ -573,18 +584,21 @@ func (s *Svc) registerPublicExtra() {
 }
 
 // publishedSections returns the published, visible sections of a page in published order.
-func (s *Svc) publishedSections(ctx context.Context, cid uuid.UUID, pagina string) (map[string]json.RawMessage, []string, error) {
+func (s *Svc) publishedSections(ctx context.Context, cid uuid.UUID, pagina string, en bool) (map[string]json.RawMessage, []string, error) {
 	secs, orden := map[string]json.RawMessage{}, []string{}
-	rows, err := s.a.DB.Query(ctx, `SELECT clave, publicado FROM secciones WHERE competition_id = $1 AND pagina = $2 AND pub_visible AND publicado IS NOT NULL ORDER BY pub_orden, orden`, cid, pagina)
+	rows, err := s.a.DB.Query(ctx, `SELECT clave, publicado, en_publicado FROM secciones WHERE competition_id = $1 AND pagina = $2 AND pub_visible AND publicado IS NOT NULL ORDER BY pub_orden, orden`, cid, pagina)
 	if err != nil {
 		return secs, orden, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var k string
-		var v json.RawMessage
-		if err := rows.Scan(&k, &v); err != nil {
+		var v, e json.RawMessage
+		if err := rows.Scan(&k, &v, &e); err != nil {
 			return secs, orden, err
+		}
+		if en {
+			v = overlayRaw(v, e)
 		}
 		secs[k] = v
 		orden = append(orden, k)
@@ -601,8 +615,8 @@ func collect[T any](rows pgx.Rows) ([]T, error) {
 }
 
 // patrocinadores lists the active sponsors; their links carry ?utm_source={slug}&utm_medium=web (Figma 54).
-func (s *Svc) patrocinadores(ctx context.Context, cid uuid.UUID, slug string) ([]patroPub, error) {
-	rows, err := s.a.DB.Query(ctx, `SELECT nombre, nivel, logo_url, url, descripcion, mostrar_en_hero, foto_url, focal_x, focal_y, alt FROM patrocinadores WHERE competition_id = $1 AND activo ORDER BY orden`, cid)
+func (s *Svc) patrocinadores(ctx context.Context, cid uuid.UUID, slug string, en bool) ([]patroPub, error) {
+	rows, err := s.a.DB.Query(ctx, `SELECT nombre, nivel, logo_url, url, `+tr(en, "descripcion")+`, mostrar_en_hero, foto_url, focal_x, focal_y, `+tr(en, "alt")+` FROM patrocinadores WHERE competition_id = $1 AND activo ORDER BY orden`, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -626,20 +640,20 @@ func conUTM(raw, source string) string {
 	return u.String()
 }
 
-func (s *Svc) home(ctx context.Context, cid uuid.UUID, slug string) (Home, error) {
+func (s *Svc) home(ctx context.Context, cid uuid.UUID, slug string, en bool) (Home, error) {
 	h := Home{Version: s.version(ctx, cid)}
 	var err error
-	if h.Secciones, h.Orden, err = s.publishedSections(ctx, cid, "home"); err != nil {
+	if h.Secciones, h.Orden, err = s.publishedSections(ctx, cid, "home", en); err != nil {
 		return h, err
 	}
-	rows, err := s.a.DB.Query(ctx, `SELECT categoria, pregunta, respuesta FROM faq WHERE competition_id = $1 AND publicada AND destacada ORDER BY orden LIMIT 8`, cid)
+	rows, err := s.a.DB.Query(ctx, `SELECT `+tr(en, "categoria", "pregunta", "respuesta")+` FROM faq WHERE competition_id = $1 AND publicada AND destacada ORDER BY orden LIMIT 8`, cid)
 	if err != nil {
 		return h, err
 	}
 	if h.FaqDestacadas, err = collect[faqPub](rows); err != nil {
 		return h, err
 	}
-	h.Patrocinadores, err = s.patrocinadores(ctx, cid, slug)
+	h.Patrocinadores, err = s.patrocinadores(ctx, cid, slug, en)
 	return h, err
 }
 
@@ -648,6 +662,8 @@ type albumPub struct {
 	Titulo string          `json:"titulo" db:"titulo"`
 	Slug   string          `json:"slug" db:"slug"`
 	Fotos  json.RawMessage `json:"fotos" db:"fotos"`
+	// English overrides of the photos (alt by index); applied in the query handler, never sent.
+	EnFotos json.RawMessage `json:"-" db:"en_fotos"`
 }
 
 // conMedidas adds «ancho» and «alto» to the photos that come from the media library, so /galeria can lay out its

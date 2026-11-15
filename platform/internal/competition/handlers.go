@@ -16,6 +16,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/auth"
 	"github.com/jaivial/grweb/platform/pkg/compref"
 	"github.com/jaivial/grweb/platform/pkg/db"
+	"github.com/jaivial/grweb/platform/pkg/entexto"
 	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
@@ -97,8 +98,14 @@ func (s *Svc) registerPublic() {
 		Body         Publica
 	}
 	huma.Register(api, huma.Operation{OperationID: "competition-public-get", Method: http.MethodGet, Path: "/api/competiciones/{slug}", Summary: "Datos públicos de la competición (evento, sede, estado, módulos, inscripción, cómo llegar)", Tags: tagPub},
-		func(ctx context.Context, in *slugIn) (*pubOut, error) {
+		func(ctx context.Context, in *struct {
+			slugIn
+			entexto.Lang
+		}) (*pubOut, error) {
 			out := &pubOut{CacheControl: "public, max-age=30"}
+			if in.En() {
+				defer func() { s.enPublica(ctx, in.Slug, &out.Body) }()
+			}
 			if s.cache.Get(ctx, "pub:"+in.Slug, &out.Body) {
 				return out, nil
 			}
@@ -116,6 +123,33 @@ func (s *Svc) registerPublic() {
 
 func (s *Svc) registerAdmin() {
 	api := s.a.API
+
+	type enBody struct {
+		Body CompEn
+	}
+	huma.Register(api, huma.Operation{OperationID: "competition-en-get", Method: http.MethodGet, Path: "/api/admin/competiciones/{cid}/en", Summary: "Textos en inglés del evento y de cómo llegar", Tags: tagAdmin, Security: bearer},
+		func(ctx context.Context, in *cidIn) (*enBody, error) {
+			if _, err := auth.RequireMember(ctx, in.CID.String()); err != nil {
+				return nil, err
+			}
+			out := &enBody{}
+			_ = s.a.DB.QueryRow(ctx, `SELECT en FROM competiciones WHERE id = $1`, in.CID).Scan(&out.Body)
+			return out, nil
+		})
+	type enIn struct {
+		CID  uuid.UUID `path:"cid"`
+		Body CompEn
+	}
+	huma.Register(api, huma.Operation{OperationID: "competition-en-put", Method: http.MethodPut, Path: "/api/admin/competiciones/{cid}/en", Summary: "Guardar los textos en inglés del evento y de cómo llegar", Tags: tagAdmin, Security: bearer},
+		func(ctx context.Context, in *enIn) (*enBody, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "evento.editar"); err != nil {
+				return nil, err
+			}
+			if _, err := s.a.DB.Exec(ctx, `UPDATE competiciones SET en = $2 WHERE id = $1`, in.CID, in.Body); err != nil {
+				return nil, err
+			}
+			return &enBody{Body: in.Body}, nil
+		})
 
 	type listIn struct {
 		Todas bool `query:"todas" doc:"Root: incluir las archivadas y el número de miembros (Sistema › Competiciones)"`

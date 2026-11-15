@@ -79,6 +79,8 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.init(a)
 	s.registerPublic()
 	s.registerAdmin()
+	s.registerAvisos()
+	s.registerTelefono()
 	return nil
 }
 
@@ -128,13 +130,14 @@ type fanRow struct {
 	BaneadoMotivo string
 	Version       int64
 	CreatedAt     time.Time
+	Telefono      string
 }
 
-const selFan = `SELECT id, competition_id, email::text, tipo, alias::text, COALESCE(atleta_id, '00000000-0000-0000-0000-000000000000'::uuid), baneado_hasta, baneado_motivo, version, created_at FROM fans`
+const selFan = `SELECT id, competition_id, email::text, tipo, alias::text, COALESCE(atleta_id, '00000000-0000-0000-0000-000000000000'::uuid), baneado_hasta, baneado_motivo, version, created_at, telefono FROM fans`
 
 func scanFan(row pgx.Row) (fanRow, error) {
 	var f fanRow
-	err := row.Scan(&f.ID, &f.CompetitionID, &f.Email, &f.Tipo, &f.Alias, &f.AtletaID, &f.BaneadoHasta, &f.BaneadoMotivo, &f.Version, &f.CreatedAt)
+	err := row.Scan(&f.ID, &f.CompetitionID, &f.Email, &f.Tipo, &f.Alias, &f.AtletaID, &f.BaneadoHasta, &f.BaneadoMotivo, &f.Version, &f.CreatedAt, &f.Telefono)
 	if err != nil {
 		return fanRow{}, err
 	}

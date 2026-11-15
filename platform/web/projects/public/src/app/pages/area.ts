@@ -1,3 +1,4 @@
+import { textoError } from '../core/errores';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, Injector, PLATFORM_ID, PendingTasks, type Signal, afterNextRender, computed, inject, signal } from '@angular/core';
 import { NgTemplateOutlet, isPlatformBrowser } from '@angular/common';
@@ -7,7 +8,7 @@ import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton } from '@grcup/
 import { firstValueFrom } from 'rxjs';
 import { cat, hora, kg } from '../core/atletas';
 import { COMPETITION_SLUG, Competition } from '../core/competition';
-import { I18n, LocPipe } from '../core/i18n';
+import { I18n, LocPipe, divisionEn } from '../core/i18n';
 import { Seo } from '../core/seo';
 import { Footer, Navbar } from '../layout/layout';
 
@@ -52,6 +53,7 @@ const T = {
     entrar: "Entrar",
     entrarPass: "Entrar con contraseña",
     sinPass: "Sin contraseña: enviarme un enlace por email",
+    olvido: "¿Has olvidado tu contraseña?",
     sinCuenta: "¿Aún no tienes cuenta?",
     crearCuenta: "Crear cuenta de atleta",
     noLlega: "¿No te llega?",
@@ -212,6 +214,7 @@ const T = {
     entrar: "Sign in",
     entrarPass: "Sign in with password",
     sinPass: "No password: email me a link",
+    olvido: "Forgot your password?",
     sinCuenta: "Don't have an account yet?",
     crearCuenta: "Create athlete account",
     noLlega: "Not arriving?",
@@ -388,6 +391,7 @@ const T = {
                 <gr-field [label]="t().emailIns" for="a-email"><input grInput id="a-email" name="email" type="email" autocomplete="username" inputmode="email" spellcheck="false" autocapitalize="none" [(ngModel)]="email" required [attr.aria-invalid]="error() ? true : null" [attr.aria-describedby]="error() ? 'a-email-err' : null" /></gr-field>
                 @if (!modoEnlace()) {
                   <gr-field [label]="t().pass" for="a-pass"><input grInput id="a-pass" name="password" type="password" autocomplete="current-password" enterkeyhint="go" [(ngModel)]="password" required /></gr-field>
+                  <button type="button" class="-mt-2 self-end text-label-s text-text-secondary hover:text-text-primary hover:underline" (click)="pedir('contrasena')">{{ t().olvido }}</button>
                 }
                 <p id="a-email-err" class="-mt-2 min-h-5 text-body-s text-accent-text" role="alert">{{ error() }}</p>
                 <button grButton variant="primary" size="l" type="submit" [block]="true" [loading]="busy()">{{ modoEnlace() ? t().enviarme : t().entrar }}</button>
@@ -692,7 +696,7 @@ export class AreaAtletaPage {
       await this.set(await firstValueFrom(this.http.post<Panel>(`${api}/login`, { competicion: COMPETITION_SLUG, email: this.email.trim(), password: this.password })));
       this.password = '';
     } catch (e) {
-      this.error.set(e instanceof HttpErrorResponse && e.status === 429 ? this.t().demasiados : (e as { error?: { detail?: string } }).error?.detail ?? this.t().noEntrar);
+      this.error.set(e instanceof HttpErrorResponse && e.status === 429 ? this.t().demasiados : textoError(e, this.t().noEntrar));
     } finally {
       this.busy.set(false);
     }
@@ -734,7 +738,7 @@ export class AreaAtletaPage {
     const sinPrueba = !!pr && !pr.elegida ? t.trasElegir : '';
     return [
       { k: t.competicion, v: this.textoPrueba() },
-      { k: t.categoria, v: a.categoria ? `${a.sexo} ${cat(a.categoria)} kg` : t.porPublicar }, { k: t.division, v: a.divisionNombre },
+      { k: t.categoria, v: a.categoria ? `${a.sexo} ${cat(a.categoria)} kg` : t.porPublicar }, { k: t.division, v: divisionEn(a.divisionNombre) },
       { k: t.orden, v: sinPrueba || (a.lote ? t.lote + a.lote : t.porPublicar) },
       { k: t.pesaje, v: sinPrueba || (a.pesajeInicio ? `${hora(a.pesajeInicio, this.i18n.lang())}–${hora(a.pesajeFin, this.i18n.lang())}` : t.porPublicar) },
       { k: t.inicio, v: sinPrueba || (a.horaInicio ? hora(a.horaInicio, this.i18n.lang()) : t.porPublicar) },
@@ -795,7 +799,7 @@ export class AreaAtletaPage {
       this.aviso(this.t().compGuardada + this.nombrePrueba(this.eleccion()));
     } catch (e) {
       const actual = this.panel()?.prueba?.elegida;
-      this.errorPrueba.set(((e as { error?: { detail?: string } }).error?.detail ?? this.t().noGuardarComp) + (actual ? this.t().seMantiene(this.nombrePrueba(actual)) : '') + this.t().reintenta);
+      this.errorPrueba.set((textoError(e, this.t().noGuardarComp)) + (actual ? this.t().seMantiene(this.nombrePrueba(actual)) : '') + this.t().reintenta);
       firstValueFrom(this.http.get<Panel>(`${api}/yo`)).then((p) => this.panel.set(p), () => undefined);
     } finally {
       this.guardandoPrueba.set(false);
@@ -869,14 +873,14 @@ export class AreaAtletaPage {
     this.qr.set(await QR.toDataURL(p.acreditacion, { margin: 1, width: 240, errorCorrectionLevel: 'M' }));
   }
 
-  protected async pedir(): Promise<void> {
+  protected async pedir(motivo?: 'contrasena'): Promise<void> {
     this.error.set('');
     const e = this.email.trim();
     if (!e) return this.error.set(this.t().escribeEmail);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) return this.error.set(!e.includes('@') ? this.t().faltaArroba : /@[^\s@]*\.[^\s@]{2,}$/.test(e) ? this.t().noValido : this.t().faltaDominio);
     this.busy.set(true);
     try {
-      await firstValueFrom(this.http.post(`${api}/enlace`, { competicion: COMPETITION_SLUG, email: this.email.trim() }));
+      await firstValueFrom(this.http.post(`${api}/enlace`, { competicion: COMPETITION_SLUG, email: this.email.trim(), ...(motivo ? { motivo } : {}) }));
       this.vista.set('enviado');
       this.espera.set(45);
       clearInterval(this.timer);
@@ -951,7 +955,7 @@ export class AreaAtletaPage {
       this.set(p);
       this.aviso(this.t().fotoSubida);
     } catch (e) {
-      this.error.set((e as { error?: { detail?: string } }).error?.detail ?? this.t().noSubir);
+      this.error.set(textoError(e, this.t().noSubir));
     } finally {
       this.subiendo.set(false);
     }
@@ -1021,7 +1025,7 @@ export class AreaAtletaPage {
       this.vista.set('acceso');
       return '';
     }
-    return (e as { error?: { detail?: string } }).error?.detail ?? this.t().noGuardarGen;
+    return textoError(e, this.t().noGuardarGen);
   }
 
   private aviso(t: string): void {

@@ -10,7 +10,7 @@ import { Cms, type Album, type Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, FalloApi, type CompeticionPublica } from '../core/competition';
 import { DirectoPublic, MOV, MOV_EN, ORD, ORD_EN, catCorta, catLarga, embed, gl, kg, type Categoria, type Directo, type Edicion, type EnPlataforma, type Fila, type Pantalla, type ResultadosPublicos } from '../core/directo';
 import { ICS_URL } from '../core/horarios';
-import { I18n, LocPipe } from '../core/i18n';
+import { DivisionPipe, I18n, LocPipe, divisionEn } from '../core/i18n';
 import { Seo } from '../core/seo';
 import { GrCabecera } from '../home/bloques';
 import { Lightbox } from '../layout/lightbox';
@@ -834,7 +834,7 @@ const TP = {
 /** Arena screen (Figma page 44 · «Pantalla del pabellón»): 1920 × 1080 scaled to the window, fed by the public SSE. */
 @Component({
   selector: 'gr-pantalla',
-  imports: [CdnPipe, GrLogo],
+  imports: [CdnPipe, GrLogo, DivisionPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'fixed inset-0 overflow-hidden bg-[#0d0a0b]' },
   template: `
@@ -855,7 +855,7 @@ const TP = {
         } @else if (d.fase === 'en_directo' && foco(); as a) {
           <div class="absolute top-[230px] left-[80px] w-[1180px]">
             <p class="overflow-hidden pt-[0.15em] font-display leading-[1.1] whitespace-nowrap uppercase italic" [style.font-size.px]="tamNombre(a.nombre)">{{ a.nombre }}</p>
-            <p class="mt-6 font-display text-[40px] text-white/85 uppercase italic">{{ a.club ? a.club + ' · ' : '' }}{{ catLarga(a.sexo, a.categoria) }}@if (a.division) { · {{ a.division }} }</p>
+            <p class="mt-6 font-display text-[40px] text-white/85 uppercase italic">{{ a.club ? a.club + ' · ' : '' }}{{ catLarga(a.sexo, a.categoria) }}@if (a.division) { · {{ a.division | division }} }</p>
             <p class="mt-3 font-display text-[44px] text-accent-text uppercase italic">{{ t().mov[a.movimiento] }} · {{ t().ord[a.numero] }} {{ t().intento }}</p>
             <div class="mt-6 flex items-center gap-10">
               <p class="font-display text-[260px] leading-[0.85] italic">{{ kg(a.peso) }}</p>

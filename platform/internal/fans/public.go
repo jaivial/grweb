@@ -45,6 +45,7 @@ type Yo struct {
 	AtletaID uuid.UUID `json:"atletaId,omitzero" doc:"Relleno cuando el email coincide con una inscripción"`
 	Insignia string    `json:"insignia,omitempty" doc:"«Atleta» o vacío (público)"`
 	Email    string    `json:"email" doc:"Email de la propia sesión (rellena formularios)"`
+	Telefono string    `json:"telefono,omitempty" doc:"Teléfono opcional para los avisos por WhatsApp"`
 	// Next is only set by the redemption of a magic link that was asked for with a destination.
 	Next string `json:"next,omitempty" doc:"Ruta interna a la que volver tras entrar (p. ej. /fantasy/unirse/CODIGO)"`
 	// RequiereContrasena is only set by a redemption: the web asks for the password (PUT /fans/yo/contrasena).
@@ -58,7 +59,7 @@ type sesionOut struct {
 }
 
 func (s *Svc) yoDe(f fanRow) Yo {
-	y := Yo{ID: f.ID, Alias: f.Alias, Tipo: f.Tipo, AtletaID: atletaOpcional(f), Email: f.Email}
+	y := Yo{ID: f.ID, Alias: f.Alias, Tipo: f.Tipo, AtletaID: atletaOpcional(f), Email: f.Email, Telefono: f.Telefono}
 	if f.Tipo == fanauth.TipoAtleta && f.AtletaID != uuid.Nil {
 		y.Insignia = "Atleta"
 	}
@@ -116,6 +117,7 @@ func (s *Svc) registerPublic() {
 			Alias        string `json:"alias,omitempty" maxLength:"20" doc:"Nombre público en el chat y las clasificaciones (obligatorio al crear la cuenta; vacío = enlace para crear o cambiar la contraseña)"`
 			AceptaNormas bool   `json:"aceptaNormas" doc:"Debe ser true: normas de participación del directo"`
 			Next         string `json:"next,omitempty" maxLength:"200" doc:"Ruta de la web a la que volver tras entrar (p. ej. /inscripcion?ref=…)"`
+			Telefono     string `json:"telefono,omitempty" maxLength:"30" doc:"Opcional: móvil para recibir los avisos por WhatsApp"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "fans-acceso", Method: http.MethodPost, Path: base + "/acceso",
@@ -133,6 +135,10 @@ func (s *Svc) registerPublic() {
 				return nil, problem.Unprocessable("ALIAS_NO_VALIDO", "El alias debe tener entre 3 y 20 letras, números, espacios o _ . - , sin palabras prohibidas.")
 			}
 			email := strings.ToLower(strings.TrimSpace(in.Body.Email))
+			tel, ok := normTelefono(in.Body.Telefono)
+			if !ok {
+				return nil, problem.Unprocessable("TELEFONO_NO_VALIDO", "El teléfono no es válido. Escríbelo con prefijo, p. ej. +34 600 123 456, o déjalo vacío.")
+			}
 			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "fans", "ip", httpx.ClientIPFrom(ctx)), limiteIP, time.Hour); !r.Allowed {
 				return nil, demasiados(r, "Se han pedido muchos accesos desde tu red")
 			}
@@ -150,9 +156,9 @@ func (s *Svc) registerPublic() {
 				}
 			}
 			tok := randomToken()
-			if err := s.a.DB.QueryRow(ctx, `INSERT INTO accesos (id, competition_id, token_hash, fan_email, email_hash, tipo, alias, ip, next, expires_at)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, now() + interval '30 minutes') RETURNING created_at`,
-				newID(), cid, hashToken(tok), email, emailHash(email), in.Body.Tipo, alias, ipAnon(httpx.ClientIPFrom(ctx)), nextValido(in.Body.Next)).Scan(new(time.Time)); err != nil {
+			if err := s.a.DB.QueryRow(ctx, `INSERT INTO accesos (id, competition_id, token_hash, fan_email, email_hash, tipo, alias, ip, next, telefono, expires_at)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now() + interval '30 minutes') RETURNING created_at`,
+				newID(), cid, hashToken(tok), email, emailHash(email), in.Body.Tipo, alias, ipAnon(httpx.ClientIPFrom(ctx)), nextValido(in.Body.Next), tel).Scan(new(time.Time)); err != nil {
 				return nil, err
 			}
 			link := s.webURL + "/acceso?acceso=" + tok
@@ -334,7 +340,7 @@ func (s *Svc) registerPublic() {
 				return nil, aliasOcupado()
 			}
 			row, err := scanFan(s.a.DB.QueryRow(ctx, `UPDATE fans SET alias = $3, updated_at = now() WHERE id = $1 AND competition_id = $2
-				RETURNING id, competition_id, email::text, tipo, alias::text, COALESCE(atleta_id, '00000000-0000-0000-0000-000000000000'::uuid), baneado_hasta, baneado_motivo, version, created_at`, f.ID, cid, alias))
+				RETURNING id, competition_id, email::text, tipo, alias::text, COALESCE(atleta_id, '00000000-0000-0000-0000-000000000000'::uuid), baneado_hasta, baneado_motivo, version, created_at, telefono`, f.ID, cid, alias))
 			if err != nil {
 				return nil, err
 			}
@@ -446,10 +452,11 @@ func (s *Svc) canjear(ctx context.Context, slug, tok string) (*sesionOut, error)
 		EmailHash string
 		Tipo      string
 		Alias     string
+		Telefono  string
 	}
 	var next string
 	err = s.a.DB.QueryRow(ctx, `UPDATE accesos SET usado_at = now() WHERE token_hash = $1 AND usado_at IS NULL AND expires_at > now()
-		RETURNING fan_email::text, email_hash, tipo, alias::text, next`, hashToken(tok)).Scan(&acc.Email, &acc.EmailHash, &acc.Tipo, &acc.Alias, &next)
+		RETURNING fan_email::text, email_hash, tipo, alias::text, next, telefono`, hashToken(tok)).Scan(&acc.Email, &acc.EmailHash, &acc.Tipo, &acc.Alias, &next, &acc.Telefono)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, problem.Unauthorized("ENLACE_INVALIDO", "El enlace ha caducado o ya se usó. Pide otro desde el directo.")
 	} else if err != nil {
@@ -511,10 +518,11 @@ func (s *Svc) crearFan(ctx context.Context, cid uuid.UUID, acc struct {
 	EmailHash string
 	Tipo      string
 	Alias     string
+	Telefono  string
 }) (fanRow, error) {
 	id := newID()
-	_, err := s.a.DB.Exec(ctx, `INSERT INTO fans (id, competition_id, email, email_hash, tipo, alias) VALUES ($1,$2,$3,$4,$5,$6)`,
-		id, cid, acc.Email, acc.EmailHash, acc.Tipo, acc.Alias)
+	_, err := s.a.DB.Exec(ctx, `INSERT INTO fans (id, competition_id, email, email_hash, tipo, alias, telefono) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+		id, cid, acc.Email, acc.EmailHash, acc.Tipo, acc.Alias, acc.Telefono)
 	var pg *pgconn.PgError
 	if errors.As(err, &pg) && pg.Code == "23505" {
 		if strings.Contains(pg.ConstraintName, "alias") {
@@ -526,7 +534,11 @@ func (s *Svc) crearFan(ctx context.Context, cid uuid.UUID, acc struct {
 	if err != nil {
 		return fanRow{}, err
 	}
-	return scanFan(s.a.DB.QueryRow(ctx, selFan+` WHERE id = $1`, id))
+	row, err := scanFan(s.a.DB.QueryRow(ctx, selFan+` WHERE id = $1`, id))
+	if err == nil {
+		s.bienvenida(ctx, row) // «Cuenta creada» (público o atleta); the 40-minute announcements come from the worker
+	}
+	return row, err
 }
 
 // demasiados answers 429 with Retry-After and the real wait in the message.

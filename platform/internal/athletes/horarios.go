@@ -138,6 +138,11 @@ func (s *Svc) registerHorarios() {
 							if err := email(ctx, tx, in.CID, *r.Email, plantilla, vars); err != nil {
 								return err
 							}
+							if r.Telefono != "" { // the same notice by WhatsApp (interactive buttons) when there is a phone
+								if err := whatsapp(ctx, tx, in.CID, r.Telefono, false, plantilla, vars, ""); err != nil {
+									return err
+								}
+							}
 							o.Body.AvisosAtletas++
 						}
 					}

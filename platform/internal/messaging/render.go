@@ -179,7 +179,7 @@ func renderizar(c Contenido, vars map[string]string, permitidas []string, m Marc
 	btnURL, _ := sustituir(c.BotonURL, full, false)
 	btnTxt, _ := sustituir(c.BotonTexto, full, true)
 	if c.BotonTexto != "" && strings.HasPrefix(btnURL, "http") {
-		boton = `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 24px"><tr><td style="border-radius:6px;background:#c42b3e">` +
+		boton = `<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:8px auto 24px"><tr><td align="center" style="border-radius:6px;background:#c42b3e">` +
 			`<a href="` + html.EscapeString(btnURL) + `" style="display:inline-block;padding:14px 24px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none">` + btnTxt + `</a></td></tr></table>`
 		parrafosTxt = append(parrafosTxt, html.UnescapeString(btnTxt)+": "+btnURL)
 	}
@@ -206,14 +206,14 @@ func renderizar(c Contenido, vars map[string]string, permitidas []string, m Marc
 	}
 	logo := ""
 	if m.Logo != "" {
-		logo = `<img src="` + html.EscapeString(m.Logo) + `" alt="` + html.EscapeString(m.Nombre) + `" height="40" style="display:block;height:40px;border:0">`
+		logo = `<img src="` + html.EscapeString(m.Logo) + `" alt="` + html.EscapeString(m.Nombre) + `" height="40" style="display:block;margin:0 auto;height:40px;border:0">`
 	}
 	h := `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light">` +
 		`<title>` + html.EscapeString(asunto) + `</title></head><body style="margin:0;padding:0;background:#f2eeee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">` +
 		`<span style="display:none;max-height:0;overflow:hidden;opacity:0">` + pre + `</span>` +
 		`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2eeee"><tr><td align="center" style="padding:24px 12px">` +
 		`<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden">` +
-		`<tr><td style="background:#141011;padding:20px 32px">` + logo + `</td></tr>` +
+		`<tr><td align="center" style="background:#141011;padding:20px 32px;text-align:center">` + logo + `</td></tr>` +
 		`<tr><td style="padding:32px 32px 16px"><h1 style="margin:0 0 20px;font-size:24px;line-height:30px;color:#141011">` + titulo + `</h1>` +
 		qr + imagen + strings.Join(parrafosHTML, "") + boton + pie + `</td></tr>` +
 		`<tr><td style="padding:16px 32px 28px;border-top:1px solid #eee6e7;font-size:12px;line-height:18px;color:#9a8f91">` + html.EscapeString(nota) +

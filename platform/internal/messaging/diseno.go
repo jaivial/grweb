@@ -194,7 +194,7 @@ func compilarEmail(d []Bloque, c Contexto) string {
 		case "boton":
 			btn := `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 8px;display:inline-table"><tr><td style="border-radius:6px;background:#c42b3e">` +
 				`<a href="` + html.EscapeString(c.Absoluto(b.URL)) + `" style="display:inline-block;padding:14px 24px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none">` + html.EscapeString(b.Texto) + `</a></td></tr></table>`
-			body.WriteString(`<tr><td style="` + pad + `">` + btn + `</td></tr>`)
+			body.WriteString(`<tr><td align="center" style="` + pad + `;text-align:center">` + btn + `</td></tr>`)
 		case "imagen":
 			img := `<img src="` + html.EscapeString(c.Absoluto(b.Imagen)) + `" alt="` + html.EscapeString(b.Alt) + `" width="536" style="display:block;width:100%;height:auto;border:0;border-radius:8px">`
 			if b.URL != "" {
