@@ -8,6 +8,7 @@ import { CATEGORIAS_IPF, Favoritos } from '../core/atletas';
 import { hora, qrDataURL, type Entradas, type SesionPub } from '../core/entradas';
 import { HorariosPublic, ICS_URL, normalizar, type Horarios, type PubAtleta, type PubDia, type PubFlight } from '../core/horarios';
 import { Lightbox } from '../layout/lightbox';
+import { I18n, LocPipe } from '../core/i18n';
 import { ANCHO, GLOW, GrCabecera, GrEyebrow, GrTitulo, SECCION, sinNumero, textoTitulo } from './bloques';
 
 const str = (s: Seccion | undefined, k: string) => (s?.[k] as string | undefined) ?? '';
@@ -20,25 +21,46 @@ const srcset = (src: string) => (/-l\.webp$/.test(src) ? cdnSrcset(`${src.replac
 /** Hairline photo border of Figma (white 8 %). */
 const FOTO = 'border border-white/8';
 
+const TA = {
+  es: {
+    titulo: 'Crea tu perfil de atleta', carrusel: 'carrusel', region: 'Lo que tendrás como atleta',
+    crear: 'Crear mi perfil de atleta', ir: 'Ir a mi área de atleta', porque: 'Por qué darte de alta como atleta',
+    altPerfil: 'Perfil público de un atleta en el móvil', altHorarios: 'Horarios de competición en el móvil',
+    altFantasy: 'Campo de fútbol sala de la GRS Fantasy con una alineación de cinco atletas',
+    altStory: 'Story de Instagram con la cuenta atrás de un atleta, creada en su área',
+    b1: 'Área de atleta personalizada', b2: 'Tu póster de competición', b3: 'Tus datos en tiempo real',
+    b4: 'Perfil público verificado', b5: 'GRS Fantasy y porra general', b6: 'Mejor atención del club',
+  },
+  en: {
+    titulo: 'Create your athlete profile', carrusel: 'carousel', region: 'What you get as an athlete',
+    crear: 'Create my athlete profile', ir: 'Go to my athlete area', porque: 'Why sign up as an athlete',
+    altPerfil: 'Public profile of an athlete on a phone', altHorarios: 'Competition schedule on a phone',
+    altFantasy: 'GRS Fantasy futsal pitch with a line-up of five athletes',
+    altStory: 'Instagram story with an athlete’s countdown, created in their area',
+    b1: 'Personalised athlete area', b2: 'Your competition poster', b3: 'Your data in real time',
+    b4: 'Verified public profile', b5: 'GRS Fantasy and general prediction game', b6: 'Better support from the club',
+  },
+};
+
 /**
  * «Section / Alta de atleta» (Figma home R2 393:143503 · 387:105287): title, the iPhone with the athlete's story, the six
  * reasons (2 columns; icon and title stacked and centred) and the CTA. The intro text stays for SEO only (sr-only).
  */
 @Component({
   selector: 'gr-sec-alta',
-  imports: [RouterLink, GrButton, GrIcon],
+  imports: [RouterLink, GrButton, GrIcon, LocPipe],
   styles: `.gr-progreso{width:0;animation:gr-progreso linear forwards} @keyframes gr-progreso{to{width:100%}} @media (prefers-reduced-motion:reduce){.gr-progreso{animation:none;width:100%}}`,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block bg-bg-base px-5 pt-10 pb-18 md:px-8 md:pt-16 md:pb-24 xl:px-20 xl:pb-32' },
   template: `
     <div class="mx-auto flex max-w-[1200px] flex-col items-center gap-8 md:gap-12">
-      <h2 class="text-center font-display text-[36px] leading-[1.25] tracking-[0.06em] uppercase [text-shadow:0_0_24px_rgb(196_43_62/0.6)] md:text-[56px]">{{ s()?.['titulo'] || 'Crea tu perfil de atleta' }}</h2>
+      <h2 class="text-center font-display text-[36px] leading-[1.25] tracking-[0.06em] uppercase [text-shadow:0_0_24px_rgb(196_43_62/0.6)] md:text-[56px]">{{ s()?.['titulo'] || ta().titulo }}</h2>
       <div class="flex w-full flex-col items-center gap-8 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
         <!-- Jaime 15-nov 11:11: a bigger iPhone with real, sharp screens (no Instagram template). Screen 1 is a story made with
              the athlete page's own generator (all in black and white, logos too; Jaime 11:37) and screen 4 the Fantasy pitch; (compartir-story · componer, 1080 × 1920) in the browser; the others are @3x
              captures of the site. They change by themselves every 1.5 s (crossfade); paused on touch, hover or focus, off
              screen and in a hidden tab; no rotation with reduced motion. Fixed 9:19.5 box: no layout shift. -->
-        <div #movil class="flex w-full shrink-0 flex-col items-center gap-4 lg:w-auto" role="region" aria-roledescription="carrusel" aria-label="Lo que tendrás como atleta" tabindex="0"
+        <div #movil class="flex w-full shrink-0 flex-col items-center gap-4 lg:w-auto" role="region" [attr.aria-roledescription]="ta().carrusel" [attr.aria-label]="ta().region" tabindex="0"
           (pointerenter)="pausa.set(true)" (pointerleave)="pausa.set(false)" (focusin)="pausa.set(true)" (focusout)="pausa.set(false)"
           (touchstart)="pausa.set(true)" (touchend)="pausa.set(false)">
           <div class="relative aspect-[9/19.5] w-[min(64vw,270px)] rounded-[44px] border border-white/20 bg-[#0b0a0a] p-[9px] sm:w-[320px] sm:rounded-[50px] sm:p-[11px] lg:rounded-[56px] lg:p-[12px] shadow-[0_30px_80px_rgb(0_0_0/0.6)] lg:w-[360px]">
@@ -62,11 +84,11 @@ const FOTO = 'border border-white/8';
           </span>
         </div>
         <div class="flex w-full flex-col gap-3 sm:flex-row sm:justify-center lg:hidden">
-          <a grButton variant="primary" size="l" routerLink="/alta-atleta">Crear mi perfil de atleta</a>
-          <a grButton variant="glass" size="l" routerLink="/area-atleta" iconRight="arrow-right">Ir a mi área de atleta</a>
+          <a grButton variant="primary" size="l" [routerLink]="'/alta-atleta' | loc">{{ ta().crear }}</a>
+          <a grButton variant="glass" size="l" [routerLink]="'/area-atleta' | loc" iconRight="arrow-right">{{ ta().ir }}</a>
         </div>
         <div class="flex w-full flex-col items-center gap-6 lg:w-[760px] lg:gap-10">
-          <h3 class="text-center font-display text-[28px] leading-[1.25] tracking-[0.02em] md:text-[32px]">Por qué darte de alta como atleta</h3>
+          <h3 class="text-center font-display text-[28px] leading-[1.25] tracking-[0.02em] md:text-[32px]">{{ ta().porque }}</h3>
           <ul class="grid w-full grid-cols-2 gap-3 md:gap-5">
             @for (b of beneficios; track b.t) {
               <li class="flex min-h-[124px] flex-col items-center justify-center gap-3 rounded-xl border border-white/8 bg-white/3 px-3 py-5 text-center md:min-h-[150px]">
@@ -76,8 +98,8 @@ const FOTO = 'border border-white/8';
             }
           </ul>
           <div class="hidden gap-3 lg:flex">
-            <a grButton variant="primary" size="l" routerLink="/alta-atleta">Crear mi perfil de atleta</a>
-            <a grButton variant="glass" size="l" routerLink="/area-atleta" iconRight="arrow-right">Ir a mi área de atleta</a>
+            <a grButton variant="primary" size="l" [routerLink]="'/alta-atleta' | loc">{{ ta().crear }}</a>
+            <a grButton variant="glass" size="l" [routerLink]="'/area-atleta' | loc" iconRight="arrow-right">{{ ta().ir }}</a>
           </div>
         </div>
       </div>
@@ -86,12 +108,13 @@ const FOTO = 'border border-white/8';
 })
 export class SecAlta {
   readonly s = input<Seccion | undefined>();
+  protected readonly ta = inject(I18n).dict(TA);
   protected readonly intervalo = 1500;
   /** Real screens: @3x captures of the public profile, the schedule and the Fantasy; the story is prepended once composed. */
   protected readonly pantallas = signal<{ src: string; alt: string; story?: boolean }[]>([
-    { src: cdn('/img/home/alta-pantalla-perfil.webp'), alt: 'Perfil público de un atleta en el móvil' },
-    { src: cdn('/img/home/alta-pantalla-horarios.webp'), alt: 'Horarios de competición en el móvil' },
-    { src: cdn('/img/home/alta-pantalla-fantasy-campo.webp'), alt: 'Campo de fútbol sala de la GRS Fantasy con una alineación de cinco atletas' },
+    { src: cdn('/img/home/alta-pantalla-perfil.webp'), alt: this.ta().altPerfil },
+    { src: cdn('/img/home/alta-pantalla-horarios.webp'), alt: this.ta().altHorarios },
+    { src: cdn('/img/home/alta-pantalla-fantasy-campo.webp'), alt: this.ta().altFantasy },
   ]);
   protected readonly slide = signal(0);
   /** Hover / focus / touch on the phone. */
@@ -143,19 +166,36 @@ export class SecAlta {
       if (!blob) return;
       const url = URL.createObjectURL(blob);
       destroy.onDestroy(() => URL.revokeObjectURL(url));
-      this.pantallas.update((l) => [{ src: url, alt: 'Story de Instagram con la cuenta atrás de un atleta, creada en su área', story: true }, ...l]);
+      this.pantallas.update((l) => [{ src: url, alt: this.ta().altStory, story: true }, ...l]);
       this.slide.set(0);
     } catch { /* the three captures keep rotating */ }
   }
   protected readonly beneficios: { i: GrIconName; t: string }[] = [
-    { i: 'user', t: 'Área de atleta personalizada' },
-    { i: 'image', t: 'Tu póster de competición' },
-    { i: 'activity', t: 'Tus datos en tiempo real' },
-    { i: 'award', t: 'Perfil público verificado' },
-    { i: 'trophy', t: 'GRS Fantasy y porra general' },
-    { i: 'bell', t: 'Mejor atención del club' },
+    { i: 'user', t: this.ta().b1 },
+    { i: 'image', t: this.ta().b2 },
+    { i: 'activity', t: this.ta().b3 },
+    { i: 'award', t: this.ta().b4 },
+    { i: 'trophy', t: this.ta().b5 },
+    { i: 'bell', t: this.ta().b6 },
   ];
 }
+
+const TE = {
+  es: {
+    reserva: 'Reserva tu entrada gratis', horarios: 'Ver horarios', personas: (n: string) => n + ' personas ya tienen entrada',
+    gratis: 'Entrada gratuita', puerta: 'Enséñalo en la puerta desde el móvil (no hace falta imprimirlo)', aforo: 'Aforo',
+    sesion: (x: string) => 'Sesión de ' + x, puertas: (a: string, b: string) => 'Puertas ' + a + ' · hasta las ' + b,
+    acomp: 'Laura Gómez + 2 acompañantes', agotadas: 'Agotadas: apúntate a la lista de espera',
+    ultimas: (n: number) => '¡Últimas ' + n + ' entradas!', quedan: (n: string) => 'Quedan ' + n + ' entradas',
+  },
+  en: {
+    reserva: 'Book your free ticket', horarios: 'See schedule', personas: (n: string) => n + ' people already have a ticket',
+    gratis: 'Free ticket', puerta: 'Show it at the door on your phone (no need to print it)', aforo: 'Capacity',
+    sesion: (x: string) => x + ' session', puertas: (a: string, b: string) => 'Doors ' + a + ' · until ' + b,
+    acomp: 'Laura Gómez + 2 guests', agotadas: 'Sold out: join the waiting list',
+    ultimas: (n: number) => 'Last ' + n + ' tickets!', quedan: (n: string) => n + ' tickets left',
+  },
+};
 
 /**
  * «Section / Entradas»: why to book (icons), the CTAs and live social proof, next to an example ticket (rotated −3°,
@@ -163,7 +203,7 @@ export class SecAlta {
  */
 @Component({
   selector: 'gr-sec-entradas',
-  imports: [RouterLink, GrButton, GrIcon, GrEyebrow, GrTitulo],
+  imports: [RouterLink, GrButton, GrIcon, GrEyebrow, GrTitulo, LocPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-deep' },
   template: `
@@ -184,15 +224,15 @@ export class SecAlta {
           }
         </ul>
         <div class="flex flex-col gap-3 sm:flex-row">
-          <a grButton variant="primary" size="l" routerLink="/entradas" data-cta-entrada>Reserva tu entrada gratis</a>
-          <a grButton variant="glass" size="l" routerLink="/horarios" iconRight="arrow-right">Ver horarios</a>
+          <a grButton variant="primary" size="l" [routerLink]="'/entradas' | loc" data-cta-entrada>{{ te().reserva }}</a>
+          <a grButton variant="glass" size="l" [routerLink]="'/horarios' | loc" iconRight="arrow-right">{{ te().horarios }}</a>
         </div>
         @if (entradas()?.personas) {
           <div class="flex items-center gap-3">
             <span class="flex items-center" aria-hidden="true">
               @for (a of avatares; track a) { <span class="-ml-2.5 flex size-8 items-center justify-center rounded-full border-2 border-bg-base bg-[linear-gradient(135deg,#58202b,#1b1718)] text-label-xs first:ml-0">{{ a }}</span> }
             </span>
-            <span class="text-body-s">{{ num(entradas()!.personas) }} personas ya tienen entrada</span>
+            <span class="text-body-s">{{ te().personas(num(entradas()!.personas)) }}</span>
           </div>
         }
       </div>
@@ -202,7 +242,7 @@ export class SecAlta {
           <div class="flex flex-col gap-3 px-5 pt-6 pb-4">
             <div class="flex items-center justify-between">
               <img [src]="logo" alt="" class="h-8 w-auto" />
-              <span class="inline-flex h-6 items-center rounded-pill border border-white/25 bg-white/6 px-2.5 text-label-xs text-text-secondary">Entrada gratuita</span>
+              <span class="inline-flex h-6 items-center rounded-pill border border-white/25 bg-white/6 px-2.5 text-label-xs text-text-secondary">{{ te().gratis }}</span>
             </div>
             <p class="text-display-xs">{{ nombreTicket() }}</p>
             <ul class="flex flex-col gap-2 text-body-s text-text-secondary">
@@ -217,13 +257,13 @@ export class SecAlta {
           <div class="flex flex-col items-center gap-2 px-5 pt-2 pb-6 text-center">
             @if (qr()) { <img [src]="qr()" alt="" class="size-[168px] rounded-[4px] bg-white" /> } @else { <span class="size-[168px] rounded-[4px] bg-white"></span> }
             <span class="text-mono-s">GRC-7K3P</span>
-            <span class="text-body-xs text-text-tertiary">Enséñalo en la puerta desde el móvil (no hace falta imprimirlo)</span>
+            <span class="text-body-xs text-text-tertiary">{{ te().puerta }}</span>
           </div>
         </div>
         @if (aforo(); as a) {
           <div class="flex w-full max-w-[400px] flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card px-4 py-5">
             <div class="flex items-center justify-between">
-              <span class="flex items-center gap-2 text-label-s"><gr-icon name="users" [size]="16" class="text-accent-text" />Aforo · {{ a.s.nombre }}</span>
+              <span class="flex items-center gap-2 text-label-s"><gr-icon name="users" [size]="16" class="text-accent-text" />{{ te().aforo }} · {{ a.s.nombre }}</span>
               <span class="text-mono-s text-text-secondary">{{ a.s.ocupadas }} / {{ a.s.aforo }}</span>
             </div>
             <div class="h-2 overflow-hidden rounded-[4px] bg-line-strong"><div class="h-full rounded-[4px] bg-[linear-gradient(120deg,#c42b3e,#6e1420)]" [style.width.%]="a.pct"></div></div>
@@ -248,6 +288,8 @@ export class SecEntradas {
   protected t = (k: string) => str(this.s(), k);
   /** Figma home R2: only icon + title per point (the CMS text is not shown). */
   protected readonly puntos = computed(() => list<{ titulo: string }>(this.s(), 'puntos'));
+  private readonly i18n = inject(I18n);
+  protected readonly te = this.i18n.dict(TE);
   /** «GRS CUP 2 · 2026» (Figma ticket). */
   protected readonly nombreTicket = computed(() => {
     const c = this.comp();
@@ -259,14 +301,14 @@ export class SecEntradas {
     const s = this.primera(), c = this.comp();
     const out: { i: GrIconName; t: string }[] = [];
     if (s) {
-      const d = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(s.inicio)).replace(',', '').replace('.', '');
+      const d = new Intl.DateTimeFormat(this.i18n.locale(), { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(s.inicio)).replace(',', '').replace('.', '');
       // «Sábado mañana» → «Sesión de mañana» (the day is already in the date)
       const sesion = s.nombre.replace(/^(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\s+/i, '');
-      out.push({ i: 'calendar', t: `${d.charAt(0).toUpperCase() + d.slice(1)} · ${sesion === s.nombre ? s.nombre : 'Sesión de ' + sesion}` });
-      out.push({ i: 'clock', t: `Puertas ${hora(s.puertas)} · hasta las ${hora(s.fin)}` });
+      out.push({ i: 'calendar', t: `${d.charAt(0).toUpperCase() + d.slice(1)} · ${sesion === s.nombre ? s.nombre : this.te().sesion(sesion)}` });
+      out.push({ i: 'clock', t: this.te().puertas(hora(s.puertas), hora(s.fin)) });
     }
     if (c?.sede?.nombre) out.push({ i: 'map-pin', t: c.sede.nombre });
-    out.push({ i: 'users', t: 'Laura Gómez + 2 acompañantes' });
+    out.push({ i: 'users', t: this.te().acomp });
     return out;
   });
   /** The open session closest to selling out (Figma «Aforo meter / Últimas»). */
@@ -276,7 +318,7 @@ export class SecEntradas {
     const vivas = ss.filter((s) => s.libres > 0);
     const s = (vivas.length ? vivas : ss).reduce((a, b) => (b.libres < a.libres ? b : a));
     const ultimas = s.libres > 0 && s.libres <= Math.max(10, s.aforo * 0.1);
-    const nota = s.libres <= 0 ? 'Agotadas: apúntate a la lista de espera' : ultimas ? `¡Últimas ${s.libres} entradas!` : `Quedan ${num(s.libres)} entradas`;
+    const nota = s.libres <= 0 ? this.te().agotadas : ultimas ? this.te().ultimas(s.libres) : this.te().quedan(num(s.libres));
     return { s, pct: Math.min(100, Math.round((s.ocupadas / s.aforo) * 100)), ultimas, nota };
   });
   constructor() {
