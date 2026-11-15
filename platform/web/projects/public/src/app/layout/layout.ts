@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injectable, PLATFORM_ID, PendingTasks, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injectable, PLATFORM_ID, PendingTasks, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { GrButton, GrIcon, GrLogo } from '@grcup/ui';
@@ -149,7 +149,7 @@ const UI = {
         </div>
         <ul class="flex flex-col">
           @for (l of accesos(); track l.href) {
-            <li><a [routerLink]="ruta(l.href)" [fragment]="frag(l.href)" (click)="open.set(false)" class="flex h-[54px] items-center justify-between border-b border-line-subtle px-1 text-display-xs decoration-accent decoration-2 underline-offset-8" [class.text-accent-text]="l.destacado" [class.underline]="activo(l.href)" [attr.aria-current]="activo(l.href) ? 'page' : null">{{ l.label }}<gr-icon name="arrow-right" [size]="18" class="text-text-tertiary" [class.text-accent-text!]="l.destacado" /></a></li>
+            <li><a [routerLink]="ruta(l.href)" [fragment]="frag(l.href)" (click)="open.set(false)" class="flex h-[54px] items-center justify-between border-b border-line-subtle px-1 text-display-xs decoration-accent decoration-2 underline-offset-8" [class.underline]="activo(l.href)" [attr.aria-current]="activo(l.href) ? 'page' : null">{{ l.label }}<gr-icon name="arrow-right" [size]="18" class="text-text-tertiary" /></a></li>
           }
         </ul>
         @if (lang() === 'es') {
@@ -223,10 +223,10 @@ export class Navbar {
   protected frag(href: string): string | undefined { return href.split('#')[1]; }
   protected activo(href: string): boolean { const a = this.actual(); return a === href || a.startsWith(href + '/'); }
   protected readonly grupos = GRUPOS_MOVIL;
-  /** The four main links of the mobile menu (the booking one in red). */
+  /** The four main links of the mobile menu (only the current section is marked, underlined). */
   protected readonly accesos = computed(() => this.lang() === 'en'
-    ? [{ label: 'Home', href: '/en', destacado: false }, { label: 'Free tickets', href: '/entradas', destacado: true }, ...LINKS.en.slice(1, 3).map((l) => ({ ...l, destacado: false }))]
-    : [{ label: 'Inicio', href: '/', destacado: false }, { label: 'Entradas', href: '/entradas', destacado: true }, { label: 'Atletas', href: '/atletas', destacado: false }, { label: 'Horarios', href: '/horarios', destacado: false }]);
+    ? [{ label: 'Home', href: '/en' }, { label: 'Free tickets', href: '/entradas' }, ...LINKS.en.slice(1, 3)]
+    : [{ label: 'Inicio', href: '/' }, { label: 'Entradas', href: '/entradas' }, { label: 'Atletas', href: '/atletas' }, { label: 'Horarios', href: '/horarios' }]);
   protected readonly edicion = computed(() => {
     const c = this.comp.data();
     const f = c?.fechaInicio ? new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(c.fechaInicio + 'T12:00:00Z')) : 'fecha por confirmar';
@@ -247,6 +247,8 @@ export class Navbar {
       effect(() => {
         const abierto = this.open();
         document.body.style.overflow = abierto ? 'hidden' : '';
+        // R091: the menu opens with the group of the current route unfolded (e.g. /galeria → «El evento»), the rest folded.
+        if (abierto) untracked(() => this.grupo.set(this.grupos.findIndex((g) => g.items.some((i) => this.activo(i.href)))));
         if (abierto) setTimeout(() => (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-cerrar-menu]')?.focus());
         else if (estaba) (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('button[data-menu]')?.focus();
         estaba = abierto;
