@@ -8,6 +8,7 @@ import { CATEGORIAS_IPF, Favoritos } from '../core/atletas';
 import { hora, qrDataURL, type Entradas, type SesionPub } from '../core/entradas';
 import { HorariosPublic, ICS_URL, normalizar, type Horarios, type PubAtleta, type PubDia, type PubFlight } from '../core/horarios';
 import { Lightbox } from '../layout/lightbox';
+import { I18n, LocPipe } from '../core/i18n';
 import { ANCHO, GLOW, GrCabecera, GrEyebrow, GrTitulo, SECCION, sinNumero, textoTitulo } from './bloques';
 
 const str = (s: Seccion | undefined, k: string) => (s?.[k] as string | undefined) ?? '';
@@ -20,25 +21,46 @@ const srcset = (src: string) => (/-l\.webp$/.test(src) ? cdnSrcset(`${src.replac
 /** Hairline photo border of Figma (white 8 %). */
 const FOTO = 'border border-white/8';
 
+const TA = {
+  es: {
+    titulo: 'Crea tu perfil de atleta', carrusel: 'carrusel', region: 'Lo que tendrás como atleta',
+    crear: 'Crear mi perfil de atleta', ir: 'Ir a mi área de atleta', porque: 'Por qué darte de alta como atleta',
+    altPerfil: 'Perfil público de un atleta en el móvil', altHorarios: 'Horarios de competición en el móvil',
+    altFantasy: 'Campo de fútbol sala de la GRS Fantasy con una alineación de cinco atletas',
+    altStory: 'Story de Instagram con la cuenta atrás de un atleta, creada en su área',
+    b1: 'Área de atleta personalizada', b2: 'Tu póster de competición', b3: 'Tus datos en tiempo real',
+    b4: 'Perfil público verificado', b5: 'GRS Fantasy y porra general', b6: 'Mejor atención del club',
+  },
+  en: {
+    titulo: 'Create your athlete profile', carrusel: 'carousel', region: 'What you get as an athlete',
+    crear: 'Create my athlete profile', ir: 'Go to my athlete area', porque: 'Why sign up as an athlete',
+    altPerfil: 'Public profile of an athlete on a phone', altHorarios: 'Competition schedule on a phone',
+    altFantasy: 'GRS Fantasy futsal pitch with a line-up of five athletes',
+    altStory: 'Instagram story with an athlete’s countdown, created in their area',
+    b1: 'Personalised athlete area', b2: 'Your competition poster', b3: 'Your data in real time',
+    b4: 'Verified public profile', b5: 'GRS Fantasy and general prediction game', b6: 'Better support from the club',
+  },
+};
+
 /**
  * «Section / Alta de atleta» (Figma home R2 393:143503 · 387:105287): title, the iPhone with the athlete's story, the six
  * reasons (2 columns; icon and title stacked and centred) and the CTA. The intro text stays for SEO only (sr-only).
  */
 @Component({
   selector: 'gr-sec-alta',
-  imports: [RouterLink, GrButton, GrIcon],
+  imports: [RouterLink, GrButton, GrIcon, LocPipe],
   styles: `.gr-progreso{width:0;animation:gr-progreso linear forwards} @keyframes gr-progreso{to{width:100%}} @media (prefers-reduced-motion:reduce){.gr-progreso{animation:none;width:100%}}`,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block bg-bg-base px-5 pt-10 pb-18 md:px-8 md:pt-16 md:pb-24 xl:px-20 xl:pb-32' },
   template: `
     <div class="mx-auto flex max-w-[1200px] flex-col items-center gap-8 md:gap-12">
-      <h2 class="text-center font-display text-[36px] leading-[1.25] tracking-[0.06em] uppercase [text-shadow:0_0_24px_rgb(196_43_62/0.6)] md:text-[56px]">{{ s()?.['titulo'] || 'Crea tu perfil de atleta' }}</h2>
+      <h2 class="text-center font-display text-[36px] leading-[1.25] tracking-[0.06em] uppercase [text-shadow:0_0_24px_rgb(196_43_62/0.6)] md:text-[56px]">{{ s()?.['titulo'] || ta().titulo }}</h2>
       <div class="flex w-full flex-col items-center gap-8 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
         <!-- Jaime 15-nov 11:11: a bigger iPhone with real, sharp screens (no Instagram template). Screen 1 is a story made with
              the athlete page's own generator (all in black and white, logos too; Jaime 11:37) and screen 4 the Fantasy pitch; (compartir-story · componer, 1080 × 1920) in the browser; the others are @3x
              captures of the site. They change by themselves every 1.5 s (crossfade); paused on touch, hover or focus, off
              screen and in a hidden tab; no rotation with reduced motion. Fixed 9:19.5 box: no layout shift. -->
-        <div #movil class="flex w-full shrink-0 flex-col items-center gap-4 lg:w-auto" role="region" aria-roledescription="carrusel" aria-label="Lo que tendrás como atleta" tabindex="0"
+        <div #movil class="flex w-full shrink-0 flex-col items-center gap-4 lg:w-auto" role="region" [attr.aria-roledescription]="ta().carrusel" [attr.aria-label]="ta().region" tabindex="0"
           (pointerenter)="pausa.set(true)" (pointerleave)="pausa.set(false)" (focusin)="pausa.set(true)" (focusout)="pausa.set(false)"
           (touchstart)="pausa.set(true)" (touchend)="pausa.set(false)">
           <div class="relative aspect-[9/19.5] w-[min(64vw,270px)] rounded-[44px] border border-white/20 bg-[#0b0a0a] p-[9px] sm:w-[320px] sm:rounded-[50px] sm:p-[11px] lg:rounded-[56px] lg:p-[12px] shadow-[0_30px_80px_rgb(0_0_0/0.6)] lg:w-[360px]">
@@ -62,11 +84,11 @@ const FOTO = 'border border-white/8';
           </span>
         </div>
         <div class="flex w-full flex-col gap-3 sm:flex-row sm:justify-center lg:hidden">
-          <a grButton variant="primary" size="l" routerLink="/alta-atleta">Crear mi perfil de atleta</a>
-          <a grButton variant="glass" size="l" routerLink="/area-atleta" iconRight="arrow-right">Ir a mi área de atleta</a>
+          <a grButton variant="primary" size="l" [routerLink]="'/alta-atleta' | loc">{{ ta().crear }}</a>
+          <a grButton variant="glass" size="l" [routerLink]="'/area-atleta' | loc" iconRight="arrow-right">{{ ta().ir }}</a>
         </div>
         <div class="flex w-full flex-col items-center gap-6 lg:w-[760px] lg:gap-10">
-          <h3 class="text-center font-display text-[28px] leading-[1.25] tracking-[0.02em] md:text-[32px]">Por qué darte de alta como atleta</h3>
+          <h3 class="text-center font-display text-[28px] leading-[1.25] tracking-[0.02em] md:text-[32px]">{{ ta().porque }}</h3>
           <ul class="grid w-full grid-cols-2 gap-3 md:gap-5">
             @for (b of beneficios; track b.t) {
               <li class="flex min-h-[124px] flex-col items-center justify-center gap-3 rounded-xl border border-white/8 bg-white/3 px-3 py-5 text-center md:min-h-[150px]">
@@ -76,8 +98,8 @@ const FOTO = 'border border-white/8';
             }
           </ul>
           <div class="hidden gap-3 lg:flex">
-            <a grButton variant="primary" size="l" routerLink="/alta-atleta">Crear mi perfil de atleta</a>
-            <a grButton variant="glass" size="l" routerLink="/area-atleta" iconRight="arrow-right">Ir a mi área de atleta</a>
+            <a grButton variant="primary" size="l" [routerLink]="'/alta-atleta' | loc">{{ ta().crear }}</a>
+            <a grButton variant="glass" size="l" [routerLink]="'/area-atleta' | loc" iconRight="arrow-right">{{ ta().ir }}</a>
           </div>
         </div>
       </div>
@@ -86,12 +108,13 @@ const FOTO = 'border border-white/8';
 })
 export class SecAlta {
   readonly s = input<Seccion | undefined>();
+  protected readonly ta = inject(I18n).dict(TA);
   protected readonly intervalo = 1500;
   /** Real screens: @3x captures of the public profile, the schedule and the Fantasy; the story is prepended once composed. */
   protected readonly pantallas = signal<{ src: string; alt: string; story?: boolean }[]>([
-    { src: cdn('/img/home/alta-pantalla-perfil.webp'), alt: 'Perfil público de un atleta en el móvil' },
-    { src: cdn('/img/home/alta-pantalla-horarios.webp'), alt: 'Horarios de competición en el móvil' },
-    { src: cdn('/img/home/alta-pantalla-fantasy-campo.webp'), alt: 'Campo de fútbol sala de la GRS Fantasy con una alineación de cinco atletas' },
+    { src: cdn('/img/home/alta-pantalla-perfil.webp'), alt: this.ta().altPerfil },
+    { src: cdn('/img/home/alta-pantalla-horarios.webp'), alt: this.ta().altHorarios },
+    { src: cdn('/img/home/alta-pantalla-fantasy-campo.webp'), alt: this.ta().altFantasy },
   ]);
   protected readonly slide = signal(0);
   /** Hover / focus / touch on the phone. */
@@ -143,19 +166,71 @@ export class SecAlta {
       if (!blob) return;
       const url = URL.createObjectURL(blob);
       destroy.onDestroy(() => URL.revokeObjectURL(url));
-      this.pantallas.update((l) => [{ src: url, alt: 'Story de Instagram con la cuenta atrás de un atleta, creada en su área', story: true }, ...l]);
+      this.pantallas.update((l) => [{ src: url, alt: this.ta().altStory, story: true }, ...l]);
       this.slide.set(0);
     } catch { /* the three captures keep rotating */ }
   }
   protected readonly beneficios: { i: GrIconName; t: string }[] = [
-    { i: 'user', t: 'Área de atleta personalizada' },
-    { i: 'image', t: 'Tu póster de competición' },
-    { i: 'activity', t: 'Tus datos en tiempo real' },
-    { i: 'award', t: 'Perfil público verificado' },
-    { i: 'trophy', t: 'GRS Fantasy y porra general' },
-    { i: 'bell', t: 'Mejor atención del club' },
+    { i: 'user', t: this.ta().b1 },
+    { i: 'image', t: this.ta().b2 },
+    { i: 'activity', t: this.ta().b3 },
+    { i: 'award', t: this.ta().b4 },
+    { i: 'trophy', t: this.ta().b5 },
+    { i: 'bell', t: this.ta().b6 },
   ];
 }
+
+const TE = {
+  es: {
+    reserva: 'Reserva tu entrada gratis', horarios: 'Ver horarios', personas: (n: string) => n + ' personas ya tienen entrada',
+    gratis: 'Entrada gratuita', puerta: 'Enséñalo en la puerta desde el móvil (no hace falta imprimirlo)', aforo: 'Aforo',
+    sesion: (x: string) => 'Sesión de ' + x, puertas: (a: string, b: string) => 'Puertas ' + a + ' · hasta las ' + b,
+    acomp: 'Laura Gómez + 2 acompañantes', agotadas: 'Agotadas: apúntate a la lista de espera',
+    ultimas: (n: number) => '¡Últimas ' + n + ' entradas!', quedan: (n: string) => 'Quedan ' + n + ' entradas',
+  },
+  en: {
+    reserva: 'Book your free ticket', horarios: 'See schedule', personas: (n: string) => n + ' people already have a ticket',
+    gratis: 'Free ticket', puerta: 'Show it at the door on your phone (no need to print it)', aforo: 'Capacity',
+    sesion: (x: string) => x + ' session', puertas: (a: string, b: string) => 'Doors ' + a + ' · until ' + b,
+    acomp: 'Laura Gómez + 2 guests', agotadas: 'Sold out: join the waiting list',
+    ultimas: (n: number) => 'Last ' + n + ' tickets!', quedan: (n: string) => n + ' tickets left',
+  },
+};
+
+const TX = {
+  es: {
+    fotos: 'Fotos', irFoto: (n: number) => 'Ir a foto ' + n, ampliar: (x: string) => 'Ampliar: ' + x,
+    aep: 'Afiliada a la Asociación Española de Powerlifting, con jueces oficiales.', grs: 'Club organizador: reúne a la comunidad de powerlifting.',
+    alm: "Colabora el Ajuntament d'Almussafes, municipio anfitrión.", aepAlt: 'AEP · Asociación Española de Powerlifting',
+    sexo: 'Sexo', hombres: 'Hombres', mujeres: 'Mujeres', verCat: ' · ver categorías de peso',
+    ctaTitulo: 'Consulta las marcas mínimas', ctaTexto: 'Para clasificar para otras competiciones AEP (PDF oficial).', verMarcas: 'Ver marcas mínimas',
+    finalizado: 'Finalizado', en_curso: 'En curso', programado: 'Programado', horarios: 'Horarios', enDirecto: 'en directo',
+    vista: 'Vista', dias: 'Días', buscaPh: '¿Cuándo compite…?', buscaAria: 'Buscar atleta o club', miHorario: 'Mi horario',
+    atletas: (n: number): string => (n === 1 ? 'atleta' : 'atletas'), enTarima: 'En tarima', dejar: 'Dejar de seguir a ', seguir: 'Seguir a ',
+    ics: 'Añadir mi horario al calendario', icsTxt: 'Archivo .ics con las horas de tus atletas; se actualiza si hay retrasos.',
+    nadie: 'Aún no sigues a ningún atleta', nadieTxt: 'Marca con ★ a tus atletas en «Todos» o «Detallado» y aquí verás solo sus horas.',
+    buscarDet: 'Buscar atletas en Detallado', femenino: 'Femenino', masculino: 'Masculino', indep: 'Independiente',
+    verLos: (n: number) => 'Ver los ' + n + ' atletas', sinAsig: 'Aún no hay atletas asignados.', cargando: 'Cargando atletas…',
+    completo: 'Ver horario completo', todos: 'Todos', detallado: 'Detallado',
+    maps: 'Abrir en Google Maps', copiada: 'Dirección copiada', copiar: 'Copiar dirección', noEncuentras: '¿No encuentras tu respuesta?', escribenos: 'Escríbenos',
+  },
+  en: {
+    fotos: 'Photos', irFoto: (n: number) => 'Go to photo ' + n, ampliar: (x: string) => 'Enlarge: ' + x,
+    aep: 'Affiliated to the Spanish Powerlifting Association, with official referees.', grs: 'Organising club: it brings the powerlifting community together.',
+    alm: "Supported by the Ajuntament d'Almussafes, the host town.", aepAlt: 'AEP · Spanish Powerlifting Association',
+    sexo: 'Sex', hombres: 'Men', mujeres: 'Women', verCat: ' · see weight classes',
+    ctaTitulo: 'Check the qualifying totals', ctaTexto: 'To qualify for other AEP competitions (official PDF).', verMarcas: 'See qualifying totals',
+    finalizado: 'Finished', en_curso: 'In progress', programado: 'Scheduled', horarios: 'Schedule', enDirecto: 'live',
+    vista: 'View', dias: 'Days', buscaPh: 'When does … lift?', buscaAria: 'Search athlete or club', miHorario: 'My schedule',
+    atletas: (n: number): string => (n === 1 ? 'athlete' : 'athletes'), enTarima: 'On the platform', dejar: 'Unfollow ', seguir: 'Follow ',
+    ics: 'Add my schedule to the calendar', icsTxt: '.ics file with your athletes’ times; it updates if there are delays.',
+    nadie: 'You are not following any athletes yet', nadieTxt: 'Mark your athletes with ★ in «All» or «Detailed» and you will see only their times here.',
+    buscarDet: 'Find athletes in Detailed', femenino: 'Female', masculino: 'Male', indep: 'Unattached',
+    verLos: (n: number) => 'See all ' + n + ' athletes', sinAsig: 'No athletes assigned yet.', cargando: 'Loading athletes…',
+    completo: 'See full schedule', todos: 'All', detallado: 'Detailed',
+    maps: 'Open in Google Maps', copiada: 'Address copied', copiar: 'Copy address', noEncuentras: 'Can’t find your answer?', escribenos: 'Write to us',
+  },
+};
 
 /**
  * «Section / Entradas»: why to book (icons), the CTAs and live social proof, next to an example ticket (rotated −3°,
@@ -163,7 +238,7 @@ export class SecAlta {
  */
 @Component({
   selector: 'gr-sec-entradas',
-  imports: [RouterLink, GrButton, GrIcon, GrEyebrow, GrTitulo],
+  imports: [RouterLink, GrButton, GrIcon, GrEyebrow, GrTitulo, LocPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-deep' },
   template: `
@@ -184,15 +259,15 @@ export class SecAlta {
           }
         </ul>
         <div class="flex flex-col gap-3 sm:flex-row">
-          <a grButton variant="primary" size="l" routerLink="/entradas" data-cta-entrada>Reserva tu entrada gratis</a>
-          <a grButton variant="glass" size="l" routerLink="/horarios" iconRight="arrow-right">Ver horarios</a>
+          <a grButton variant="primary" size="l" [routerLink]="'/entradas' | loc" data-cta-entrada>{{ te().reserva }}</a>
+          <a grButton variant="glass" size="l" [routerLink]="'/horarios' | loc" iconRight="arrow-right">{{ te().horarios }}</a>
         </div>
         @if (entradas()?.personas) {
           <div class="flex items-center gap-3">
             <span class="flex items-center" aria-hidden="true">
               @for (a of avatares; track a) { <span class="-ml-2.5 flex size-8 items-center justify-center rounded-full border-2 border-bg-base bg-[linear-gradient(135deg,#58202b,#1b1718)] text-label-xs first:ml-0">{{ a }}</span> }
             </span>
-            <span class="text-body-s">{{ num(entradas()!.personas) }} personas ya tienen entrada</span>
+            <span class="text-body-s">{{ te().personas(num(entradas()!.personas)) }}</span>
           </div>
         }
       </div>
@@ -202,7 +277,7 @@ export class SecAlta {
           <div class="flex flex-col gap-3 px-5 pt-6 pb-4">
             <div class="flex items-center justify-between">
               <img [src]="logo" alt="" class="h-8 w-auto" />
-              <span class="inline-flex h-6 items-center rounded-pill border border-white/25 bg-white/6 px-2.5 text-label-xs text-text-secondary">Entrada gratuita</span>
+              <span class="inline-flex h-6 items-center rounded-pill border border-white/25 bg-white/6 px-2.5 text-label-xs text-text-secondary">{{ te().gratis }}</span>
             </div>
             <p class="text-display-xs">{{ nombreTicket() }}</p>
             <ul class="flex flex-col gap-2 text-body-s text-text-secondary">
@@ -217,13 +292,13 @@ export class SecAlta {
           <div class="flex flex-col items-center gap-2 px-5 pt-2 pb-6 text-center">
             @if (qr()) { <img [src]="qr()" alt="" class="size-[168px] rounded-[4px] bg-white" /> } @else { <span class="size-[168px] rounded-[4px] bg-white"></span> }
             <span class="text-mono-s">GRC-7K3P</span>
-            <span class="text-body-xs text-text-tertiary">Enséñalo en la puerta desde el móvil (no hace falta imprimirlo)</span>
+            <span class="text-body-xs text-text-tertiary">{{ te().puerta }}</span>
           </div>
         </div>
         @if (aforo(); as a) {
           <div class="flex w-full max-w-[400px] flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card px-4 py-5">
             <div class="flex items-center justify-between">
-              <span class="flex items-center gap-2 text-label-s"><gr-icon name="users" [size]="16" class="text-accent-text" />Aforo · {{ a.s.nombre }}</span>
+              <span class="flex items-center gap-2 text-label-s"><gr-icon name="users" [size]="16" class="text-accent-text" />{{ te().aforo }} · {{ a.s.nombre }}</span>
               <span class="text-mono-s text-text-secondary">{{ a.s.ocupadas }} / {{ a.s.aforo }}</span>
             </div>
             <div class="h-2 overflow-hidden rounded-[4px] bg-line-strong"><div class="h-full rounded-[4px] bg-[linear-gradient(120deg,#c42b3e,#6e1420)]" [style.width.%]="a.pct"></div></div>
@@ -248,6 +323,8 @@ export class SecEntradas {
   protected t = (k: string) => str(this.s(), k);
   /** Figma home R2: only icon + title per point (the CMS text is not shown). */
   protected readonly puntos = computed(() => list<{ titulo: string }>(this.s(), 'puntos'));
+  private readonly i18n = inject(I18n);
+  protected readonly te = this.i18n.dict(TE);
   /** «GRS CUP 2 · 2026» (Figma ticket). */
   protected readonly nombreTicket = computed(() => {
     const c = this.comp();
@@ -259,14 +336,14 @@ export class SecEntradas {
     const s = this.primera(), c = this.comp();
     const out: { i: GrIconName; t: string }[] = [];
     if (s) {
-      const d = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(s.inicio)).replace(',', '').replace('.', '');
+      const d = new Intl.DateTimeFormat(this.i18n.locale(), { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(s.inicio)).replace(',', '').replace('.', '');
       // «Sábado mañana» → «Sesión de mañana» (the day is already in the date)
       const sesion = s.nombre.replace(/^(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\s+/i, '');
-      out.push({ i: 'calendar', t: `${d.charAt(0).toUpperCase() + d.slice(1)} · ${sesion === s.nombre ? s.nombre : 'Sesión de ' + sesion}` });
-      out.push({ i: 'clock', t: `Puertas ${hora(s.puertas)} · hasta las ${hora(s.fin)}` });
+      out.push({ i: 'calendar', t: `${d.charAt(0).toUpperCase() + d.slice(1)} · ${sesion === s.nombre ? s.nombre : this.te().sesion(sesion)}` });
+      out.push({ i: 'clock', t: this.te().puertas(hora(s.puertas), hora(s.fin)) });
     }
     if (c?.sede?.nombre) out.push({ i: 'map-pin', t: c.sede.nombre });
-    out.push({ i: 'users', t: 'Laura Gómez + 2 acompañantes' });
+    out.push({ i: 'users', t: this.te().acomp });
     return out;
   });
   /** The open session closest to selling out (Figma «Aforo meter / Últimas»). */
@@ -276,7 +353,7 @@ export class SecEntradas {
     const vivas = ss.filter((s) => s.libres > 0);
     const s = (vivas.length ? vivas : ss).reduce((a, b) => (b.libres < a.libres ? b : a));
     const ultimas = s.libres > 0 && s.libres <= Math.max(10, s.aforo * 0.1);
-    const nota = s.libres <= 0 ? 'Agotadas: apúntate a la lista de espera' : ultimas ? `¡Últimas ${s.libres} entradas!` : `Quedan ${num(s.libres)} entradas`;
+    const nota = s.libres <= 0 ? this.te().agotadas : ultimas ? this.te().ultimas(s.libres) : this.te().quedan(num(s.libres));
     return { s, pct: Math.min(100, Math.round((s.ocupadas / s.aforo) * 100)), ultimas, nota };
   });
   constructor() {
@@ -349,13 +426,14 @@ export class SecAtletas {
           </li>
         }
       </ul>
-      <div class="flex items-center md:hidden" role="group" aria-label="Fotos">
-        @for (f of fotos(); track f.imagen; let i = $index) { <button type="button" class="relative flex size-6 items-center justify-center before:absolute before:-inset-2.5 before:content-['']" [attr.aria-label]="'Ir a foto ' + (i + 1)" [attr.aria-current]="i === activa() || null" (click)="irA(pista, i)"><span class="h-1.5 rounded-pill transition-all motion-reduce:transition-none" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span></button> }
+      <div class="flex items-center md:hidden" role="group" [attr.aria-label]="tx().fotos">
+        @for (f of fotos(); track f.imagen; let i = $index) { <button type="button" class="relative flex size-6 items-center justify-center before:absolute before:-inset-2.5 before:content-['']" [attr.aria-label]="tx().irFoto(i + 1)" [attr.aria-current]="i === activa() || null" (click)="irA(pista, i)"><span class="h-1.5 rounded-pill transition-all motion-reduce:transition-none" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span></button> }
       </div>
     </div>
   `,
 })
 export class SecOrganizacion {
+  protected readonly tx = inject(I18n).dict(TX);
   readonly s = input<Seccion | undefined>();
   protected readonly sinNumero = sinNumero;
   protected readonly ancho = ANCHO;
@@ -402,13 +480,14 @@ export class SecOrganizacion {
   `,
 })
 export class SecAfiliaciones {
+  protected readonly tx = inject(I18n).dict(TX);
   readonly s = input<Seccion | undefined>();
   protected readonly ancho = ANCHO;
   protected t = (k: string) => str(this.s(), k);
   protected readonly tarjetas = [
-    { logo: cdn('/img/home/afil-aep-bn.webp'), alt: 'AEP · Asociación Española de Powerlifting', titulo: 'AEP', texto: 'Afiliada a la Asociación Española de Powerlifting, con jueces oficiales.' },
-    { logo: cdn('/img/home/afil-grs-strength-bn.webp'), alt: 'GRS Strength', titulo: 'GRS Strength', texto: 'Club organizador: reúne a la comunidad de powerlifting.' },
-    { logo: cdn('/img/home/afil-almussafes-bn.webp'), alt: "Ajuntament d'Almussafes", titulo: "Ajuntament d'Almussafes", texto: "Colabora el Ajuntament d'Almussafes, municipio anfitrión." },
+    { logo: cdn('/img/home/afil-aep-bn.webp'), alt: this.tx().aepAlt, titulo: 'AEP', texto: this.tx().aep },
+    { logo: cdn('/img/home/afil-grs-strength-bn.webp'), alt: 'GRS Strength', titulo: 'GRS Strength', texto: this.tx().grs },
+    { logo: cdn('/img/home/afil-almussafes-bn.webp'), alt: "Ajuntament d'Almussafes", titulo: "Ajuntament d'Almussafes", texto: this.tx().alm },
   ];
   protected readonly marcas = computed(() => list<{ nombre: string; logo: string }>(this.s(), 'marcas'));
 }
@@ -416,7 +495,7 @@ export class SecAfiliaciones {
 /** «Section / Categorías»: men's and women's weight classes (a segmented switch on mobile) and the minimum totals. */
 @Component({
   selector: 'gr-sec-categorias',
-  imports: [CdnPipe, RouterLink, GrButton, GrIcon, GrCabecera],
+  imports: [CdnPipe, RouterLink, GrButton, GrIcon, GrCabecera, LocPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-deep' },
   template: `
@@ -426,7 +505,7 @@ export class SecAfiliaciones {
     </div>
     <div [class]="ancho + ' flex flex-col items-center gap-6 md:gap-10'">
       <gr-cabecera [eyebrow]="t('eyebrow')" [titulo]="t('titulo')" [acento]="t('tituloAcento')" [texto]="t('texto')" [textoMovil]="false" />
-      <div class="grid w-full grid-cols-2 gap-1 rounded-md border border-line-subtle p-1 md:hidden" role="tablist" aria-label="Sexo">
+      <div class="grid w-full grid-cols-2 gap-1 rounded-md border border-line-subtle p-1 md:hidden" role="tablist" [attr.aria-label]="tx().sexo">
         @for (g of generos; track g.k) {
           <button type="button" role="tab" [attr.aria-selected]="sel() === g.k" (click)="sel.set(g.k)" class="h-11 rounded-sm text-label-m" [class]="sel() === g.k ? 'bg-accent-grain text-text-primary' : 'text-text-secondary'">{{ g.l }}</button>
         }
@@ -436,24 +515,25 @@ export class SecAfiliaciones {
           <div class="w-full flex-col gap-4 rounded-xl border border-line-subtle bg-[#221d1f]/85 px-4 py-5 md:flex md:w-auto md:flex-1 md:p-6 lg:w-[400px] lg:flex-none lg:p-7" [class.flex]="sel() === g.k" [class.hidden]="sel() !== g.k">
             <div class="hidden items-center justify-between md:flex"><span class="text-display-xs">{{ g.l }}</span><span class="text-label-xs text-text-muted">{{ cats[g.k].length }} categorías</span></div>
             <ul class="grid grid-cols-2 gap-2 lg:grid-cols-3">
-              @for (c of cats[g.k]; track c; let last = $last) { <li [class]="last && cats[g.k].length % 2 ? 'col-span-2 mx-auto w-[calc(50%-4px)] lg:col-span-1 lg:mx-0 lg:w-auto' : ''"><a routerLink="/categorias-de-peso" class="flex h-[53px] items-center justify-center rounded-sm border border-line-subtle bg-bg-card text-display-body transition-transform duration-[120ms] hover:border-line-strong active:scale-[.97] motion-reduce:transition-none" [attr.aria-label]="kg(c) + ' · ver categorías de peso'">{{ kg(c) }}</a></li> }
+              @for (c of cats[g.k]; track c; let last = $last) { <li [class]="last && cats[g.k].length % 2 ? 'col-span-2 mx-auto w-[calc(50%-4px)] lg:col-span-1 lg:mx-0 lg:w-auto' : ''"><a [routerLink]="'/categorias-de-peso' | loc" class="flex h-[53px] items-center justify-center rounded-sm border border-line-subtle bg-bg-card text-display-body transition-transform duration-[120ms] hover:border-line-strong active:scale-[.97] motion-reduce:transition-none" [attr.aria-label]="kg(c) + tx().verCat">{{ kg(c) }}</a></li> }
             </ul>
           </div>
         }
       </div>
       <div class="flex w-full max-w-[824px] flex-col items-center gap-3 rounded-lg border border-accent/60 bg-accent/6 p-5 text-center md:flex-row md:gap-6 md:px-7 md:text-left">
         <span class="flex size-11 shrink-0 items-center justify-center rounded-md bg-accent/14 text-accent-text"><gr-icon name="trophy" [size]="20" /></span>
-        <span class="flex flex-1 flex-col gap-1"><span class="text-label-m">{{ t('ctaTitulo') || 'Consulta las marcas mínimas' }}</span><span class="text-body-s text-text-tertiary">{{ t('ctaTexto') || 'Para clasificar para otras competiciones AEP (PDF oficial).' }}</span></span>
-        <a grButton variant="glass" routerLink="/marcas-minimas" iconRight="arrow-right">Ver marcas mínimas</a>
+        <span class="flex flex-1 flex-col gap-1"><span class="text-label-m">{{ t('ctaTitulo') || tx().ctaTitulo }}</span><span class="text-body-s text-text-tertiary">{{ t('ctaTexto') || tx().ctaTexto }}</span></span>
+        <a grButton variant="glass" [routerLink]="'/marcas-minimas' | loc" iconRight="arrow-right">{{ tx().verMarcas }}</a>
       </div>
     </div>
   `,
 })
 export class SecCategorias {
+  protected readonly tx = inject(I18n).dict(TX);
   readonly s = input<Seccion | undefined>();
   protected readonly ancho = ANCHO;
   protected readonly cats = CATEGORIAS_IPF;
-  protected readonly generos = [{ k: 'M' as const, l: 'Hombres' }, { k: 'F' as const, l: 'Mujeres' }];
+  protected readonly generos = [{ k: 'M' as const, l: this.tx().hombres }, { k: 'F' as const, l: this.tx().mujeres }];
   protected readonly sel = signal<'M' | 'F'>('M');
   protected t = (k: string) => str(this.s(), k);
   protected kg = (c: string) => c.replace('-', '−') + 'kg';
@@ -461,7 +541,6 @@ export class SecCategorias {
 
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 const ICONOS: Record<string, GrIconName> = { door: 'door', trophy: 'trophy', gift: 'gift', clock: 'clock', ticket: 'ticket', users: 'users', info: 'info', camera: 'camera' };
-const ESTADO: Record<string, string> = { finalizado: 'Finalizado', en_curso: 'En curso', programado: 'Programado' };
 type Vista = 'todos' | 'detallado' | 'mio';
 interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; icono: GrIconName } }
 
@@ -473,38 +552,38 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
  */
 @Component({
   selector: 'gr-sec-horarios',
-  imports: [RouterLink, GrButton, GrIcon, GrTitulo],
+  imports: [RouterLink, GrButton, GrIcon, GrTitulo, LocPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-base' },
   template: `
     <div [class]="glow + ' -top-20 right-[-120px] size-[560px]'"></div>
     <div [class]="ancho + ' flex flex-col gap-8 md:gap-10'">
       <div class="flex flex-col gap-3 md:gap-4">
-        <h2 class="text-display-s md:text-display-l"><gr-titulo [titulo]="t('titulo') || 'Horarios'" [acento]="t('tituloAcento') || (t('titulo').includes('*') ? '' : 'en directo')" /></h2>
+        <h2 class="text-display-s md:text-display-l"><gr-titulo [titulo]="t('titulo') || tx().horarios" [acento]="t('tituloAcento') || (t('titulo').includes('*') ? '' : tx().enDirecto)" /></h2>
       </div>
       <div class="flex flex-col gap-3 md:gap-4">
         <!-- mobile (Figma 211:126138): days · sex · views · search; desktop: views on top, then days · sex · search -->
-        <div class="order-3 grid grid-cols-3 gap-1 rounded-md border border-line-subtle p-1 md:order-none md:w-[420px]" role="tablist" aria-label="Vista">
+        <div class="order-3 grid grid-cols-3 gap-1 rounded-md border border-line-subtle p-1 md:order-none md:w-[420px]" role="tablist" [attr.aria-label]="tx().vista">
           @for (v of vistas; track v.k) {
             <button type="button" role="tab" [attr.aria-selected]="vista() === v.k" (click)="elegir(v.k)" class="h-10 rounded-sm px-1 text-label-s whitespace-nowrap" [class]="vista() === v.k ? 'bg-accent text-white' : 'text-text-secondary hover:text-text-primary'">{{ v.k === 'mio' ? '★ Mi horario (' + misAtletas().length + ')' : v.l }}</button>
           }
         </div>
         <div class="contents md:flex md:flex-row md:items-center md:gap-4">
-          <div class="order-1 flex gap-1.5 md:order-none" role="tablist" aria-label="Días">
+          <div class="order-1 flex gap-1.5 md:order-none" role="tablist" [attr.aria-label]="tx().dias">
             @for (d of dias(); track d.fecha; let i = $index) {
               <button type="button" role="tab" [attr.aria-selected]="i === diaSel()" (click)="diaSel.set(i)" class="relative h-11 shrink-0 px-4 font-display text-[18px] uppercase italic" [class]="i === diaSel() ? 'text-text-primary' : 'text-text-muted hover:text-text-secondary'">
                 {{ d.etiqueta }}<span class="absolute inset-x-4 bottom-0 h-[3px] rounded-[2px]" [class]="i === diaSel() ? 'bg-accent' : 'bg-transparent'"></span>
               </button>
             }
           </div>
-          <div class="order-2 grid grid-cols-3 gap-1 rounded-md border border-line-subtle p-1 md:order-none md:w-[300px]" role="radiogroup" aria-label="Sexo">
+          <div class="order-2 grid grid-cols-3 gap-1 rounded-md border border-line-subtle p-1 md:order-none md:w-[300px]" role="radiogroup" [attr.aria-label]="tx().sexo">
             @for (g of sexos; track g.k) {
               <button type="button" role="radio" [attr.aria-checked]="sexo() === g.k" (click)="sexo.set(g.k)" class="h-9 rounded-sm text-label-s" [class]="sexo() === g.k ? 'bg-accent text-white' : 'text-text-secondary hover:text-text-primary'">{{ g.l }}</button>
             }
           </div>
           <label class="order-4 flex h-12 flex-1 items-center gap-2 md:order-none rounded-md border border-line-subtle bg-bg-deep px-4 focus-within:border-line-strong">
             <gr-icon name="search" [size]="18" class="text-text-tertiary" />
-            <input type="search" class="min-w-0 flex-1 bg-transparent text-body-m outline-none placeholder:text-text-muted" placeholder="¿Cuándo compite…?" aria-label="Buscar atleta o club" [value]="q()" (input)="buscar($any($event.target).value)" />
+            <input type="search" class="min-w-0 flex-1 bg-transparent text-body-m outline-none placeholder:text-text-muted" [placeholder]="tx().buscaPh" [attr.aria-label]="tx().buscaAria" [value]="q()" (input)="buscar($any($event.target).value)" />
           </label>
         </div>
       </div>
@@ -513,7 +592,7 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
         <!-- Figma «Horarios · pestaña Mi horario» -->
         @if (misAtletas().length) {
           <section class="flex flex-col gap-4 rounded-xl border border-line-subtle bg-bg-card p-5 md:p-6">
-            <h3 class="flex items-center gap-2 text-ui-h5"><gr-icon name="star" [size]="18" class="fill-current text-accent-text" />Mi horario<span class="ml-auto text-body-xs text-text-muted">{{ misAtletas().length }} {{ misAtletas().length === 1 ? 'atleta' : 'atletas' }}</span></h3>
+            <h3 class="flex items-center gap-2 text-ui-h5"><gr-icon name="star" [size]="18" class="fill-current text-accent-text" />{{ tx().miHorario }}<span class="ml-auto text-body-xs text-text-muted">{{ misAtletas().length }} {{ tx().atletas(misAtletas().length) }}</span></h3>
             <ul class="flex flex-col">
               @for (m of misAtletas(); track m.a.slug) {
                 <li class="flex items-center gap-3 border-b border-line-subtle py-3">
@@ -521,22 +600,22 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
                   <span class="flex min-w-0 flex-1 flex-col gap-0.5">
                     <a [routerLink]="['/atletas', m.a.slug]" class="truncate text-label-m hover:underline">{{ m.a.nombre }}</a>
                     <span class="text-body-xs text-text-tertiary">{{ m.a.sexo }} {{ kg(m.a.categoria) }} kg</span>
-                    @if (m.f.estado === 'en_curso') { <span class="mt-1 inline-flex w-fit items-center gap-1.5 rounded-pill border border-accent/60 bg-accent/12 px-2.5 py-0.5 text-label-xs text-accent-text"><gr-icon name="radio" [size]="12" />En tarima</span> }
+                    @if (m.f.estado === 'en_curso') { <span class="mt-1 inline-flex w-fit items-center gap-1.5 rounded-pill border border-accent/60 bg-accent/12 px-2.5 py-0.5 text-label-xs text-accent-text"><gr-icon name="radio" [size]="12" />{{ tx().enTarima }}</span> }
                   </span>
                   @if (m.f.estado !== 'en_curso') { <span class="text-mono-s tabular-nums">{{ hora(m.f.inicioEstimado || m.f.inicio) }}</span> }
-                  <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-white" [attr.aria-label]="'Dejar de seguir a ' + m.a.nombre" (click)="fav.toggle(m.a.slug)"><gr-icon name="star" [size]="18" class="fill-current" /></button>
+                  <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-white" [attr.aria-label]="tx().dejar + m.a.nombre" (click)="fav.toggle(m.a.slug)"><gr-icon name="star" [size]="18" class="fill-current" /></button>
                 </li>
               }
             </ul>
-            <a grButton variant="primary" [href]="icsUrl()" download>Añadir mi horario al calendario</a>
-            <p class="text-body-xs text-text-muted">Archivo .ics con las horas de tus atletas; se actualiza si hay retrasos.</p>
+            <a grButton variant="primary" [href]="icsUrl()" download>{{ tx().ics }}</a>
+            <p class="text-body-xs text-text-muted">{{ tx().icsTxt }}</p>
           </section>
         } @else {
           <div class="flex flex-col items-center gap-3 rounded-xl border border-dashed border-line-strong px-5 py-8 text-center">
             <gr-icon name="clock" [size]="24" />
-            <p class="text-label-m">Aún no sigues a ningún atleta</p>
-            <p class="text-body-s text-text-tertiary">Marca con ★ a tus atletas en «Todos» o «Detallado» y aquí verás solo sus horas.</p>
-            <button grButton variant="primary" type="button" (click)="elegir('detallado')">Buscar atletas en Detallado</button>
+            <p class="text-label-m">{{ tx().nadie }}</p>
+            <p class="text-body-s text-text-tertiary">{{ tx().nadieTxt }}</p>
+            <button grButton variant="primary" type="button" (click)="elegir('detallado')">{{ tx().buscarDet }}</button>
           </div>
         }
       } @else {
@@ -553,7 +632,7 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
               <li class="overflow-hidden rounded-xl border bg-bg-card" [class]="f.estado === 'en_curso' ? 'border-accent/70' : 'border-line-subtle'" [class.opacity-60]="f.estado === 'finalizado'">
                 <button type="button" class="flex w-full items-center gap-4 p-4 text-left md:px-5" [attr.aria-expanded]="abierto" (click)="alternar(f.id)">
                   <span class="flex min-w-0 flex-1 flex-col gap-1">
-                    <span class="flex items-center gap-2"><span class="text-label-xs tracking-[0.08em] uppercase">{{ f.sexo === 'F' ? 'Femenino' : 'Masculino' }}</span>@if (ep(f); as e) { <span class="inline-flex h-[22px] items-center rounded-[6px] border border-white/40 px-2 text-label-xs">{{ e }}</span> }</span>
+                    <span class="flex items-center gap-2"><span class="text-label-xs tracking-[0.08em] uppercase">{{ f.sexo === 'F' ? tx().femenino : tx().masculino }}</span>@if (ep(f); as e) { <span class="inline-flex h-[22px] items-center rounded-[6px] border border-white/40 px-2 text-label-xs">{{ e }}</span> }</span>
                     <span class="text-ui-h5">{{ pesos(f) }}</span>
                     <span class="text-body-xs text-text-tertiary">{{ f.total }} atletas · Pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }}</span>
                     @if (f.estado !== 'programado') {
@@ -573,16 +652,16 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
                           <span class="w-6 text-mono-s text-text-muted tabular-nums">{{ pad(a.lote) }}</span>
                           <span class="flex min-w-0 flex-1 flex-col">
                             <a [routerLink]="['/atletas', a.slug]" class="truncate text-label-s hover:underline" [class.text-accent-text]="fav.has(a.slug)">{{ a.nombre }}</a>
-                            <span class="truncate text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }}{{ a.divisionNombre ? ' · ' + a.divisionNombre : '' }}</span>
+                            <span class="truncate text-body-xs text-text-tertiary">{{ a.club || tx().indep }}{{ a.divisionNombre ? ' · ' + a.divisionNombre : '' }}</span>
                           </span>
                           <span class="text-mono-s text-text-secondary">{{ a.sexo }} {{ kg(a.categoria) }} kg</span>
-                          <button type="button" class="flex size-9 items-center justify-center rounded-full" [class]="fav.has(a.slug) ? 'text-accent-text' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-pressed]="fav.has(a.slug)" [attr.aria-label]="(fav.has(a.slug) ? 'Dejar de seguir a ' : 'Seguir a ') + a.nombre" (click)="fav.toggle(a.slug)"><gr-icon name="star" [size]="16" [class.fill-current]="fav.has(a.slug)" /></button>
+                          <button type="button" class="flex size-9 items-center justify-center rounded-full" [class]="fav.has(a.slug) ? 'text-accent-text' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-pressed]="fav.has(a.slug)" [attr.aria-label]="(fav.has(a.slug) ? tx().dejar : tx().seguir) + a.nombre" (click)="fav.toggle(a.slug)"><gr-icon name="star" [size]="16" [class.fill-current]="fav.has(a.slug)" /></button>
                         </li>
                       }
                     </ul>
-                    <a routerLink="/horarios" class="flex items-center gap-1.5 px-4 py-3 text-label-s text-accent-text hover:underline md:px-5">Ver los {{ f.total }} atletas<gr-icon name="arrow-right" [size]="14" /></a>
+                    <a [routerLink]="'/horarios' | loc" class="flex items-center gap-1.5 px-4 py-3 text-label-s text-accent-text hover:underline md:px-5">{{ tx().verLos(f.total) }}<gr-icon name="arrow-right" [size]="14" /></a>
                   } @else {
-                    <p class="border-t border-line-subtle px-4 py-3 text-body-s text-text-tertiary md:px-5">{{ listos() ? 'Aún no hay atletas asignados.' : 'Cargando atletas…' }}</p>
+                    <p class="border-t border-line-subtle px-4 py-3 text-body-s text-text-tertiary md:px-5">{{ listos() ? tx().sinAsig : tx().cargando }}</p>
                   }
                 }
               </li>
@@ -592,11 +671,13 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
           }
         </ul>
       }
-      <a grButton variant="glass" routerLink="/horarios" iconRight="arrow-right" class="self-center">Ver horario completo</a>
+      <a grButton variant="glass" [routerLink]="'/horarios' | loc" iconRight="arrow-right" class="self-center">{{ tx().completo }}</a>
     </div>
   `,
 })
 export class SecHorarios {
+  private readonly i18n = inject(I18n);
+  protected readonly tx = this.i18n.dict(TX);
   readonly s = input<Seccion | undefined>();
   readonly horarios = input<Horarios | null>(null);
   protected readonly ancho = ANCHO;
@@ -604,9 +685,9 @@ export class SecHorarios {
   protected readonly fav = inject(Favoritos);
   private readonly api = inject(HorariosPublic);
   protected readonly hora = hora;
-  protected readonly estado = ESTADO;
-  protected readonly vistas: { k: Vista; l: string }[] = [{ k: 'todos', l: 'Todos' }, { k: 'detallado', l: 'Detallado' }, { k: 'mio', l: 'Mi horario' }];
-  protected readonly sexos = [{ k: 'F' as const, l: 'Femenino' }, { k: 'M' as const, l: 'Masculino' }, { k: '' as const, l: 'Todos' }];
+  protected get estado(): Record<string, string> { const x = this.tx(); return { finalizado: x.finalizado, en_curso: x.en_curso, programado: x.programado }; }
+  protected readonly vistas: { k: Vista; l: string }[] = [{ k: 'todos', l: this.tx().todos }, { k: 'detallado', l: this.tx().detallado }, { k: 'mio', l: this.tx().miHorario }];
+  protected readonly sexos = [{ k: 'F' as const, l: this.tx().femenino }, { k: 'M' as const, l: this.tx().masculino }, { k: '' as const, l: this.tx().todos }];
   protected readonly vista = signal<Vista>('todos');
   protected readonly sexo = signal<'F' | 'M' | ''>('');
   protected readonly diaSel = signal(0);
@@ -626,7 +707,7 @@ export class SecHorarios {
   /** Athletes of a slot: the ones in the JSON (old shape) or the loaded list. */
   protected ats(f: PubFlight): PubAtleta[] { return f.atletas?.length ? f.atletas : (this.listas()[f.id] ?? []); }
   protected readonly dias = computed(() => (this.datos()?.dias ?? []).filter((d) => d.flights.length).map((d) => {
-    const e = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(d.fecha + 'T12:00:00Z')).replace(',', '').replace('.', '');
+    const e = new Intl.DateTimeFormat(this.i18n.locale(), { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(d.fecha + 'T12:00:00Z')).replace(',', '').replace('.', '');
     return { fecha: d.fecha, etiqueta: e, dia: d };
   }));
   protected readonly misAtletas = computed(() => {
@@ -715,14 +796,14 @@ export class SecHorarios {
           <ul #pista class="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0 lg:grid-cols-3" (scroll)="alDesplazar($event)">
             @for (f of fotos(); track f.imagen; let i = $index) {
               <li class="relative aspect-[300/210] w-[300px] shrink-0 snap-center overflow-hidden rounded-lg md:w-auto md:aspect-[4/3]" [class]="(i === 0 ? 'lg:col-span-3 lg:aspect-[648/380] lg:rounded-xl ' : 'lg:aspect-[205/140] ') + foto">
-                <button type="button" class="group absolute inset-0 cursor-zoom-in" [attr.aria-label]="'Ampliar: ' + f.alt" (click)="ver.set(i)">
+                <button type="button" class="group absolute inset-0 cursor-zoom-in" [attr.aria-label]="tx().ampliar(f.alt)" (click)="ver.set(i)">
                   <img [src]="f.imagen | cdn" [attr.srcset]="srcset(f.imagen)" [attr.sizes]="i === 0 ? '(min-width: 768px) 648px, 300px' : '(min-width: 768px) 205px, 300px'" [alt]="f.alt" class="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" loading="lazy" />
                 </button>
               </li>
             }
           </ul>
-          <div class="flex items-center justify-center md:hidden" role="group" aria-label="Fotos">
-            @for (f of fotos(); track f.imagen; let i = $index) { <button type="button" class="relative flex size-6 items-center justify-center before:absolute before:-inset-2.5 before:content-['']" [attr.aria-label]="'Ir a foto ' + (i + 1)" [attr.aria-current]="i === activa() || null" (click)="irA(pista, i)"><span class="h-1.5 rounded-pill transition-all motion-reduce:transition-none" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span></button> }
+          <div class="flex items-center justify-center md:hidden" role="group" [attr.aria-label]="tx().fotos">
+            @for (f of fotos(); track f.imagen; let i = $index) { <button type="button" class="relative flex size-6 items-center justify-center before:absolute before:-inset-2.5 before:content-['']" [attr.aria-label]="tx().irFoto(i + 1)" [attr.aria-current]="i === activa() || null" (click)="irA(pista, i)"><span class="h-1.5 rounded-pill transition-all motion-reduce:transition-none" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span></button> }
           </div>
           <gr-lightbox [fotos]="fotos()" [(indice)]="ver" />
         </div>
@@ -739,8 +820,8 @@ export class SecHorarios {
               <img [src]="'/img/home/logo-almussafes-bn.webp' | cdn" alt="Ajuntament d'Almussafes" width="114" height="40" class="mx-auto h-10 w-auto" loading="lazy" decoding="async" />
               <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="map-pin" [size]="16" class="shrink-0 text-accent-text" />{{ direccion() }}</p>
               <div class="flex flex-col gap-2">
-                <a grButton variant="primary" [href]="c.sede.mapsUrl" target="_blank" rel="noopener" icon="map-pin">Abrir en Google Maps</a>
-                <button grButton variant="outline" type="button" (click)="copiar()">{{ copiado() ? 'Dirección copiada' : 'Copiar dirección' }}</button>
+                <a grButton variant="primary" [href]="c.sede.mapsUrl" target="_blank" rel="noopener" icon="map-pin">{{ tx().maps }}</a>
+                <button grButton variant="outline" type="button" (click)="copiar()">{{ copiado() ? tx().copiada : tx().copiar }}</button>
               </div>
             </div>
           </div>
@@ -750,6 +831,7 @@ export class SecHorarios {
   `,
 })
 export class SecLocalizacion {
+  protected readonly tx = inject(I18n).dict(TX);
   readonly s = input<Seccion | undefined>();
   readonly comp = input<CompeticionPublica | null>(null);
   protected readonly ancho = ANCHO;
@@ -778,7 +860,7 @@ export class SecLocalizacion {
 /** «Section / FAQ»: the featured questions as an accordion (the first one open) and the contact link. */
 @Component({
   selector: 'gr-sec-faq',
-  imports: [RouterLink, GrButton, GrIcon, GrCabecera],
+  imports: [RouterLink, GrButton, GrIcon, GrCabecera, LocPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-base' },
   template: `
@@ -796,13 +878,14 @@ export class SecLocalizacion {
         }
       </ul>
       <div class="flex flex-col items-center gap-3 md:flex-row">
-        <span class="text-body-m text-text-tertiary">¿No encuentras tu respuesta?</span>
-        @if (contacto()) { <a grButton variant="outline" [href]="'mailto:' + contacto()">Escríbenos</a> } @else { <a grButton variant="outline" routerLink="/preguntas-frecuentes">Escríbenos</a> }
+        <span class="text-body-m text-text-tertiary">{{ tx().noEncuentras }}</span>
+        @if (contacto()) { <a grButton variant="outline" [href]="'mailto:' + contacto()">{{ tx().escribenos }}</a> } @else { <a grButton variant="outline" [routerLink]="'/preguntas-frecuentes' | loc">{{ tx().escribenos }}</a> }
       </div>
     </div>
   `,
 })
 export class SecFaq {
+  protected readonly tx = inject(I18n).dict(TX);
   readonly s = input<Seccion | undefined>();
   readonly items = input<Faq[]>([]);
   readonly contacto = input('');

@@ -3,9 +3,10 @@ import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, inp
 import { GrButton, GrIcon, GrSelect, GrSkeleton, type GrIconName, CdnPipe } from '@grcup/ui';
 import { Cms, type Landing, type Seccion } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
-import { HOME_ALTERNATES, Seo } from '../core/seo';
+import { Seo } from '../core/seo';
+import { I18n, LocPipe, type Lang } from '../core/i18n';
 import { GrCabecera } from '../home/bloques';
-import { Footer, Navbar, instagramOf, type Lang } from '../layout/layout';
+import { instagramOf } from '../layout/layout';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
 
@@ -13,6 +14,27 @@ const str = (s: Seccion | undefined, k: string) => (s?.[k] as string | undefined
 const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefined) ?? []);
 const ICONS: Record<string, GrIconName> = { ticket: 'ticket', clock: 'clock', 'map-pin': 'map-pin', users: 'users', plane: 'plane', train: 'train', car: 'car' };
 const icon = (n: string): GrIconName => ICONS[n] ?? 'info';
+
+const T = {
+  es: {
+    insta: 'También en Instagram', interesar: 'Te puede interesar', comunidad: 'Comunidad', sigue: 'Sigue la GRS Cup 2', enDirecto: 'en directo',
+    mira: 'Mira la competición, comenta en el chat y juega a la Porra y al Fantasy.', ver: 'Ver el directo', navAria: 'Directo y juegos', porra: 'Porra',
+    venAVer: 'Ven a ver', laComp: 'la competición', visita: 'Visita', publico: 'Público', accesos: 'Accesos rápidos', seccion: 'Sección',
+    ejemplo: 'Ejemplo: dos luces blancas y una roja, intento válido',
+    directo: 'Directo', horarios: 'Horarios', rifa: 'Rifa', entradas: 'Entradas', dormir: 'Dónde dormir y comer', llegar: 'Cómo llegar', atletas: 'Atletas',
+    info: 'Info práctica', queVeras: 'Qué verás', juzga: 'Cómo se juzga', normas: 'Normas en la grada',
+    seoT: 'Ver la competición · GRS Cup 2', seoD: 'Entrada gratuita con reserva: qué verás, cómo se juzga un intento y normas de la grada.',
+  },
+  en: {
+    insta: 'Also on Instagram', interesar: 'You may also like', comunidad: 'Community', sigue: 'Follow GRS Cup 2', enDirecto: 'live',
+    mira: 'Watch the competition, chat and play the Pool and Fantasy.', ver: 'Watch live', navAria: 'Live and games', porra: 'Pool',
+    venAVer: 'Come and watch', laComp: 'the competition', visita: 'Visit', publico: 'Spectators', accesos: 'Quick links', seccion: 'Section',
+    ejemplo: 'Example: two white lights and one red, good lift',
+    directo: 'Live', horarios: 'Schedule', rifa: 'Raffle', entradas: 'Tickets', dormir: 'Where to stay and eat', llegar: 'Getting there', atletas: 'Athletes',
+    info: 'Practical info', queVeras: 'What you will see', juzga: 'How it is judged', normas: 'Rules in the stands',
+    seoT: 'Watch the competition · GRS Cup 2', seoD: 'Free entry with booking: what you will see, how a lift is judged and the rules in the stands.',
+  },
+};
 
 export interface RelatedLink {
   titulo: string;
@@ -23,17 +45,17 @@ export interface RelatedLink {
 /** «Te puede interesar»: three numbered links (Figma pages 29, 32). */
 @Component({
   selector: 'gr-related',
-  imports: [GrIcon],
+  imports: [GrIcon, LocPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
-    @if (nivel() === 'h3') { <h3 class="text-display-2xs md:text-display-xs">{{ titulo() }}</h3> }
-    @else { <h2 class="text-display-2xs md:text-display-xs">{{ titulo() }}</h2> }
+    @if (nivel() === 'h3') { <h3 class="text-display-2xs md:text-display-xs">{{ titulo() || t().interesar }}</h3> }
+    @else { <h2 class="text-display-2xs md:text-display-xs">{{ titulo() || t().interesar }}</h2> }
     <!-- every card the same size: equal columns, one fixed height, one line per text -->
     <ul class="mt-5 grid auto-rows-fr gap-3 lg:grid-cols-3 lg:gap-4">
       @for (l of items(); track l.ruta; let i = $index) {
         <li class="min-w-0">
-          <a [href]="l.ruta" [attr.title]="l.titulo + ' · ' + l.texto" class="flex h-[84px] items-center gap-4 rounded-lg border border-line-subtle bg-bg-card px-4 transition-colors hover:border-line-strong">
+          <a [href]="l.ruta | loc" [attr.title]="l.titulo + ' · ' + l.texto" class="flex h-[84px] items-center gap-4 rounded-lg border border-line-subtle bg-bg-card px-4 transition-colors hover:border-line-strong">
             <span class="flex size-11 shrink-0 items-center justify-center rounded-md bg-accent/12 text-display-2xs text-accent-text">{{ (i + 1).toString().padStart(2, '0') }}</span>
             <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ l.titulo }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ l.texto }}</span></span>
             <gr-icon name="arrow-right" [size]="16" class="text-text-tertiary" />
@@ -44,7 +66,8 @@ export interface RelatedLink {
   `,
 })
 export class Related {
-  readonly titulo = input('Te puede interesar');
+  readonly titulo = input('');
+  protected readonly t = inject(I18n).dict(T);
   readonly items = input<RelatedLink[]>([]);
   /** Nivel del título: «h3» en las páginas cuyo contenido ya tiene sus dos H2 (Figma 75). */
   readonly nivel = input<'h2' | 'h3'>('h2');
@@ -56,45 +79,44 @@ export class Related {
  */
 @Component({
   selector: 'gr-community',
-  imports: [RouterLink, GrButton, GrIcon],
+  imports: [RouterLink, GrButton, GrIcon, LocPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
     <section class="relative overflow-hidden rounded-2xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-6 shadow-glow-deep md:flex md:items-center md:justify-between md:gap-10 md:p-10">
       <div class="md:max-w-xl">
-        <p class="text-mono-xs text-text-tertiary">{{ en() ? 'Community' : 'Comunidad' }}</p>
+        <p class="text-mono-xs text-text-tertiary">{{ t().comunidad }}</p>
         <!-- the red part is never split: white words on one line, the whole red phrase on the next -->
         @if (nivel() === 'h3') {
-          <h3 class="mt-3 text-display-xs md:text-display-m">{{ en() ? 'Follow GRS Cup 2' : 'Sigue la GRS Cup 2' }} <span class="block bg-accent-grain bg-clip-text whitespace-nowrap text-transparent">{{ en() ? 'live' : 'en directo' }}</span></h3>
+          <h3 class="mt-3 text-display-xs md:text-display-m">{{ t().sigue }} <span class="block bg-accent-grain bg-clip-text whitespace-nowrap text-transparent">{{ t().enDirecto }}</span></h3>
         } @else {
-          <h2 class="mt-3 text-display-xs md:text-display-m">{{ en() ? 'Follow GRS Cup 2' : 'Sigue la GRS Cup 2' }} <span class="block bg-accent-grain bg-clip-text whitespace-nowrap text-transparent">{{ en() ? 'live' : 'en directo' }}</span></h2>
+          <h2 class="mt-3 text-display-xs md:text-display-m">{{ t().sigue }} <span class="block bg-accent-grain bg-clip-text whitespace-nowrap text-transparent">{{ t().enDirecto }}</span></h2>
         }
-        <p class="mt-2 text-body-s text-text-secondary md:text-body-m">{{ en() ? 'Watch the competition, chat and play the Pool and Fantasy.' : 'Mira la competición, comenta en el chat y juega a la Porra y al Fantasy.' }}</p>
+        <p class="mt-2 text-body-s text-text-secondary md:text-body-m">{{ t().mira }}</p>
       </div>
       <div class="mt-5 flex flex-col gap-3 md:mt-0 md:w-[340px] md:shrink-0">
-        <a grButton variant="primary" icon="play" class="w-full" routerLink="/en-directo">{{ en() ? 'Watch live' : 'Ver el directo' }}</a>
-        <nav class="grid grid-cols-3 gap-2" [attr.aria-label]="en() ? 'Live and games' : 'Directo y juegos'">
+        <a grButton variant="primary" icon="play" class="w-full" [routerLink]="'/en-directo' | loc">{{ t().ver }}</a>
+        <nav class="grid grid-cols-3 gap-2" [attr.aria-label]="t().navAria">
           @for (l of enlaces(); track l.ruta) {
-            <a [routerLink]="l.ruta" [queryParams]="l.query" class="flex h-11 min-w-0 items-center justify-center gap-1 rounded-md border border-line-strong bg-black/20 px-1.5 text-label-s transition-colors hover:border-accent/60 hover:bg-black/30">
+            <a [routerLink]="l.ruta | loc" [queryParams]="l.query" class="flex h-11 min-w-0 items-center justify-center gap-1 rounded-md border border-line-strong bg-black/20 px-1.5 text-label-s transition-colors hover:border-accent/60 hover:bg-black/30">
               <gr-icon [name]="l.icono" [size]="14" class="shrink-0" /><span class="truncate">{{ l.texto }}</span>
             </a>
           }
         </nav>
-        <a [href]="instagram()" target="_blank" rel="noopener" class="inline-flex items-center gap-2 self-start text-body-xs text-text-tertiary hover:text-text-secondary"><gr-icon name="instagram" [size]="14" />{{ en() ? 'Also on Instagram' : 'También en Instagram' }}</a>
+        <a [href]="instagram()" target="_blank" rel="noopener" class="inline-flex items-center gap-2 self-start text-body-xs text-text-tertiary hover:text-text-secondary"><gr-icon name="instagram" [size]="14" />{{ t().insta }}</a>
       </div>
     </section>
   `,
 })
 export class Community {
-  readonly lang = input<Lang>('es');
   /** Nivel del título: «h3» en las páginas cuyo contenido ya tiene sus dos H2 (Figma 75). */
   readonly nivel = input<'h2' | 'h3'>('h2');
-  protected readonly en = computed(() => this.lang() === 'en');
+  protected readonly t = inject(I18n).dict(T);
   private readonly comp = inject(Competition);
   protected readonly instagram = computed(() => instagramOf(this.comp.data()));
   protected readonly enlaces = computed<{ texto: string; ruta: string; query?: Record<string, string>; icono: GrIconName }[]>(() => [
     { texto: 'Chat', ruta: '/en-directo', query: { tab: 'chat' }, icono: 'message' },
-    { texto: this.en() ? 'Pool' : 'Porra', ruta: '/porra', icono: 'trophy' },
+    { texto: this.t().porra, ruta: '/porra', icono: 'trophy' },
     { texto: 'Fantasy', ruta: '/fantasy', icono: 'star' },
   ]);
 }
@@ -104,7 +126,7 @@ export class Community {
 /** /publico (Figma page 29): what spectators will see, how an attempt is judged and the stand rules. All sections come from the CMS. */
 @Component({
   selector: 'gr-publico-page',
-  imports: [CdnPipe, RouterLink, Page, GrIcon, GrSkeleton, GrCabecera, GrSelect, Related, Community],
+  imports: [CdnPipe, RouterLink, LocPipe, Page, GrIcon, GrSkeleton, GrCabecera, GrSelect, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     .gr-vista { animation: gr-vista-in 180ms ease-out; }
@@ -113,14 +135,14 @@ export class Community {
   `,
   template: `
     @let l = land();
-    <gr-page [title]="t('intro', 'titulo') || 'Ven a ver'" [accent]="t('intro', 'tituloAcento') || 'la competición'" [eyebrow]="t('intro', 'eyebrow')" [subtitle]="txt(t('intro', 'texto'))" section="Visita" crumb="Público">
+    <gr-page [title]="t('intro', 'titulo') || tp().venAVer" [accent]="t('intro', 'tituloAcento') || tp().laComp" [eyebrow]="t('intro', 'eyebrow')" [subtitle]="txt(t('intro', 'texto'))" [section]="tp().visita" [crumb]="tp().publico">
       <!-- Jaime 15-nov: quick accesses first — square cards with only an icon and a title -->
       <nav class="mb-12 md:mb-20" aria-labelledby="publico-accesos">
-        <h2 id="publico-accesos" class="mb-4 text-label-s text-text-secondary uppercase md:mb-6">Accesos rápidos</h2>
+        <h2 id="publico-accesos" class="mb-4 text-label-s text-text-secondary uppercase md:mb-6">{{ tp().accesos }}</h2>
         <ul class="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 lg:grid-cols-5">
           @for (a of accesos; track a.ruta) {
             <li>
-              <a [routerLink]="a.ruta" class="group relative flex aspect-square flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-white/8 bg-white/3 p-2 text-center transition-[background-color,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-accent/50 hover:bg-white/6 focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-4 md:gap-4">
+              <a [routerLink]="a.ruta | loc" class="group relative flex aspect-square flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-white/8 bg-white/3 p-2 text-center transition-[background-color,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-accent/50 hover:bg-white/6 focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-4 md:gap-4">
                 <span class="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgb(196_43_62/0.18),transparent)] opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true"></span>
                 <span class="flex size-10 items-center justify-center rounded-lg bg-accent/16 text-accent-text sm:size-12 md:size-14"><gr-icon [name]="a.icono" [size]="22" /></span>
                 <span class="text-[13px] leading-tight font-semibold sm:text-[15px] md:text-[17px]">{{ a.texto }}</span>
@@ -131,7 +153,7 @@ export class Community {
       </nav>
       <!-- Figma 46:23: the page tabs are one dropdown (not sticky); each view has its own ?vista= -->
       <div class="mb-8 flex flex-col gap-2 md:mb-12 md:max-w-80">
-        <label class="text-label-s text-text-secondary" for="publico-vista">Sección</label>
+        <label class="text-label-s text-text-secondary" for="publico-vista">{{ tp().seccion }}</label>
         <gr-select id="publico-vista" tam="l" [value]="vista()" (valorChange)="verVista($event)">
           @for (a of anchors; track a.id) { <option [value]="a.id">{{ a.t }}</option> }
         </gr-select>
@@ -187,7 +209,7 @@ export class Community {
                       <p class="flex items-center gap-3 text-label-m"><span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-label-s text-white">{{ i + 1 }}</span>{{ txt(p['titulo']) }}</p>
                       <p class="mt-2 text-body-s text-text-tertiary">{{ txt(p['texto']) }}</p>
                       @if (last) {
-                        <p class="mt-2 flex gap-2" aria-label="Ejemplo: dos luces blancas y una roja, intento válido">
+                        <p class="mt-2 flex gap-2" [attr.aria-label]="tp().ejemplo">
                           <span class="size-5 rounded-full bg-white"></span><span class="size-5 rounded-full bg-white"></span><span class="size-5 rounded-full bg-accent"></span>
                         </p>
                       }
@@ -207,7 +229,7 @@ export class Community {
               </section>
             }
             @case ('interesar') {
-              <gr-related [titulo]="str(s, 'titulo') || 'Te puede interesar'" [items]="related(s)" />
+              <gr-related [titulo]="str(s, 'titulo') || tp().interesar" [items]="related(s)" />
             }
           }
           }
@@ -220,20 +242,22 @@ export class Community {
   `,
 })
 export class PublicoPage {
+  private readonly i18n = inject(I18n);
+  protected readonly tp = this.i18n.dict(T);
   protected readonly accesos: { texto: string; ruta: string; icono: GrIconName }[] = [
-    { texto: 'Directo', ruta: '/en-directo', icono: 'radio' },
-    { texto: 'Horarios', ruta: '/horarios', icono: 'calendar' },
-    { texto: 'Porra', ruta: '/porra', icono: 'trophy' },
+    { texto: this.tp().directo, ruta: '/en-directo', icono: 'radio' },
+    { texto: this.tp().horarios, ruta: '/horarios', icono: 'calendar' },
+    { texto: this.tp().porra, ruta: '/porra', icono: 'trophy' },
     { texto: 'GRS Fantasy', ruta: '/fantasy', icono: 'star' },
-    { texto: 'Rifa', ruta: '/sorteo', icono: 'gift' },
-    { texto: 'Entradas', ruta: '/entradas', icono: 'ticket' },
-    { texto: 'Dónde dormir y comer', ruta: '/donde-dormir-y-comer', icono: 'building' },
-    { texto: 'Cómo llegar', ruta: '/como-llegar', icono: 'map-pin' },
-    { texto: 'Atletas', ruta: '/atletas', icono: 'users' },
+    { texto: this.tp().rifa, ruta: '/sorteo', icono: 'gift' },
+    { texto: this.tp().entradas, ruta: '/entradas', icono: 'ticket' },
+    { texto: this.tp().dormir, ruta: '/donde-dormir-y-comer', icono: 'building' },
+    { texto: this.tp().llegar, ruta: '/como-llegar', icono: 'map-pin' },
+    { texto: this.tp().atletas, ruta: '/atletas', icono: 'users' },
     { texto: 'FAQ', ruta: '/preguntas-frecuentes', icono: 'help' },
   ];
   protected readonly land = signal<Landing | null | undefined>(undefined);
-  protected readonly anchors = [{ id: 'info', t: 'Info práctica' }, { id: 'que-veras', t: 'Qué verás' }, { id: 'como-se-juzga', t: 'Cómo se juzga' }, { id: 'normas', t: 'Normas en la grada' }];
+  protected readonly anchors = [{ id: 'info', t: this.tp().info }, { id: 'que-veras', t: this.tp().queVeras }, { id: 'como-se-juzga', t: this.tp().juzga }, { id: 'normas', t: this.tp().normas }];
   /** CMS section shown by each ?vista= («Te puede interesar» goes with all of them). */
   protected readonly SECCION: Record<string, string> = { info: 'datos', 'que-veras': 'movimientos', 'como-se-juzga': 'juicio', normas: 'normas' };
   private readonly router = inject(Router);
@@ -270,8 +294,8 @@ export class PublicoPage {
       const [l, c] = await Promise.all([cms.landing('publico'), competition.load()]);
       this.land.set(l);
       if (!l) cms.notFound();
-      await applySeo(cms, seo, '/publico', 'Ver la competición · GRS Cup 2', 'Entrada gratuita con reserva: qué verás, cómo se juzga un intento y normas de la grada.', undefined,
-        { jsonLd: c ? eventLd(c, 'es') : undefined });
+      await applySeo(cms, seo, '/publico', this.tp().seoT, this.tp().seoD, undefined,
+        { jsonLd: c ? eventLd(c, this.i18n.lang()) : undefined });
     });
   }
 }
@@ -285,158 +309,4 @@ function eventLd(c: CompeticionPublica, lang: Lang): Record<string, unknown> {
     organizer: { '@type': 'Organization', name: c.evento.organizador || 'GR Strength' },
     offers: { '@type': 'Offer', price: 0, priceCurrency: 'EUR', availability: 'https://schema.org/InStock', url: 'https://grcup-qa.menustudioai.com/entradas' },
   };
-}
-
-// ================================================================= /en ===
-
-/** /en (Figma page 35): English landing for international lifters and visitors (hreflang es/en + x-default). */
-@Component({
-  selector: 'gr-en-page',
-  imports: [CdnPipe, RouterLink, Navbar, Footer, GrButton, GrIcon, GrSkeleton, GrCabecera, Community],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    @let l = land();
-    @let c = comp();
-    <gr-navbar lang="en" />
-    <main class="relative" lang="en">
-      <div class="pointer-events-none absolute inset-x-0 top-0 h-[640px]" style="background: radial-gradient(50% 60% at 75% 10%, rgb(110 20 32 / 0.45), transparent 70%)"></div>
-      <div class="relative mx-auto max-w-[1440px] px-5 pt-28 pb-18 md:px-8 md:pt-36 xl:px-[120px] xl:pb-24">
-        @let h = l?.secciones?.['hero'];
-        <section class="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_420px]">
-          <div>
-            <!-- Figma «Language switch»: 111 × 46 pill, the active language in red -->
-            <p class="inline-flex rounded-full border border-line-strong p-1 text-label-xs" aria-label="Language">
-              <a routerLink="/" hreflang="es" class="inline-flex h-9 items-center rounded-full px-3.5 text-text-tertiary hover:text-text-primary">ES</a>
-              <span class="inline-flex h-9 items-center rounded-full bg-accent/20 px-3.5 text-text-primary" aria-current="page">EN</span>
-            </p>
-            @if (l === undefined) {
-              <gr-skeleton class="mt-6 h-40 rounded-lg" />
-            } @else {
-              @if (str(h, 'eyebrow')) { <p class="mt-6 flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase">{{ str(h, 'eyebrow') }}</p> }
-              <h1 class="mt-3 text-display-m md:text-display-xl">{{ str(h, 'titulo') || 'GRStrength Cup' }} <span class="text-accent-text">{{ str(h, 'tituloAcento') }}</span></h1>
-              <p class="mt-4 max-w-xl text-body-m text-text-secondary md:text-body-l">{{ str(h, 'texto') }}</p>
-              <ul class="mt-6 grid gap-3 sm:grid-cols-3">
-                <li class="flex items-center gap-3"><span class="flex size-11 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="calendar" [size]="18" /></span>
-                  <span><span class="block text-label-xs text-text-muted uppercase">Date</span><span class="block text-label-m">{{ fecha() }}</span></span></li>
-                <li class="flex items-center gap-3"><span class="flex size-11 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="map-pin" [size]="18" /></span>
-                  <span><span class="block text-label-xs text-text-muted uppercase">Venue</span><span class="block text-label-m">{{ c ? c.sede.ciudad + ' · Valencia' : 'Almussafes · Valencia' }}</span></span></li>
-                @if (h?.['plazas']) {
-                  <li class="flex items-center gap-3"><span class="flex size-11 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="user" [size]="18" /></span>
-                    <span><span class="block text-label-xs text-text-muted uppercase">Lifters</span><span class="block text-label-m">{{ h?.['plazas'] }} places</span></span></li>
-                }
-              </ul>
-              <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-                <a grButton variant="primary" size="l" routerLink="/alta-atleta" hreflang="es" iconRight="arrow-right">{{ str(h, 'cta') || 'Athlete sign-up (Spanish)' }}</a>
-                <a grButton size="l" routerLink="/sorteo" hreflang="es" iconRight="arrow-right">{{ str(h, 'ctaSorteo') || 'See the raffle' }}</a>
-              </div>
-            }
-          </div>
-          <img src="https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_0150.webp" alt="GRStrength Cup trophy" width="420" height="560"
-            class="mx-auto aspect-[3/4] w-full max-w-[320px] object-cover [mask-image:radial-gradient(closest-side,#000_70%,transparent)] lg:max-w-none" fetchpriority="high" />
-        </section>
-
-        <div class="mt-18 flex flex-col gap-18 md:mt-24 md:gap-24">
-          @for (k of l?.orden ?? []; track k) {
-            @let s = l!.secciones[k];
-            @switch (k) {
-              @case ('compete') {
-                <section id="compete" class="flex scroll-mt-28 flex-col gap-5 md:gap-7">
-                  <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [texto]="str(s, 'texto')" [centro]="false" tam="m" />
-                  <ul class="grid gap-3 md:grid-cols-3 md:gap-4">
-                    @for (i of items(s, 'items'); track i['titulo']) {
-                      <li class="flex flex-col gap-1.5 rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">{{ i['titulo'] }}</p><p class="text-body-s text-text-tertiary">{{ i['texto'] }}</p></li>
-                    }
-                  </ul>
-                  @if (str(s, 'cta')) {
-                    <a grButton variant="primary" size="l" routerLink="/alta-atleta" hreflang="es" class="self-start">{{ str(s, 'cta') }}</a>
-                  }
-                </section>
-              }
-              @case ('raffle') {
-                <section id="raffle" class="flex scroll-mt-28 flex-col gap-5 md:gap-7">
-                  <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [centro]="false" tam="m" />
-                  <!-- Figma «Panel» (24 px): the 360 × 230 belt photo, the title in Display, the display-style button -->
-                  <div class="grid items-center gap-6 rounded-2xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-4 shadow-glow-deep md:grid-cols-[360px_minmax(0,1fr)] md:gap-8 md:p-5">
-                    @if (str(s, 'imagen')) { <img [src]="str(s, 'imagen') | cdn" alt="SBD belt" class="aspect-[360/230] w-full rounded-lg object-cover" loading="lazy" /> }
-                    <div class="flex flex-col gap-3">
-                      <p class="text-display-xs md:text-display-s">{{ str(s, 'subtitulo') }}</p>
-                      <p class="text-body-m text-text-secondary">{{ str(s, 'texto') }}</p>
-                      <div class="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <a grButton variant="display-gradient" size="l" routerLink="/sorteo" hreflang="es">{{ str(s, 'cta') || 'See the prizes' }}</a>
-                        <a grButton variant="ghost" routerLink="/politica-concurso" hreflang="es">Raffle terms (Spanish)</a>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              }
-              @case ('travel') {
-                <section id="travel" class="flex scroll-mt-28 flex-col gap-5 md:gap-7">
-                  <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [texto]="str(s, 'texto')" [centro]="false" tam="m" />
-                  <ul class="grid gap-3 md:grid-cols-3 md:gap-4">
-                    @for (i of items(s, 'items'); track i['titulo']) {
-                      <li class="rounded-lg border border-line-subtle bg-bg-card p-5">
-                        <span class="flex size-11 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon [name]="ic(i['icono'])" [size]="20" /></span>
-                        <p class="mt-4 text-label-m">{{ i['titulo'] }}</p>
-                        <p class="mt-1 text-body-s text-text-secondary">{{ i['texto'] }}</p>
-                        @if (i['nota']) { <p class="mt-3 flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="12" />{{ i['nota'] }}</p> }
-                      </li>
-                    }
-                  </ul>
-                </section>
-              }
-              @case ('faq') {
-                <section id="faq" class="flex scroll-mt-28 flex-col gap-5 md:gap-7">
-                  <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [texto]="str(s, 'texto')" [centro]="false" tam="m" />
-                  <div class="flex flex-col gap-3">
-                    @for (q of items(s, 'items'); track q['pregunta']; let first = $first) {
-                      <details class="group rounded-lg border border-line-subtle bg-bg-card open:border-accent/60" [open]="first">
-                        <summary class="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-label-m md:text-ui-h4">{{ q['pregunta'] }}
-                          <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-text-secondary group-open:bg-accent/20 group-open:text-accent-text"><gr-icon name="plus" [size]="14" class="transition-transform group-open:rotate-45" /></span>
-                        </summary>
-                        <p class="px-5 pb-5 text-body-m text-text-secondary">{{ q['respuesta'] }}</p>
-                      </details>
-                    }
-                  </div>
-                </section>
-              }
-            }
-          }
-          <gr-community lang="en" />
-        </div>
-      </div>
-    </main>
-    <gr-footer lang="en" />
-  `,
-})
-export class EnPage {
-  /** «Título *acento*» markup of gr-cabecera from the CMS fields. */
-  protected tit = (s: Seccion | undefined) => [str(s, 'titulo'), str(s, 'tituloAcento') && '*' + str(s, 'tituloAcento') + '*'].filter(Boolean).join(' ');
-  protected readonly land = signal<Landing | null | undefined>(undefined);
-  protected readonly comp = signal<CompeticionPublica | null>(null);
-  protected str = str;
-  protected ic = icon;
-  protected items = (s: Seccion | undefined, k: string) => list<Record<string, string>>(s, k);
-  protected readonly fecha = computed(() => {
-    const d = this.comp()?.fechaInicio;
-    return d ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Madrid' }).format(new Date(d)) : 'To be confirmed';
-  });
-
-  constructor() {
-    const cms = inject(Cms);
-    const seo = inject(Seo);
-    const competition = inject(Competition);
-    void inject(PendingTasks).run(async () => {
-      const [l, c, map] = await Promise.all([cms.landing('en'), competition.load(), cms.seoMap()]);
-      this.land.set(l);
-      this.comp.set(c);
-      if (!l) cms.notFound();
-      const o = map?.paginas.find((p) => p.ruta === '/en');
-      seo.set({
-        title: o?.title || 'GRStrength Cup 2026 · Powerlifting competition in Valencia, Spain',
-        description: o?.description || 'AEP powerlifting championship in Almussafes, 20 km south of Valencia. Free spectator entry, raffle and travel tips.',
-        path: '/en', lang: 'en', alternates: HOME_ALTERNATES, image: o?.imagenUrl || undefined,
-        jsonLd: c ? eventLd(c, 'en') : undefined,
-      });
-    });
-  }
 }
