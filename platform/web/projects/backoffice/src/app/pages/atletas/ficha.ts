@@ -11,6 +11,7 @@ import { BoCount, BoToggle, Confirm, Media, errText, BoTabsMovil } from '../../s
 import { AtletasApi, CATEGORIAS, DIVISIONES, cat, diaFecha, kg, type Atleta, type Historial, type Marcas } from './api';
 import { BoDatePicker } from '../../shared/kit';
 import { ESTADO } from './list';
+import { tabEnUrl } from '../../shared/tab-url';
 
 type Tab = 'perfil' | 'competicion' | 'comunicaciones' | 'historial';
 
@@ -289,6 +290,7 @@ export class AtletaFichaPage {
   protected readonly historial = signal<Historial[]>([]);
   protected readonly noExiste = signal(false);
   protected readonly tab = signal<Tab>('perfil');
+  private readonly tabUrl = tabEnUrl(this.tab, () => this.tabs.map((t) => t.key));
   protected readonly guardando = signal(false);
   protected readonly enviando = signal(false);
   protected readonly subiendo = signal(false);

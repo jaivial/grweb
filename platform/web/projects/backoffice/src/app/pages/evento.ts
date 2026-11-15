@@ -243,7 +243,8 @@ export class EventoPage {
   protected readonly comp = signal<Comp | null>(null);
   protected readonly mods = signal<ModItem[]>([]);
   protected readonly est = signal<EstadoInfo | null>(null);
-  protected readonly tab = signal<Tab>(((t) => (t === 'inscripcion' ? 'datos' : t))(this.route.snapshot.queryParamMap.get('tab') as Tab | 'inscripcion' | null) || 'datos');
+  // ?tab= unknown (or the old «inscripcion», redirected below) → the first tab
+  protected readonly tab = signal<Tab>(((t) => (this.tabs.some((x) => x.v === t) ? t : 'datos') as Tab)(this.route.snapshot.queryParamMap.get('tab')));
   protected readonly cambios = signal(false);
   protected readonly guardando = signal(false);
   protected readonly errores = signal<string[]>([]);

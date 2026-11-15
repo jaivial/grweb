@@ -11,6 +11,7 @@ import { Realtime } from '../../core/realtime';
 import { BO_ROW, BoCheckbox, BoEmptyState, BoFilterPill, BoPagination, BoSearch, BoSkeleton, BoSortHeader, BoTableToolbar } from '../../shared/kit';
 import { BoPageHeader, BoToggle, errText, BoTabsMovil } from '../../shared/ui';
 import { AtletasApi, cat, diaFecha, type ItemLista, type Lista } from './api';
+import { tabEnUrl } from '../../shared/tab-url';
 
 type Pestana = 'todos' | 'confirmados' | 'reserva' | 'bajas' | 'incidencias';
 
@@ -251,7 +252,8 @@ export class AtletasPage {
   protected readonly incidenciasDe = signal<{ id: string; tono: GrTone; titulo: string; texto: string; accion: string }[]>([]);
   protected readonly cargando = signal(true);
   protected readonly exporting = signal(false);
-  protected readonly pestana = signal<Pestana>('todos');
+  protected readonly pestana = signal<Pestana>(((p) => (this.tabs.some((t) => t.key === p) ? p : 'todos') as Pestana)(this.route.snapshot.queryParamMap.get('tab')));
+  private readonly tabUrl = tabEnUrl(this.pestana, () => this.tabs.map((t) => t.key));
   protected readonly q = signal(this.route.snapshot.queryParamMap.get('q') ?? '');
   protected readonly sexo = signal('');
   protected readonly categoria = signal('');

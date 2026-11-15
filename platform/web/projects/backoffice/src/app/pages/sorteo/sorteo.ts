@@ -264,7 +264,7 @@ export class SorteoPage {
   protected readonly tabs: { v: Tab; l: string }[] = [{ v: 'items', l: 'Items' }, { v: 'config', l: 'Configuración' }, { v: 'ganadores', l: 'Ganadores' }, { v: 'historial', l: 'Historial' }];
   protected readonly items = signal<RifaItem[] | null | undefined>(undefined);
   protected readonly cfg = signal<RifaConfig | null>(null);
-  protected readonly tab = signal<Tab>((this.route.snapshot.queryParamMap.get('tab') as Tab) || 'items');
+  protected readonly tab = signal<Tab>(((t) => (this.tabs.some((x) => x.v === t) ? t : 'items') as Tab)(this.route.snapshot.queryParamMap.get('tab')));
   /** Item being edited (`{ id: '' }` = new). */
   protected readonly editando = signal<{ id: string } | null>(null);
   protected readonly guardando = signal(false);
