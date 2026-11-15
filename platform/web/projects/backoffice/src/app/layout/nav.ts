@@ -58,7 +58,7 @@ export const NAV: NavGroup[] = [
       { label: 'Retransmisión', path: 'directo/retransmision', icon: 'play', perm: 'directo.operar', lectura: true },
       { label: 'Juegos', path: 'juegos', icon: 'trophy', perm: 'directo.operar', lectura: true },
       { label: 'Donaciones', path: 'donaciones', icon: 'heart', perm: 'sorteo.gestionar', lectura: true },
-      { label: 'Premios', path: 'premios', icon: 'gift', perm: 'directo.operar', lectura: true },
+      { label: 'Premios', path: 'premios', icon: 'gift', perm: 'directo.operar', lectura: true, oculto: true }, // tab of Sorteo
       { label: 'Fans', path: 'fans', icon: 'users', perm: 'directo.operar', lectura: true },
     ],
   },

@@ -182,7 +182,8 @@ export const routes: Routes = [
       { path: 'juegos/config', loadComponent: () => import('./pages/social/juegos/config').then((m) => m.JuegosConfigPage), title: 'Juegos · Configuración · Backoffice GR Cup' },
       { path: 'juegos', loadComponent: () => import('./pages/social/juegos/juegos').then((m) => m.JuegosPage), title: 'Juegos · Backoffice GR Cup' },
       { path: 'donaciones', loadComponent: () => import('./pages/social/donaciones/donaciones').then((m) => m.DonacionesPage), title: 'Donaciones · Backoffice GR Cup' },
-      { path: 'premios', loadComponent: () => import('./pages/social/premios/premios').then((m) => m.PremiosPage), title: 'Premios · Backoffice GR Cup' },
+      // Premios is a tab of Sorteo (orden 15-nov 13:05, #380)
+      { path: 'premios', pathMatch: 'full', redirectTo: 'sorteo?tab=premios' },
       { path: 'fans', loadComponent: () => import('./pages/social/fans/fans').then((m) => m.FansPage), title: 'Fans · Backoffice GR Cup' },
       { path: 'evento', loadComponent: () => import('./pages/evento').then((m) => m.EventoPage), title: 'Evento y módulos · Backoffice GR Cup' },
       {
