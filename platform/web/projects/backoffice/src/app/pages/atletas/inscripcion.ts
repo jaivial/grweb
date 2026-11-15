@@ -120,7 +120,7 @@ const ESTADO_CUPON: Record<Cupon['estado'], GrTone> = { activo: 'success', pausa
                     <p class="mt-0.5 text-body-xs text-text-tertiary">Sistema → Integraciones → Stripe</p>
                     <dl class="mt-3 text-body-s">
                       <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Proveedor</dt><dd>{{ pagos()?.pasarela === 'stripe' ? 'Stripe' + (pagos()?.pruebas ? ' (modo test)' : '') : 'Pasarela simulada (modo pruebas)' }}</dd></div>
-                      <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Claves de Stripe</dt><dd>{{ pagos()?.pasarela === 'stripe' ? 'Configuradas' : 'No configuradas' }}</dd></div>
+                      <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Cuenta de Stripe</dt><dd>{{ pagos()?.pasarela === 'stripe' ? 'Conectada' : 'Sin conectar' }}</dd></div>
                       <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Webhook</dt><dd class="text-right">/api/webhooks/pagos/inscripciones · firma HMAC</dd></div>
                       <div class="flex justify-between gap-3 py-2"><dt class="text-text-tertiary">Reembolsos</dt><dd>Totales o parciales desde Pagos</dd></div>
                     </dl>
