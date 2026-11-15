@@ -1,3 +1,4 @@
+import type { HttpInterceptorFn } from '@angular/common/http';
 import { DOCUMENT } from '@angular/common';
 import { Injectable, Pipe, type PipeTransform, computed, inject, signal } from '@angular/core';
 import { NavigationStart, Router } from '@angular/router';
@@ -70,3 +71,10 @@ export class LocPipe implements PipeTransform {
     return p == null ? '' : this.i18n.path(p);
   }
 }
+
+/** Public APIs (outside the CMS) whose texts have English overrides: competition, schedule, tickets and raffle. */
+const CON_EN = /^\/api\/competiciones\/[a-z0-9-]+(\/(horarios|entradas|rifa(\/items)?))?$/;
+
+/** On /en pages, GETs to those APIs carry ?lang=en so the API overlays its English texts. */
+export const langInterceptor: HttpInterceptorFn = (req, next) =>
+  req.method === 'GET' && inject(I18n).lang() === 'en' && CON_EN.test(req.url.split('?')[0]) ? next(req.clone({ setParams: { lang: 'en' } })) : next(req);
