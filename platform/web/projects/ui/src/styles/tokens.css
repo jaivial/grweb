@@ -288,3 +288,10 @@
   .prose-legal li + li { margin-top: 12px; }
   .prose-legal > :first-child { margin-top: 0; }
 }
+
+/* Page transition (grViewTransitions): old page out in 120 ms, new page in over 200 ms; no movement (CLS 0). */
+::view-transition-old(root) { animation: 120ms ease-in both gr-vt-fuera; }
+::view-transition-new(root) { animation: 200ms ease-out 60ms both gr-vt-dentro; }
+@keyframes gr-vt-fuera { to { opacity: 0; } }
+@keyframes gr-vt-dentro { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; } }

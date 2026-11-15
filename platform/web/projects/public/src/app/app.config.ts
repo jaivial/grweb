@@ -5,13 +5,14 @@ import { NavigationEnd, NavigationStart, Router, provideRouter, withComponentInp
 import { routes } from './app.routes';
 import { apiBaseInterceptor, noEncontradoInterceptor } from './core/competition';
 import { colaInterceptor } from './core/cola';
+import { grViewTransitions } from '@grcup/ui';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideHttpClient(withFetch(), withInterceptors([noEncontradoInterceptor, apiBaseInterceptor, colaInterceptor])),
     // Position restoration is done in App (instant, after the page settles): html{scroll-behavior:smooth} broke the router's own.
-    provideRouter(routes, withInMemoryScrolling({ anchorScrolling: 'enabled', scrollPositionRestoration: 'disabled' }), withComponentInputBinding()),
+    provideRouter(routes, withInMemoryScrolling({ anchorScrolling: 'enabled', scrollPositionRestoration: 'disabled' }), withComponentInputBinding(), grViewTransitions()),
     provideClientHydration(withEventReplay(), withHttpTransferCacheOptions({ includePostRequests: false })),
     // New page → top, subscribed before bootstrap: a click replayed during hydration navigates before App listens to Scroll.
     provideAppInitializer(() => {
