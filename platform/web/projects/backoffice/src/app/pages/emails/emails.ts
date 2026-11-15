@@ -2,14 +2,19 @@ import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, afterNextRe
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrPopover, GrSelect, GrSkeleton, GrToasts } from '@grcup/ui';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoDrawer, BoPageHeader, BoToggle, errText, BoTabsMovil, BoTablaMovil } from '../../shared/ui';
 import { ESTADO_MSG, EmailsApi, hace, hora, type AutoItem, type Autos, type Mensaje, type PlantillaItem, type Resumen, type Salida, type WAPlantilla } from './api';
 import { WhatsAppMeta } from './whatsapp-meta';
+import { CampanasPage } from '../campanas/campanas';
+import { ContactosPage } from '../contactos/contactos';
 
-type Tab = 'plantillas' | 'whatsapp' | 'salida' | 'automatizaciones';
+type Tab = 'plantillas' | 'whatsapp' | 'salida' | 'automatizaciones' | 'campanas' | 'contactos';
+/** Tabs kept in ?tab= (the others are routes of their own). */
+const EN_QUERY: Tab[] = ['campanas', 'contactos'];
 const FILTROS: { v: string; label: string }[] = [
   { v: '', label: 'Todos' }, { v: 'en_cola', label: 'En cola' }, { v: 'problemas', label: 'Con problemas' }, { v: 'enviado', label: 'Enviados' }, { v: 'omitido', label: 'Omitidos' }, { v: 'cancelado', label: 'Cancelados' },
 ];
@@ -18,7 +23,7 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
 /** «Emails y avisos» (Figma page 62): templates, WhatsApp templates, outbox with retries and the SMTP state, automations. */
 @Component({
   selector: 'bo-emails',
-  imports: [BoTablaMovil, BoTabsMovil, FormsModule, RouterLink, BoPageHeader, BoDrawer, BoToggle, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrPopover, GrSelect, GrSkeleton, WhatsAppMeta],
+  imports: [CampanasPage, ContactosPage, BoTablaMovil, BoTabsMovil, FormsModule, RouterLink, BoPageHeader, BoDrawer, BoToggle, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrPopover, GrSelect, GrSkeleton, WhatsAppMeta],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = resumen();
@@ -35,7 +40,7 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
       <bo-tabs-movil label="Sección">
       <nav #tabsNav class="-mt-1 flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Emails y avisos">
         @for (t of tabs; track t.v) {
-          <a [routerLink]="ruta(t.v)" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-m whitespace-nowrap focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null">
+          <a [routerLink]="ruta(t.v)" [queryParams]="enQuery(t.v) ? { tab: t.v } : null" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-m whitespace-nowrap focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null">
             {{ t.label }}
             @if (cuenta(t.v); as c) { <span class="flex h-5 items-center rounded-xs px-1.5 text-mono-xs" [class]="tab() === t.v ? 'bg-accent/20 text-accent-text' : 'bg-bg-raised text-text-tertiary'">{{ c }}</span> }
             @if (tab() === t.v) { <span class="absolute inset-x-0 bottom-0 h-0.5 bg-accent"></span> }
@@ -244,6 +249,8 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
             </section>
           } @else { <gr-skeleton class="h-80 rounded-lg" /> }
         }
+        @case ('campanas') { <bo-campanas [embebido]="true" /> }
+        @case ('contactos') { <bo-contactos [embebido]="true" /> }
       }
     </div>
 
@@ -280,8 +287,17 @@ export class EmailsPage {
   protected readonly hace = hace;
   protected readonly tabs: { v: Tab; label: string }[] = [
     { v: 'plantillas', label: 'Plantillas' }, { v: 'whatsapp', label: 'WhatsApp (Meta)' }, { v: 'salida', label: 'Bandeja de salida' }, { v: 'automatizaciones', label: 'Automatizaciones' },
+    { v: 'campanas', label: 'Campañas' }, { v: 'contactos', label: 'Contactos' },
   ];
-  protected readonly tab = signal<Tab>((this.route.snapshot.data['tab'] as Tab) ?? 'plantillas');
+  protected readonly tab = signal<Tab>(this.tabDeUrl());
+  /** ?tab=campanas|contactos wins over the tab of the route (same component, only the query changes). */
+  private tabDeUrl(): Tab {
+    const q = this.route.snapshot.queryParamMap.get('tab') as Tab | null;
+    return q && EN_QUERY.includes(q) ? q : ((this.route.snapshot.data['tab'] as Tab) ?? 'plantillas');
+  }
+  protected enQuery(t: Tab): boolean {
+    return EN_QUERY.includes(t);
+  }
   protected readonly resumen = signal<Resumen | null>(null);
   protected readonly plantillas = signal<PlantillaItem[] | null | undefined>(undefined);
   protected readonly wa = signal<WAPlantilla[] | null | undefined>(undefined);
@@ -313,6 +329,11 @@ export class EmailsPage {
   private t?: ReturnType<typeof setTimeout>;
 
   constructor() {
+    // Moving between /emails?tab=… and /emails reuses this component: follow the query.
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe(() => {
+      const t = this.tabDeUrl();
+      if (t !== this.tab()) this.tab.set(t);
+    });
     // On mobile the active tab may sit beyond the scroll of the tab bar.
     afterNextRender(() => this.tabsNav()?.nativeElement.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'center' }));
     effect(() => {
@@ -334,7 +355,7 @@ export class EmailsPage {
     inject(DestroyRef).onDestroy(() => sub.unsubscribe());
   }
   protected ruta(t: Tab): string[] {
-    return ['/', this.comps.current()?.slug ?? '', 'emails', ...(t === 'plantillas' ? [] : [t])];
+    return ['/', this.comps.current()?.slug ?? '', 'emails', ...(t === 'plantillas' || EN_QUERY.includes(t) ? [] : [t])];
   }
   protected cuenta(t: Tab): number | null {
     switch (t) {
@@ -342,6 +363,7 @@ export class EmailsPage {
       case 'whatsapp': return this.wa()?.length ?? null;
       case 'salida': return this.resumen()?.enCola || null;
       case 'automatizaciones': return this.autos()?.items.length ?? null;
+      default: return null;
     }
   }
   protected cargarTodo(): void {
