@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, effect, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -151,7 +151,8 @@ interface Pagina { page: number; items: PubAtleta[]; total: number; cargando: bo
                               <gr-fav class="-mr-3" [slug]="a.slug" [nombre]="a.nombre" [plano]="true" />
                             </li>
                           } @empty {
-                            <li class="py-3 text-body-s text-text-tertiary">Ningún atleta de este horario tiene el perfil público.</li>
+                            @if (pg.cargando) { @for (i of [1, 2, 3]; track i) { <li class="py-2"><gr-skeleton class="h-11 rounded-md" /></li> } }
+                            @else { <li class="py-3 text-body-s text-text-tertiary">Ningún atleta de este horario tiene el perfil público.</li> }
                           }
                         </ul>
                         @if (pg.total > porPagina && vista() === 'detallado' && q().length < 2) {
@@ -219,6 +220,8 @@ export class HorariosPage {
   protected readonly abiertos = signal(new Set<string>());
   /** Pages fetched from the API per time slot (id → page). */
   private readonly paginas$ = signal(new Map<string, Pagina>());
+  private readonly completos = signal(new Map<string, PubAtleta[]>());
+  private readonly pidiendo = new Set<string>();
   protected readonly relacionados: RelatedLink[] = [
     { titulo: 'Atletas', texto: 'Busca y sigue a atletas', ruta: '/atletas' },
     { titulo: 'En directo', texto: 'Streaming y marcador', ruta: '/en-directo' },
@@ -232,7 +235,7 @@ export class HorariosPage {
   protected readonly icsFavs = computed(() => `${ICS_URL}?atletas=${encodeURIComponent(this.fav.slugs().join(','))}`);
   protected readonly coincidencias = computed(() => {
     const q = norm(this.q());
-    return (this.diaSel()?.horarios ?? []).reduce((n, f) => n + f.atletas.filter((a) => norm(a.nombre + ' ' + a.club).includes(q)).length, 0);
+    return (this.diaSel()?.horarios ?? []).reduce((n, f) => n + this.lista(f).filter((a) => norm(a.nombre + ' ' + a.club).includes(q)).length, 0);
   });
   protected readonly filas = computed<Fila[]>(() => {
     const d = this.diaSel();
@@ -240,8 +243,8 @@ export class HorariosPage {
     const q = norm(this.q());
     const favs = new Set(this.fav.slugs());
     let hs = d.horarios;
-    if (this.vista() === 'favs') hs = hs.filter((f) => f.atletas.some((a) => favs.has(a.slug)));
-    else if (q.length > 1) hs = hs.filter((f) => f.atletas.some((a) => norm(a.nombre + ' ' + a.club).includes(q)));
+    if (this.vista() === 'favs') hs = hs.filter((f) => this.lista(f).some((a) => favs.has(a.slug)));
+    else if (q.length > 1) hs = hs.filter((f) => this.lista(f).some((a) => norm(a.nombre + ' ' + a.club).includes(q)));
     const rows: Fila[] = hs.map((f) => ({ t: hora(f.inicio), h: f }));
     if (this.vista() !== 'favs' && q.length < 2) rows.push(...d.agenda.map((a) => ({ t: a.hora, item: { hora: a.hora, titulo: a.titulo, icono: ICONOS[a.icono ?? ''] ?? ('clock' as GrIconName) } })));
     return rows.sort((a, b) => a.t.localeCompare(b.t));
@@ -268,6 +271,10 @@ export class HorariosPage {
           },
         } : {});
     });
+    effect(() => {
+      const d = this.diaSel();
+      if (this.browser && d && (this.vista() === 'favs' || this.q().length > 1)) void this.cargarCompletos(d.horarios);
+    });
     if (this.browser) {
       // Real time without notices: when the back office publishes or withdraws the schedule, reload in silence.
       const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
@@ -276,6 +283,7 @@ export class HorariosPage {
         clearTimeout(t);
         t = setTimeout(async () => {
           this.paginas$.set(new Map());
+          this.completos.set(new Map());
           this.aplicar(await this.api.get(true));
         }, 400);
       };
@@ -307,8 +315,34 @@ export class HorariosPage {
   protected toggle(id: string): void {
     const s = new Set(this.abiertos());
     if (s.has(id)) s.delete(id);
-    else s.add(id);
+    else {
+      s.add(id);
+      const f = this.diaSel()?.horarios.find((x) => x.id === id);
+      if (f && !f.atletas.length && !this.paginas$().has(id)) void this.irA(f, 1);
+    }
     this.abiertos.set(s);
+  }
+
+  /** Public athletes of a slot: from the payload (old API) or fetched whole for search and Favs (new API). */
+  protected lista(f: PubHorario): PubAtleta[] {
+    return f.atletas.length ? f.atletas : (this.completos().get(f.id) ?? []);
+  }
+
+  /** Search and Favs need every athlete of the day: fetch the lists the payload does not bring (once per slot). */
+  private async cargarCompletos(hs: PubHorario[]): Promise<void> {
+    for (const f of hs) {
+      if (f.atletas.length || !f.total || this.completos().has(f.id) || this.pidiendo.has(f.id)) continue;
+      this.pidiendo.add(f.id);
+      const items: PubAtleta[] = [];
+      for (let page = 1; page <= 20; page++) {
+        const r = await this.api.atletas(f.id, page, 100);
+        if (!r) break;
+        items.push(...r.items);
+        if (items.length >= r.total || !r.items.length) break;
+      }
+      this.pidiendo.delete(f.id);
+      this.completos.update((m) => new Map(m).set(f.id, items));
+    }
   }
 
   protected paginas(total: number): number[] {
@@ -319,18 +353,19 @@ export class HorariosPage {
   protected pagina(f: PubHorario): Pagina {
     if (this.vista() === 'favs') {
       const favs = new Set(this.fav.slugs());
-      const items = f.atletas.filter((a) => favs.has(a.slug));
+      const items = this.lista(f).filter((a) => favs.has(a.slug));
       return { page: 1, items, total: items.length, cargando: false };
     }
     const q = norm(this.q());
     if (q.length > 1) {
-      const items = f.atletas.filter((a) => norm(a.nombre + ' ' + a.club).includes(q));
+      const items = this.lista(f).filter((a) => norm(a.nombre + ' ' + a.club).includes(q));
       return { page: 1, items, total: items.length, cargando: false };
     }
     const p = this.paginas$().get(f.id);
     if (p) return p;
-    // first page straight from the schedule (no extra request on open)
-    return { page: 1, items: f.atletas.slice(0, POR_PAGINA), total: f.atletas.length, cargando: false };
+    // old payloads bring the athletes: first page straight from them; the new API sends none (irA(f, 1) runs on open)
+    if (f.atletas.length) return { page: 1, items: f.atletas.slice(0, POR_PAGINA), total: f.atletas.length, cargando: false };
+    return { page: 1, items: [], total: f.total, cargando: true };
   }
 
   /** Next pages come from GET …/horarios/{id}/atletas?page&pageSize; without that endpoint, from the list already loaded. */
@@ -340,6 +375,6 @@ export class HorariosPage {
     set({ ...actual, cargando: true });
     const r = await this.api.atletas(f.id, page, POR_PAGINA);
     if (r) set({ page: r.page, items: r.items, total: r.total, cargando: false });
-    else set({ page, items: f.atletas.slice((page - 1) * POR_PAGINA, page * POR_PAGINA), total: f.atletas.length, cargando: false });
+    else set({ page, items: this.lista(f).slice((page - 1) * POR_PAGINA, page * POR_PAGINA), total: this.lista(f).length, cargando: false });
   }
 }

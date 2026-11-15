@@ -9,7 +9,7 @@ export interface PubAtleta { slug: string; nombre: string; club: string; divisio
  * EP1/EP2 category and the weigh-in window. `atletas` only holds public profiles; `total` counts everyone.
  */
 export interface PubHorario {
-  id: string; titulo: string; sexo: string; ep?: 'EP1' | 'EP2' | ''; inicio: string; fin: string; pesajeInicio: string; pesajeFin: string;
+  id: string; titulo: string; sexo: string; /** EP category of the slot as the API sends it («AEP-2», «AEP-3»…). */ ep?: string; inicio: string; fin: string; pesajeInicio: string; pesajeFin: string;
   total: number; atletas: PubAtleta[];
   /** @deprecated there are no flights: only old payloads bring it (still read by /entradas until it drops «el día hora a hora»). */
   codigo: string;
