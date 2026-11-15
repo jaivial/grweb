@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -57,23 +57,24 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
     @else {
     <div class="mx-auto flex max-w-[1400px] flex-col gap-4 pb-24">
       <!-- Header -->
-      <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-4 md:flex-row md:items-center">
-        <a [routerLink]="['/', comps.current()?.slug, 'campanas']" class="flex size-10 shrink-0 items-center justify-center rounded-md border border-line-strong hover:bg-bg-raised" aria-label="Volver a campañas"><gr-icon name="chevron-left" [size]="18" /></a>
-        <div class="min-w-0 flex-1">
-          <h1 class="truncate text-ui-h4">{{ f().nombre || 'Sin nombre' }}</h1>
-          <p class="truncate text-body-xs text-text-tertiary">Asunto: {{ f().asunto || '—' }}</p>
-          <p class="mt-1.5 flex flex-wrap items-center gap-1.5">
+      <section class="flex items-center gap-2 rounded-lg border border-line-subtle bg-bg-card p-2 lg:gap-3 lg:p-4">
+        <a [routerLink]="['/', comps.current()?.slug, 'campanas']" class="hidden size-10 shrink-0 items-center justify-center rounded-md border border-line-strong hover:bg-bg-raised lg:flex" aria-label="Volver a campañas"><gr-icon name="chevron-left" [size]="18" /></a>
+        <div class="flex min-w-0 flex-1 items-center gap-2 lg:block">
+          <h1 class="min-w-0 truncate text-ui-h5 lg:text-ui-h4">{{ f().nombre || 'Sin nombre' }}</h1>
+          <gr-badge class="shrink-0 lg:hidden" [tone]="est[c.estado].tone">{{ est[c.estado].l }}</gr-badge>
+          <p class="hidden truncate text-body-xs text-text-tertiary lg:block">Asunto: {{ f().asunto || '—' }}</p>
+          <p class="mt-1.5 hidden flex-wrap items-center gap-1.5 lg:flex">
             <gr-badge [tone]="est[c.estado].tone">{{ est[c.estado].l }}</gr-badge>
             @for (ch of f().canales; track ch) { <span class="inline-flex h-6 items-center gap-1 rounded-2xs border px-1.5 text-mono-xs" [class]="ch === 'email' ? 'border-info/40 text-info' : 'border-success/40 text-success'"><gr-icon [name]="ch === 'email' ? 'mail' : 'smartphone'" [size]="12" />{{ ch === 'email' ? 'Email' : 'WhatsApp' }}</span> }
             @if (aud(); as a) { <span class="text-body-xs text-text-tertiary">{{ n(destinos()) }} destinos · {{ a.segmento }}</span> }
           </p>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="flex items-center gap-1.5 text-label-s" [class]="dirty() ? 'text-warning' : 'text-success'"><gr-icon [name]="dirty() ? 'circle-alert' : 'circle-check'" [size]="14" />{{ dirty() ? 'Cambios sin guardar' : 'Todo guardado' }}</span>
-          @if (editable()) { <button grButton [loading]="guardando()" [disabled]="!dirty()" (click)="guardar()">Guardar</button> }
-          @if (c.estado === 'borrador' || c.estado === 'programada') { <button grButton variant="primary" icon="send" (click)="abrirEnvio()">Enviar</button> }
-          @if (c.estado === 'borrador' || c.estado === 'cancelada') { <button grButton variant="ghost" icon="trash" (click)="borrar()" aria-label="Borrar campaña"></button> }
-          @else { <button grButton variant="ghost" icon="copy" (click)="duplicar()" aria-label="Duplicar campaña"></button> }
+        <div class="flex shrink-0 items-center gap-1 lg:flex-wrap lg:gap-2">
+          <span class="hidden items-center gap-1.5 text-label-s lg:flex" [class]="dirty() ? 'text-warning' : 'text-success'"><gr-icon [name]="dirty() ? 'circle-alert' : 'circle-check'" [size]="14" />{{ dirty() ? 'Cambios sin guardar' : 'Todo guardado' }}</span>
+          @if (editable()) { <button grButton class="max-lg:size-10 max-lg:px-0" icon="save" [loading]="guardando()" [disabled]="!dirty()" (click)="guardar()" aria-label="Guardar"><span class="hidden lg:inline">Guardar</span></button> }
+          @if (c.estado === 'borrador' || c.estado === 'programada') { <button grButton class="max-lg:size-10 max-lg:px-0" variant="primary" icon="send" (click)="abrirEnvio()" aria-label="Enviar"><span class="hidden lg:inline">Enviar</span></button> }
+          @if (c.estado === 'borrador' || c.estado === 'cancelada') { <button grButton class="max-lg:size-10 max-lg:px-0" variant="ghost" icon="trash" (click)="borrar()" aria-label="Borrar campaña"></button> }
+          @else { <button grButton class="max-lg:size-10 max-lg:px-0" variant="ghost" icon="copy" (click)="duplicar()" aria-label="Duplicar campaña"></button> }
         </div>
       </section>
 
@@ -104,38 +105,50 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
 
         <!-- ============ DISEÑO ============ -->
         @case ('diseno') {
-          <div class="flex flex-wrap items-center gap-2 rounded-md border border-line-subtle bg-bg-card p-1.5">
-            @for (v of vistasDis; track v.v) { <button type="button" class="h-8 rounded-sm px-3 text-label-s" [class]="vistaDis() === v.v ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary'" (click)="vistaDis.set(v.v); refrescarPrevia()">{{ v.l }}</button> }
-            <span class="mx-1 h-5 w-px bg-line-subtle"></span>
-            @for (a of anchos; track a.v) { <button type="button" class="flex h-8 items-center gap-1 rounded-sm px-2.5 text-label-s" [class]="ancho() === a.v ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary'" (click)="ancho.set(a.v)"><gr-icon [name]="a.i" [size]="14" />{{ a.l }}</button> }
+          <div class="flex flex-nowrap items-center gap-1 rounded-md border border-line-subtle bg-bg-card p-1.5 lg:flex-wrap lg:gap-2">
+            @for (v of vistasDis; track v.v) { <button type="button" class="h-8 shrink-0 rounded-sm px-3 text-label-s" [class]="(vistaDis() === v.v ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary') + (v.v === 'previa' ? ' hidden lg:block' : '')" (click)="vistaDis.set(v.v); refrescarPrevia()">{{ v.l }}</button> }
+            <span class="mx-1 hidden h-5 w-px bg-line-subtle md:block"></span>
+            @for (a of anchos; track a.v) { <button type="button" class="hidden h-8 shrink-0 items-center gap-1 rounded-sm px-2.5 text-label-s md:flex" [class]="ancho() === a.v ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary'" (click)="ancho.set(a.v)" [attr.aria-label]="a.l"><gr-icon [name]="a.i" [size]="14" /><span class="hidden lg:inline">{{ a.l }}</span></button> }
             <span class="flex-1"></span>
-            <button type="button" class="flex size-8 items-center justify-center rounded-sm hover:bg-bg-raised disabled:opacity-30" [disabled]="!hist().length || !editable()" (click)="deshacer()" aria-label="Deshacer"><gr-icon name="undo" [size]="16" /></button>
-            <button type="button" class="flex h-8 items-center gap-1.5 rounded-sm px-3 text-label-s" [class]="iaOpen() ? 'bg-text-primary text-bg-base' : 'text-text-secondary hover:bg-bg-raised'" (click)="iaOpen.set(!iaOpen())" [disabled]="!editable()"><gr-icon name="sparkles" [size]="14" />IA</button>
+            <button type="button" class="flex size-8 shrink-0 items-center justify-center rounded-sm hover:bg-bg-raised disabled:opacity-30" [disabled]="!hist().length || !editable()" (click)="deshacer()" aria-label="Deshacer"><gr-icon name="undo" [size]="16" /></button>
+            <button type="button" class="flex h-8 shrink-0 items-center gap-1.5 rounded-sm px-3 text-label-s" [class]="iaOpen() ? 'bg-text-primary text-bg-base' : 'text-text-secondary hover:bg-bg-raised'" (click)="iaOpen.set(!iaOpen())" [disabled]="!editable()"><gr-icon name="sparkles" [size]="14" />IA</button>
           </div>
           <div class="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)_320px]">
-            <!-- left: add / layers -->
-            <aside class="h-fit rounded-lg border border-line-subtle bg-bg-card p-3 lg:sticky lg:top-20">
-              <div class="flex gap-1">@for (p of paneles; track p.v) { <button type="button" class="h-8 flex-1 rounded-sm text-label-s" [class]="panel() === p.v ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary'" (click)="panel.set(p.v)">{{ p.l }}</button> }</div>
+            <!-- left: add / layers (below the canvas on tablet and phone, where each tab opens a bottom sheet) -->
+            <aside class="order-2 h-fit rounded-lg border border-line-subtle bg-bg-card p-1.5 lg:order-none lg:sticky lg:top-20 lg:p-3">
+              <div class="flex gap-1">@for (p of paneles; track p.v) { <button type="button" class="h-8 flex-1 rounded-sm text-label-s" [class]="escritorio() && panel() === p.v ? 'bg-bg-raised text-text-primary' : escritorio() ? 'text-text-tertiary' : 'text-text-secondary hover:bg-bg-raised'" (click)="panel.set(p.v); hoja.set(!escritorio())">{{ p.l }}</button> }</div>
+              @if (escritorio()) { <div class="mt-3"><ng-container *ngTemplateOutlet="panelCont" /></div> }
+            </aside>
+            @if (hoja() && !escritorio()) {
+              <div class="fixed inset-0 z-[60] flex flex-col justify-end bg-black/55" (click)="hoja.set(false)" (keydown.escape)="hoja.set(false)">
+                <div role="dialog" aria-modal="true" [attr.aria-label]="panel() === 'anadir' ? 'Añadir bloque' : 'Capas'" class="flex max-h-[85dvh] flex-col overflow-y-auto rounded-t-[20px] border-t border-line-strong bg-bg-raised px-4 pb-[max(16px,env(safe-area-inset-bottom))] shadow-[0_-16px_40px_rgb(0_0_0/0.5)]" (click)="$event.stopPropagation()">
+                  <div class="flex items-center justify-between gap-3 pt-4 pb-3"><span class="text-ui-h5">{{ panel() === 'anadir' ? 'Añadir bloque' : 'Capas' }}</span>
+                    <button type="button" class="-mr-2 flex size-11 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" aria-label="Cerrar" (click)="hoja.set(false)"><gr-icon name="x" [size]="22" /></button></div>
+                  <ng-container *ngTemplateOutlet="panelCont" />
+                </div>
+              </div>
+            }
+            <ng-template #panelCont>
               @if (panel() === 'anadir') {
-                <div class="mt-3 grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-2">
                   @for (t of tipos; track t.tipo) {
-                    <button type="button" class="flex h-[72px] flex-col items-center justify-center gap-1.5 rounded-md border border-line-subtle bg-bg-raised/40 text-label-s hover:border-line-strong disabled:opacity-40" [disabled]="!editable()" (click)="anadir(t.tipo)"><gr-icon [name]="$any(t.icon)" [size]="18" class="text-text-tertiary" />{{ t.l }}</button>
+                    <button type="button" class="flex h-[72px] flex-col items-center justify-center gap-1.5 rounded-md border border-line-subtle bg-bg-raised/40 text-label-s hover:border-line-strong disabled:opacity-40" [disabled]="!editable()" (click)="anadir(t.tipo); hoja.set(false)"><gr-icon [name]="$any(t.icon)" [size]="18" class="text-text-tertiary" />{{ t.l }}</button>
                   }
                 </div>
               } @else {
-                <ul class="mt-3 flex flex-col gap-1">
+                <ul class="flex flex-col gap-1">
                   @for (b of f().diseno; track b.id; let i = $index) {
-                    <li><button type="button" class="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-label-s" [class]="sel() === b.id ? 'bg-accent-deep/40 text-text-primary' : 'text-text-secondary hover:bg-bg-raised'" (click)="sel.set(b.id)">
+                    <li><button type="button" class="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-label-s" [class]="sel() === b.id ? 'bg-accent-deep/40 text-text-primary' : 'text-text-secondary hover:bg-bg-raised'" (click)="sel.set(b.id); hoja.set(false)">
                       <span class="truncate">{{ nombreTipo[b.tipo] }}</span><span class="flex-1 truncate text-body-xs text-text-muted">{{ resumen(b) }}</span>
                       @if (b.canal === 'email') { <span class="rounded-2xs bg-info/15 px-1 text-[10px] text-info">EMAIL</span> } @if (b.canal === 'whatsapp') { <span class="rounded-2xs bg-success/15 px-1 text-[10px] text-success">WA</span> }
                     </button></li>
                   } @empty { <li class="px-2 py-3 text-body-xs text-text-tertiary">Sin bloques.</li> }
                 </ul>
               }
-            </aside>
+            </ng-template>
 
             <!-- canvas -->
-            <section class="min-w-0 rounded-lg border border-line-subtle bg-[#ece7e7] p-4">
+            <section class="order-1 min-w-0 rounded-lg border border-line-subtle bg-[#ece7e7] p-4 lg:order-none">
               <p class="mb-3 text-center text-mono-xs text-[#7a7072]">{{ ancho() === 'escritorio' ? 'ESCRITORIO · EMAIL 600 PX' : 'MÓVIL · 375 PX' }}</p>
               @switch (vistaDis()) {
                 @case ('diseno') {
@@ -179,7 +192,7 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
             </section>
 
             <!-- right: properties or AI (the assistant goes first on phones) -->
-            <aside [class.order-first]="iaOpen()" class="lg:order-none h-fit rounded-lg border border-line-subtle bg-bg-card p-4 lg:sticky lg:top-20">
+            <aside [class]="iaOpen() ? 'order-first' : 'order-3'" class="lg:order-none h-fit rounded-lg border border-line-subtle bg-bg-card p-4 lg:sticky lg:top-20">
               @if (iaOpen()) {
                 <header class="flex items-start gap-2"><span class="flex size-7 shrink-0 items-center justify-center rounded-pill bg-bg-raised text-text-secondary"><gr-icon name="sparkles" [size]="14" /></span><div class="flex-1"><h2 class="text-ui-h5">Asistente IA</h2><p class="text-body-xs text-text-tertiary">Cambia cualquier parte de la campaña: textos, bloques, asunto, canales, destinatarios o ritmo</p></div>
                   <button type="button" class="flex size-8 items-center justify-center rounded-sm hover:bg-bg-raised" (click)="iaOpen.set(false)" aria-label="Cerrar"><gr-icon name="x" [size]="16" /></button></header>
@@ -272,22 +285,21 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
         <!-- ============ PREVISUALIZACIÓN ============ -->
         @case ('previa') {
           <section class="rounded-lg border border-line-subtle bg-bg-card p-4 md:p-6">
-            <div class="flex flex-wrap items-center gap-3"><div class="min-w-[200px] flex-1"><h2 class="text-ui-h5">Previsualización</h2><p class="text-body-xs text-text-tertiary">El email y el WhatsApp tal y como los recibe el contacto (nombre de ejemplo: Laura)</p></div>
-              <span class="flex gap-1">@for (a of anchos; track a.v) { <button type="button" class="flex h-8 items-center gap-1 rounded-sm px-2.5 text-label-s" [class]="ancho() === a.v ? 'bg-bg-raised' : 'text-text-tertiary'" (click)="ancho.set(a.v)"><gr-icon [name]="a.i" [size]="14" />{{ a.l }}</button> }</span></div>
+            @if (escritorio()) { <div class="flex justify-end"><span class="flex gap-1">@for (a of anchos; track a.v) { <button type="button" class="flex h-8 items-center gap-1 rounded-sm px-2.5 text-label-s" [class]="ancho() === a.v ? 'bg-bg-raised' : 'text-text-tertiary'" (click)="ancho.set(a.v)"><gr-icon [name]="a.i" [size]="14" />{{ a.l }}</button> }</span></div> }
             @if (previa(); as p) {
-              <div class="mt-5 grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+              <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]" [class.mt-5]="escritorio()">
                 @if (f().canales.includes('email')) {
-                  <div class="min-w-0"><p class="mb-2 text-center text-label-s">Email</p>
-                    <div class="mx-auto overflow-hidden rounded-lg border border-line-strong" [style.max-width.px]="ancho() === 'escritorio' ? 640 : 390">
+                  <div class="min-w-0">@if (escritorio()) { <p class="mb-2 text-center text-label-s">Email</p> }
+                    <div class="mx-auto overflow-hidden rounded-lg border border-line-strong" [style.max-width.px]="escritorio() && ancho() === 'escritorio' ? 640 : 390">
                       <p class="truncate bg-bg-raised px-3 py-2 font-mono text-mono-xs text-text-tertiary">● ● ●  {{ f().asunto }}</p>
-                      <iframe [srcdoc]="seguro(p.emailHtml)" title="Email" class="block h-[760px] w-full border-0 bg-white" sandbox=""></iframe>
+                      <iframe #frEmail [srcdoc]="seguro(p.emailHtml)" title="Email" class="block w-full border-0 bg-white" scrolling="no" sandbox="allow-same-origin" (load)="ajustarAlto()"></iframe>
                     </div></div>
                 }
                 @if (f().canales.includes('whatsapp')) {
                   <div class="order-first min-w-0 xl:order-none"><p class="mb-2 text-center text-label-s">WhatsApp</p>
                     <div class="mx-auto w-full max-w-[320px] rounded-[36px] border-[6px] border-[#1d1a1b] bg-[#0b141a] p-2 shadow-card">
                       <div class="flex items-center gap-2 rounded-t-[28px] bg-[#1f2c34] px-3 py-3"><span class="flex size-8 items-center justify-center rounded-pill bg-white"><img [src]="logo" alt="" class="h-4" /></span><div class="flex-1"><p class="text-[13px] font-semibold text-white">{{ comps.current()?.nombreCorto }}</p><p class="text-[11px] text-[#8696a0]">en línea</p></div></div>
-                      <div class="h-[540px] overflow-y-auto bg-[#0b141a] bg-[radial-gradient(circle,#13222b_1px,transparent_1px)] [background-size:14px_14px] p-3">
+                      <div class="min-h-[200px] bg-[#0b141a] bg-[radial-gradient(circle,#13222b_1px,transparent_1px)] [background-size:14px_14px] p-3">
                         <div class="max-w-[260px] rounded-lg rounded-tl-none bg-[#202c33] p-1.5 text-[13px] leading-[19px] text-[#e9edef]">
                           @if (p.whatsapp.imagen) { <img [src]="p.whatsapp.imagen" alt="" class="mb-1.5 w-full rounded-md" /> }
                           <p class="px-1.5 [overflow-wrap:anywhere]" [innerHTML]="wa(p.whatsapp.texto)"></p>
@@ -363,8 +375,8 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
               <h2 class="text-ui-h5">Ritmo de envío</h2><p class="text-body-xs text-text-tertiary">Mensajes por minuto y canal</p>
               <div class="mt-4 grid gap-3 md:grid-cols-2">
                 @for (r of ritmos; track r.k) {
-                  <div class="rounded-md bg-bg-raised p-4"><p class="text-label-s">{{ r.l }}</p>
-                    <div class="mt-2 flex items-center gap-3"><button type="button" class="flex size-9 items-center justify-center rounded-pill border border-line-strong" (click)="ritmo(r.k, -r.paso, r.max)" aria-label="Menos"><gr-icon name="minus" [size]="14" /></button>
+                  <div class="flex flex-col items-center rounded-md bg-bg-raised p-4 text-center"><p class="text-label-s">{{ r.l }}</p>
+                    <div class="mt-2 flex items-center justify-center gap-3"><button type="button" class="flex size-9 items-center justify-center rounded-pill border border-line-strong" (click)="ritmo(r.k, -r.paso, r.max)" aria-label="Menos"><gr-icon name="minus" [size]="14" /></button>
                       <span class="w-14 text-center font-mono text-ui-h4">{{ f()[r.k] }}</span>
                       <button type="button" class="flex size-9 items-center justify-center rounded-pill border border-line-strong" (click)="ritmo(r.k, r.paso, r.max)" aria-label="Más"><gr-icon name="plus" [size]="14" /></button></div>
                     <p class="mt-2 text-body-xs text-text-tertiary">{{ r.k === 'emailPorMin' ? '≈ ' + mins(aud()?.email, f().emailPorMin) + ' para ' + n(aud()?.email) + ' envíos' : '≈ ' + mins(aud()?.whatsapp, f().waPorMin) + ' · número propio: mejor ≤ 6/min' }}</p></div>
@@ -462,8 +474,12 @@ export class CampanaEditorPage {
   protected readonly tab = signal<Tab>((this.route.snapshot.queryParamMap.get('tab') as Tab) || 'flujo');
   protected readonly sel = signal('');
   protected readonly vistaDis = signal<'diseno' | 'previa' | 'html'>('diseno');
-  protected readonly ancho = signal<'escritorio' | 'movil'>('escritorio');
+  protected readonly ancho = signal<'escritorio' | 'movil'>(typeof matchMedia !== 'undefined' && matchMedia('(max-width: 767px)').matches ? 'movil' : 'escritorio');
   protected readonly panel = signal<'anadir' | 'capas'>('anadir');
+  /** Desktop (≥ 1024 px): side panels inline; tablet and phone: «Añadir» / «Capas» open in a bottom sheet. */
+  protected readonly escritorio = signal(typeof matchMedia === 'undefined' || matchMedia('(min-width: 1024px)').matches);
+  protected readonly hoja = signal(false);
+  private readonly frEmail = viewChild<ElementRef<HTMLIFrameElement>>('frEmail');
   protected readonly hist = signal<Bloque[][]>([]);
   protected readonly previa = signal<Previa | null>(null);
   protected readonly error = signal('');
@@ -553,6 +569,23 @@ export class CampanaEditorPage {
       clearTimeout(this.tp);
       this.tp = setTimeout(() => void untracked(() => this.refrescarPrevia(f)), 400);
     });
+    // breakpoints: phones always preview at mobile width; tablet/phone hide the «Vista previa» view of the design tab
+    const mqD = typeof matchMedia === 'undefined' ? null : matchMedia('(min-width: 1024px)');
+    const mqM = typeof matchMedia === 'undefined' ? null : matchMedia('(max-width: 767px)');
+    const alCambiar = () => {
+      this.escritorio.set(!!mqD?.matches);
+      if (mqD?.matches) this.hoja.set(false);
+      else if (this.vistaDis() === 'previa') this.vistaDis.set('diseno');
+      if (mqM?.matches) this.ancho.set('movil');
+    };
+    mqD?.addEventListener('change', alCambiar);
+    mqM?.addEventListener('change', alCambiar);
+    // re-measure the preview iframe when its width changes
+    effect(() => {
+      this.ancho();
+      this.escritorio();
+      requestAnimationFrame(() => this.ajustarAlto());
+    });
     const sub = inject(Realtime).events.subscribe((e) => {
       if (e.tipo.startsWith('campana.') && e.entidad === 'campana:' + this.id) {
         clearTimeout(this.tr);
@@ -563,7 +596,18 @@ export class CampanaEditorPage {
       clearTimeout(this.tp);
       clearTimeout(this.tr);
       sub.unsubscribe();
+      mqD?.removeEventListener('change', alCambiar);
+      mqM?.removeEventListener('change', alCambiar);
     });
+  }
+
+  /** The preview iframe grows with its content, so it never scrolls inside. */
+  protected ajustarAlto(): void {
+    const fr = this.frEmail()?.nativeElement;
+    const doc = fr?.contentDocument;
+    if (!fr || !doc?.documentElement) return;
+    fr.style.height = '0px';
+    fr.style.height = doc.documentElement.scrollHeight + 'px';
   }
 
   private async cargar(): Promise<void> {
