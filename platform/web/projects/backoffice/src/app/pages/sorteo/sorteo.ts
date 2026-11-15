@@ -51,7 +51,7 @@ const vacio = (): RifaItemIn => ({ nombre: '', descripcion: '', imagenUrl: null,
         </bo-page-header>
       } @else {
         <bo-page-header [title]="tab() === 'ganadores' ? 'Rifa · ganadores' : tab() === 'historial' ? 'Rifa · historial' : tab() === 'premios' ? 'Sorteo · premios de juegos' : 'Rifa · items'" [crumbs]="crumbs()"
-          [badge]="tab() !== 'items' || !c ? '' : c.visible ? 'Publicada' : 'Oculta'" [badgeTone]="c?.visible ? 'warning' : 'neutral'" [subtitle]="subtitulo()">
+          [badge]="tab() !== 'items' || !c ? '' : c.visible ? 'Publicada' : 'Oculta'" [badgeTone]="c?.visible ? 'warning' : 'neutral'" [subtitle]="tab() === 'premios' ? '' : subtitulo()">
           @if (tab() === 'items') {
             <ng-container actions>
               <a grButton variant="secondary" [href]="'/' + (comps.current()?.slug ?? '') + '/sorteo'" target="_blank" rel="noopener">Ver en la web</a>
