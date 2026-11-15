@@ -5,6 +5,7 @@ import {
 import { isPlatformBrowser } from '@angular/common';
 import { NG_VALUE_ACCESSOR, type ControlValueAccessor } from '@angular/forms';
 import { GrIcon } from './icon';
+import { grDict } from './lang';
 
 /** One choice of a `gr-select`, read from the projected `<option>` elements. */
 export interface GrOpcion { valor: string; etiqueta: string; deshabilitada: boolean; oculta: boolean }
@@ -82,7 +83,7 @@ const sinAcentos = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g,
               <span class="h-1 w-10 rounded-pill bg-line-strong" aria-hidden="true"></span>
               <div class="flex w-full items-center justify-between gap-3">
                 <span [id]="uid + '-titulo'" class="text-ui-h5 text-text-primary">{{ titulo() }}</span>
-                <button type="button" class="-mr-2 flex size-11 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" aria-label="Cerrar" (click)="cerrar(true)"><gr-icon name="x" [size]="22" /></button>
+                <button type="button" class="-mr-2 flex size-11 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" [attr.aria-label]="t().cerrar" (click)="cerrar(true)"><gr-icon name="x" [size]="22" /></button>
               </div>
             </div>
             <ul #listaHoja [id]="uid + '-lista'" role="listbox" tabindex="0" [attr.aria-label]="titulo()" (keydown)="$event.key === 'Tab' || tecla($event)"
@@ -96,7 +97,7 @@ const sinAcentos = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g,
                   @if (o.valor === valor()) { <gr-icon name="check" [size]="20" class="shrink-0 text-accent-text" /> }
                 </li>
               } }
-              @if (!visibles()) { <li class="px-3 py-4 text-center text-body-s text-text-tertiary">{{ vacio() }}</li> }
+              @if (!visibles()) { <li class="px-3 py-4 text-center text-body-s text-text-tertiary">{{ vacio() || t().vacio }}</li> }
             </ul>
           </div>
         </div>
@@ -113,13 +114,14 @@ const sinAcentos = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g,
               @if (o.valor === valor()) { <gr-icon name="check" [size]="16" class="shrink-0 text-accent-text" /> }
             </li>
           } }
-          @if (!visibles()) { <li class="px-3 py-4 text-center text-body-s text-text-tertiary">{{ vacio() }}</li> }
+          @if (!visibles()) { <li class="px-3 py-4 text-center text-body-s text-text-tertiary">{{ vacio() || t().vacio }}</li> }
         </ul>
       }
     }
   `,
 })
 export class GrSelect implements ControlValueAccessor, AfterContentChecked {
+  protected readonly t = grDict({ es: { cerrar: 'Cerrar', vacio: 'Sin opciones', elige: 'Elige una opción' }, en: { cerrar: 'Close', vacio: 'No options', elige: 'Choose an option' } });
   readonly tipo = input<'campo' | 'filtro'>('campo');
   readonly tam = input<'m' | 'l'>('m');
   /** Filtro: label before the value («Categoría: −83 kg») and title of the mobile sheet. */
@@ -131,7 +133,7 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
   readonly ariaLabel = input('', { alias: 'aria-label' });
   readonly describedby = input('', { alias: 'aria-describedby' });
   /** Text of the menu with no options («Elige primero el sexo…»). */
-  readonly vacio = input('Sin opciones');
+  readonly vacio = input('');
   /** Emits the picked value (also without ngModel). */
   readonly valorChange = output<string>();
   /** Value without ngModel (e.g. generated forms): `[value]="…" (valorChange)="…"`. */
@@ -173,7 +175,7 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
     if (s) return s.etiqueta;
     return this.lista().find((o) => o.valor === '')?.etiqueta || this.etiqueta() || '';
   });
-  protected readonly titulo = computed(() => this.etiqueta() || this.ariaLabel() || this.lista().find((o) => o.valor === '')?.etiqueta || 'Elige una opción');
+  protected readonly titulo = computed(() => this.etiqueta() || this.ariaLabel() || this.lista().find((o) => o.valor === '')?.etiqueta || this.t().elige);
   protected readonly claseIcono = computed(() => 'size-4 shrink-0 ' +
     (this.tipo() === 'filtro' && this.activa() ? 'text-accent-text' : 'text-text-tertiary'));
   protected readonly claseControl = computed(() => {

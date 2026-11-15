@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, Directive, ElementRef, computed, in
 import { GrIcon, type GrIconName } from './icon';
 import { GrSparkline } from './primitives';
 import { GR_SKIN } from './skin';
+import { grDict } from './lang';
 
 let fieldSeq = 0;
 
@@ -122,11 +123,12 @@ export class GrSegmented {
           <gr-icon [name]="d.startsWith('-') ? 'arrow-down' : 'arrow-up'" [size]="12" />{{ d }}
         </span>
       }
-      <span>{{ value() === null ? 'Sin datos todavía' : caption() }}</span>
+      <span>{{ value() === null ? tSin() : caption() }}</span>
     </div>
   `,
 })
 export class GrKpi {
+  protected readonly tSin = grDict({ es: 'Sin datos todavía', en: 'No data yet' });
   readonly label = input.required<string>();
   readonly value = input<string | null>(null);
   readonly caption = input('');
