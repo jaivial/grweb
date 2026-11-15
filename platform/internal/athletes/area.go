@@ -23,6 +23,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/compref"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/httpx"
+	"github.com/jaivial/grweb/platform/pkg/imagen"
 	"github.com/jaivial/grweb/platform/pkg/pagos"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 	"github.com/jaivial/grweb/platform/pkg/ratelimit"
@@ -480,12 +481,17 @@ func (s *Svc) subirFoto(req *http.Request, r row) (string, *problem.Error) {
 	if ext == "" {
 		return "", problem.Unprocessable("TIPO_NO_PERMITIDO", "Sube una foto JPG, PNG o WebP.")
 	}
+	// The CDN gets an optimised JPEG (≤1600 px, q82), not the original: phone PNGs of 2.3 MB slowed the athlete pages.
+	if data, err = imagen.Optimizar(data, imagen.MaxLadoFoto); err != nil {
+		return "", problem.Unprocessable("FOTO_ILEGIBLE", "No hemos podido leer la foto. Sube una JPG, PNG o WebP de menos de 48 megapíxeles.")
+	}
+	ext = ".jpg"
 	st, err := s.storage(req.Context(), r.CompetitionID)
 	if err == nil {
 		sum := sha256.Sum256(data)
 		key := "atletas/" + r.ID.String() + "-" + hex.EncodeToString(sum[:])[:8] + ext
 		var url string
-		if url, err = st.Put(req.Context(), key, http.DetectContentType(data), data); err == nil {
+		if url, err = st.Put(req.Context(), key, "image/jpeg", data); err == nil {
 			return url, nil
 		}
 	}

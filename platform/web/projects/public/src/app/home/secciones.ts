@@ -1,7 +1,7 @@
 import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, afterNextRender, computed, inject, input, signal, viewChild } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { GrButton, GrIcon, type GrIconName } from '@grcup/ui';
+import { GrButton, GrIcon, type GrIconName, LOGO, cdn, cdnSrcset, CdnPipe } from '@grcup/ui';
 import { renderMarkdown, type Faq, type Seccion } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { CATEGORIAS_IPF, Favoritos } from '../core/atletas';
@@ -16,7 +16,7 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
 const num = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const euros = (c: number) => (c % 100 ? (c / 100).toLocaleString('es-ES', { minimumFractionDigits: 2 }) : String(c / 100)) + ' €';
 /** Responsive image of the home assets: «/img/home/x-l.webp» → srcset with the «-s» variant (640 px). */
-const srcset = (src: string) => (/-l\.webp$/.test(src) ? `${src.replace(/-l\.webp$/, '-s.webp')} 640w, ${src} 1200w` : null);
+const srcset = (src: string) => (/-l\.webp$/.test(src) ? cdnSrcset(`${src.replace(/-l\.webp$/, '-s.webp')} 640w, ${src} 1200w`) : null);
 /** Hairline photo border of Figma (white 8 %). */
 const FOTO = 'border border-white/8';
 
@@ -83,9 +83,9 @@ export class SecAlta {
   protected readonly intervalo = 1500;
   /** Real screens: @3x captures of the public profile, the schedule and the Fantasy; the story is prepended once composed. */
   protected readonly pantallas = signal<{ src: string; alt: string; story?: boolean }[]>([
-    { src: '/img/home/alta-pantalla-perfil.webp', alt: 'Perfil público de un atleta en el móvil' },
-    { src: '/img/home/alta-pantalla-horarios.webp', alt: 'Horarios de competición en el móvil' },
-    { src: '/img/home/alta-pantalla-fantasy-campo.webp', alt: 'Campo de fútbol sala de la GRS Fantasy con una alineación de cinco atletas' },
+    { src: cdn('/img/home/alta-pantalla-perfil.webp'), alt: 'Perfil público de un atleta en el móvil' },
+    { src: cdn('/img/home/alta-pantalla-horarios.webp'), alt: 'Horarios de competición en el móvil' },
+    { src: cdn('/img/home/alta-pantalla-fantasy-campo.webp'), alt: 'Campo de fútbol sala de la GRS Fantasy con una alineación de cinco atletas' },
   ]);
   protected readonly slide = signal(0);
   /** Hover / focus / touch on the phone. */
@@ -234,7 +234,7 @@ export class SecEntradas {
   readonly entradas = input<Entradas | null>(null);
   protected readonly glow = GLOW;
   protected readonly ancho = ANCHO;
-  protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
+  protected readonly logo = LOGO;
   protected readonly icons: GrIconName[] = ['ticket', 'users', 'trophy'];
   protected readonly avatares = ['LG', 'CS', 'MR', 'JT'];
   protected readonly num = num;
@@ -284,7 +284,7 @@ export class SecEntradas {
 /** «Section / Atletas»: the two editorial rows (text and 4:5 photo; on mobile, the text over the photo). */
 @Component({
   selector: 'gr-sec-atletas',
-  imports: [GrEyebrow, GrTitulo],
+  imports: [CdnPipe, GrEyebrow, GrTitulo],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-deep' },
   template: `
@@ -299,7 +299,7 @@ export class SecEntradas {
             <span class="h-0.5 w-24" [class]="i % 2 === 1 ? 'bg-[linear-gradient(270deg,#c42b3e,transparent)]' : 'bg-[linear-gradient(90deg,#c42b3e,transparent)]'"></span>
           </div>
           <figure class="relative aspect-[350/440] w-full overflow-hidden rounded-lg md:aspect-[4/5] md:w-[320px] md:shrink-0 lg:w-[520px]" [class]="foto">
-            <img [src]="r.imagen" [attr.srcset]="srcset(r.imagen)" sizes="(min-width: 768px) 520px, 100vw" [alt]="r.alt" class="absolute inset-0 size-full object-cover" loading="lazy" />
+            <img [src]="r.imagen | cdn" [attr.srcset]="srcset(r.imagen)" sizes="(min-width: 768px) 520px, 100vw" [alt]="r.alt" class="absolute inset-0 size-full object-cover" loading="lazy" />
             <figcaption class="absolute inset-0 flex flex-col justify-end gap-2 bg-[linear-gradient(180deg,transparent_45%,rgb(14_12_13/0.92))] p-5 md:hidden">
               <span class="text-display-m"><gr-titulo [titulo]="r.titulo" [acento]="r.acento" /></span>
             </figcaption>
@@ -324,7 +324,7 @@ export class SecAtletas {
 /** «Section / Organización»: header and the 2 × 2 bento of captioned photos (a swipeable track on mobile). */
 @Component({
   selector: 'gr-sec-organizacion',
-  imports: [GrCabecera],
+  imports: [CdnPipe, GrCabecera],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-deep' },
   template: `
@@ -334,7 +334,7 @@ export class SecAtletas {
       <ul #pista class="-mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:w-full md:grid-cols-2 md:gap-5 md:overflow-visible md:px-0" (scroll)="alDesplazar($event)">
         @for (f of fotos(); track f.imagen) {
           <li class="relative aspect-[290/380] w-[290px] shrink-0 snap-center overflow-hidden rounded-lg md:aspect-[590/420] md:w-auto" [class]="foto">
-            <img [src]="f.imagen" [attr.srcset]="srcset(f.imagen)" sizes="(min-width: 768px) 590px, 290px" [alt]="f.alt || f.titulo" class="absolute inset-0 size-full object-cover" loading="lazy" />
+            <img [src]="f.imagen | cdn" [attr.srcset]="srcset(f.imagen)" sizes="(min-width: 768px) 590px, 290px" [alt]="f.alt || f.titulo" class="absolute inset-0 size-full object-cover" loading="lazy" />
             @if (f.titulo) {
               <div class="absolute inset-0 flex flex-col justify-end gap-2 bg-[linear-gradient(180deg,transparent_50%,rgb(14_12_13/0.92))] p-5">
                 <span class="text-display-xs [text-shadow:0_2px_20px_rgb(0_0_0/0.8)]">{{ f.titulo }}</span>
@@ -365,7 +365,7 @@ export class SecOrganizacion {
 /** «Section / Afiliaciones»: who organises and endorses it (two cards) and the competition equipment brands. */
 @Component({
   selector: 'gr-sec-afiliaciones',
-  imports: [GrCabecera],
+  imports: [CdnPipe, GrCabecera],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-base' },
   template: `
@@ -376,7 +376,7 @@ export class SecOrganizacion {
         @for (c of tarjetas; track c.titulo) {
           <li class="relative flex w-full flex-col gap-4 overflow-hidden rounded-lg border border-line-subtle bg-bg-card p-5 md:items-center md:p-7 md:text-center">
             <span class="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgb(255_255_255/0.25),transparent)]"></span>
-            <span class="flex aspect-[326/180] w-full items-center justify-center px-6"><img [src]="c.logo" [alt]="c.alt" class="max-h-20 w-full max-w-[260px] object-contain grayscale" loading="lazy" decoding="async" /></span>
+            <span class="flex aspect-[326/180] w-full items-center justify-center px-6"><img [src]="c.logo | cdn" [alt]="c.alt" class="max-h-20 w-full max-w-[260px] object-contain grayscale" loading="lazy" decoding="async" /></span>
             <span class="text-display-xs">{{ c.titulo }}</span>
             <span class="text-body-s text-text-tertiary">{{ c.texto }}</span>
           </li>
@@ -387,7 +387,7 @@ export class SecOrganizacion {
         <ul class="flex gap-4">
           @for (m of marcas(); track m.nombre) {
             <li class="flex h-[88px] w-[164px] items-center justify-center rounded-lg border border-line-subtle bg-bg-card md:h-[104px] md:w-[200px]">
-              @if (m.logo) { <img [src]="m.logo" [alt]="m.nombre" class="h-[54px] w-24 object-contain" loading="lazy" /> } @else { <span class="text-display-l">{{ m.nombre }}</span> }
+              @if (m.logo) { <img [src]="m.logo | cdn" [alt]="m.nombre" class="h-[54px] w-24 object-contain" loading="lazy" /> } @else { <span class="text-display-l">{{ m.nombre }}</span> }
             </li>
           }
         </ul>
@@ -400,9 +400,9 @@ export class SecAfiliaciones {
   protected readonly ancho = ANCHO;
   protected t = (k: string) => str(this.s(), k);
   protected readonly tarjetas = [
-    { logo: '/img/home/afil-aep-bn.webp', alt: 'AEP · Asociación Española de Powerlifting', titulo: 'AEP', texto: 'Afiliada a la Asociación Española de Powerlifting, con jueces oficiales.' },
-    { logo: '/img/home/afil-grs-strength-bn.webp', alt: 'GRS Strength', titulo: 'GRS Strength', texto: 'Club organizador: reúne a la comunidad de powerlifting.' },
-    { logo: '/img/home/afil-almussafes-bn.webp', alt: "Ajuntament d'Almussafes", titulo: "Ajuntament d'Almussafes", texto: "Colabora el Ajuntament d'Almussafes, municipio anfitrión." },
+    { logo: cdn('/img/home/afil-aep-bn.webp'), alt: 'AEP · Asociación Española de Powerlifting', titulo: 'AEP', texto: 'Afiliada a la Asociación Española de Powerlifting, con jueces oficiales.' },
+    { logo: cdn('/img/home/afil-grs-strength-bn.webp'), alt: 'GRS Strength', titulo: 'GRS Strength', texto: 'Club organizador: reúne a la comunidad de powerlifting.' },
+    { logo: cdn('/img/home/afil-almussafes-bn.webp'), alt: "Ajuntament d'Almussafes", titulo: "Ajuntament d'Almussafes", texto: "Colabora el Ajuntament d'Almussafes, municipio anfitrión." },
   ];
   protected readonly marcas = computed(() => list<{ nombre: string; logo: string }>(this.s(), 'marcas'));
 }
@@ -410,12 +410,12 @@ export class SecAfiliaciones {
 /** «Section / Categorías»: men's and women's weight classes (a segmented switch on mobile) and the minimum totals. */
 @Component({
   selector: 'gr-sec-categorias',
-  imports: [RouterLink, GrButton, GrIcon, GrCabecera],
+  imports: [CdnPipe, RouterLink, GrButton, GrIcon, GrCabecera],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-deep' },
   template: `
     <div class="pointer-events-none absolute top-[120px] left-1/2 aspect-square w-full max-w-[720px] -translate-x-1/2 opacity-22 md:top-20">
-      <img [src]="t('imagen') || '/img/home/categorias.webp'" alt="" class="size-full object-cover" loading="lazy" />
+      <img [src]="(t('imagen') || '/img/home/categorias.webp') | cdn" alt="" class="size-full object-cover" loading="lazy" />
       <div class="absolute inset-0 bg-[radial-gradient(closest-side,transparent_20%,#0e0c0d)]"></div>
     </div>
     <div [class]="ancho + ' flex flex-col items-center gap-6 md:gap-10'">
@@ -697,7 +697,7 @@ export class SecHorarios {
 /** «Section / Localización»: exterior photo and three small ones, and the map card with the address and actions. */
 @Component({
   selector: 'gr-sec-localizacion',
-  imports: [GrButton, GrIcon, GrCabecera, Lightbox],
+  imports: [CdnPipe, GrButton, GrIcon, GrCabecera, Lightbox],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-deep' },
   template: `
@@ -710,7 +710,7 @@ export class SecHorarios {
             @for (f of fotos(); track f.imagen; let i = $index) {
               <li class="relative aspect-[300/210] w-[300px] shrink-0 snap-center overflow-hidden rounded-lg md:w-auto md:aspect-[4/3]" [class]="(i === 0 ? 'lg:col-span-3 lg:aspect-[648/380] lg:rounded-xl ' : 'lg:aspect-[205/140] ') + foto">
                 <button type="button" class="group absolute inset-0 cursor-zoom-in" [attr.aria-label]="'Ampliar: ' + f.alt" (click)="ver.set(i)">
-                  <img [src]="f.imagen" [attr.srcset]="srcset(f.imagen)" [attr.sizes]="i === 0 ? '(min-width: 768px) 648px, 300px' : '(min-width: 768px) 205px, 300px'" [alt]="f.alt" class="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" loading="lazy" />
+                  <img [src]="f.imagen | cdn" [attr.srcset]="srcset(f.imagen)" [attr.sizes]="i === 0 ? '(min-width: 768px) 648px, 300px' : '(min-width: 768px) 205px, 300px'" [alt]="f.alt" class="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" loading="lazy" />
                 </button>
               </li>
             }
@@ -724,13 +724,13 @@ export class SecHorarios {
           <!-- desktop: the card is as tall as the photos and the map takes the spare height (Figma «Map card», map grows) -->
           <div class="flex w-full flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card lg:w-[520px] lg:self-stretch">
             <div class="relative aspect-[348/200] md:aspect-[518/300] lg:aspect-auto lg:min-h-[300px] lg:flex-1">
-              <img [src]="t('mapa') || '/img/home/mapa.webp'" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" />
+              <img [src]="(t('mapa') || '/img/home/mapa.webp') | cdn" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" />
               <span class="absolute right-2 bottom-2 rounded-[4px] bg-black/50 px-1.5 py-0.5 text-body-xs text-text-tertiary">© OpenStreetMap</span>
             </div>
             <div class="flex flex-col gap-3 p-5 md:p-7">
               <p class="text-center text-display-xs">{{ t('nombreSede') || "Pabellón Municipal d'Almussafes" }}</p>
               <!-- Figma home R2: the town hall logo centred under the venue -->
-              <img src="/img/home/logo-almussafes-bn.webp" alt="Ajuntament d'Almussafes" width="114" height="40" class="mx-auto h-10 w-auto" loading="lazy" decoding="async" />
+              <img [src]="'/img/home/logo-almussafes-bn.webp' | cdn" alt="Ajuntament d'Almussafes" width="114" height="40" class="mx-auto h-10 w-auto" loading="lazy" decoding="async" />
               <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="map-pin" [size]="16" class="shrink-0 text-accent-text" />{{ direccion() }}</p>
               <div class="flex flex-col gap-2">
                 <a grButton variant="primary" [href]="c.sede.mapsUrl" target="_blank" rel="noopener" icon="map-pin">Abrir en Google Maps</a>

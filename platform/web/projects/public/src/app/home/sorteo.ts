@@ -5,14 +5,14 @@ import {
 import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
-import { GrButton } from '@grcup/ui';
+import { GrButton, cdn } from '@grcup/ui';
 import type { Seccion } from '../core/cms';
 import { COMPETITION_SLUG } from '../core/competition';
 import { VideoScrub } from '../core/video-scrub';
 import { GLOW, GrTitulo } from './bloques';
 
 const BELT_FRAMES = 169;
-const BELT_VIDEO = 'https://jaimedigitalstudio.b-cdn.net/grcup/videos/cinturon-scroll/cinturon-960x540.mp4';
+const BELT_VIDEO = cdn('/media/cinturon-960x540.mp4');
 const ES_BELT = /\/belt_output_webp\/frame_\d{6}\.webp$/;
 
 /**

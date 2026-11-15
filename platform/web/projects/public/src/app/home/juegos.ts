@@ -1,7 +1,7 @@
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, afterNextRender, computed, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { GrButton } from '@grcup/ui';
+import { GrButton, CdnPipe } from '@grcup/ui';
 import type { AtletaMercado, Nota } from '../core/juegos';
 import { iniciales } from '../pages/porra/componentes';
 import { monedas } from '../pages/porra/formato';
@@ -52,7 +52,7 @@ const MEDALLA = [
  */
 @Component({
   selector: 'gr-sec-porra',
-  imports: [RouterLink, GrButton],
+  imports: [CdnPipe, RouterLink, GrButton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-base' },
   template: `
@@ -60,7 +60,7 @@ const MEDALLA = [
     <div [class]="ancho + ' flex flex-col gap-12'">
       <!-- Figma home R2 (393:144517 · 211:165859): centred header (logo, text with «i», CTAs) and three centred cards -->
       <div class="flex flex-col items-center gap-5 text-center">
-        <img src="/img/home/logo-porra.webp" alt="" width="280" height="145" class="h-auto w-[240px] md:w-[280px]" loading="lazy" decoding="async" />
+        <img [src]="'/img/home/logo-porra.webp' | cdn" alt="" width="280" height="145" class="h-auto w-[240px] md:w-[280px]" loading="lazy" decoding="async" />
         <p class="sr-only">J1 · Juegos · Porra</p>
         <h2 class="sr-only">La Porra de GRS</h2>
         <div class="relative flex max-w-[640px] items-start gap-3 text-left md:items-center md:text-center">
@@ -165,13 +165,13 @@ export class SecPorra {
  */
 @Component({
   selector: 'gr-sec-fantasy',
-  imports: [RouterLink, GrButton, PistaFutsal],
+  imports: [CdnPipe, RouterLink, GrButton, PistaFutsal],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-base' },
   template: `
     <!-- Figma home R2 (393:144584 · 211:166129): centred stack — logo, title, pitch, text, CTAs -->
     <div [class]="ancho + ' flex flex-col items-center gap-6 text-center'">
-      <img src="/img/home/logo-fantasy.webp" alt="" width="280" height="132" class="h-auto w-[240px] md:w-[240px]" loading="lazy" decoding="async" />
+      <img [src]="'/img/home/logo-fantasy.webp' | cdn" alt="" width="280" height="132" class="h-auto w-[240px] md:w-[240px]" loading="lazy" decoding="async" />
       <p class="sr-only">J2 · Juegos · Fantasy</p>
       <h2 class="sr-only">GRS Fantasy</h2>
       <div class="w-full max-w-[490px]">

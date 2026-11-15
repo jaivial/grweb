@@ -3,14 +3,14 @@ import {
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { GrButton, GrIcon } from '@grcup/ui';
+import { GrButton, GrIcon, LOGO, cdn, CdnPipe } from '@grcup/ui';
 import { VideoScrub } from '../core/video-scrub';
 
 const FRAMES = 313;
 export interface HeroCms { eyebrow?: string; fecha?: string; ctaTexto?: string; ctaDestino?: string; imagen?: string; focalX?: number; focalY?: number }
 const FPS = 24;
-const VIDEO_MOBILE = 'https://jaimedigitalstudio.b-cdn.net/grcup/videos/copa-scroll/copa-600x900.mp4';
-const VIDEO_DESKTOP = 'https://jaimedigitalstudio.b-cdn.net/grcup/videos/copa-scroll/copa-720x1080.mp4';
+const VIDEO_MOBILE = cdn('/media/copa-600x900.mp4');
+const VIDEO_DESKTOP = cdn('/media/copa-720x1080.mp4');
 const frameUrl = (i: number) => `https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_${String(i + 1).padStart(4, '0')}.webp`;
 
 /** Scroll timeline of Figma page 04 «Hero · Storyboard scroll» (the previous web's animation, same thresholds). */
@@ -46,7 +46,7 @@ const PUFFS = [
  */
 @Component({
   selector: 'gr-hero-trophy',
-  imports: [GrIcon, GrButton, RouterLink],
+  imports: [CdnPipe, GrIcon, GrButton, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   // UX1-R1-1/6: 200vh on phones (500vh from md), one screen with reduced motion - in CSS, so it holds from the SSR paint
   host: { class: 'relative block' },
@@ -64,7 +64,7 @@ const PUFFS = [
       </div>
       <!-- U30 · Figma 54: background image with focal point; with motion it fades out with the intro text (U31-R1-15) -->
       @if (hero().imagen) {
-        <img [src]="hero().imagen" alt="" class="absolute inset-0 size-full object-cover" [style.opacity]="reduced() ? 0.6 : 0.6 * texto()" [style.object-position]="(hero().focalX ?? 50) + '% ' + (hero().focalY ?? 50) + '%'" />
+        <img [src]="hero().imagen | cdn" alt="" class="absolute inset-0 size-full object-cover" [style.opacity]="reduced() ? 0.6 : 0.6 * texto()" [style.object-position]="(hero().focalX ?? 50) + '% ' + (hero().focalY ?? 50) + '%'" />
       }
       <!-- Smoke of the intro (clears and drifts away) -->
       <div class="pointer-events-none absolute inset-0" aria-hidden="true" [style.opacity]="humo()">
@@ -168,7 +168,7 @@ export class HeroTrophy {
   protected readonly progresoIndeterminado = signal(false);
   protected readonly imagenTrofeo = signal(frameUrl(0));
   protected readonly imagenFija = signal(true);
-  protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
+  protected readonly logo = LOGO;
   /** Preload overlay: shown until the first seek completes (never longer than 4 s), then fades out. */
   protected readonly precarga = signal(true);
   protected readonly precargaFuera = signal(false);

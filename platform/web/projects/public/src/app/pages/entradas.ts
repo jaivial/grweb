@@ -4,7 +4,7 @@ import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrAlert, GrButton, GrCheckbox, GrIcon, GrRaffleNotice, GrSkeleton, type GrIconName, GrSelect } from '@grcup/ui';
+import { GrAlert, GrButton, GrCheckbox, GrIcon, GrRaffleNotice, GrSkeleton, type GrIconName, GrSelect, CdnPipe } from '@grcup/ui';
 import { Cms, renderMarkdown, type Faq } from '../core/cms';
 import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
 import { FanSession } from '../core/fan';
@@ -32,7 +32,7 @@ const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
  */
 @Component({
   selector: 'gr-ticket',
-  imports: [GrIcon],
+  imports: [CdnPipe, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
@@ -40,7 +40,7 @@ const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
     @let b = e !== 'anulada' ? boletos() : [];
     <article class="relative overflow-hidden rounded-[20px] border shadow-card [overflow-wrap:anywhere]" [class]="b.length ? 'border-accent/55 bg-[linear-gradient(to_bottom_right,#4e121d,#150b0d)]' : 'border-line-strong bg-bg-card'">
       <div class="flex flex-col gap-3 px-5 pt-6 pb-4">
-        <header class="flex h-8 items-center justify-between gap-3"><img src="https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo.png" alt="GRS Cup 2" width="84" height="32" class="h-8 w-[84px] object-contain" />
+        <header class="flex h-8 items-center justify-between gap-3"><img [src]="'/img/logo/grcuplogo.webp' | cdn" alt="GRS Cup 2" width="84" height="32" class="h-8 w-[84px] object-contain" />
           <span class="inline-flex h-6 shrink-0 items-center rounded-pill border px-2.5 text-label-xs" [class]="pill[e].cls">{{ pill[e].t }}</span></header>
         <p class="text-display-xs" [class.text-text-muted]="e === 'anulada'">{{ evento() }}</p>
         <ul class="flex flex-col gap-2 text-body-s text-text-secondary">
@@ -167,7 +167,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
  */
 @Component({
   selector: 'gr-entradas-page',
-  imports: [GrSelect, RouterLink, NgTemplateOutlet, Navbar, Footer, FormsModule, GrAlert, GrButton, GrCheckbox, GrIcon, GrSkeleton, GrCabecera, TicketCard, Newsletter],
+  imports: [CdnPipe, GrSelect, RouterLink, NgTemplateOutlet, Navbar, Footer, FormsModule, GrAlert, GrButton, GrCheckbox, GrIcon, GrSkeleton, GrCabecera, TicketCard, Newsletter],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let d = data();
@@ -177,7 +177,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
       <!-- UX8-R1-13: only the background layers are clipped; the text reflows at 200 % text size -->
       <section class="relative flex lg:min-h-[920px] lg:items-center">
         <div class="absolute inset-0 overflow-hidden" aria-hidden="true">
-        <img src="/img/home/org-publico-l.webp" srcset="/img/home/org-publico-s.webp 640w, /img/home/org-publico-l.webp 1300w" sizes="100vw" alt="" class="absolute inset-0 size-full object-cover brightness-75 grayscale" fetchpriority="high" />
+        <img [src]="'/img/home/org-publico-l.webp' | cdn" [attr.srcset]="('/img/home/org-publico-s.webp' | cdn) + ' 640w, ' + ('/img/home/org-publico-l.webp' | cdn) + ' 1300w'" sizes="100vw" alt="" class="absolute inset-0 size-full object-cover brightness-75 grayscale" fetchpriority="high" />
         <div class="absolute inset-0 bg-[linear-gradient(180deg,rgb(14_12_13/0.72),rgb(14_12_13/0.8)_60%,var(--color-bg-base))]" aria-hidden="true"></div>
         <div class="pointer-events-none absolute -top-40 -right-40 size-[780px] rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.3),transparent)]" aria-hidden="true"></div>
         </div>

@@ -2,7 +2,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { GrButton, GrIcon, GrSelect, type GrIconName } from '@grcup/ui';
+import { GrButton, GrIcon, GrSelect, type GrIconName, cdn, CdnPipe } from '@grcup/ui';
 import { Cms } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { Seo } from '../core/seo';
@@ -18,7 +18,7 @@ type Vista = 'mapa' | 'transporte' | 'aparcamiento' | 'fotos' | 'alojamiento';
 /** /como-llegar (Figma page 11, «ampliada»): address and map, transport, parking and accessibility, venue photos, where to stay. */
 @Component({
   selector: 'gr-como-llegar-page',
-  imports: [RouterLink, FormsModule, Page, GrIcon, GrButton, GrSelect, GrCabecera, Related, Community, Lightbox],
+  imports: [CdnPipe, RouterLink, FormsModule, Page, GrIcon, GrButton, GrSelect, GrCabecera, Related, Community, Lightbox],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     .vista { animation: vista-in 180ms ease-out; }
@@ -46,7 +46,7 @@ type Vista = 'mapa' | 'transporte' | 'aparcamiento' | 'fotos' | 'alojamiento';
             <div class="grid gap-6 lg:grid-cols-2">
               <article class="flex flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
                 <div class="relative aspect-[348/220] md:aspect-auto md:h-[300px]">
-                  <img src="/img/home/mapa.webp" [alt]="'Mapa de ' + c.sede.nombre" class="absolute inset-0 size-full object-cover" loading="lazy" />
+                  <img [src]="'/img/home/mapa.webp' | cdn" [alt]="'Mapa de ' + c.sede.nombre" class="absolute inset-0 size-full object-cover" loading="lazy" />
                   <span class="absolute right-2 bottom-2 rounded-[4px] bg-black/50 px-1.5 py-0.5 text-body-xs text-text-tertiary">© OpenStreetMap</span>
                 </div>
                 <div class="flex flex-col gap-3 p-5 md:p-7">
@@ -265,8 +265,8 @@ export class ComoLlegarPage {
 const VALENCIA = [39.4699, -0.3763];
 const PRACTICA = ['parking', 'accesibilidad'];
 export const FOTOS_SEDE = [
-  { imagen: '/img/home/sede-exterior-s.webp', alt: 'Entrada del pabellón' },
-  { imagen: '/img/home/sede-grada.webp', alt: 'La grada' },
-  { imagen: '/img/home/sede-instalaciones.webp', alt: 'Instalaciones' },
-  { imagen: '/img/home/sede-pista.webp', alt: 'La pista central' },
+  { imagen: cdn('/img/home/sede-exterior-s.webp'), alt: 'Entrada del pabellón' },
+  { imagen: cdn('/img/home/sede-grada.webp'), alt: 'La grada' },
+  { imagen: cdn('/img/home/sede-instalaciones.webp'), alt: 'Instalaciones' },
+  { imagen: cdn('/img/home/sede-pista.webp'), alt: 'La pista central' },
 ];
