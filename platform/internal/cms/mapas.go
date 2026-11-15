@@ -7,6 +7,8 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -95,7 +97,22 @@ func (s *Svc) bunnyDe(ctx context.Context, cid uuid.UUID) (storage.Bunny, bool) 
 			return storage.Bunny{Zona: zona, Clave: out.Secreto, CDNURL: cdn, Region: out.Config["region"]}, true
 		}
 	}
-	return storage.Bunny{}, false
+	return bunnyEnv()
+}
+
+// bunnyEnv is the GR Cup zone of the deployment (BUNNY_GRCUP_* from an env_file outside the repo) for competitions without
+// their own «bunny» integration. Everything goes under «/grcup/» of the zone and is served by its pull zone.
+func bunnyEnv() (storage.Bunny, bool) {
+	zona, clave, cdn := os.Getenv("BUNNY_GRCUP_STORAGE_ZONE"), os.Getenv("BUNNY_GRCUP_STORAGE_KEY"), os.Getenv("BUNNY_GRCUP_PULL_URL")
+	if zona == "" || clave == "" || cdn == "" {
+		return storage.Bunny{}, false
+	}
+	region := ""
+	if u, err := url.Parse(os.Getenv("BUNNY_GRCUP_STORAGE_ENDPOINT")); err == nil {
+		region = strings.TrimSuffix(strings.TrimSuffix(u.Hostname(), "storage.bunnycdn.com"), ".")
+	}
+	const prefijo = "grcup"
+	return storage.Bunny{Zona: strings.Trim(zona, "/") + "/" + prefijo, Clave: clave, CDNURL: strings.TrimRight(cdn, "/") + "/" + prefijo, Region: region}, true
 }
 
 // borrarMapa removes the file of a deleted map. Only the keys of this flow («mapas/…») are touched: a URL
