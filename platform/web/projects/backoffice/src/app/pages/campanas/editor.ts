@@ -11,7 +11,7 @@ import { Confirm, Media, errText, BoTablaMovil } from '../../shared/ui';
 import { BoDatePicker } from '../../shared/kit';
 import {
   CampanasApi, ESTADO, ESTADO_DEST, NOMBRE_TIPO, TIPOS, fecha, hora, n, waHtml,
-  type Audiencia, type Bloque, type Campana, type CampanaIn, type CanalBloque, type Destinatarios, type MensajeIA, type Modelo, type Previa, type Segmento, type TipoBloque,
+  type Audiencia, type Bloque, type Campana, type CampanaIn, type CanalBloque, type Destinatarios, type MensajeIA, type Modelo, type Previa, type Segmento, type TipoBloque, type WhatsApp,
 } from './api';
 
 type Tab = 'flujo' | 'diseno' | 'previa' | 'ajustes';
@@ -107,19 +107,21 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
         @case ('diseno') {
           <div class="flex flex-nowrap items-center gap-1 rounded-md border border-line-subtle bg-bg-card p-1.5 lg:flex-wrap lg:gap-2">
             @for (v of vistasDis; track v.v) { <button type="button" class="h-8 shrink-0 rounded-sm px-3 text-label-s" [class]="(vistaDis() === v.v ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary') + (v.v === 'previa' ? ' hidden lg:block' : '')" (click)="vistaDis.set(v.v); refrescarPrevia()">{{ v.l }}</button> }
-            <span class="mx-1 hidden h-5 w-px bg-line-subtle md:block"></span>
-            @for (a of anchos; track a.v) { <button type="button" class="hidden h-8 shrink-0 items-center gap-1 rounded-sm px-2.5 text-label-s md:flex" [class]="ancho() === a.v ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary'" (click)="ancho.set(a.v)" [attr.aria-label]="a.l"><gr-icon [name]="a.i" [size]="14" /><span class="hidden lg:inline">{{ a.l }}</span></button> }
+            @if (vistaDis() !== 'whatsapp') { <span class="mx-1 hidden h-5 w-px bg-line-subtle md:block"></span> }
+            @for (a of anchos; track a.v) { <button type="button" class="hidden h-8 shrink-0 items-center gap-1 rounded-sm px-2.5 text-label-s" [class]="(ancho() === a.v ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary') + (vistaDis() === 'whatsapp' ? '' : ' md:flex')" (click)="ancho.set(a.v)" [attr.aria-label]="a.l"><gr-icon [name]="a.i" [size]="14" /><span class="hidden lg:inline">{{ a.l }}</span></button> }
             <span class="flex-1"></span>
             <button type="button" class="flex size-8 shrink-0 items-center justify-center rounded-sm hover:bg-bg-raised disabled:opacity-30" [disabled]="!hist().length || !editable()" (click)="deshacer()" aria-label="Deshacer"><gr-icon name="undo" [size]="16" /></button>
             <button type="button" class="flex h-8 shrink-0 items-center gap-1.5 rounded-sm px-3 text-label-s" [class]="iaOpen() ? 'bg-text-primary text-bg-base' : 'text-text-secondary hover:bg-bg-raised'" (click)="iaOpen.set(!iaOpen())" [disabled]="!editable()"><gr-icon name="sparkles" [size]="14" />IA</button>
           </div>
-          <div class="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)_320px]">
+          <div class="grid gap-4" [class]="vistaDis() === 'whatsapp' ? 'lg:grid-cols-[minmax(0,1fr)_380px]' : 'lg:grid-cols-[240px_minmax(0,1fr)_320px]'">
             <!-- left: add / layers (below the canvas on tablet and phone, where each tab opens a bottom sheet) -->
+            @if (vistaDis() !== 'whatsapp') {
             <aside class="order-2 h-fit rounded-lg border border-line-subtle bg-bg-card p-1.5 lg:order-none lg:sticky lg:top-20 lg:p-3">
               <div class="flex gap-1">@for (p of paneles; track p.v) { <button type="button" class="h-8 flex-1 rounded-sm text-label-s" [class]="escritorio() && panel() === p.v ? 'bg-bg-raised text-text-primary' : escritorio() ? 'text-text-tertiary' : 'text-text-secondary hover:bg-bg-raised'" (click)="panel.set(p.v); hoja.set(!escritorio())">{{ p.l }}</button> }</div>
               @if (escritorio()) { <div class="mt-3"><ng-container *ngTemplateOutlet="panelCont" /></div> }
             </aside>
-            @if (hoja() && !escritorio()) {
+            }
+            @if (hoja() && !escritorio() && vistaDis() !== 'whatsapp') {
               <div class="fixed inset-0 z-[60] flex flex-col justify-end bg-black/55" (click)="hoja.set(false)" (keydown.escape)="hoja.set(false)">
                 <div role="dialog" aria-modal="true" [attr.aria-label]="panel() === 'anadir' ? 'Añadir bloque' : 'Capas'" class="flex max-h-[85dvh] flex-col overflow-y-auto rounded-t-[20px] border-t border-line-strong bg-bg-raised px-4 pb-[max(16px,env(safe-area-inset-bottom))] shadow-[0_-16px_40px_rgb(0_0_0/0.5)]" (click)="$event.stopPropagation()">
                   <div class="flex items-center justify-between gap-3 pt-4 pb-3"><span class="text-ui-h5">{{ panel() === 'anadir' ? 'Añadir bloque' : 'Capas' }}</span>
@@ -149,7 +151,7 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
 
             <!-- canvas -->
             <section class="order-1 min-w-0 rounded-lg border border-line-subtle bg-[#ece7e7] p-4 lg:order-none">
-              <p class="mb-3 text-center text-mono-xs text-[#7a7072]">{{ ancho() === 'escritorio' ? 'ESCRITORIO · EMAIL 600 PX' : 'MÓVIL · 375 PX' }}</p>
+              @if (vistaDis() !== 'whatsapp') { <p class="mb-3 text-center text-mono-xs text-[#7a7072]">{{ ancho() === 'escritorio' ? 'ESCRITORIO · EMAIL 600 PX' : 'MÓVIL · 375 PX' }}</p> }
               @switch (vistaDis()) {
                 @case ('diseno') {
                   <div class="canvas mx-auto overflow-hidden rounded-xl bg-white text-[#3d3436] shadow-card" [style.max-width.px]="ancho() === 'escritorio' ? 600 : 375">
@@ -188,6 +190,11 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
                   @else { <gr-skeleton class="mx-auto h-[600px] max-w-[600px]" /> }
                 }
                 @case ('html') { <pre class="max-h-[900px] overflow-auto rounded-md bg-[#141011] p-4 text-[11px] leading-4 whitespace-pre-wrap text-[#d8cfd1]">{{ previa()?.emailHtml }}</pre> }
+                @case ('whatsapp') {
+                  <p class="mb-3 text-center text-mono-xs text-[#7a7072]">WHATSAPP · {{ f().whatsapp ? 'MENSAJE PROPIO' : 'DERIVADO DEL EMAIL' }}</p>
+                  @if (previa(); as p) { <ng-container *ngTemplateOutlet="waTel; context: { $implicit: p.whatsapp }" /> }
+                  @else { <gr-skeleton class="mx-auto h-[520px] max-w-[340px] rounded-[36px]" /> }
+                }
               }
             </section>
 
@@ -221,6 +228,8 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
                   </div>
                 </form>
                 <p class="mt-2 text-body-xs text-text-muted">Enter envía · Mayús+Enter salto de línea. Los cambios no se guardan hasta que pulses «Guardar». La IA nunca ve contactos ni datos personales.</p>
+              } @else if (vistaDis() === 'whatsapp') {
+                <ng-container *ngTemplateOutlet="waEditor" />
               } @else if (bloque(); as b) {
                 <header class="flex items-center gap-1">
                   <div class="min-w-0 flex-1"><p class="truncate text-mono-xs text-text-tertiary">{{ nombreTipo[b.tipo] }}</p></div>
@@ -296,18 +305,15 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
                     </div></div>
                 }
                 @if (f().canales.includes('whatsapp')) {
-                  <div class="order-first min-w-0 xl:order-none"><p class="mb-2 text-center text-label-s">WhatsApp</p>
-                    <div class="mx-auto w-full max-w-[320px] rounded-[36px] border-[6px] border-[#1d1a1b] bg-[#0b141a] p-2 shadow-card">
-                      <div class="flex items-center gap-2 rounded-t-[28px] bg-[#1f2c34] px-3 py-3"><span class="flex size-8 items-center justify-center rounded-pill bg-white"><img [src]="logo" alt="" class="h-4" /></span><div class="flex-1"><p class="text-[13px] font-semibold text-white">{{ comps.current()?.nombreCorto }}</p><p class="text-[11px] text-[#8696a0]">en línea</p></div></div>
-                      <div class="min-h-[200px] bg-[#0b141a] bg-[radial-gradient(circle,#13222b_1px,transparent_1px)] [background-size:14px_14px] p-3">
-                        <div class="max-w-[260px] rounded-lg rounded-tl-none bg-[#202c33] p-1.5 text-[13px] leading-[19px] text-[#e9edef]">
-                          @if (p.whatsapp.imagen) { <img [src]="p.whatsapp.imagen" alt="" class="mb-1.5 w-full rounded-md" /> }
-                          <p class="px-1.5 [overflow-wrap:anywhere]" [innerHTML]="wa(p.whatsapp.texto)"></p>
-                          <p class="px-1.5 text-right text-[10px] text-[#8696a0]">18:42 ✓✓</p>
-                        </div>
-                      </div>
-                    </div>
-                    <p class="mt-2 text-center text-body-xs text-text-tertiary">{{ p.whatsapp.texto.length }} caracteres · los botones se envían como enlaces</p></div>
+                  <div class="min-w-0"><p class="mb-2 text-center text-label-s">WhatsApp{{ f().whatsapp ? ' · mensaje propio' : '' }}</p>
+                    <ng-container *ngTemplateOutlet="waTel; context: { $implicit: p.whatsapp }" />
+                    <p class="mt-2 text-center text-body-xs text-text-tertiary">{{ p.whatsapp.texto.length }} caracteres{{ p.whatsapp.enlaces.length ? ' · ' + p.whatsapp.enlaces.length + (p.whatsapp.enlaces.length === 1 ? ' botón' : ' botones') : '' }}</p></div>
+                } @else {
+                  <div class="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-line-strong p-6 text-center">
+                    <gr-icon name="message" [size]="22" class="text-text-tertiary" />
+                    <p class="text-body-s text-text-secondary">Esta campaña solo sale por email. Actívala también por WhatsApp para ver aquí cómo llega.</p>
+                    <button grButton size="s" icon="plus" [disabled]="!editable()" (click)="toggleCanal('whatsapp')">Activar WhatsApp</button>
+                  </div>
                 }
               </div>
             } @else { <gr-skeleton class="mt-5 h-[600px] rounded-lg" /> }
@@ -434,6 +440,86 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
         <gr-icon name="chevron-right" [size]="14" class="shrink-0 text-text-tertiary" />
       </button>
     </ng-template>
+    <!-- WhatsApp chat (newvillacarmen «WhatsAppPreview»): photo as media, the text as its caption, URL buttons as the last strips of the bubble -->
+    <ng-template #waTel let-w>
+      <div class="mx-auto w-full max-w-[340px] overflow-hidden rounded-[36px] border-[6px] border-[#1d1a1b] bg-[#ECE5DD] shadow-card" role="img" [attr.aria-label]="'Vista previa del WhatsApp: ' + w.texto">
+        <div class="flex items-center gap-2 bg-[#075E54] px-3 py-2.5 text-white">
+          <gr-icon name="arrow-left" [size]="16" />
+          <span class="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-pill bg-white"><img [src]="logo" alt="" class="h-4" /></span>
+          <span class="min-w-0 flex-1 leading-tight"><span class="block truncate text-[14px] font-semibold">{{ comps.current()?.nombreCorto || comps.current()?.nombre }}</span><span class="block text-[11px] text-white/70">en línea</span></span>
+          <gr-icon name="more" [size]="16" />
+        </div>
+        <div class="flex flex-col gap-2 px-3 py-3">
+          <span class="mx-auto rounded-md bg-white/70 px-2 py-0.5 text-[10px] tracking-wide text-neutral-500 uppercase">hoy</span>
+          <div class="relative ml-2 max-w-[90%] self-start rounded-lg bg-white px-2.5 pt-1.5 pb-1.5 text-[13px] leading-[18px] text-[#111b21] shadow-sm">
+            <span aria-hidden="true" class="absolute top-0 -left-[7px] h-0 w-0 border-t-[10px] border-r-[8px] border-t-white border-r-transparent"></span>
+            @if (w.imagen) { <img [src]="w.imagen" alt="" class="-mx-2.5 -mt-1.5 mb-1.5 block aspect-[4/3] w-[calc(100%+20px)] max-w-none rounded-t-lg object-cover" /> }
+            <p class="[overflow-wrap:anywhere]" [innerHTML]="wa(w.texto)"></p>
+            <p class="mt-0.5 flex justify-end text-[10px] text-neutral-400">18:42 ✓✓</p>
+            @for (e of w.enlaces.slice(0, 3); track $index) {
+              <a [href]="e.url" target="_blank" rel="noopener" class="-mx-2.5 flex items-center justify-center gap-1.5 border-t border-black/10 py-2 text-[13px] font-medium text-[#027eb5]" [class.-mb-1.5]="$last"><gr-icon name="external-link" [size]="13" />{{ e.texto }}</a>
+            }
+          </div>
+        </div>
+        <div class="flex items-center gap-2 px-2 pb-2.5"><span class="flex-1 rounded-pill bg-white px-3 py-1.5 text-[13px] text-neutral-400">Mensaje</span><span class="flex size-8 items-center justify-center rounded-pill bg-[#075E54] text-white"><gr-icon name="send" [size]="14" /></span></div>
+      </div>
+    </ng-template>
+
+    <!-- WhatsApp message editor (right panel of «Diseño › WhatsApp») -->
+    <ng-template #waEditor>
+      @let w = f().whatsapp;
+      <header class="flex items-center gap-2"><h2 class="min-w-0 flex-1 text-ui-h5">Mensaje de WhatsApp</h2><gr-badge [tone]="w ? 'accent' : 'neutral'">{{ w ? 'Propio' : 'Automático' }}</gr-badge></header>
+      <p class="mt-1 text-body-xs text-text-tertiary">{{ w ? 'Escrito para WhatsApp: los cambios del email ya no lo modifican.' : 'Se genera solo a partir del diseño del email (bloques «Ambos» y «Solo WA»): la primera imagen va como foto y los botones como botones de enlace.' }}</p>
+      @if (!f().canales.includes('whatsapp')) {
+        <p class="mt-3 flex items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-body-xs text-warning"><gr-icon name="triangle-alert" [size]="14" class="shrink-0" /><span class="flex-1">Esta campaña no sale por WhatsApp.</span><button type="button" class="text-label-s underline disabled:opacity-40" [disabled]="!editable()" (click)="toggleCanal('whatsapp')">Activar</button></p>
+      }
+      <div class="mt-3 grid grid-cols-2 gap-2">
+        <button grButton size="s" [icon]="w ? 'refresh' : 'pencil'" [disabled]="!editable()" (click)="waDesdeEmail()">{{ w ? 'Rehacer del email' : 'Personalizar' }}</button>
+        <button grButton size="s" icon="code" [disabled]="!editable()" (click)="htmlTexto = ''; htmlOpen.set(true)">Desde HTML</button>
+      </div>
+      @if (w) {
+        <div class="mt-4 flex flex-col gap-3">
+          <gr-field label="Texto" [hint]="waHint(w.texto)"><textarea grInput rows="9" maxlength="4000" [ngModel]="w.texto" (ngModelChange)="setWA({ texto: $event })" [disabled]="!editable()"></textarea></gr-field>
+          <gr-field label="Foto (opcional)"><input grInput placeholder="https://" [ngModel]="w.imagen ?? ''" (ngModelChange)="setWA({ imagen: $event })" [disabled]="!editable()" /></gr-field>
+          <label class="-mt-1 flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-line-strong text-label-s hover:bg-bg-raised"><gr-icon name="camera" [size]="14" />{{ subiendo() ? 'Subiendo…' : 'Subir foto' }}<input type="file" accept="image/*" class="sr-only" (change)="subirWA($event)" [disabled]="!editable()" /></label>
+          <div>
+            <p class="mb-1.5 flex items-center justify-between text-label-s">Botones <span class="text-body-xs text-text-tertiary">los 3 primeros como botones</span></p>
+            <ul class="flex flex-col gap-2">
+              @for (e of w.enlaces; track $index; let i = $index) {
+                <li class="flex flex-col gap-1.5 rounded-md border border-line-subtle p-2" [class.opacity-70]="i >= 3">
+                  <div class="flex items-center gap-1.5"><input grInput class="min-w-0 flex-1" maxlength="25" placeholder="Texto del botón" [attr.aria-label]="'Texto del botón ' + (i + 1)" [ngModel]="e.texto" (ngModelChange)="setBoton(i, { texto: $event })" [disabled]="!editable()" />
+                    <button type="button" class="flex size-9 shrink-0 items-center justify-center rounded-sm text-accent-text hover:bg-bg-raised" (click)="quitarBoton(i)" [attr.aria-label]="'Quitar botón ' + (i + 1)" [disabled]="!editable()"><gr-icon name="trash" [size]="14" /></button></div>
+                  <input grInput placeholder="/entradas o https://" [attr.aria-label]="'Enlace del botón ' + (i + 1)" [ngModel]="e.url" (ngModelChange)="setBoton(i, { url: $event })" [disabled]="!editable()" />
+                  @if (i >= 3) { <span class="text-body-xs text-text-tertiary">Se envía como línea «texto: enlace»</span> }
+                </li>
+              }
+            </ul>
+            @if (w.enlaces.length < 10) { <button type="button" class="mt-2 flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-line-strong text-label-s hover:bg-bg-raised disabled:opacity-40" [disabled]="!editable()" (click)="anadirBoton()"><gr-icon name="plus" [size]="14" />Añadir botón</button> }
+            <div class="mt-2 flex flex-wrap gap-1">@for (e of enlaces; track e) { <span class="rounded-2xs border border-line-strong px-1.5 py-0.5 font-mono text-[11px] text-text-tertiary">{{ e }}</span> }</div>
+          </div>
+          <button type="button" class="self-start text-label-s text-text-secondary underline hover:text-text-primary disabled:opacity-40" [disabled]="!editable()" (click)="waAuto()">Volver al automático (derivado del email)</button>
+        </div>
+      } @else if (previa(); as p) {
+        <dl class="mt-4 flex flex-col gap-2 text-body-s">
+          <div class="flex justify-between gap-3"><dt class="text-text-tertiary">Foto</dt><dd>{{ p.whatsappAuto.imagen ? 'La primera imagen del email' : 'Sin foto' }}</dd></div>
+          <div class="flex justify-between gap-3"><dt class="text-text-tertiary">Botones</dt><dd>{{ p.whatsappAuto.enlaces.length || 'Ninguno' }}</dd></div>
+          <div class="flex justify-between gap-3"><dt class="text-text-tertiary">Longitud</dt><dd>{{ p.whatsapp.texto.length }} caracteres</dd></div>
+        </dl>
+      }
+    </ng-template>
+
+    <!-- HTML → WhatsApp (bottom sheet on phones, dialog on larger screens) -->
+    @if (htmlOpen()) {
+      <div class="fixed inset-0 z-[60] flex flex-col justify-end bg-black/60 sm:items-center sm:justify-center sm:px-4" (click)="htmlOpen.set(false)" (keydown.escape)="htmlOpen.set(false)">
+        <form class="flex max-h-[90dvh] w-full flex-col gap-3 overflow-y-auto rounded-t-[20px] border-t border-line-strong bg-bg-raised p-5 pb-[max(20px,env(safe-area-inset-bottom))] shadow-card sm:max-w-xl sm:rounded-lg sm:border" role="dialog" aria-modal="true" aria-label="WhatsApp desde HTML" (click)="$event.stopPropagation()" (ngSubmit)="convertirHTML()">
+          <div class="flex items-start gap-3"><div class="flex-1"><h2 class="text-ui-h5">WhatsApp desde HTML</h2><p class="text-body-xs text-text-tertiary">Pega un email o cualquier HTML: los títulos pasan a *negrita*, la primera foto va como imagen y los botones como botones de enlace.</p></div>
+            <button type="button" class="-mt-1 -mr-2 flex size-10 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" aria-label="Cerrar" (click)="htmlOpen.set(false)"><gr-icon name="x" [size]="20" /></button></div>
+          <textarea grInput name="html" rows="10" class="font-mono text-[12px]" placeholder="<html>…" aria-label="HTML" [(ngModel)]="htmlTexto"></textarea>
+          <div class="flex justify-end gap-2"><button type="button" grButton variant="ghost" (click)="htmlOpen.set(false)">Cancelar</button><button type="submit" grButton variant="primary" [loading]="convirtiendo()" [disabled]="!htmlTexto.trim()">Convertir</button></div>
+        </form>
+      </div>
+    }
+
     <ng-template #imgCampos let-b>
       <gr-field label="Imagen (URL)"><input grInput [ngModel]="b.imagen" (ngModelChange)="editar(b.id, { imagen: $event })" /></gr-field>
       <label class="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-line-strong text-label-s hover:bg-bg-raised"><gr-icon name="camera" [size]="14" />{{ subiendo() ? 'Subiendo…' : 'Subir imagen' }}<input type="file" accept="image/*" class="sr-only" (change)="subir(b.id, $event)" /></label>
@@ -461,7 +547,7 @@ export class CampanaEditorPage {
   protected readonly fecha = fecha;
   protected readonly hora = hora;
   protected readonly tabs: { v: Tab; l: string; c: string; i: GrIconName }[] = [{ v: 'flujo', l: 'Flujo', c: 'Flujo', i: 'activity' }, { v: 'diseno', l: 'Diseño', c: 'Diseño', i: 'pencil' }, { v: 'previa', l: 'Previsualización', c: 'Vista', i: 'eye' }, { v: 'ajustes', l: 'Ajustes', c: 'Ajustes', i: 'settings' }];
-  protected readonly vistasDis = [{ v: 'diseno' as const, l: 'Diseño' }, { v: 'previa' as const, l: 'Vista previa' }, { v: 'html' as const, l: 'HTML' }];
+  protected readonly vistasDis = [{ v: 'diseno' as const, l: 'Diseño' }, { v: 'previa' as const, l: 'Vista previa' }, { v: 'html' as const, l: 'HTML' }, { v: 'whatsapp' as const, l: 'WhatsApp' }];
   protected readonly anchos: { v: 'escritorio' | 'movil'; l: string; i: GrIconName }[] = [{ v: 'escritorio', l: 'Escritorio', i: 'monitor' }, { v: 'movil', l: 'Móvil', i: 'smartphone' }];
   protected readonly paneles = [{ v: 'anadir' as const, l: '+ Añadir' }, { v: 'capas' as const, l: 'Capas' }];
   protected readonly alineaciones = [{ v: 'izquierda' as const, l: 'Izquierda' }, { v: 'centro' as const, l: 'Centro' }];
@@ -473,7 +559,11 @@ export class CampanaEditorPage {
   private readonly base = signal('');
   protected readonly tab = signal<Tab>((this.route.snapshot.queryParamMap.get('tab') as Tab) || 'flujo');
   protected readonly sel = signal('');
-  protected readonly vistaDis = signal<'diseno' | 'previa' | 'html'>('diseno');
+  protected readonly vistaDis = signal<'diseno' | 'previa' | 'html' | 'whatsapp'>('diseno');
+  // WhatsApp from HTML
+  protected readonly htmlOpen = signal(false);
+  protected readonly convirtiendo = signal(false);
+  protected htmlTexto = '';
   protected readonly ancho = signal<'escritorio' | 'movil'>(typeof matchMedia !== 'undefined' && matchMedia('(max-width: 767px)').matches ? 'movil' : 'escritorio');
   protected readonly panel = signal<'anadir' | 'capas'>('anadir');
   /** Desktop (≥ 1024 px): side panels inline; tablet and phone: «Añadir» / «Capas» open in a bottom sheet. */
@@ -541,7 +631,7 @@ export class CampanaEditorPage {
     const out: N[] = [
       { t: 'Campaña', d: f.nombre, m: f.asunto ? 'asunto listo' : 'falta el asunto', i: 'send', tab: 'ajustes', estado: f.asunto ? 'ok' : 'pendiente' },
       { t: 'Audiencia', d: a ? a.segmento : 'Sin calcular', m: a ? `${n(a.total)} · ${n(a.email)} email / ${n(a.whatsapp)} WA` : 'pulsa calcular', i: 'users', tab: 'ajustes', estado: a && this.destinos() ? 'ok' : 'pendiente' },
-      { t: 'Mensaje', d: f.asunto || 'Sin asunto', m: wa ? 'texto WhatsApp derivado del diseño' : 'solo email', i: 'mail', tab: 'previa', estado: f.diseno.length ? 'ok' : 'pendiente' },
+      { t: 'Mensaje', d: f.asunto || 'Sin asunto', m: wa ? (f.whatsapp ? 'WhatsApp propio' : 'WhatsApp derivado del diseño') : 'solo email', i: 'mail', tab: 'previa', estado: f.diseno.length ? 'ok' : 'pendiente' },
       { t: 'Diseño del email', d: `${f.diseno.length} bloques`, m: `${soloE} solo email · ${soloW} solo WA`, i: 'pencil', tab: 'diseno', estado: f.diseno.length ? 'ok' : 'pendiente' },
     ];
     out.push({ t: 'Canales', d: '', m: '', i: 'send', tab: 'ajustes', estado: 'ok', par: [
@@ -625,7 +715,7 @@ export class CampanaEditorPage {
 
   private aplicar(c: Campana): void {
     this.camp.set(c);
-    const f: CampanaIn = { nombre: c.nombre, asunto: c.asunto, preheader: c.preheader, canales: c.canales, diseno: c.diseno, segmentoId: c.segmentoId, emailPorMin: c.emailPorMin, waPorMin: c.waPorMin };
+    const f: CampanaIn = { nombre: c.nombre, asunto: c.asunto, preheader: c.preheader, canales: c.canales, diseno: c.diseno, whatsapp: c.whatsapp ?? undefined, segmentoId: c.segmentoId, emailPorMin: c.emailPorMin, waPorMin: c.waPorMin };
     this.f.set(f);
     this.base.set(JSON.stringify(f));
     if (!this.sel() && c.diseno.length) this.sel.set(c.diseno[Math.min(2, c.diseno.length - 1)].id);
@@ -745,9 +835,71 @@ export class CampanaEditorPage {
   }
   protected ritmo(k: 'emailPorMin' | 'waPorMin', d: number, max: number): void { this.set({ [k]: Math.min(max, Math.max(1, this.f()[k] + d)) }); }
 
+  // ---- WhatsApp message ----
+  protected waHint(t: string): string { return `${t.length} / 4000 · *negrita* · _cursiva_ · {{nombre}} · «Responde BAJA…» se añade solo`; }
+  /** Edits the own WhatsApp message (starting from the one derived from the email when there is none). */
+  protected setWA(p: Partial<WhatsApp>): void {
+    if (!this.editable()) return;
+    const base = this.f().whatsapp ?? this.copiaAuto();
+    this.set({ whatsapp: { ...base, ...p } });
+  }
+  private copiaAuto(): WhatsApp {
+    const a = this.previa()?.whatsappAuto;
+    return { texto: a?.texto ?? '', imagen: a?.imagen || undefined, enlaces: (a?.enlaces ?? []).map((e) => ({ ...e })) };
+  }
+  protected setBoton(i: number, p: Partial<{ texto: string; url: string }>): void {
+    const w = this.f().whatsapp;
+    if (w) this.setWA({ enlaces: w.enlaces.map((e, k) => (k === i ? { ...e, ...p } : e)) });
+  }
+  protected quitarBoton(i: number): void {
+    const w = this.f().whatsapp;
+    if (w) this.setWA({ enlaces: w.enlaces.filter((_, k) => k !== i) });
+  }
+  protected anadirBoton(): void {
+    const w = this.f().whatsapp;
+    if (w && w.enlaces.length < 10) this.setWA({ enlaces: [...w.enlaces, { texto: '', url: '/entradas' }] });
+  }
+  /** Copies the WhatsApp derived from the email design as an own message, to retouch it. */
+  protected async waDesdeEmail(): Promise<void> {
+    if (!this.editable()) return;
+    // the derived version is the one of the design as it is now (unsaved changes included)
+    await this.refrescarPrevia({ ...this.f(), whatsapp: undefined });
+    this.set({ whatsapp: this.copiaAuto() });
+  }
+  protected waAuto(): void {
+    if (this.editable()) this.set({ whatsapp: undefined });
+  }
+  protected async convertirHTML(): Promise<void> {
+    const h = this.htmlTexto.trim();
+    if (!h) return;
+    this.convirtiendo.set(true);
+    try {
+      const w = await this.api.whatsappDesdeHtml(this.cid(), h);
+      this.set({ whatsapp: { texto: w.texto, imagen: w.imagen || undefined, enlaces: w.enlaces ?? [] } });
+      this.htmlOpen.set(false);
+      this.toasts.success('WhatsApp creado desde el HTML', 'Revísalo y guarda la campaña.');
+    } catch (e) {
+      this.toasts.error(errText(e, 'No se pudo convertir el HTML.'));
+    } finally {
+      this.convirtiendo.set(false);
+    }
+  }
+  protected async subirWA(ev: Event): Promise<void> {
+    const file = (ev.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    this.subiendo.set(true);
+    try {
+      this.setWA({ imagen: await this.media.upload(file, file.name) });
+    } catch (e) {
+      this.toasts.error(errText(e, 'No se pudo subir la imagen.'));
+    } finally {
+      this.subiendo.set(false);
+    }
+  }
+
   async refrescarPrevia(f = this.f()): Promise<void> {
     try {
-      const p = await this.api.previsualizar(this.cid(), { nombre: f.nombre, asunto: f.asunto, preheader: f.preheader, diseno: f.diseno });
+      const p = await this.api.previsualizar(this.cid(), { nombre: f.nombre, asunto: f.asunto, preheader: f.preheader, diseno: f.diseno, whatsapp: f.whatsapp });
       this.previa.set(p);
       this.error.set(p.error ?? '');
     } catch { /* keep the last preview */ }
@@ -772,7 +924,7 @@ export class CampanaEditorPage {
       return true;
     } catch (e) {
       const p = problemOf(e);
-      if (p.code === 'DISENO_NO_VALIDO') this.error.set(p.detail ?? '');
+      if (p.code === 'DISENO_NO_VALIDO' || p.code === 'WHATSAPP_NO_VALIDO' || p.code === 'WHATSAPP_VACIO') this.error.set(p.detail ?? '');
       this.toasts.error(errText(e, 'No se pudo guardar.'));
       return false;
     } finally {
@@ -869,7 +1021,7 @@ export class CampanaEditorPage {
     }
   }
 
-  protected readonly ejemplosIA = ['Escribe un asunto corto para la última semana de entradas', 'Añade una cuenta atrás encima del botón', 'Saluda por el nombre y acorta el texto para WhatsApp', 'Envíala solo por email a 60 por minuto'];
+  protected readonly ejemplosIA = ['Escribe un asunto corto para la última semana de entradas', 'Añade una cuenta atrás encima del botón', 'Escribe un WhatsApp propio más corto con un botón a /entradas', 'Envíala solo por email a 60 por minuto'];
   protected puedeIA(): boolean { return !this.iaCargando() && this.iaTexto.trim().length >= 3 && this.modelos().length > 0; }
   protected enter(e: KeyboardEvent): void {
     if (e.shiftKey || e.isComposing) return;
@@ -889,7 +1041,7 @@ export class CampanaEditorPage {
       const r = await this.api.ia(this.cid(), { instruccion: texto, campana: antes, seleccion: this.sel() || undefined, historial: this.msgs().slice(-7, -1), segmentos: this.segs().map((s) => ({ id: s.id, nombre: s.nombre })) });
       this.snapshot();
       const c = r.campana;
-      this.set({ nombre: c.nombre, asunto: c.asunto, preheader: c.preheader ?? '', canales: c.canales, diseno: c.diseno, segmentoId: c.segmentoId || undefined, emailPorMin: c.emailPorMin, waPorMin: c.waPorMin });
+      this.set({ nombre: c.nombre, asunto: c.asunto, preheader: c.preheader ?? '', canales: c.canales, diseno: c.diseno, whatsapp: c.whatsapp ? { ...c.whatsapp, enlaces: c.whatsapp.enlaces ?? [] } : undefined, segmentoId: c.segmentoId || undefined, emailPorMin: c.emailPorMin, waPorMin: c.waPorMin });
       this.msgs.update((m) => [...m, { rol: 'asistente', texto: r.respuesta || 'Hecho.' }]);
       this.iaAplicada.set({ cambios: r.cambios, hora: new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(new Date()), antes });
       this.iaMeta = { modelo: r.modelo, nota: texto.slice(0, 300) };

@@ -23,12 +23,13 @@ var bearer = []map[string][]string{{"bearer": {}}}
 
 // Svc holds the service dependencies.
 type Svc struct {
-	a      *app.App
-	comps  *compref.Resolver
-	key    string
-	base   string
-	modelo string
-	http   *http.Client
+	a         *app.App
+	comps     *compref.Resolver
+	messaging *svcclient.Client
+	key       string
+	base      string
+	modelo    string
+	http      *http.Client
 }
 
 // Service returns the ai service definition.
@@ -41,6 +42,8 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.a = a
 	comp := svcclient.New(config.Str("UPSTREAM_COMPETITION", "http://competition:8080"), "ai", "competition", a.Cfg.InternalToken)
 	s.comps = compref.New(comp, a.Log)
+	// WhatsApp of a draft (derived from the design or converted from HTML) for the assistant's tools.
+	s.messaging = svcclient.New(config.Str("UPSTREAM_MESSAGING", "http://messaging:8080"), "ai", "messaging", a.Cfg.InternalToken)
 	s.key = config.Str("MINIMAX_API_KEY", "")
 	s.base = strings.TrimRight(config.Str("MINIMAX_BASE_URL", "https://api.minimax.io/anthropic"), "/")
 	s.modelo = config.Str("MINIMAX_MODEL", "MiniMax-M3.1-Flash")

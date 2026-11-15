@@ -60,6 +60,7 @@ type Campana struct {
 	Canales      []string         `json:"canales"`
 	Estado       string           `json:"estado" enum:"borrador,programada,enviando,pausada,enviada,cancelada"`
 	Diseno       []Bloque         `json:"diseno"`
+	WhatsApp     *WhatsApp        `json:"whatsapp,omitempty" doc:"Mensaje de WhatsApp propio; si falta se deriva del diseño del email"`
 	SegmentoID   *uuid.UUID       `json:"segmentoId,omitempty"`
 	Segmento     string           `json:"segmento"`
 	EmailPorMin  int              `json:"emailPorMin"`
@@ -75,12 +76,12 @@ type Campana struct {
 	Progreso     map[string]Canal `json:"progreso"`
 }
 
-const selCampana = `SELECT id, nombre, asunto, preheader, canales, estado, diseno, segmento_id, segmento, email_por_min, wa_por_min, programada_at, iniciada_at, terminada_at,
+const selCampana = `SELECT id, nombre, asunto, preheader, canales, estado, diseno, wa_personalizado, segmento_id, segmento, email_por_min, wa_por_min, programada_at, iniciada_at, terminada_at,
 	version, creada_por, updated_por, created_at, updated_at FROM campanas`
 
 func scanCampana(r pgx.Row) (Campana, error) {
 	var c Campana
-	err := r.Scan(&c.ID, &c.Nombre, &c.Asunto, &c.Preheader, &c.Canales, &c.Estado, &c.Diseno, &c.SegmentoID, &c.Segmento, &c.EmailPorMin, &c.WaPorMin, &c.ProgramadaAt, &c.IniciadaAt, &c.TerminadaAt,
+	err := r.Scan(&c.ID, &c.Nombre, &c.Asunto, &c.Preheader, &c.Canales, &c.Estado, &c.Diseno, &c.WhatsApp, &c.SegmentoID, &c.Segmento, &c.EmailPorMin, &c.WaPorMin, &c.ProgramadaAt, &c.IniciadaAt, &c.TerminadaAt,
 		&c.Version, &c.CreadaPor, &c.UpdatedPor, &c.CreatedAt, &c.UpdatedAt)
 	if c.Diseno == nil {
 		c.Diseno = []Bloque{}
@@ -255,6 +256,7 @@ type campanaIn struct {
 	Preheader    string     `json:"preheader,omitempty" maxLength:"200"`
 	Canales      []string   `json:"canales" minItems:"1" maxItems:"2"`
 	Diseno       []Bloque   `json:"diseno" maxItems:"40"`
+	WhatsApp     *WhatsApp  `json:"whatsapp,omitempty" doc:"Mensaje de WhatsApp propio; null = derivado del diseño"`
 	SegmentoID   *uuid.UUID `json:"segmentoId,omitempty"`
 	EmailPorMin  int        `json:"emailPorMin" minimum:"1" maximum:"600"`
 	WaPorMin     int        `json:"waPorMin" minimum:"1" maximum:"60"`
@@ -437,6 +439,17 @@ func (s *Svc) registerCampanas() {
 			ctxEmail := s.contexto(ctx, in.CID, b.Asunto, b.Preheader, d, "email", slugCampana(b.Nombre))
 			ctxWA := s.contexto(ctx, in.CID, b.Asunto, b.Preheader, d, "whatsapp", slugCampana(b.Nombre))
 			w := derivarWhatsApp(d, ctxWA)
+			if b.WhatsApp != nil {
+				v, err := validarWhatsApp(*b.WhatsApp, ctxWA.Absoluto)
+				if err != nil {
+					return nil, problem.Unprocessable("WHATSAPP_NO_VALIDO", err.Error())
+				}
+				b.WhatsApp, w = &v, v
+				w.Texto = ctxWA.expandirTexto(w.Texto)
+			}
+			if canales["whatsapp"] && strings.TrimSpace(w.Texto) == "" && w.Imagen == "" {
+				return nil, problem.Unprocessable("WHATSAPP_VACIO", "El mensaje de WhatsApp está vacío: añade bloques para WhatsApp o escribe su mensaje.")
+			}
 			autor := b.Autor
 			if autor == "" {
 				autor = "usuario"
@@ -454,9 +467,9 @@ func (s *Svc) registerCampanas() {
 					return problem.Conflict("CAMPANA_EN_ENVIO", "Una campaña enviada o en envío no se puede editar: pausa o duplica.")
 				}
 				if _, err := tx.Exec(ctx, `UPDATE campanas SET nombre=$3, asunto=$4, preheader=$5, canales=$6, diseno=$7, email_html=$8, wa_texto=$9, wa_imagen=$10, segmento_id=$11, segmento=$12,
-					email_por_min=$13, wa_por_min=$14, version = version + 1, updated_por=$15, updated_at = now() WHERE id = $2 AND competition_id = $1`,
-					in.CID, in.ID, strings.TrimSpace(b.Nombre), strings.TrimSpace(b.Asunto), strings.TrimSpace(b.Preheader), lista, d, compilarEmail(d, ctxEmail), w.Texto, w.Imagen,
-					b.SegmentoID, segNombre, max(1, b.EmailPorMin), max(1, b.WaPorMin), actorDe(ctx)); err != nil {
+					email_por_min=$13, wa_por_min=$14, wa_personalizado=$16, wa_botones=$17, version = version + 1, updated_por=$15, updated_at = now() WHERE id = $2 AND competition_id = $1`,
+					in.CID, in.ID, strings.TrimSpace(b.Nombre), strings.TrimSpace(b.Asunto), strings.TrimSpace(b.Preheader), lista, d, compilarEmail(d, ctxEmail), conPie(w.Texto), w.Imagen,
+					b.SegmentoID, segNombre, max(1, b.EmailPorMin), max(1, b.WaPorMin), actorDe(ctx), b.WhatsApp, w.Enlaces); err != nil {
 					return err
 				}
 				// History: AI changes always; manual saves when the design changed.
@@ -503,8 +516,8 @@ func (s *Svc) registerCampanas() {
 				return nil, err
 			}
 			id := uuid.Must(uuid.NewV7())
-			tag, err := s.a.DB.Exec(ctx, `INSERT INTO campanas (id, competition_id, nombre, asunto, preheader, canales, diseno, email_html, wa_texto, wa_imagen, segmento_id, segmento, email_por_min, wa_por_min, creada_por, updated_por)
-				SELECT $3, competition_id, left(nombre || ' (copia)', 160), asunto, preheader, canales, diseno, email_html, wa_texto, wa_imagen, segmento_id, segmento, email_por_min, wa_por_min, $4, $4
+			tag, err := s.a.DB.Exec(ctx, `INSERT INTO campanas (id, competition_id, nombre, asunto, preheader, canales, diseno, email_html, wa_texto, wa_imagen, wa_personalizado, wa_botones, segmento_id, segmento, email_por_min, wa_por_min, creada_por, updated_por)
+				SELECT $3, competition_id, left(nombre || ' (copia)', 160), asunto, preheader, canales, diseno, email_html, wa_texto, wa_imagen, wa_personalizado, wa_botones, segmento_id, segmento, email_por_min, wa_por_min, $4, $4
 				FROM campanas WHERE competition_id = $1 AND id = $2`, in.CID, in.ID, id, actorDe(ctx))
 			if err != nil {
 				return nil, err
@@ -551,18 +564,20 @@ func (s *Svc) registerCampanas() {
 	type previaIn struct {
 		CID  uuid.UUID `path:"cid"`
 		Body struct {
-			Nombre    string   `json:"nombre,omitempty" maxLength:"160"`
-			Asunto    string   `json:"asunto" maxLength:"160"`
-			Preheader string   `json:"preheader,omitempty" maxLength:"200"`
-			Diseno    []Bloque `json:"diseno" maxItems:"40"`
+			Nombre    string    `json:"nombre,omitempty" maxLength:"160"`
+			Asunto    string    `json:"asunto" maxLength:"160"`
+			Preheader string    `json:"preheader,omitempty" maxLength:"200"`
+			Diseno    []Bloque  `json:"diseno" maxItems:"40"`
+			WhatsApp  *WhatsApp `json:"whatsapp,omitempty" doc:"Mensaje de WhatsApp propio (null = derivado)"`
 		}
 	}
 	type previaOut struct {
 		Body struct {
-			EmailHTML string   `json:"emailHtml"`
-			Texto     string   `json:"texto"`
-			WhatsApp  WhatsApp `json:"whatsapp"`
-			Error     string   `json:"error,omitempty" doc:"El diseño tiene un problema (se muestra lo válido)"`
+			EmailHTML    string   `json:"emailHtml"`
+			Texto        string   `json:"texto"`
+			WhatsApp     WhatsApp `json:"whatsapp" doc:"Lo que recibe el contacto: texto completo (con enlaces sobrantes y la línea de baja) y los botones"`
+			WhatsAppAuto WhatsApp `json:"whatsappAuto" doc:"El WhatsApp derivado del diseño, sin personalizar (base para escribir uno propio)"`
+			Error        string   `json:"error,omitempty" doc:"El diseño tiene un problema (se muestra lo válido)"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "campanas-previsualizar", Method: http.MethodPost, Path: base + "/previsualizar", Summary: "Previsualizar un diseño (email y WhatsApp)", Tags: tagCamp, Security: bearer, MaxBodyBytes: 512 << 10},
@@ -587,9 +602,69 @@ func (s *Svc) registerCampanas() {
 			baja := s.webURL + "/baja?t=ejemplo"
 			o.Body.EmailHTML = personalizar(compilarEmail(d, ce), "Laura", baja, true)
 			o.Body.Texto = personalizar(textoPlano(d, ce), "Laura", baja, false)
-			o.Body.WhatsApp = derivarWhatsApp(d, cw)
-			o.Body.WhatsApp.Texto = personalizar(o.Body.WhatsApp.Texto, "Laura", baja, false)
+			o.Body.WhatsAppAuto = derivarWhatsApp(d, cw)
+			w := o.Body.WhatsAppAuto
+			if in.Body.WhatsApp != nil {
+				if v, err := validarWhatsApp(*in.Body.WhatsApp, cw.Absoluto); err != nil {
+					if o.Body.Error == "" {
+						o.Body.Error = err.Error()
+					}
+					w = WhatsApp{Texto: in.Body.WhatsApp.Texto, Imagen: in.Body.WhatsApp.Imagen, Enlaces: []Enlace{}}
+				} else {
+					w = v
+					w.Texto = cw.expandirTexto(w.Texto)
+				}
+			}
+			w.Texto = personalizar(cuerpoWA(w, true), "Laura", baja, false)
+			o.Body.WhatsApp = w
 			return o, nil
+		})
+
+	// WhatsApp from HTML: a pasted email (or any HTML) becomes a WhatsApp message to review and edit.
+	type htmlIn struct {
+		CID  uuid.UUID `path:"cid"`
+		Body struct {
+			HTML string `json:"html" minLength:"1" maxLength:"500000"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "campanas-whatsapp-desde-html", Method: http.MethodPost, Path: base + "/whatsapp/desde-html", Summary: "Convertir un HTML (email) en un mensaje de WhatsApp", Tags: tagCamp, Security: bearer, MaxBodyBytes: 600 << 10},
+		func(ctx context.Context, in *htmlIn) (*struct{ Body WhatsApp }, error) {
+			if _, err := requirePerm(ctx, in.CID); err != nil {
+				return nil, err
+			}
+			w := desdeHTML(in.Body.HTML, absoluto(s.marca(ctx, in.CID).Web))
+			if w.Texto == "" && w.Imagen == "" {
+				return nil, problem.Unprocessable("HTML_SIN_TEXTO", "Ese HTML no tiene texto que pasar a WhatsApp.")
+			}
+			return &struct{ Body WhatsApp }{w}, nil
+		})
+
+	// Internal (ai service): the WhatsApp of a draft (derived from its design) or of an HTML, for the assistant's
+	// tools. Never sees contacts.
+	type intIn struct {
+		CID  uuid.UUID `path:"cid"`
+		Body struct {
+			Nombre string   `json:"nombre,omitempty" maxLength:"160"`
+			Diseno []Bloque `json:"diseno,omitempty" maxItems:"40"`
+			HTML   string   `json:"html,omitempty" maxLength:"500000"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "internal-campana-whatsapp", Method: http.MethodPost, Path: "/internal/competiciones/{cid}/campanas/whatsapp", Summary: "WhatsApp de un diseño o de un HTML (solo ai)", Tags: []string{"Interno"}, Hidden: true, MaxBodyBytes: 600 << 10},
+		func(ctx context.Context, in *intIn) (*struct{ Body WhatsApp }, error) {
+			if _, err := auth.RequireService(ctx); err != nil {
+				return nil, err
+			}
+			if strings.TrimSpace(in.Body.HTML) != "" {
+				return &struct{ Body WhatsApp }{desdeHTML(in.Body.HTML, absoluto(s.marca(ctx, in.CID).Web))}, nil
+			}
+			d := []Bloque{}
+			for _, b := range in.Body.Diseno {
+				if x, e := validarDiseno([]Bloque{b}); e == nil {
+					d = append(d, x...)
+				}
+			}
+			cw := s.contexto(ctx, in.CID, "", "", d, "", "")
+			return &struct{ Body WhatsApp }{derivarWhatsApp(d, cw)}, nil
 		})
 
 	type audOut struct {
@@ -644,7 +719,8 @@ func (s *Svc) registerCampanas() {
 				return nil, err
 			}
 			var html, texto, wa, waImg string
-			_ = s.a.DB.QueryRow(ctx, `SELECT email_html, wa_texto, wa_imagen FROM campanas WHERE id = $1`, in.ID).Scan(&html, &wa, &waImg)
+			var botones []Enlace
+			_ = s.a.DB.QueryRow(ctx, `SELECT email_html, wa_texto, wa_imagen, wa_botones FROM campanas WHERE id = $1`, in.ID).Scan(&html, &wa, &waImg, &botones)
 			ce := s.contexto(ctx, in.CID, c.Asunto, c.Preheader, c.Diseno, "email", slugCampana(c.Nombre))
 			texto = textoPlano(c.Diseno, ce)
 			dest := strings.TrimSpace(in.Body.Destino)
@@ -669,7 +745,7 @@ func (s *Svc) registerCampanas() {
 					return nil, problem.Unprocessable("DESTINO_NO_VALIDO", "Escribe un email o un teléfono con prefijo (+34…).")
 				}
 				cfg := s.waDe(ctx, in.CID)
-				id, err := s.enviarWA(ctx, cfg, tel, WhatsApp{Texto: personalizar("[Prueba]\n\n"+wa, "Prueba", baja, false), Imagen: waImg})
+				id, err := s.enviarWA(ctx, cfg, tel, WhatsApp{Texto: personalizar("[Prueba]\n\n"+wa, "Prueba", baja, false), Imagen: waImg, Enlaces: botones})
 				if err != nil {
 					// The provider answers in English and with the technical name of the instance: the person reads a
 					// sentence in Spanish and the log keeps the detail.

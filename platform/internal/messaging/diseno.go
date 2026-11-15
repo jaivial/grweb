@@ -110,19 +110,22 @@ type Contexto struct {
 	Vars     map[string]string        // competition variables ({{competicion}}, {{fechas}}, {{sede}}, {{web}}): same for every recipient
 }
 
+// expandirTexto fills the competition variables of one text; {{nombre}} and {{baja}} stay as tokens.
+func (c Contexto) expandirTexto(s string) string {
+	return reVar.ReplaceAllStringFunc(s, func(m string) string {
+		if v, ok := c.Vars[reVar.FindStringSubmatch(m)[1]]; ok {
+			return v
+		}
+		return m
+	})
+}
+
 // expandir fills the competition variables in the texts of the blocks; {{nombre}} and {{baja}} stay as tokens.
 func (c Contexto) expandir(d []Bloque) []Bloque {
 	if len(c.Vars) == 0 {
 		return d
 	}
-	f := func(s string) string {
-		return reVar.ReplaceAllStringFunc(s, func(m string) string {
-			if v, ok := c.Vars[reVar.FindStringSubmatch(m)[1]]; ok {
-				return v
-			}
-			return m
-		})
-	}
+	f := c.expandirTexto
 	out := make([]Bloque, len(d))
 	for i, b := range d {
 		b.Texto, b.Texto2, b.URL = f(b.Texto), f(b.Texto2), f(b.URL)
@@ -286,21 +289,102 @@ func textoPlano(d []Bloque, c Contexto) string {
 	return strings.Join(out, "\n\n") + "\n\n— " + c.Marca.Nombre + " · " + c.Marca.Web + "\nDarme de baja: {{baja}}\n"
 }
 
-// WhatsApp is the message derived from the design: text (WhatsApp formatting), the first image and the links.
+// WhatsApp is the WhatsApp message of a campaign: text (WhatsApp formatting), an image and the buttons (URL buttons
+// when the gateway accepts them, «texto: enlace» lines otherwise). The opt-out line is added when sending.
 type WhatsApp struct {
-	Texto   string   `json:"texto"`
-	Imagen  string   `json:"imagen,omitempty"`
-	Enlaces []Enlace `json:"enlaces"`
+	Texto   string   `json:"texto" maxLength:"4000"`
+	Imagen  string   `json:"imagen,omitempty" maxLength:"500"`
+	Enlaces []Enlace `json:"enlaces" maxItems:"10" doc:"Botones: los 3 primeros van como botones de enlace"`
 }
 
-// Enlace is a button of the design, shown as a link in WhatsApp.
+// Enlace is a button of the message.
 type Enlace struct {
-	Texto string `json:"texto"`
-	URL   string `json:"url"`
+	Texto string `json:"texto" maxLength:"60"`
+	URL   string `json:"url" maxLength:"500"`
 }
 
-// derivarWhatsApp writes the WhatsApp version: «Solo email» blocks are left out, bold is *x*, buttons become links
-// and the opt-out line goes at the end.
+// pieWA closes every campaign WhatsApp (opt-out by reply).
+const pieWA = "_Responde BAJA si no quieres recibir más avisos por WhatsApp._"
+
+// maxBotonesWA is the number of URL buttons of one message (WhatsApp limit).
+const maxBotonesWA = 3
+
+// conPie adds the opt-out line to a campaign WhatsApp (once).
+func conPie(t string) string {
+	t = strings.TrimSpace(t)
+	if strings.Contains(t, "Responde BAJA") {
+		return t
+	}
+	return strings.TrimSpace(t + "\n\n" + pieWA)
+}
+
+// conLineas writes buttons as «texto: enlace» lines, before the opt-out line when there is one.
+func conLineas(t string, es []Enlace) string {
+	if len(es) == 0 {
+		return t
+	}
+	l := make([]string, 0, len(es))
+	for _, e := range es {
+		l = append(l, e.Texto+": "+e.URL)
+	}
+	lineas := strings.Join(l, "\n")
+	if cuerpo, ok := strings.CutSuffix(t, pieWA); ok {
+		return strings.TrimSpace(cuerpo) + "\n\n" + lineas + "\n\n" + pieWA
+	}
+	return strings.TrimSpace(t + "\n\n" + lineas)
+}
+
+// cuerpoWA is the text the contact reads: the message, the links that do not travel as buttons and the opt-out line.
+func cuerpoWA(w WhatsApp, conBotones bool) string {
+	resto := w.Enlaces
+	if conBotones {
+		resto = resto[min(len(resto), maxBotonesWA):]
+	}
+	return conLineas(conPie(w.Texto), resto)
+}
+
+// validarWhatsApp checks a hand-written (or AI) WhatsApp message and makes its links absolute.
+func validarWhatsApp(w WhatsApp, abs func(string) string) (WhatsApp, error) {
+	w.Texto = strings.TrimSpace(w.Texto)
+	if w.Texto == "" {
+		return w, fmt.Errorf("el mensaje de WhatsApp está vacío")
+	}
+	if utf8.RuneCountInString(w.Texto) > 4000 {
+		return w, fmt.Errorf("el mensaje de WhatsApp pasa de 4000 caracteres")
+	}
+	ok := func(u string) bool {
+		return strings.HasPrefix(u, "https://") || strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "/")
+	}
+	if w.Imagen = strings.TrimSpace(w.Imagen); w.Imagen != "" {
+		if !ok(w.Imagen) {
+			return w, fmt.Errorf("la imagen del WhatsApp debe empezar por https:// o /")
+		}
+		w.Imagen = abs(w.Imagen)
+	}
+	out := []Enlace{}
+	for i, e := range w.Enlaces {
+		e.Texto, e.URL = strings.TrimSpace(e.Texto), strings.TrimSpace(e.URL)
+		if e.Texto == "" && e.URL == "" {
+			continue
+		}
+		if e.Texto == "" || !ok(e.URL) {
+			return w, fmt.Errorf("botón %d del WhatsApp: falta el texto o el enlace (https:// o /)", i+1)
+		}
+		if utf8.RuneCountInString(e.Texto) > 25 {
+			return w, fmt.Errorf("botón %d del WhatsApp: máximo 25 caracteres", i+1)
+		}
+		e.URL = abs(e.URL)
+		out = append(out, e)
+	}
+	if len(out) > 10 {
+		return w, fmt.Errorf("el WhatsApp tiene %d botones: el máximo es 10", len(out))
+	}
+	w.Enlaces = out
+	return w, nil
+}
+
+// derivarWhatsApp writes the WhatsApp version of the email design: «Solo email» blocks are left out, bold is *x*,
+// the first image travels as media and the buttons become the buttons of the message.
 func derivarWhatsApp(d []Bloque, c Contexto) WhatsApp {
 	d = c.expandir(d)
 	w := WhatsApp{Enlaces: []Enlace{}}
@@ -322,9 +406,7 @@ func derivarWhatsApp(d []Bloque, c Contexto) WhatsApp {
 		case "dos_columnas":
 			parts = append(parts, bold(b.Texto)+"\n\n"+bold(b.Texto2))
 		case "boton":
-			u := c.Absoluto(b.URL)
-			w.Enlaces = append(w.Enlaces, Enlace{b.Texto, u})
-			parts = append(parts, b.Texto+": "+u)
+			w.Enlaces = append(w.Enlaces, Enlace{b.Texto, c.Absoluto(b.URL)})
 		case "lista":
 			l := []string{}
 			for _, it := range b.Items {
@@ -350,7 +432,6 @@ func derivarWhatsApp(d []Bloque, c Contexto) WhatsApp {
 			parts = append(parts, "—")
 		}
 	}
-	parts = append(parts, "_Responde BAJA si no quieres recibir más avisos por WhatsApp._")
 	w.Texto = strings.Join(parts, "\n\n")
 	return w
 }
