@@ -187,7 +187,7 @@ export class SecPorra {
   protected readonly card = CARD;
   protected readonly etiqueta = ETIQUETA;
   protected readonly medalla = MEDALLA;
-  protected readonly monedas = monedas;
+  protected readonly monedas = (v: number | null | undefined) => monedas(v, this.i18n.locale());
   protected readonly num = (n: number) => num(n, this.i18n.lang() === 'en' ? ',' : '.');
   protected readonly ini = iniciales;
   protected readonly cuota = cuotaTxt;

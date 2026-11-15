@@ -216,9 +216,10 @@ export class Fav {
 export class AtletasPage {
   private readonly api = inject(AtletasPublic);
   protected readonly fav = inject(Favoritos);
+  private readonly lang = inject(I18n).lang;
   protected readonly t = inject(I18n).dict(T);
   protected readonly cat = cat;
-  protected readonly hora = hora;
+  protected readonly hora = (iso?: string) => hora(iso, this.lang());
   protected readonly sexoTxt = sexoTxt;
   protected readonly ini = iniciales;
   protected readonly lista = signal<ListaPub | null | undefined>(undefined);
@@ -536,8 +537,8 @@ export class AtletaPage {
   protected readonly fav = inject(Favoritos);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   protected readonly cat = cat;
-  protected readonly kg = kg;
-  protected readonly hora = hora;
+  protected readonly kg = (n?: number | null) => kg(n, this.i18n.lang());
+  protected readonly hora = (iso?: string) => hora(iso, this.i18n.lang());
   protected readonly ini = iniciales;
   protected readonly ics = ICS_URL;
   private readonly fan = inject(FanSession);
@@ -600,7 +601,7 @@ export class AtletaPage {
       const desc = this.t().desc(nombre, f.club, f.sexo, f.categoria ? cat(f.categoria) : '', f.divisionNombre);
       seo.set({
         title: catTxt ? `${nombre} · ${catTxt} · GRS Cup` : `${nombre} · GRS Cup`,
-        description: `${desc}${f.totalPrevisto ? ' ' + this.t().previsto + kg(f.totalPrevisto) + ' kg.' : ''}`,
+        description: `${desc}${f.totalPrevisto ? ' ' + this.t().previsto + kg(f.totalPrevisto, this.i18n.lang()) + ' kg.' : ''}`,
         path: '/atletas/' + f.slug, image: f.fotoUrl || undefined,
         jsonLd: { '@context': 'https://schema.org', '@type': 'Person', name: nombre, ...(f.club ? { memberOf: { '@type': 'SportsTeam', name: f.club } } : {}), knowsAbout: 'Powerlifting' },
       });
@@ -785,8 +786,9 @@ const T3 = {
 })
 export class ParticipantesPage {
   private readonly api = inject(AtletasPublic);
+  private readonly lang = inject(I18n).lang;
   protected readonly cat = cat;
-  protected readonly hora = hora;
+  protected readonly hora = (iso?: string) => hora(iso, this.lang());
   protected readonly data = signal<Participantes | null | undefined>(undefined);
   protected readonly contacto = signal('');
   protected readonly q = signal('');

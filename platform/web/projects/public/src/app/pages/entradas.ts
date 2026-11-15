@@ -884,7 +884,7 @@ export class EntradasPage {
   }
   /** FAQ answers are markdown (Angular sanitizes the HTML). */
   protected md(v: string): string {
-    return renderMarkdown(v).html;
+    return renderMarkdown(v, this.i18n.lang()).html;
   }
   protected err(c: string): boolean {
     return this.campos().includes(c);
@@ -935,7 +935,7 @@ export class EntradasPage {
         personas: this.f.personas, origen: this.f.origen || undefined, utm, aceptaPrivacidad: true, novedades: this.f.novedades });
       token = r.token;
     } catch (e) {
-      const x = errorDe(e);
+      const x = errorDe(e, undefined, this.i18n.lang());
       if (x.code === 'AGOTADA') this.data.set(await this.api.sesiones());
       this.errores.set([x.detail]);
       this.enviando.set(false);
@@ -954,7 +954,7 @@ export class EntradasPage {
       await this.api.espera({ sesionId: this.sesion(), email: this.f.email.trim(), nombre: `${this.f.nombre} ${this.f.apellidos}`.trim() || undefined, personas: this.f.personas, aceptaPrivacidad: true });
       this.enviado.set(this.t().pg.enEspera(this.sesSel()?.nombre ?? '', this.f.email.trim()));
     } catch (e) {
-      this.error.set(errorDe(e).detail);
+      this.error.set(errorDe(e, undefined, this.i18n.lang()).detail);
     } finally {
       this.enviando.set(false);
     }
@@ -1130,7 +1130,7 @@ export class OfertaPage {
       const r = await this.api.aceptar(this.t);
       void this.router.navigate([this.i18n.path('/entradas/confirmacion')], { queryParams: { t: r.token } });
     } catch (e) {
-      this.error.set(errorDe(e).detail);
+      this.error.set(errorDe(e, undefined, this.i18n.lang()).detail);
       this.oferta.set(null);
     } finally {
       this.enviando.set(false);
@@ -1266,7 +1266,7 @@ export class MiEntradaPage {
       this.set(await this.api.personas(this.token, this.personas()));
       this.msg.set(this.t().mi.guardado);
     } catch (e) {
-      this.msg.set(errorDe(e).detail);
+      this.msg.set(errorDe(e, undefined, this.i18n.lang()).detail);
     } finally {
       this.ocupado.set(false);
     }
@@ -1278,7 +1278,7 @@ export class MiEntradaPage {
       await this.api.reenviar(this.token);
       this.msg.set(this.t().mi.reenviada);
     } catch (e) {
-      this.msg.set(errorDe(e).detail);
+      this.msg.set(errorDe(e, undefined, this.i18n.lang()).detail);
     }
     setTimeout(() => this.reenviando.set(false), 30_000); // cooldown: one email per 30 s
   }
@@ -1288,7 +1288,7 @@ export class MiEntradaPage {
       this.set(await this.api.anular(this.token));
       this.msg.set('');
     } catch (e) {
-      this.msg.set(errorDe(e).detail);
+      this.msg.set(errorDe(e, undefined, this.i18n.lang()).detail);
     }
   }
   protected async pedir(): Promise<void> {

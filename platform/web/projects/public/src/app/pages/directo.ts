@@ -209,7 +209,7 @@ export class EnDirectoPage {
   protected readonly escritorio = escritorio();
   protected readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(T);
-  protected readonly kg = kg;
+  protected readonly kg = (v?: number | null) => kg(v, this.i18n.lang());
   protected readonly catLarga = catLarga;
   protected readonly diaHora = (iso: string) => diaHora(iso, this.i18n.locale());
   protected readonly ics = ICS_URL;
@@ -568,8 +568,8 @@ export class ResultadosEdicionPage {
   protected readonly sx: ('F' | 'M')[] = ['F', 'M'];
   protected readonly sexos = [{ v: '' as const, l: 'Todas' }, { v: 'F' as const, l: 'Femenino' }, { v: 'M' as const, l: 'Masculino' }];
   protected readonly fechas = (a?: string, b?: string) => fechasCortas(a, b, this.i18n.locale());
-  protected readonly kg = kg;
-  protected readonly gl = gl;
+  protected readonly kg = (v?: number | null) => kg(v, this.i18n.lang());
+  protected readonly gl = (v?: number | null) => gl(v, this.i18n.lang());
   /** «Club · −63 kg» under the best lifter (Figma 25). */
   protected catDe(f: Fila): string {
     const c = this.res()?.categorias.find((c) => c.filas.includes(f) || c.filas.some((x) => x.nombre === f.nombre && x.total === f.total));
@@ -608,7 +608,7 @@ export class ResultadosEdicionPage {
       const [r, c] = await Promise.all([this.api.resultados(e.slug), firstValueFrom(this.http.get<CompeticionPublica>(`/api/competiciones/${e.slug}`)).catch(() => null)]);
       this.comp.set(c);
       this.res.set(r);
-      const mejores = r ? Object.values(r.mejores).map((f) => `${f!.nombre} (${gl(f!.gl)} GL)`).join(this.t().y) : '';
+      const mejores = r ? Object.values(r.mejores).map((f) => `${f!.nombre} (${gl(f!.gl, this.i18n.lang())} GL)`).join(this.t().y) : '';
       await applySeo(this.cms, seo, '/resultados/' + this.anio(), this.t().seoT(e.nombre),
         r?.publicado ? this.t().seoD(e.nombre, mejores) : this.t().seoNo(e.nombre));
     });
@@ -917,7 +917,7 @@ export class PantallaPublicaPage {
   private readonly giro = signal(0);
   private readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(TP);
-  protected readonly kg = kg;
+  protected readonly kg = (v?: number | null) => kg(v, this.i18n.lang());
   protected readonly catLarga = catLarga;
   protected readonly diaHora = (iso: string) => diaHora(iso, this.i18n.locale());
   protected readonly host = signal('');

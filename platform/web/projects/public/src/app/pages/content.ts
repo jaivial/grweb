@@ -133,7 +133,7 @@ export class LegalPage {
         this.cms.notFound();
         return;
       }
-      const r = renderMarkdown(d.contenido);
+      const r = renderMarkdown(d.contenido, this.i18n.lang());
       // Angular's sanitizer drops «id» (anti-clobbering), which broke the contents links: sanitize first, then put
       // back our own slug ids (only [a-z0-9-]) on the h2 in order.
       let n = 0;
@@ -191,7 +191,7 @@ export class ContentPage {
         seo.set({ title: this.cms.failed() ? 'GRS Cup 2' : this.t().noEncontradaSeo, description: this.cms.failed() ? this.t().noDisponible : this.t().noExiste, path: '/' + slug, ...(this.cms.failed() ? {} : { robots: 'noindex' }) });
         return;
       }
-      this.html.set(renderMarkdown(p.cuerpo ?? '').html);
+      this.html.set(renderMarkdown(p.cuerpo ?? '', this.i18n.lang()).html);
       this.p.set(p);
       const path = (blog ? '/blog/' : '/') + slug;
       await applySeo(this.cms, seo, path, `${p.titulo} · GRS Cup 2`, p.resumen || p.titulo, p.portadaUrl || undefined);

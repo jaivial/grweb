@@ -200,7 +200,7 @@ export class DonantesView {
   protected readonly error = signal<string | null>(null);
   protected readonly premios = signal<Premio[]>([]);
   protected readonly primero = computed(() => this.premios()[0]);
-  protected readonly dia = computed(() => (this.diaSel() ? etiquetaDia(this.diaSel()) : ''));
+  protected readonly dia = computed(() => (this.diaSel() ? etiquetaDia(this.diaSel(), this.i18n.lang()) : ''));
   /** Average donation (from the ranking: the API only returns the top 20). */
   protected readonly media = computed(() => {
     const r = this.ranking();

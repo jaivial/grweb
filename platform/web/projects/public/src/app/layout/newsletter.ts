@@ -65,6 +65,7 @@ const T = {
   `,
 })
 export class Newsletter {
+  private readonly lang = inject(I18n).lang;
   private readonly api = inject(Novedades);
   private readonly router = inject(Router);
   protected readonly t = inject(I18n).dict(T);
@@ -103,7 +104,7 @@ export class Newsletter {
       await this.api.suscribir(e, true, this.origen() || this.router.url.split('?')[0] || '/');
       this.enviado.set(true);
     } catch (err) {
-      const m = mensajeError(err);
+      const m = mensajeError(err, undefined, this.lang());
       this.fallo(m, m === 'Escribe un email válido.' ? 'email' : null);
     } finally {
       this.enviando.set(false);

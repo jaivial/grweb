@@ -94,6 +94,7 @@ const MEDALLA: Record<string, string> = { oro: 'border-[#c9a227]/60 bg-[#c9a227]
   imports: [RouterLink, LocPipe, GrIcon],
 })
 export class Clasificacion {
+  private readonly lang = inject(I18n).lang;
   protected readonly t = inject(I18n).dict(T);
   readonly c = input.required<Categoria>();
   /** Mobile: open the first card (Figma 25 mobile, «Tarjeta desplegada»). */
@@ -101,8 +102,8 @@ export class Clasificacion {
   protected readonly abierto = linkedSignal<number>(() => (this.abrir() ? 0 : -1));
   protected readonly movs = MOVS;
   protected readonly med = MEDALLA;
-  protected readonly kg = kg;
-  protected readonly gl = gl;
+  protected readonly kg = (v?: number | null) => kg(v, this.lang());
+  protected readonly gl = (v?: number | null) => gl(v, this.lang());
   protected intentos(f: Fila, m: Mov): string {
     return `${this.t().mov[m]}: ` + (f.intentos[m] ?? []).map((c) => (c.resultado === 'pendiente' ? '·' : c.resultado === 'renuncia' ? '—' : (c.resultado === 'nulo' ? '✗ ' : '') + kg(c.peso))).join(' / ');
   }
@@ -285,7 +286,7 @@ export class TarimaView {
   protected readonly PUESTO = PUESTO;
   protected readonly chip = CHIP;
   protected readonly res = RES;
-  protected readonly kg = kg;
+  protected readonly kg = (v?: number | null) => kg(v, this.i18n.lang());
   protected readonly hora = hora;
   protected readonly cat = (c: string) => c.replace('-', '−');
 
