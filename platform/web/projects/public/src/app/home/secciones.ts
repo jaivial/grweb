@@ -62,7 +62,7 @@ const FOTO = 'border border-white/8';
           </span>
         </div>
         <div class="flex w-full flex-col gap-3 sm:flex-row sm:justify-center lg:hidden">
-          <a grButton variant="primary" size="l" routerLink="/alta-atleta">{{ s()?.['cta'] || 'Crear mi perfil de atleta' }}</a>
+          <a grButton variant="primary" size="l" routerLink="/alta-atleta">Crear mi perfil de atleta</a>
           <a grButton variant="glass" size="l" routerLink="/area-atleta" iconRight="arrow-right">Ir a mi área de atleta</a>
         </div>
         <div class="flex w-full flex-col items-center gap-6 lg:w-[760px] lg:gap-10">
@@ -76,7 +76,7 @@ const FOTO = 'border border-white/8';
             }
           </ul>
           <div class="hidden gap-3 lg:flex">
-            <a grButton variant="primary" size="l" routerLink="/alta-atleta">{{ s()?.['cta'] || 'Crear mi perfil de atleta' }}</a>
+            <a grButton variant="primary" size="l" routerLink="/alta-atleta">Crear mi perfil de atleta</a>
             <a grButton variant="glass" size="l" routerLink="/area-atleta" iconRight="arrow-right">Ir a mi área de atleta</a>
           </div>
         </div>
