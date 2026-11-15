@@ -32,10 +32,10 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
     <div class="pointer-events-none absolute top-10 left-1/2 size-[640px] -translate-x-1/2 bg-[radial-gradient(closest-side,rgb(196_43_62/0.2),transparent)] lg:top-[120px]" aria-hidden="true"></div>
 
     <!-- A · hanging gold medals (z over the cards) -->
-    <div class="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-center max-lg:-space-x-[41px] lg:space-x-[140px]" aria-hidden="true">
+    <div class="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-center lg:space-x-[140px]" aria-hidden="true">
       @for (m of colgantesA; track m.src) {
-        <!-- Jaime 11:13 (Figma 204:125152): on phone/tablet the three ribbons start at the same height (top of the section, not inside the slider); the side ones are longer (474 px in Figma, the render is 392 at 150 px): pushed 54 px down so their discs hang ~25 % over the first cards, above the cards and below the title -->
-        <img grMedalla [amp]="m.amp" [periodo]="m.per" [fase]="m.fase" [src]="m.src" alt="" width="300" [attr.height]="m.h" class="colgante h-auto w-[150px] lg:w-[300px]" [class.max-lg:translate-y-[54px]]="m.h > 500" [style.--t]="m.t" [style.--d]="m.d" loading="lazy" decoding="async" />
+        <!-- Desktop: the three medals; phone/tablet: only the central one here (the long side ones live next to the slider, below) -->
+        <img grMedalla [amp]="m.amp" [periodo]="m.per" [fase]="m.fase" [src]="m.src" alt="" width="300" [attr.height]="m.h" class="colgante h-auto w-[150px] lg:w-[300px]" [class.max-lg:hidden]="m.h > 500" [style.--t]="m.t" [style.--d]="m.d" loading="lazy" decoding="async" />
       }
     </div>
     <div class="pointer-events-none absolute inset-x-0 top-0 z-30 h-28 bg-[linear-gradient(180deg,#141112_0%,#141112_40%,rgb(20_17_18/0.55)_72%,transparent)] lg:h-[180px]" aria-hidden="true"></div>
@@ -44,6 +44,16 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
       <div class="flex w-full flex-col items-center gap-7 lg:gap-12">
         @if (t('eyebrow')) { <p class="sr-only">{{ t('eyebrow') }}</p> }
         <gr-cabecera class="relative z-[25] max-w-[350px] lg:max-w-[720px] max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [titulo]="t('titulo')" [acento]="t('tituloAcento')" />
+        <div class="relative w-full">
+        <!-- Jaime 11:13 (Figma 204:125152): phone/tablet side medals. Outside the scrolling track (they never move with it), above the cards and
+             below the title (z 20 < title 25); their discs hang 25 % (90 px) over the first cards whatever the title height; the ribbons run up
+             to the top of the section, where the fade hides where they start, level with the central one. -->
+        <div class="pointer-events-none absolute inset-x-0 bottom-[calc(100%-90px)] z-20 flex items-end justify-center -space-x-[41px] lg:hidden" aria-hidden="true">
+          @for (m of colgantesLado; track $index) {
+            @if ($index === 1) { <span class="block w-[150px] shrink-0"></span> }
+            <img grMedalla [amp]="m.amp" [periodo]="m.per" [fase]="m.fase" [src]="m.src" alt="" width="300" [attr.height]="m.h" class="colgante h-auto w-[150px] shrink-0" [style.--t]="m.t" [style.--d]="m.d" loading="lazy" decoding="async" />
+          }
+        </div>
         <ul #pista class="relative z-10 -mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] md:-mx-8 md:w-[calc(100%+64px)] md:scroll-px-[calc(50vw-175px)] md:px-[calc(50vw-175px)] lg:mx-0 lg:w-full lg:justify-center lg:gap-10 lg:overflow-visible lg:px-0" (scroll)="alDesplazar($event)">
           @for (p of items(); track p.titulo; let i = $index) {
             <li class="relative w-[300px] shrink-0 snap-start lg:flex lg:h-[480px] lg:w-[340px] lg:items-center lg:justify-center">
@@ -57,6 +67,7 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
             </li>
           }
         </ul>
+        </div>
         <div class="flex items-center lg:hidden" role="group" aria-label="Premios">
           @for (p of items(); track p.titulo; let i = $index) { <button type="button" class="relative flex size-6 items-center justify-center before:absolute before:-inset-2.5 before:content-['']" [attr.aria-label]="'Ir a premio ' + (i + 1)" [attr.aria-current]="i === activa() || null" (click)="irA(pista, i)"><span class="h-1.5 rounded-pill transition-all motion-reduce:transition-none" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span></button> }
         </div>
@@ -136,6 +147,8 @@ export class SecPremios {
     { src: '/img/home/medalla-oro-corta.webp', h: 429, t: '5.4s', d: '-3s', amp: 3.5, per: 3.6, fase: 0 },
     { src: '/img/home/medalla-oro-larga.webp', h: 784, t: '6.8s', d: '-2s', amp: 5, per: 3, fase: 0.66 },
   ];
+  /** Phone/tablet: the two long side medals of block A (their own layer next to the slider). */
+  protected readonly colgantesLado = this.colgantesA.filter((m) => m.h > 500);
   /** B: silver 228 · gold 218 · bronze 228 (Figma 204:124907); swing, period and phase of page 79's table. */
   protected readonly podio = [
     { src: '/img/home/medalla-plata.webp', w: 228, h: 617, t: '5.8s', d: '-2s', amp: 4.5, per: 3.2, fase: 0.33 },
