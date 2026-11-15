@@ -9,7 +9,8 @@ import { AltchaConfig } from '../core/altcha';
 import { Cms } from '../core/cms';
 import { Competition, COMPETITION_SLUG } from '../core/competition';
 import { Seo } from '../core/seo';
-import { I18n, LocPipe } from '../core/i18n';
+import { errorEn } from '../core/errores';
+import { I18n, LocPipe, idiomaActual } from '../core/i18n';
 import { Page } from '../layout/page';
 import { Community, Related, type RelatedLink } from './landings';
 import { GrAltcha } from './alta-atleta-altcha';
@@ -854,6 +855,8 @@ export class AltaAtletaPage {
       return;
     }
     const codigo = cuerpo.code ?? '';
+    // EN: the API detail is Spanish → English text of the code, or the caller's default below
+    if (idiomaActual() === 'en') cuerpo = { ...cuerpo, detail: errorEn(cuerpo.code) };
     // The server consumes a valid challenge before field/photo validation and processing. A retry needs a new one.
     if (!(xhr.status === 400 && codigo === 'ANTIBOT')) {
       this.altchaPago.set('');
@@ -897,7 +900,7 @@ export class AltaAtletaPage {
       const e: Record<string, string> = {};
       for (const det of cuerpo.errors) {
         const campo = (det.location ?? '').replace(/^body\./, '');
-        if (campo) e[campo] = det.message ?? this.t().v.campo;
+        if (campo) e[campo] = (idiomaActual() === 'en' ? undefined : det.message) ?? this.t().v.campo;
       }
       this.err.set(e);
       this.error.set('');

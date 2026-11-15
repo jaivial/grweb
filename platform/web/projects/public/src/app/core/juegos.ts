@@ -12,7 +12,7 @@ import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG } from './competition';
 import { FanSession, codigoError, detalleError } from './fan';
-import type { Lang } from './i18n';
+import { idiomaActual, type Lang } from './i18n';
 
 // ---------------------------------------------------------------------------------------------
 // Tipos (las etiquetas json del backend: internal/juegos/http.go, porra.go, fantasy.go, ranking.go)
@@ -470,7 +470,7 @@ const MENSAJES_EN: Record<string, string> = {
 };
 
 /** Traduce el error del API a un mensaje claro (usa el código; si no lo conoce, el detalle del backend). */
-export function mensajeError(e: unknown, lang: Lang = 'es'): string {
+export function mensajeError(e: unknown, lang: Lang = idiomaActual()): string {
   const codigo = codigoError(e);
   return (lang === 'en' ? MENSAJES_EN : MENSAJES)[codigo] ?? detalleError(e, lang);
 }

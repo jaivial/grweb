@@ -1,3 +1,4 @@
+import { textoError } from '../core/errores';
 import { ChangeDetectionStrategy, Component, ElementRef, PLATFORM_ID, PendingTasks, DestroyRef, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -657,7 +658,7 @@ export class AtletaPage {
       this.avisoEnviado.set(true);
     } catch (e) {
       if ((e as { status?: number }).status === 401) { this.fan.sesionPerdida(); return this.fav.pedirAcceso({ accion: 'avisar', slug: a.slug, email: this.email }); }
-      this.avisoError.set((e as { error?: { detail?: string } }).error?.detail ?? this.t().reintenta);
+      this.avisoError.set(textoError(e, this.t().reintenta));
     } finally {
       this.enviando.set(false);
     }
