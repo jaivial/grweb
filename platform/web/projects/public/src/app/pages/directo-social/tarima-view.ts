@@ -5,7 +5,7 @@ import { GrIcon, GrLiveStatus, type GrLiveEstado } from '@grcup/ui';
 import { MOV, MOV_EN, gl, kg, ordenTarima, type Categoria, type Celda, type Directo, type EnPlataforma, type Fila, type Mov } from '../../core/directo';
 import { hora } from '../../core/entradas';
 import { HorariosPublic, type Horarios } from '../../core/horarios';
-import { I18n, LocPipe } from '../../core/i18n';
+import { DivisionPipe, I18n, LocPipe, divisionEn } from '../../core/i18n';
 
 const MOVS: Mov[] = ['sq', 'bp', 'dl'];
 
@@ -84,14 +84,14 @@ const MEDALLA: Record<string, string> = { oro: 'border-[#c9a227]/60 bg-[#c9a227]
                 <div class="flex items-center gap-2"><p class="w-28 shrink-0 text-body-s text-text-secondary">{{ t().mov[m] }}</p>
                   @for (x of f.intentos[m]; track $index) { <span class="flex h-9 flex-1 items-center justify-center rounded-sm text-mono-s" [class]="x.resultado === 'valido' ? 'bg-success/12 text-success' : x.resultado === 'nulo' ? 'bg-accent/12 text-accent-text line-through' : 'bg-white/5 text-text-muted'">{{ x.resultado === 'pendiente' ? '·' : x.resultado === 'renuncia' ? '—' : kg(x.peso) }}</span> }</div>
               }
-              @if (f.pesoCorporal || f.gl) { <p class="mt-1 flex justify-between border-t border-line-subtle pt-3 text-body-xs text-text-tertiary"><span>@if (f.pesoCorporal) { {{ t().pesoCorporal }} {{ kg(f.pesoCorporal) }} kg }@if (f.division) { · {{ f.division }} }</span>@if (f.gl) { <span>{{ gl(f.gl) }} {{ t().puntosGl }}</span> }</p> }
+              @if (f.pesoCorporal || f.gl) { <p class="mt-1 flex justify-between border-t border-line-subtle pt-3 text-body-xs text-text-tertiary"><span>@if (f.pesoCorporal) { {{ t().pesoCorporal }} {{ kg(f.pesoCorporal) }} kg }@if (f.division) { · {{ f.division | division }} }</span>@if (f.gl) { <span>{{ gl(f.gl) }} {{ t().puntosGl }}</span> }</p> }
             </div>
           }
         </li>
       }
     </ul>
   `,
-  imports: [RouterLink, LocPipe, GrIcon],
+  imports: [RouterLink, LocPipe, DivisionPipe, GrIcon],
 })
 export class Clasificacion {
   private readonly lang = inject(I18n).lang;
@@ -121,7 +121,7 @@ const PUESTO = ['', 'text-[#d4af37]', 'text-[#c0c4cc]', 'text-[#c8835a]'];
  */
 @Component({
   selector: 'gr-tarima-view',
-  imports: [GrIcon, GrLiveStatus],
+  imports: [GrIcon, GrLiveStatus, DivisionPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   styles: `
@@ -222,7 +222,7 @@ const PUESTO = ['', 'text-[#d4af37]', 'text-[#c0c4cc]', 'text-[#c8835a]'];
                           @if (f.pesoCorporal || f.division) {
                             <div class="flex flex-wrap gap-2">
                               @if (f.pesoCorporal) { <span class="inline-flex h-6 items-center rounded-pill bg-bg-raised px-2.5 font-mono text-[11px] text-[#d1d5db]">{{ t().pesoCorporal }} {{ kg(f.pesoCorporal) }} kg</span> }
-                              @if (f.division) { <span class="inline-flex h-6 items-center rounded-pill bg-bg-raised px-2.5 font-mono text-[11px] text-[#d1d5db]">{{ f.division }}</span> }
+                              @if (f.division) { <span class="inline-flex h-6 items-center rounded-pill bg-bg-raised px-2.5 font-mono text-[11px] text-[#d1d5db]">{{ f.division | division }}</span> }
                             </div>
                           }
                           @for (m of movs; track m) {

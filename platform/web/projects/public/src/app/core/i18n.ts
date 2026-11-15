@@ -73,6 +73,22 @@ export class LocPipe implements PipeTransform {
 }
 
 /** Public APIs (outside the CMS) whose texts have English overrides: competition, schedule, tickets and raffle. */
+/** Age division names come in Spanish from the data («Máster 1», «Júnior», «Subjúnior»…): English labels in EN. */
+export function divisionEn(d: string | null | undefined, lang: Lang = actual): string {
+  if (!d || lang !== 'en') return d ?? '';
+  return d.replace(/M[áa]ster/gi, 'Master').replace(/Sub-?\s?j[úu]nior/gi, 'Sub-junior').replace(/J[úu]nior/gi, 'Junior')
+    .replace(/Absoluta|Absoluto/gi, 'Open').replace(/Abierta/gi, 'Open');
+}
+
+/** {{ a.divisionNombre | division }}. Impure: it follows the language signal. */
+@Pipe({ name: 'division', pure: false })
+export class DivisionPipe implements PipeTransform {
+  private readonly i18n = inject(I18n);
+  transform(d: string | null | undefined): string {
+    return divisionEn(d, this.i18n.lang());
+  }
+}
+
 const CON_EN = /^\/api\/competiciones\/[a-z0-9-]+(\/(horarios|entradas|rifa(\/items)?))?$/;
 
 /** On /en pages, GETs to those APIs carry ?lang=en so the API overlays its English texts. */

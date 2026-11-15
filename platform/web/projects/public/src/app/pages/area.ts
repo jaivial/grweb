@@ -8,7 +8,7 @@ import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton } from '@grcup/
 import { firstValueFrom } from 'rxjs';
 import { cat, hora, kg } from '../core/atletas';
 import { COMPETITION_SLUG, Competition } from '../core/competition';
-import { I18n, LocPipe } from '../core/i18n';
+import { I18n, LocPipe, divisionEn } from '../core/i18n';
 import { Seo } from '../core/seo';
 import { Footer, Navbar } from '../layout/layout';
 
@@ -738,7 +738,7 @@ export class AreaAtletaPage {
     const sinPrueba = !!pr && !pr.elegida ? t.trasElegir : '';
     return [
       { k: t.competicion, v: this.textoPrueba() },
-      { k: t.categoria, v: a.categoria ? `${a.sexo} ${cat(a.categoria)} kg` : t.porPublicar }, { k: t.division, v: a.divisionNombre },
+      { k: t.categoria, v: a.categoria ? `${a.sexo} ${cat(a.categoria)} kg` : t.porPublicar }, { k: t.division, v: divisionEn(a.divisionNombre) },
       { k: t.orden, v: sinPrueba || (a.lote ? t.lote + a.lote : t.porPublicar) },
       { k: t.pesaje, v: sinPrueba || (a.pesajeInicio ? `${hora(a.pesajeInicio, this.i18n.lang())}–${hora(a.pesajeFin, this.i18n.lang())}` : t.porPublicar) },
       { k: t.inicio, v: sinPrueba || (a.horaInicio ? hora(a.horaInicio, this.i18n.lang()) : t.porPublicar) },

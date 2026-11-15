@@ -8,7 +8,7 @@ import { CATEGORIAS_IPF, Favoritos } from '../core/atletas';
 import { hora, qrDataURL, type Entradas, type SesionPub } from '../core/entradas';
 import { HorariosPublic, ICS_URL, normalizar, type Horarios, type PubAtleta, type PubDia, type PubFlight } from '../core/horarios';
 import { Lightbox } from '../layout/lightbox';
-import { I18n, LocPipe } from '../core/i18n';
+import { DivisionPipe, I18n, LocPipe, divisionEn } from '../core/i18n';
 import { ANCHO, GLOW, GrCabecera, GrEyebrow, GrTitulo, SECCION, sinNumero, textoTitulo } from './bloques';
 
 const str = (s: Seccion | undefined, k: string) => (s?.[k] as string | undefined) ?? '';
@@ -552,7 +552,7 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
  */
 @Component({
   selector: 'gr-sec-horarios',
-  imports: [RouterLink, GrButton, GrIcon, GrTitulo, LocPipe],
+  imports: [RouterLink, GrButton, GrIcon, GrTitulo, LocPipe, DivisionPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-base' },
   template: `
@@ -652,7 +652,7 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
                           <span class="w-6 text-mono-s text-text-muted tabular-nums">{{ pad(a.lote) }}</span>
                           <span class="flex min-w-0 flex-1 flex-col">
                             <a [routerLink]="['/atletas', a.slug]" class="truncate text-label-s hover:underline" [class.text-accent-text]="fav.has(a.slug)">{{ a.nombre }}</a>
-                            <span class="truncate text-body-xs text-text-tertiary">{{ a.club || tx().indep }}{{ a.divisionNombre ? ' · ' + a.divisionNombre : '' }}</span>
+                            <span class="truncate text-body-xs text-text-tertiary">{{ a.club || tx().indep }}{{ a.divisionNombre ? ' · ' + (a.divisionNombre | division) : '' }}</span>
                           </span>
                           <span class="text-mono-s text-text-secondary">{{ a.sexo }} {{ kg(a.categoria) }} kg</span>
                           <button type="button" class="flex size-9 items-center justify-center rounded-full" [class]="fav.has(a.slug) ? 'text-accent-text' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-pressed]="fav.has(a.slug)" [attr.aria-label]="(fav.has(a.slug) ? tx().dejar : tx().seguir) + a.nombre" (click)="fav.toggle(a.slug)"><gr-icon name="star" [size]="16" [class.fill-current]="fav.has(a.slug)" /></button>
