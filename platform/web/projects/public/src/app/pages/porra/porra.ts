@@ -254,7 +254,8 @@ export class PorraPage {
   protected readonly sexo = signal<Sexo>(this.route.snapshot.queryParamMap.get('sexo') === 'M' ? 'M' : 'F');
   protected readonly verRanking = signal(false);
 
-  protected readonly jornadas = this.estado.jornadas;
+  /** Chips de jornada en orden cronológico (Sáb 19 · Dom 20); el store las guarda de la más reciente a la más antigua. */
+  protected readonly jornadas = computed(() => [...this.estado.jornadas()].sort((a, b) => a.dia.localeCompare(b.dia)));
   protected readonly jornadaActiva = computed(() => this.store.jornada() ?? this.estado.jornada());
   protected readonly saldo = computed(() => this.estado.saldoPorra());
   protected readonly minimo = computed(() => this.estado.porraMin());
