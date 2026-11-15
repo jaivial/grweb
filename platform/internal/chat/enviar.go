@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/jaivial/grweb/platform/pkg/config"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/fanauth"
@@ -98,6 +100,10 @@ func (s *Svc) enviar(ctx context.Context, cid uuid.UUID, dia string, f fanauth.F
 		liberar()
 		return item{}, problem.TooMany("Vas muy rápido. Espera unos segundos.")
 	}
+	// perf-20261115: under pressure (the gateway is queueing or shedding load) the chat degrades to slow mode.
+	if s.bajoPresion(ctx) {
+		cfg.ModoLentoSeg = max(cfg.ModoLentoSeg, config.Int("CHAT_LENTO_PRESION_SEG", 10))
+	}
 	if cfg.ModoLentoSeg > 0 {
 		if r, err := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("chat", "lento", cid.String(), f.ID.String()), 1, time.Duration(cfg.ModoLentoSeg)*time.Second); err == nil && !r.Allowed {
 			liberar()
@@ -166,3 +172,20 @@ func (s *Svc) contar(ctx context.Context, cid uuid.UUID, dia string, f fanauth.F
 		s.a.Log.Warn("chat.hito", "err", err)
 	}
 }
+
+// bajoPresion reads the gateway's pressure key (memoized 2 s per pod: one Redis round trip per 2 s, not per message).
+func (s *Svc) bajoPresion(ctx context.Context) bool {
+	now := time.Now().UnixMilli()
+	if now < presionExp.Load() {
+		return presionVal.Load()
+	}
+	n, err := s.a.Redis.Exists(ctx, s.a.Keys.Of("gw", "presion")).Result()
+	presionVal.Store(err == nil && n > 0)
+	presionExp.Store(now + 2000)
+	return presionVal.Load()
+}
+
+var (
+	presionExp atomic.Int64
+	presionVal atomic.Bool
+)

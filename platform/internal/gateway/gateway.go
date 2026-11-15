@@ -129,6 +129,8 @@ type gw struct {
 	subidasIP    map[string]int
 	subidasIPMax int
 
+	prot *proteccion
+
 	specMu   sync.Mutex
 	spec     []byte
 	specTime time.Time
@@ -177,7 +179,10 @@ func (g *gw) setup(_ context.Context, a *app.App) error {
 	// p95 43 s). realtime answers its headers at once, so fail fast (502) and let the client retry another pod.
 	sseT.ResponseHeaderTimeout = 5 * time.Second
 	sseT.DialContext = wsT.DialContext
+	// perf-20261115: REST dials fail fast too (default dialer has no timeout): the breaker counts the 502.
+	transport.DialContext = (&net.Dialer{Timeout: 2 * time.Second, KeepAlive: 30 * time.Second}).DialContext
 	rt := porUpgrade{http: transport, ws: wsT, sse: sseT}
+	g.prot = nuevaProteccion(a.Redis, a.Keys.Of, a.Cfg.InternalToken, enabled)
 	for _, svc := range enabled {
 		raw := config.Str("UPSTREAM_"+strings.ToUpper(svc), "http://"+svc+":8080")
 		u, err := url.Parse(raw)
@@ -331,7 +336,20 @@ func (g *gw) serve(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	proxy.ServeHTTP(w, r)
+	if !g.prot.admitir(ctx, w, r) {
+		return
+	}
+	if esWS(r) || esSSE(r) {
+		proxy.ServeHTTP(w, r) // long-lived: the in-flight cap and the breaker are for REST (the WS dial is already short)
+		return
+	}
+	salir, ok := g.prot.entrar(ctx, w, svc)
+	if !ok {
+		return
+	}
+	ew := &estadoW{ResponseWriter: w}
+	proxy.ServeHTTP(ew, r)
+	salir(ew.status)
 }
 
 // inicioKey holds the time the gateway received the request (Server-Timing).

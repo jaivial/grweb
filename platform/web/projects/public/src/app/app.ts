@@ -2,12 +2,13 @@ import { ViewportScroller } from '@angular/common';
 import { ApplicationRef, ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { NavigationCancel, NavigationEnd, NavigationError, NavigationSkipped, NavigationStart, Router, RouterOutlet, Scroll } from '@angular/router';
 import { GrPageLoader, GrToaster, GrToasts } from '@grcup/ui';
+import { GrColaEspera } from './core/cola';
 
 @Component({
   selector: 'gr-root',
-  imports: [RouterOutlet, GrToaster, GrPageLoader],
+  imports: [RouterOutlet, GrToaster, GrPageLoader, GrColaEspera],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<router-outlet /><gr-toaster [top]="true" />@if (cargando()) { <gr-page-loader /> }`,
+  template: `<router-outlet /><gr-toaster [top]="true" /><gr-cola-espera />@if (cargando()) { <gr-page-loader /> }`,
 })
 export class App {
   /** Figma 17 «Loader de página»: when an in-app navigation (chunk, resolver or the new page's data) takes more than 300 ms. */
