@@ -15,6 +15,7 @@ import (
 	qrcode "github.com/skip2/go-qrcode"
 
 	"github.com/jaivial/grweb/platform/pkg/compref"
+	"github.com/jaivial/grweb/platform/pkg/entexto"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/httpx"
 	"github.com/jaivial/grweb/platform/pkg/problem"
@@ -140,7 +141,10 @@ func (s *Svc) registerPublic() {
 		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 	}
 	huma.Register(api, huma.Operation{OperationID: "entradas-publicas", Method: http.MethodGet, Path: pub, Summary: "Sesiones con aforo para /entradas", Tags: tagPub},
-		func(ctx context.Context, in *slugIn) (*struct {
+		func(ctx context.Context, in *struct {
+			slugIn
+			entexto.Lang
+		}) (*struct {
 			CacheControl string `header:"Cache-Control"`
 			Body         Entradas
 		}, error) {
@@ -154,8 +158,26 @@ func (s *Svc) registerPublic() {
 			}
 			o := Entradas{Sesiones: []SesionPub{}}
 			now := time.Now()
+			en := map[uuid.UUID]map[string]any{}
+			if in.En() {
+				rows, err := s.a.DB.Query(ctx, `SELECT id, en FROM sesiones WHERE competition_id = $1 AND en <> '{}'`, c.ID)
+				if err == nil {
+					for rows.Next() {
+						var id uuid.UUID
+						var m map[string]any
+						if rows.Scan(&id, &m) == nil {
+							en[id] = m
+						}
+					}
+					rows.Close()
+				}
+			}
 			for _, x := range l {
-				o.Sesiones = append(o.Sesiones, x.pub(now))
+				p := x.pub(now)
+				if m := en[p.ID]; m != nil {
+					p.Nombre, p.Detalle = entexto.Pick(m, "nombre", p.Nombre), entexto.Pick(m, "detalle", p.Detalle)
+				}
+				o.Sesiones = append(o.Sesiones, p)
 				o.Personas += x.Usadas
 				o.Plazas += x.Aforo
 			}

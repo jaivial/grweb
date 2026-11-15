@@ -320,6 +320,7 @@ func (s *Svc) registerAdmin() {
 	type sesionBody struct {
 		Nombre        string     `json:"nombre" minLength:"1" maxLength:"80"`
 		Detalle       string     `json:"detalle,omitempty" maxLength:"160"`
+		En            map[string]string `json:"en,omitempty" doc:"Textos en inglés: nombre, detalle (ausente: no cambia)"`
 		Inicio        time.Time  `json:"inicio"`
 		Fin           time.Time  `json:"fin"`
 		Puertas       time.Time  `json:"puertas"`
@@ -359,8 +360,8 @@ func (s *Svc) registerAdmin() {
 				if err := s.checkPabellon(ctx, tx, in.CID, uuid.Nil, fila(b)); err != nil {
 					return err
 				}
-				if _, err := tx.Exec(ctx, `INSERT INTO sesiones (id, competition_id, nombre, detalle, inicio, fin, puertas, aforo, max_por_reserva, apertura_at, cierre_at, publicada, lista_espera)
-					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`, newID(), in.CID, b.Nombre, b.Detalle, b.Inicio, b.Fin, b.Puertas, b.Aforo, b.MaxPorReserva, b.AperturaAt, b.CierreAt, b.Publicada, b.ListaEspera); err != nil {
+				if _, err := tx.Exec(ctx, `INSERT INTO sesiones (id, competition_id, nombre, detalle, inicio, fin, puertas, aforo, max_por_reserva, apertura_at, cierre_at, publicada, lista_espera, en)
+					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,COALESCE($14::jsonb, '{}'))`, newID(), in.CID, b.Nombre, b.Detalle, b.Inicio, b.Fin, b.Puertas, b.Aforo, b.MaxPorReserva, b.AperturaAt, b.CierreAt, b.Publicada, b.ListaEspera, b.En); err != nil {
 					return err
 				}
 				return events.Enqueue(ctx, tx, events.New(ctx, "entradas.sesion_guardada", map[string]any{"nombre": b.Nombre}, events.Competition(in.CID.String()), events.ForPermission(perm)))
@@ -403,8 +404,8 @@ func (s *Svc) registerAdmin() {
 					return err
 				}
 				if _, err := tx.Exec(ctx, `UPDATE sesiones SET nombre = $3, detalle = $4, inicio = $5, fin = $6, puertas = $7, aforo = $8, max_por_reserva = $9, apertura_at = $10, cierre_at = $11,
-					publicada = $12, lista_espera = $13, version = version + 1 WHERE competition_id = $1 AND id = $2`,
-					in.CID, in.ID, b.Nombre, b.Detalle, b.Inicio, b.Fin, b.Puertas, b.Aforo, b.MaxPorReserva, b.AperturaAt, b.CierreAt, b.Publicada, b.ListaEspera); err != nil {
+					publicada = $12, lista_espera = $13, en = COALESCE($14::jsonb, en), version = version + 1 WHERE competition_id = $1 AND id = $2`,
+					in.CID, in.ID, b.Nombre, b.Detalle, b.Inicio, b.Fin, b.Puertas, b.Aforo, b.MaxPorReserva, b.AperturaAt, b.CierreAt, b.Publicada, b.ListaEspera, b.En); err != nil {
 					return err
 				}
 				if err := events.Enqueue(ctx, tx, events.New(ctx, "entradas.sesion_guardada", map[string]any{"nombre": b.Nombre, "aforo": b.Aforo}, events.Competition(in.CID.String()), events.ForPermission(perm))); err != nil {
