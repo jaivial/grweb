@@ -282,16 +282,35 @@ export class EnDirectoPage {
 
 interface EdicionCard { e: Edicion; c: CompeticionPublica | null; publicado: boolean }
 
+const TR = {
+  es: {
+    titulo: 'Resultados de la', crumb: 'Resultados', eyebrow: 'Clasificaciones', sub: 'Clasificaciones completas por categoría, podios y mejores levantadores de cada edición.',
+    edEyebrow: 'Ediciones', edTitulo: 'Todas las *ediciones*', celebrada: 'Celebrada', proxima: 'Próxima edición', fechaPc: 'Fecha por confirmar', verResultados: 'Ver resultados', masInfo: 'Más información',
+    comoEyebrow: 'Cómo se clasifica', comoTitulo: 'Total y *puntos GL*',
+    como: [{ t: 'Por categoría', d: 'Gana el mayor total (sentadilla + banca + peso muerto). En caso de empate, gana quien pesó menos.' }, { t: 'Mejor levantador', d: 'Se compara a atletas de distinto peso con los puntos GL de la IPF.' }, { t: 'Clasificación oficial', d: 'El acta oficial la publica la AEP en PDF tras la competición.' }],
+    rel: [{ titulo: 'Edición 2025', texto: 'Llíria · 1–2 marzo 2025', ruta: '/ediciones/2025' }, { titulo: 'Galería', texto: 'Fotos de la competición', ruta: '/galeria' }, { titulo: 'Marcas mínimas', texto: 'Totales AEP-1 por categoría', ruta: '/marcas-minimas' }] as RelatedLink[],
+    seoT: 'Resultados · GR Strength Cup', seoD: 'Clasificaciones por categoría, podios y mejores levantadores (puntos GL) de cada edición de la GR Strength Cup.',
+  },
+  en: {
+    titulo: 'Results of the', crumb: 'Results', eyebrow: 'Standings', sub: 'Full standings by class, podiums and best lifters from every edition.',
+    edEyebrow: 'Editions', edTitulo: 'All the *editions*', celebrada: 'Held', proxima: 'Next edition', fechaPc: 'Date to be confirmed', verResultados: 'See results', masInfo: 'More information',
+    comoEyebrow: 'How the ranking works', comoTitulo: 'Total and *GL points*',
+    como: [{ t: 'By class', d: 'The highest total wins (squat + bench + deadlift). In a tie, the lighter lifter wins.' }, { t: 'Best lifter', d: 'Athletes of different bodyweights are compared using IPF GL points.' }, { t: 'Official standings', d: 'The AEP publishes the official results sheet as a PDF after the competition.' }],
+    rel: [{ titulo: '2025 edition', texto: 'Llíria · 1–2 March 2025', ruta: '/ediciones/2025' }, { titulo: 'Gallery', texto: 'Competition photos', ruta: '/galeria' }, { titulo: 'Qualifying totals', texto: 'AEP-1 totals by class', ruta: '/marcas-minimas' }] as RelatedLink[],
+    seoT: 'Results · GR Strength Cup', seoD: 'Standings by class, podiums and best lifters (GL points) from every edition of GR Strength Cup.',
+  },
+};
+
 /** /resultados (Figma page 25): every edition and how the rankings work. */
 @Component({
   selector: 'gr-resultados-index',
-  imports: [CdnPipe, RouterLink, Page, GrSkeleton, GrIcon, GrButton, GrCabecera, Related, Community],
+  imports: [CdnPipe, RouterLink, LocPipe, Page, GrSkeleton, GrIcon, GrButton, GrCabecera, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="Resultados de la" accent="GRStrength Cup" crumb="Resultados" eyebrow="Clasificaciones" subtitle="Clasificaciones completas por categoría, podios y mejores levantadores de cada edición.">
+    <gr-page [title]="t().titulo" accent="GRStrength Cup" [crumb]="t().crumb" [eyebrow]="t().eyebrow" [subtitle]="t().sub">
       <div class="flex flex-col gap-12 md:gap-20">
         <section class="flex flex-col gap-5 md:gap-7">
-          <gr-cabecera eyebrow="Ediciones" titulo="Todas las *ediciones*" [centro]="false" tam="m" />
+          <gr-cabecera [eyebrow]="t().edEyebrow" [titulo]="t().edTitulo" [centro]="false" tam="m" />
           @if (cards() === undefined) { <div class="grid gap-6 md:grid-cols-2"><gr-skeleton class="h-[420px] rounded-xl" /><gr-skeleton class="h-[420px] rounded-xl" /></div> }
           @else {
             <div class="grid gap-6 md:grid-cols-2">
@@ -305,7 +324,7 @@ interface EdicionCard { e: Edicion; c: CompeticionPublica | null; publicado: boo
                     <p class="absolute bottom-4 left-6 font-display text-[64px] leading-none italic drop-shadow-lg md:text-[72px]">{{ x.e.anio }}</p>
                   </div>
                   <div class="flex flex-1 flex-col gap-2 p-6">
-                    <span class="inline-flex h-6 w-fit items-center rounded-full border px-2.5 text-label-xs uppercase" [class]="fin ? 'border-text-muted bg-text-muted/12 text-text-tertiary' : 'border-info bg-info/12 text-info'">{{ fin ? 'Celebrada' : x.c?.fechaInicio ? 'Próxima edición' : 'Fecha por confirmar' }}</span>
+                    <span class="inline-flex h-6 w-fit items-center rounded-full border px-2.5 text-label-xs uppercase" [class]="fin ? 'border-text-muted bg-text-muted/12 text-text-tertiary' : 'border-info bg-info/12 text-info'">{{ fin ? t().celebrada : x.c?.fechaInicio ? t().proxima : t().fechaPc }}</span>
                     <h3 class="mt-1 text-display-xs">{{ x.e.nombre }}</h3>
                     <ul class="flex flex-col gap-1.5 text-body-s text-text-secondary">
                       @if (x.c?.fechaInicio) { <li class="flex items-center gap-2"><gr-icon name="calendar" [size]="14" class="text-accent-text" />{{ fechas(x.c?.fechaInicio, x.c?.fechaFin) }}</li> }
@@ -313,8 +332,8 @@ interface EdicionCard { e: Edicion; c: CompeticionPublica | null; publicado: boo
                       @if (x.c?.evento!.nivel) { <li class="flex items-center gap-2"><gr-icon name="trophy" [size]="14" class="text-accent-text" />{{ x.c?.evento!.nivel }}</li> }
                     </ul>
                     <div class="mt-auto pt-3">
-                      @if (x.publicado) { <a grButton variant="outline" [routerLink]="'/resultados/' + x.e.anio" iconRight="arrow-right">Ver resultados</a> }
-                      @else if (x.e.slug === slug) { <a grButton variant="primary" routerLink="/">Más información</a> }
+                      @if (x.publicado) { <a grButton variant="outline" [routerLink]="'/resultados/' + x.e.anio | loc" iconRight="arrow-right">{{ t().verResultados }}</a> }
+                      @else if (x.e.slug === slug) { <a grButton variant="primary" [routerLink]="'/' | loc">{{ t().masInfo }}</a> }
                     </div>
                   </div>
                 </article>
@@ -323,12 +342,12 @@ interface EdicionCard { e: Edicion; c: CompeticionPublica | null; publicado: boo
           }
         </section>
         <section class="flex flex-col gap-5 md:gap-7">
-          <gr-cabecera eyebrow="Cómo se clasifica" titulo="Total y *puntos GL*" [centro]="false" tam="m" />
+          <gr-cabecera [eyebrow]="t().comoEyebrow" [titulo]="t().comoTitulo" [centro]="false" tam="m" />
           <div class="grid gap-4 md:grid-cols-3">
-            @for (c of como; track c.t) { <div class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-6"><p class="text-label-l">{{ c.t }}</p><p class="text-body-s text-text-tertiary">{{ c.d }}</p></div> }
+            @for (c of t().como; track c.t) { <div class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-6"><p class="text-label-l">{{ c.t }}</p><p class="text-body-s text-text-tertiary">{{ c.d }}</p></div> }
           </div>
         </section>
-        <gr-related [items]="rel" />
+        <gr-related [items]="t().rel" />
         <gr-community />
       </div>
     </gr-page>
@@ -339,17 +358,9 @@ export class ResultadosIndexPage {
   private readonly http = inject(HttpClient);
   protected readonly cards = signal<EdicionCard[] | undefined>(undefined);
   protected readonly slug = COMPETITION_SLUG;
-  protected readonly fechas = fechasCortas;
-  protected readonly como = [
-    { t: 'Por categoría', d: 'Gana el mayor total (sentadilla + banca + peso muerto). En caso de empate, gana quien pesó menos.' },
-    { t: 'Mejor levantador', d: 'Se compara a atletas de distinto peso con los puntos GL de la IPF.' },
-    { t: 'Clasificación oficial', d: 'El acta oficial la publica la AEP en PDF tras la competición.' },
-  ];
-  protected readonly rel: RelatedLink[] = [
-    { titulo: 'Edición 2025', texto: 'Llíria · 1–2 marzo 2025', ruta: '/ediciones/2025' },
-    { titulo: 'Galería', texto: 'Fotos de la competición', ruta: '/galeria' },
-    { titulo: 'Marcas mínimas', texto: 'Totales AEP-1 por categoría', ruta: '/marcas-minimas' },
-  ];
+  private readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(TR);
+  protected readonly fechas = (a?: string, b?: string) => fechasCortas(a, b, this.i18n.locale());
   constructor() {
     const seo = inject(Seo);
     const cms = inject(Cms);
@@ -360,70 +371,105 @@ export class ResultadosIndexPage {
         return { e, c, publicado: !!r?.publicado };
       }));
       this.cards.set(cards);
-      await applySeo(cms, seo, '/resultados', 'Resultados · GR Strength Cup', 'Clasificaciones por categoría, podios y mejores levantadores (puntos GL) de cada edición de la GR Strength Cup.');
+      await applySeo(cms, seo, '/resultados', this.t().seoT, this.t().seoD);
     });
   }
 }
 
 // ============================================================ /resultados/:anio ===
 
+const TE = {
+  es: {
+    titulo: 'Resultados', subGl: 'Podios, mejores levantadores y clasificación completa por categoría.', sub: 'Podios y clasificación completa por categoría.',
+    fuente: 'Fuente: acta oficial AEP (PDF)', ejemplo: 'Datos de ejemplo', falloT: 'No hemos podido cargar los resultados', falloD: 'Vuelve a intentarlo en unos minutos.',
+    aun: 'Aún no hay resultados publicados', aunD: 'Cada categoría se publica aquí al terminar. Mientras tanto, sigue la competición en directo.', verDirecto: 'Ver en directo',
+    secciones: 'Secciones', buscar: 'Buscar atleta o club', ph: 'Buscar atleta o club…', filtros: 'Filtros', categoria: 'Categoría', todas: 'Todas', ordenar: 'Ordenar', posicion: 'posición', puntosGl: 'puntos GL',
+    mejEyebrow: 'Mejores levantadores', mejTitulo: 'Mejor *levantador/a*', mejTexto: 'Por puntos GL de la IPF.', fem: 'Femenino', masc: 'Masculino',
+    podEyebrow: 'Podios', podTitulo: 'Podio por *categoría*', carrusel: 'carrusel', podios: 'Podios por categoría', atletas: (n: number) => n + ' ' + (n === 1 ? 'atleta' : 'atletas'),
+    desliza: (n: number) => 'Desliza para ver las ' + n + ' categorías →', catW: 'Categoría ', clasEyebrow: 'Clasificación', clasTitulo: 'Clasificación *completa*', nadie: 'Nadie coincide con la búsqueda.',
+    acta: 'Descargar acta oficial (PDF)', copiado: 'Enlace copiado', compartir: 'Compartir resultados',
+    tabs: { mejores: 'Mejores', podios: 'Podios', clasificacion: 'Clasificación', descargar: 'Descargas' } as Record<string, string>,
+    sexos: { '': 'Todas', F: 'Femenino', M: 'Masculino' } as Record<string, string>,
+    notFoundT: 'Página no encontrada · GR Strength Cup', notFoundD: 'La página que buscas no existe.',
+    rel: (a: string) => [{ titulo: 'Edición ' + a, texto: 'Crónica y fotos', ruta: '/ediciones/' + a }, { titulo: 'Galería', texto: 'Fotos por atleta', ruta: '/galeria' }, { titulo: 'Marcas mínimas', texto: '¿Te vale tu total?', ruta: '/marcas-minimas' }] as RelatedLink[],
+    y: ' y ', seoT: (n: string) => 'Resultados ' + n + ' · Clasificación por categoría',
+    seoD: (n: string, m: string) => 'Podios, mejores levantadores' + (m ? ' — ' + m : '') + ' y la clasificación completa por categoría de la ' + n + '.', seoNo: (n: string) => 'Resultados de la ' + n + ': se publican al terminar cada categoría.',
+  },
+  en: {
+    titulo: 'Results', subGl: 'Podiums, best lifters and full standings by class.', sub: 'Podiums and full standings by class.',
+    fuente: 'Source: official AEP results sheet (PDF)', ejemplo: 'Sample data', falloT: 'We couldn’t load the results', falloD: 'Please try again in a few minutes.',
+    aun: 'No results published yet', aunD: 'Each class is published here once it finishes. In the meantime, follow the competition live.', verDirecto: 'Watch live',
+    secciones: 'Sections', buscar: 'Search athlete or club', ph: 'Search athlete or club…', filtros: 'Filters', categoria: 'Class', todas: 'All', ordenar: 'Sort', posicion: 'position', puntosGl: 'GL points',
+    mejEyebrow: 'Best lifters', mejTitulo: 'Best *lifter*', mejTexto: 'By IPF GL points.', fem: 'Women', masc: 'Men',
+    podEyebrow: 'Podiums', podTitulo: 'Podium by *class*', carrusel: 'carousel', podios: 'Podiums by class', atletas: (n: number) => n + ' ' + (n === 1 ? 'athlete' : 'athletes'),
+    desliza: (n: number) => 'Swipe to see all ' + n + ' classes →', catW: 'Class ', clasEyebrow: 'Standings', clasTitulo: 'Full *standings*', nadie: 'Nobody matches your search.',
+    acta: 'Download official results sheet (PDF)', copiado: 'Link copied', compartir: 'Share results',
+    tabs: { mejores: 'Best', podios: 'Podiums', clasificacion: 'Standings', descargar: 'Downloads' },
+    sexos: { '': 'All', F: 'Women', M: 'Men' },
+    notFoundT: 'Page not found · GR Strength Cup', notFoundD: 'The page you’re looking for doesn’t exist.',
+    rel: (a: string) => [{ titulo: a + ' edition', texto: 'Report and photos', ruta: '/ediciones/' + a }, { titulo: 'Gallery', texto: 'Photos by athlete', ruta: '/galeria' }, { titulo: 'Qualifying totals', texto: 'Does your total qualify?', ruta: '/marcas-minimas' }] as RelatedLink[],
+    y: ' and ', seoT: (n: string) => n + ' results · Standings by class',
+    seoD: (n: string, m: string) => 'Podiums, best lifters' + (m ? ' — ' + m : '') + ' and the full standings by class of ' + n + '.', seoNo: (n: string) => 'Results of ' + n + ': published as each class finishes.',
+  },
+};
+
 /** /resultados/:anio (Figma page 25): best lifters by GL, podiums and the full ranking of every category, with filters. */
 @Component({
   selector: 'gr-resultados-edicion',
-  imports: [RouterLink, GrSelect, Page, FormsModule, GrAlert, GrButton, GrIcon, GrSkeleton, GrCabecera, Clasificacion, Related, Community, Navbar, Footer, NoEncontrada],
+  imports: [RouterLink, LocPipe, GrSelect, Page, FormsModule, GrAlert, GrButton, GrIcon, GrSkeleton, GrCabecera, Clasificacion, Related, Community, Navbar, Footer, NoEncontrada],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = res();
     <!-- Figma 17 «404»: an edition that does not exist -->
     @if (noExiste()) { <gr-navbar /><main><gr-no-encontrada /></main><gr-footer /> } @else {
-    <gr-page title="Resultados" [accent]="r?.competicion?.nombre ?? 'GRStrength Cup ' + anio()" section="Resultados" [crumb]="anio()" [eyebrow]="r ? ((comp()?.sede?.ciudad || r.competicion.sede) + ' · ' + fechas(r.competicion.fechaInicio, r.competicion.fechaFin)) : ''"
-      [subtitle]="r?.publicado ? (comp()?.evento?.nivel ? comp()!.evento.nivel.replace(/^(AEP-\d Regional) (?!de )/, '$1 de ') + '. ' : '') + ((r.mejores['F'] || r.mejores['M']) ? 'Podios, mejores levantadores y clasificación completa por categoría.' : 'Podios y clasificación completa por categoría.') : ''">
+    <gr-page [title]="t().titulo" [accent]="r?.competicion?.nombre ?? 'GRStrength Cup ' + anio()" [section]="t().titulo" [crumb]="anio()" [eyebrow]="r ? ((comp()?.sede?.ciudad || r.competicion.sede) + ' · ' + fechas(r.competicion.fechaInicio, r.competicion.fechaFin)) : ''"
+      [subtitle]="r?.publicado ? (comp()?.evento?.nivel ? comp()!.evento.nivel.replace(/^(AEP-\d Regional) (?!de )/, '$1 de ') + '. ' : '') + ((r.mejores['F'] || r.mejores['M']) ? t().subGl : t().sub) : ''">
       @if (r?.publicado) {
         <div pageStamps class="flex flex-wrap gap-2">
           <!-- Figma 25: «Fuente: acta oficial AEP (PDF)» + «Datos de ejemplo» -->
-          @if (acta(); as u) { <a [href]="u" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Fuente: acta oficial AEP (PDF)</a> }
-          @if (r!.ejemplo) { <span class="inline-flex h-7 items-center self-center rounded-full border border-info bg-info/12 px-3 text-label-xs text-info uppercase">Datos de ejemplo</span> }
+          @if (acta(); as u) { <a [href]="u" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />{{ t().fuente }}</a> }
+          @if (r!.ejemplo) { <span class="inline-flex h-7 items-center self-center rounded-full border border-info bg-info/12 px-3 text-label-xs text-info uppercase">{{ t().ejemplo }}</span> }
         </div>
       }
       @if (r === undefined) { <gr-skeleton class="h-96 rounded-lg" /> }
-      @else if (r === null) { @if (!fallo.limitado()) { <gr-alert tone="warning" title="No hemos podido cargar los resultados">Vuelve a intentarlo en unos minutos.</gr-alert> } }
+      @else if (r === null) { @if (!fallo.limitado()) { <gr-alert tone="warning" [title]="t().falloT">{{ t().falloD }}</gr-alert> } }
       @else if (!r.publicado) {
         <div class="rounded-lg border border-line-subtle bg-bg-card p-8 text-center">
-          <p class="text-ui-h4">Aún no hay resultados publicados</p>
-          <p class="mx-auto mt-2 max-w-lg text-body-s text-text-secondary">Cada categoría se publica aquí al terminar. Mientras tanto, sigue la competición en directo.</p>
-          <a routerLink="/en-directo" class="mt-5 inline-flex h-10 items-center gap-2 rounded-md bg-accent px-4 text-label-s text-white hover:bg-accent-hover"><gr-icon name="radio" [size]="16" />Ver en directo</a>
+          <p class="text-ui-h4">{{ t().aun }}</p>
+          <p class="mx-auto mt-2 max-w-lg text-body-s text-text-secondary">{{ t().aunD }}</p>
+          <a [routerLink]="'/en-directo' | loc" class="mt-5 inline-flex h-10 items-center gap-2 rounded-md bg-accent px-4 text-label-s text-white hover:bg-accent-hover"><gr-icon name="radio" [size]="16" />{{ t().verDirecto }}</a>
         </div>
       } @else {
         <!-- GL points need the body weight: editions imported from the previous web have none -->
         @let conGL = !!(r.mejores['F'] || r.mejores['M']);
         <!-- Filters -->
         <!-- Figma 25 mobile: section tabs under the header -->
-        <nav aria-label="Secciones" class="-mx-5 mb-6 flex gap-2 overflow-x-auto border-y border-line-subtle px-5 py-3 [scrollbar-width:none] md:hidden">
-          @for (t of tabs(); track t.id) { <a [href]="'#' + t.id" (click)="ir($event, t.id)" class="inline-flex h-11 shrink-0 items-center rounded-full border px-4 text-label-s focus-visible:outline-2 focus-visible:outline-accent" [class]="tab() === t.id ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary'">{{ t.l }}</a> }
+        <nav [attr.aria-label]="t().secciones" class="-mx-5 mb-6 flex gap-2 overflow-x-auto border-y border-line-subtle px-5 py-3 [scrollbar-width:none] md:hidden">
+          @for (tb of tabs(); track tb.id) { <a [href]="'#' + tb.id" (click)="ir($event, tb.id)" class="inline-flex h-11 shrink-0 items-center rounded-full border px-4 text-label-s focus-visible:outline-2 focus-visible:outline-accent" [class]="tab() === tb.id ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary'">{{ t().tabs[tb.id] }}</a> }
         </nav>
         <div class="flex flex-wrap items-center gap-2">
-          <label class="relative min-w-0 flex-1 basis-56 md:max-w-xs"><span class="sr-only">Buscar atleta o club</span><gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
-            <input type="search" enterkeyhint="search" autocomplete="off" (keydown.enter)="$any($event.target).blur()" class="h-11 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-9 text-body-m md:text-body-s" placeholder="Buscar atleta o club…" [ngModel]="q()" (ngModelChange)="q.set($event)" /></label>
-          <button type="button" class="relative flex size-11 items-center justify-center rounded-md border border-line-strong md:hidden" aria-label="Filtros" aria-controls="filtros-resultados" [attr.aria-expanded]="filtros()" (click)="filtros.set(!filtros())"><gr-icon name="sliders" [size]="18" />
+          <label class="relative min-w-0 flex-1 basis-56 md:max-w-xs"><span class="sr-only">{{ t().buscar }}</span><gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
+            <input type="search" enterkeyhint="search" autocomplete="off" (keydown.enter)="$any($event.target).blur()" class="h-11 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-9 text-body-m md:text-body-s" [placeholder]="t().ph" [ngModel]="q()" (ngModelChange)="q.set($event)" /></label>
+          <button type="button" class="relative flex size-11 items-center justify-center rounded-md border border-line-strong md:hidden" [attr.aria-label]="t().filtros" aria-controls="filtros-resultados" [attr.aria-expanded]="filtros()" (click)="filtros.set(!filtros())"><gr-icon name="sliders" [size]="18" />
             @if ((cat() ? 1 : 0) + (orden() !== 'puesto' ? 1 : 0); as n) { <span class="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-accent text-label-xs text-white">{{ n }}</span> }</button>
           <div class="-mx-5 flex w-[calc(100%+40px)] gap-2 overflow-x-auto px-5 [scrollbar-width:none] md:contents">
-          @for (s of sexos; track s.v) { <button type="button" class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-label-s" [class]="sexo() === s.v ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'" [attr.aria-pressed]="sexo() === s.v" (click)="sexo.set(s.v)"><gr-icon [name]="sexo() === s.v ? 'check' : 'plus'" [size]="14" />{{ s.l }}</button> }
+          @for (s of sexos; track s.v) { <button type="button" class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-label-s" [class]="sexo() === s.v ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'" [attr.aria-pressed]="sexo() === s.v" (click)="sexo.set(s.v)"><gr-icon [name]="sexo() === s.v ? 'check' : 'plus'" [size]="14" />{{ t().sexos[s.v] }}</button> }
           </div>
           <div id="filtros-resultados" class="w-full flex-col gap-2 md:contents" [class.flex]="filtros()" [class.hidden]="!filtros()">
-          <gr-select tipo="filtro" etiqueta="Categoría" aria-label="Categoría" [ngModel]="cat()" (ngModelChange)="cat.set($event)"><option value="">Todas</option>@for (c of r.categorias; track c.clave) { <option [value]="c.clave">{{ c.titulo }}</option> }</gr-select>
-          <gr-select tipo="filtro" etiqueta="Ordenar" [resaltar]="false" aria-label="Ordenar" class="md:ml-auto" [ngModel]="orden()" (ngModelChange)="orden.set($event)"><option value="puesto">posición</option><option value="total">total</option>@if (conGL) { <option value="gl">puntos GL</option> }</gr-select>
+          <gr-select tipo="filtro" [etiqueta]="t().categoria" [attr.aria-label]="t().categoria" [ngModel]="cat()" (ngModelChange)="cat.set($event)"><option value="">{{ t().todas }}</option>@for (c of r.categorias; track c.clave) { <option [value]="c.clave">{{ c.titulo }}</option> }</gr-select>
+          <gr-select tipo="filtro" [etiqueta]="t().ordenar" [resaltar]="false" [attr.aria-label]="t().ordenar" class="md:ml-auto" [ngModel]="orden()" (ngModelChange)="orden.set($event)"><option value="puesto">{{ t().posicion }}</option><option value="total">total</option>@if (conGL) { <option value="gl">{{ t().puntosGl }}</option> }</gr-select>
           </div>
         </div>
 
         @if (!q() && !cat()) {
           @if (conGL) {
-          <gr-cabecera id="mejores" class="mt-12 scroll-mt-28" eyebrow="Mejores levantadores" titulo="Mejor *levantador/a*" texto="Por puntos GL de la IPF." [centro]="false" tam="m" />
+          <gr-cabecera id="mejores" class="mt-12 scroll-mt-28" [eyebrow]="t().mejEyebrow" [titulo]="t().mejTitulo" [texto]="t().mejTexto" [centro]="false" tam="m" />
           <div class="mt-5 grid gap-3 md:grid-cols-2">
             @for (s of sx; track s) {
               @if (r.mejores[s]; as f) {
                 <div class="flex items-center gap-4 rounded-lg border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_70%)] p-5">
                   <span class="flex size-12 shrink-0 items-center justify-center rounded-pill border border-[#c9a227]/60 bg-[#c9a227]/15 text-[#e3c25a]"><gr-icon name="award" [size]="22" /></span>
-                  <div class="min-w-0 flex-1"><p class="text-mono-xs text-text-tertiary">{{ s === 'F' ? 'Femenino' : 'Masculino' }}</p><p class="truncate font-display text-[24px] uppercase italic">{{ f.nombre }}</p><p class="text-body-xs text-text-tertiary">{{ catDe(f) }}</p></div>
+                  <div class="min-w-0 flex-1"><p class="text-mono-xs text-text-tertiary">{{ s === 'F' ? t().fem : t().masc }}</p><p class="truncate font-display text-[24px] uppercase italic">{{ f.nombre }}</p><p class="text-body-xs text-text-tertiary">{{ catDe(f) }}</p></div>
                   <div class="text-right"><p class="font-display text-[28px] leading-none text-accent-text italic">{{ gl(f.gl) }} GL</p><p class="text-mono-xs text-text-tertiary">{{ kg(f.total) }} kg</p></div>
                 </div>
               }
@@ -431,11 +477,11 @@ export class ResultadosIndexPage {
           </div>
 
           }
-          <gr-cabecera id="podios" [class]="conGL ? 'mt-14 scroll-mt-28' : 'mt-12 scroll-mt-28'" eyebrow="Podios" titulo="Podio por *categoría*" [centro]="false" tam="m" />
-          <div role="region" aria-roledescription="carrusel" aria-label="Podios por categoría" (scroll)="podioScroll($event)" class="-mx-5 mt-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:mt-7 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0">
+          <gr-cabecera id="podios" [class]="conGL ? 'mt-14 scroll-mt-28' : 'mt-12 scroll-mt-28'" [eyebrow]="t().podEyebrow" [titulo]="t().podTitulo" [centro]="false" tam="m" />
+          <div role="region" [attr.aria-roledescription]="t().carrusel" [attr.aria-label]="t().podios" (scroll)="podioScroll($event)" class="-mx-5 mt-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:mt-7 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0">
             @for (c of r.categorias; track c.clave) {
               <section [attr.aria-label]="c.titulo" class="w-[86%] shrink-0 snap-center rounded-xl border border-line-subtle bg-bg-card p-5 md:w-auto">
-                <header class="flex flex-wrap items-baseline justify-between gap-x-2"><h3 class="font-display text-[20px] uppercase italic">{{ c.titulo }}</h3><span class="text-mono-xs text-text-tertiary">{{ c.atletas }} {{ c.atletas === 1 ? 'atleta' : 'atletas' }}</span></header>
+                <header class="flex flex-wrap items-baseline justify-between gap-x-2"><h3 class="font-display text-[20px] uppercase italic">{{ c.titulo }}</h3><span class="text-mono-xs text-text-tertiary">{{ t().atletas(c.atletas) }}</span></header>
                 <!-- only the steps with an athlete (no empty «3» in a category of two) -->
                 <div class="mt-4 grid items-end gap-2 max-[260px]:!grid-cols-1" [style.grid-template-columns]="'repeat(' + podio(c).length + ', minmax(0, 1fr))'">
                   @for (p of podio(c); track p.pos) {
@@ -451,20 +497,20 @@ export class ResultadosIndexPage {
           </div>
           @if (r.categorias.length > 1) {
             <div class="mt-3 flex items-center justify-between gap-3 md:hidden">
-              <p class="text-body-xs text-text-tertiary">Desliza para ver las {{ r.categorias.length }} categorías →</p>
-              <p class="shrink-0 text-mono-s text-text-secondary tabular-nums" aria-live="polite"><span class="sr-only">Categoría </span>{{ podioIdx() + 1 }}/{{ r.categorias.length }}</p>
+              <p class="text-body-xs text-text-tertiary">{{ t().desliza(r.categorias.length) }}</p>
+              <p class="shrink-0 text-mono-s text-text-secondary tabular-nums" aria-live="polite"><span class="sr-only">{{ t().catW }}</span>{{ podioIdx() + 1 }}/{{ r.categorias.length }}</p>
             </div>
           }
         }
 
-        <gr-cabecera id="clasificacion" class="mt-14 scroll-mt-28" eyebrow="Clasificación" [titulo]="cat() ? tituloCat().replace(/(\S+ kg)$/, '*$1*') : 'Clasificación *completa*'" [centro]="false" tam="m" />
+        <gr-cabecera id="clasificacion" class="mt-14 scroll-mt-28" [eyebrow]="t().clasEyebrow" [titulo]="cat() ? tituloCat().replace(/(\S+ kg)$/, '*$1*') : t().clasTitulo" [centro]="false" tam="m" />
         @for (c of filtradas(); track c.clave) {
           @if (!cat()) { <h3 class="mt-8 font-display text-[22px] uppercase italic">{{ c.titulo }}</h3> }
           <gr-clasificacion class="mt-3 block" [c]="c" [abrir]="$first" />
-        } @empty { <p class="mt-6 text-body-s text-text-tertiary">Nadie coincide con la búsqueda.</p> }
+        } @empty { <p class="mt-6 text-body-s text-text-tertiary">{{ t().nadie }}</p> }
         <div id="descargar" class="mt-6 flex scroll-mt-28 flex-wrap gap-2">
-          @if (acta(); as u) { <a grButton variant="primary" [href]="u" target="_blank" rel="noopener">Descargar acta oficial (PDF)</a> }
-          <button grButton variant="outline" type="button" icon="send" (click)="compartir()">{{ copiado() ? 'Enlace copiado' : 'Compartir resultados' }}</button>
+          @if (acta(); as u) { <a grButton variant="primary" [href]="u" target="_blank" rel="noopener">{{ t().acta }}</a> }
+          <button grButton variant="outline" type="button" icon="send" (click)="compartir()">{{ copiado() ? t().copiado : t().compartir }}</button>
         </div>
       }
       <div class="mt-12 flex flex-col gap-12 md:mt-20 md:gap-20">
@@ -477,10 +523,12 @@ export class ResultadosIndexPage {
 })
 export class ResultadosEdicionPage {
   protected readonly noExiste = signal(false);
+  private readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(TE);
   private noEncontrada(seo: Seo): void {
     this.noExiste.set(true);
     this.cms.notFound();
-    seo.set({ title: 'Página no encontrada · GR Strength Cup', description: 'La página que buscas no existe.', path: '/404', robots: 'noindex' });
+    seo.set({ title: this.t().notFoundT, description: this.t().notFoundD, path: '/404', robots: 'noindex' });
   }
   private readonly api = inject(DirectoPublic);
   protected readonly fallo = inject(FalloApi);
@@ -519,7 +567,7 @@ export class ResultadosEdicionPage {
   }
   protected readonly sx: ('F' | 'M')[] = ['F', 'M'];
   protected readonly sexos = [{ v: '' as const, l: 'Todas' }, { v: 'F' as const, l: 'Femenino' }, { v: 'M' as const, l: 'Masculino' }];
-  protected readonly fechas = fechasCortas;
+  protected readonly fechas = (a?: string, b?: string) => fechasCortas(a, b, this.i18n.locale());
   protected readonly kg = kg;
   protected readonly gl = gl;
   /** «Club · −63 kg» under the best lifter (Figma 25). */
@@ -528,11 +576,7 @@ export class ResultadosEdicionPage {
     return [f.club, c ? c.categoria.replace('-', '−') + ' kg' : ''].filter(Boolean).join(' · ');
   }
   protected readonly tituloCat = computed(() => this.res()?.categorias.find((c) => c.clave === this.cat())?.titulo ?? '');
-  protected readonly rel = computed<RelatedLink[]>(() => [
-    { titulo: `Edición ${this.anio()}`, texto: 'Crónica y fotos', ruta: `/ediciones/${this.anio()}` },
-    { titulo: 'Galería', texto: 'Fotos por atleta', ruta: '/galeria' },
-    { titulo: 'Marcas mínimas', texto: '¿Te vale tu total?', ruta: '/marcas-minimas' },
-  ]);
+  protected readonly rel = computed<RelatedLink[]>(() => this.t().rel(this.anio()));
   protected readonly filtradas = computed<Categoria[]>(() => {
     const r = this.res();
     if (!r) return [];
@@ -564,9 +608,9 @@ export class ResultadosEdicionPage {
       const [r, c] = await Promise.all([this.api.resultados(e.slug), firstValueFrom(this.http.get<CompeticionPublica>(`/api/competiciones/${e.slug}`)).catch(() => null)]);
       this.comp.set(c);
       this.res.set(r);
-      const mejores = r ? Object.values(r.mejores).map((f) => `${f!.nombre} (${gl(f!.gl)} GL)`).join(' y ') : '';
-      await applySeo(this.cms, seo, `/resultados/${this.anio()}`, `Resultados ${e.nombre} · Clasificación por categoría`,
-        r?.publicado ? `Podios, mejores levantadores${mejores ? ' — ' + mejores : ''} y la clasificación completa por categoría de la ${e.nombre}.` : `Resultados de la ${e.nombre}: se publican al terminar cada categoría.`);
+      const mejores = r ? Object.values(r.mejores).map((f) => `${f!.nombre} (${gl(f!.gl)} GL)`).join(this.t().y) : '';
+      await applySeo(this.cms, seo, '/resultados/' + this.anio(), this.t().seoT(e.nombre),
+        r?.publicado ? this.t().seoD(e.nombre, mejores) : this.t().seoNo(e.nombre));
     });
   }
   protected async compartir(): Promise<void> {
