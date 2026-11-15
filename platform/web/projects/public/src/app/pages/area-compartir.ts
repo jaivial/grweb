@@ -562,7 +562,7 @@ export class AreaCompartirPage {
     this.busy.set(true);
     this.errorEnlace.set('');
     try {
-      await firstValueFrom(this.http.post(api + '/enlace', { competicion: COMPETITION_SLUG, email: this.email.trim(), next: this.i18n.path('/area-atleta/compartir') }));
+      await firstValueFrom(this.http.post(api + '/enlace', { competicion: COMPETITION_SLUG, email: this.email.trim(), next: '/area-atleta/compartir' }));
       this.enviado.set(true);
     } catch (e) {
       this.errorEnlace.set(e instanceof HttpErrorResponse && e.status === 429 ? this.t().demasiados2 : this.t().noEnlace);
