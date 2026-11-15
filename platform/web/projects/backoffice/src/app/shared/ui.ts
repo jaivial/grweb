@@ -158,7 +158,9 @@ export class BoTabsMovil implements AfterContentChecked {
     if (!raiz) return;
     const sel = 'nav > a, nav > button, [role=tablist] > a, [role=tablist] > button, [role=tab], [role=radiogroup] > button';
     this.items = [...new Set(raiz.querySelectorAll<HTMLElement>(sel))];
-    const ops = this.items.map((e) => ({ texto: (e.textContent || '').replace(/\s+/g, ' ').trim(), off: e.hasAttribute('disabled') || e.getAttribute('aria-disabled') === 'true' }));
+    // text nodes joined with a space: «Segmentos» + counter «0» reads «Segmentos 0», not «Segmentos0»
+    const texto = (e: HTMLElement) => { const t: string[] = []; const w = document.createTreeWalker(e, NodeFilter.SHOW_TEXT); while (w.nextNode()) t.push(w.currentNode.textContent || ''); return t.join(' ').replace(/\s+/g, ' ').trim(); };
+    const ops = this.items.map((e) => ({ texto: texto(e), off: e.hasAttribute('disabled') || e.getAttribute('aria-disabled') === 'true' }));
     const i = this.items.findIndex((e) => e.getAttribute('aria-current') === 'page' || e.getAttribute('aria-selected') === 'true' || e.getAttribute('aria-pressed') === 'true' || e.getAttribute('aria-checked') === 'true');
     const firma = JSON.stringify(ops) + i;
     if (firma === this.firma) return;
@@ -177,7 +179,8 @@ export class BoTablaMovil implements AfterViewChecked {
     const ths = [...this.el.querySelectorAll('thead th')].map((t) => (t.textContent || '').replace(/\s+/g, ' ').trim());
     if (!ths.length) return;
     for (const tr of this.el.querySelectorAll('tbody tr')) [...tr.children].forEach((td, i) => {
-      const l = ths[i] ?? '';
+      // a cell spanning columns (empty state, group row) has no single header
+      const l = (td as HTMLTableCellElement).colSpan > 1 ? '' : (ths[i] ?? '');
       if (td.getAttribute('data-label') !== l) td.setAttribute('data-label', l);
     });
   }
