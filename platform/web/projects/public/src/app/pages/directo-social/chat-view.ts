@@ -49,8 +49,8 @@ interface Fila {
     @if (!chat.chatEnabled()) {
       <!-- Figma 393:121174: the chat switched off by the organisation, only the sleeping notice -->
       <div class="gr-dormido flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-8 py-10 text-center" role="status">
-        <span class="flex size-16 items-center justify-center rounded-full border border-accent/45 bg-[linear-gradient(135deg,#4c111b,#170c0e)] text-[28px] shadow-glow-deep" aria-hidden="true">🌙</span>
-        <p class="text-ui-h5 text-text-primary">El chat está durmiendo 💤</p>
+        <span class="flex size-16 items-center justify-center rounded-full border border-accent/45 bg-[linear-gradient(135deg,#4c111b,#170c0e)] text-[28px] shadow-glow-deep" aria-hidden="true"><gr-icon name="moon" [size]="28" class="text-accent-text" /></span>
+        <p class="text-ui-h5 text-text-primary">El chat está durmiendo</p>
         <p class="max-w-[260px] text-body-s text-text-tertiary">Se despertará cuando vuelva el directo.</p>
       </div>
     } @else {
@@ -67,7 +67,7 @@ interface Fila {
         role="log" aria-live="polite" aria-label="Mensajes del chat" (scroll)="alScroll($event)">
         @if (filas().length === 0) {
           <div class="flex h-full flex-col items-center justify-center gap-3 px-8 py-10 text-center">
-            <span class="flex size-16 items-center justify-center rounded-full border border-accent/45 bg-[linear-gradient(135deg,#4c111b,#170c0e)] text-[28px] shadow-glow-deep" aria-hidden="true">💬</span>
+            <span class="flex size-16 items-center justify-center rounded-full border border-accent/45 bg-[linear-gradient(135deg,#4c111b,#170c0e)] text-[28px] shadow-glow-deep" aria-hidden="true"><gr-icon name="message" [size]="28" class="text-accent-text" /></span>
             <p class="text-ui-h5 text-text-primary">El chat está en calma</p>
             <p class="max-w-[260px] text-body-s text-text-tertiary">Rompe el hielo: anima a los atletas y gana monedas cada 5 mensajes.</p>
             @if (fan.conSesion() && !chat.cerrado()) {
@@ -230,7 +230,7 @@ interface Fila {
             <div class="flex items-end gap-1 rounded-md border bg-bg-field p-1 transition-[border-color,box-shadow] focus-within:ring-2 focus-within:ring-accent/30"
               [class]="largo() ? 'border-warning/70' : 'border-line-strong focus-within:border-accent-text'">
               <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-sm text-[20px] transition-colors hover:bg-white/5" aria-label="Emojis" [attr.aria-expanded]="emojis()" (click)="emojis.set(!emojis())">
-                <span aria-hidden="true">😊</span>
+                <gr-icon name="smile" [size]="20" class="text-text-secondary" />
               </button>
               <textarea #caja rows="1" enterkeyhint="send" class="max-h-32 min-h-11 min-w-0 flex-1 resize-none bg-transparent px-1 py-[10px] text-[17px] leading-6 md:text-[16px] text-text-primary outline-none placeholder:text-text-muted focus-visible:outline-none [field-sizing:content]"
                 placeholder="Escribe un mensaje…" aria-label="Mensaje del chat" [attr.aria-describedby]="'chat-ayuda'" [ngModel]="texto()" (ngModelChange)="texto.set($event)" (keydown.enter)="enter($event)" (keydown.escape)="emojis.set(false)"></textarea>
