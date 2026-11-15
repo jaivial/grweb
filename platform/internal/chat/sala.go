@@ -327,7 +327,8 @@ func (h *hub) salasVivas() []*sala {
 	return out
 }
 
-// perf-20261115: WS batching (?lote=1). A window collects at most loteMax frames; the batch is the already
+// perf-20261115: the room reader gathers one window (CHAT_LOTE_MS) and sends it as one batch; loteMax bounds the
+// SSE drain. The batch is the already
 // encoded frames joined as {"t":"lote","items":[…]} (no re-encoding).
 var loteVentana = time.Duration(config.Int("CHAT_LOTE_MS", 100)) * time.Millisecond
 

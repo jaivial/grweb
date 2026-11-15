@@ -215,37 +215,18 @@ func (s *Svc) ws(w http.ResponseWriter, r *http.Request) {
 	}
 	go func() {
 		defer close(done)
-		// perf-20261115: with ?lote=1 the frames of a window (CHAT_LOTE_MS, 100 ms) go out as ONE text frame
-		// {"t":"lote","items":[…]}: a write syscall per message and client was 55-64 % of the pod's CPU (and the
-		// gateway relays each frame again). Old clients (no ?lote) keep one frame per message.
-		var ventana <-chan time.Time
-		var lote [][]byte
-		soltar := func() bool {
-			ventana = nil
-			if len(lote) == 0 {
-				return true
-			}
-			b := lote[0]
-			if len(lote) > 1 {
-				b = unirLote(lote)
-			}
-			lote = lote[:0]
-			return escribir(b)
-		}
+		// perf-20261115: the room reader already batches each window (#8): a batch frame is ONE write for ?lote=1
+		// clients ({"t":"lote","items":[…]}); old clients get one frame per item.
 		for {
 			select {
 			case fr, ok := <-ch:
 				if !ok {
-					_ = soltar()
 					_ = conn.Close(websocket.StatusPolicyViolation, "lento")
 					return
 				}
 				if fr.lote != nil {
 					// a whole window of the room (#8): one write for ?lote=1 clients (shared bytes unless some
 					// items were already sent in the replay), one per item for the old protocol
-					if !soltar() {
-						return
-					}
 					nuevos := nuevosDe(fr.lote, &visto)
 					if len(nuevos) == 0 {
 						continue
@@ -278,21 +259,7 @@ func (s *Svc) ws(w http.ResponseWriter, r *http.Request) {
 					}
 					visto = fr.it.ID
 				}
-				if enLote {
-					lote = append(lote, b)
-					if ventana == nil {
-						ventana = time.After(loteVentana)
-					}
-					if len(lote) >= loteMax && !soltar() {
-						return
-					}
-					continue
-				}
 				if !escribir(b) {
-					return
-				}
-			case <-ventana:
-				if !soltar() {
 					return
 				}
 			case <-ctx.Done():
