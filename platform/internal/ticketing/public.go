@@ -137,12 +137,13 @@ type Reservada struct {
 
 func (s *Svc) registerPublic() {
 	api := s.a.API
-	type slugIn struct {
+	// Exported: huma does not read the fields of an unexported embedded struct (the slug would arrive empty).
+	type SlugIn struct {
 		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 	}
 	huma.Register(api, huma.Operation{OperationID: "entradas-publicas", Method: http.MethodGet, Path: pub, Summary: "Sesiones con aforo para /entradas", Tags: tagPub},
 		func(ctx context.Context, in *struct {
-			slugIn
+			SlugIn
 			entexto.Lang
 		}) (*struct {
 			CacheControl string `header:"Cache-Control"`

@@ -90,7 +90,8 @@ func (s *Svc) registerPublic() {
 			return out, nil
 		})
 
-	type slugIn struct {
+	// Exported: huma does not read the fields of an unexported embedded struct (the slug would arrive empty).
+	type SlugIn struct {
 		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 	}
 	type pubOut struct {
@@ -99,7 +100,7 @@ func (s *Svc) registerPublic() {
 	}
 	huma.Register(api, huma.Operation{OperationID: "competition-public-get", Method: http.MethodGet, Path: "/api/competiciones/{slug}", Summary: "Datos públicos de la competición (evento, sede, estado, módulos, inscripción, cómo llegar)", Tags: tagPub},
 		func(ctx context.Context, in *struct {
-			slugIn
+			SlugIn
 			entexto.Lang
 		}) (*pubOut, error) {
 			out := &pubOut{CacheControl: "public, max-age=30"}
