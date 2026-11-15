@@ -185,8 +185,9 @@ export class HeroTrophy {
   protected readonly precarga = signal(true);
   protected readonly precargaFuera = signal(false);
   private readonly p = signal(0);
-  /** Scroll span of the hero in px (host height - viewport). */
-  private readonly spanPx = signal(1);
+  /** Scroll span of the hero in px (host height - viewport). Until measured (server HTML, first paint) a phone-sized
+   *  span: with 1 px the pixel thresholds collapsed and p=0 rendered the trophy shown and the intro text hidden. */
+  private readonly spanPx = signal(2000);
   private readonly tramoIntro = computed<[number, number]>(() => { const s = this.spanPx(); return [PX.introIni / s, Math.min(0.5, (PX.introIni + PX.intro) / s)]; });
   private readonly tramoNubes = computed<[number, number]>(() => [Math.max(0.5, T.finNubes - PX.nubes / this.spanPx()), T.finNubes]);
   /** The intro text is visible from the first paint (server HTML too: it is the page's h1). */
@@ -209,6 +210,9 @@ export class HeroTrophy {
   private tope = 0;
   private fade = 0;
   private wasDone = false;
+  /** Next frame jumps straight to the scroll position (loop (re)start, restored or programmatic scroll) instead of
+   *  easing through the timeline: the eased sweep showed the trophy for ~0.5 s before the clouds covered it. */
+  private saltar = true;
   private io?: IntersectionObserver;
   private readonly framesListos = new Set<number>();
   private framesCargando = false;
@@ -267,7 +271,9 @@ export class HeroTrophy {
       void scrub.load(url);
       const loop = () => {
         this.measure();
-        this.shown += (this.progress - this.shown) * 0.15; // smoothing (same as the previous web)
+        if (this.saltar || Math.abs(this.progress - this.shown) > 0.25) this.shown = this.progress;
+        else this.shown += (this.progress - this.shown) * 0.15; // smoothing (same as the previous web)
+        this.saltar = false;
         this.p.set(this.shown);
         this.updateTarget();
         this.raf = requestAnimationFrame(loop);
@@ -276,6 +282,7 @@ export class HeroTrophy {
       this.io = new IntersectionObserver(([entry]) => {
         cancelAnimationFrame(this.raf);
         if (entry.isIntersecting) {
+          this.saltar = true;
           this.raf = requestAnimationFrame(loop);
         } else {
           this.measure(); // settle the intro state (navbar) for the position we left it at
