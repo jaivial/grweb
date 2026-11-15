@@ -30,15 +30,15 @@ export const fechasHero = (ini?: string | null, fin?: string | null) => {
   changeDetection: ChangeDetectionStrategy.OnPush,
   // iOS Safari paints the hero's composited sticky layer (bottom fade, clouds) over a non-composited z-index sibling:
   // its own layer (translateZ) keeps the section above it (Jaime 15-nov: title, dates and «Reserva» hidden on iPhone).
-  host: { class: 'relative isolate z-10 -mt-[400px] block [transform:translate3d(0,0,0)] [will-change:transform] motion-reduce:mt-0', id: 'campeonato' },
+  host: { class: 'relative isolate z-10 -mt-[560px] block [transform:translate3d(0,0,0)] [will-change:transform] motion-reduce:mt-0', id: 'campeonato' },
   template: `
     <!-- «Relevo»: the last 400 px of the hero, fading into the section -->
-    <div class="pointer-events-none h-[400px] bg-[linear-gradient(180deg,transparent,#141112)] motion-reduce:hidden" aria-hidden="true"></div>
+    <div class="pointer-events-none h-[400px] bg-[linear-gradient(180deg,transparent,#141112_75%)] motion-reduce:hidden" aria-hidden="true"></div>
     <div class="relative overflow-hidden bg-bg-base">
     <div [class]="glow + ' top-20 left-[10%] size-[280px] md:size-[520px]'"></div>
     <div [class]="glow + ' top-[420px] right-[8%] size-[280px] md:size-[520px]'"></div>
     @let c = comp();
-    <div class="relative mx-auto flex max-w-[1440px] flex-col items-center gap-6 px-5 pt-18 pb-18 text-center md:gap-8 md:px-20 md:pt-32 md:pb-32">
+    <div class="relative mx-auto flex max-w-[1440px] flex-col items-center gap-6 px-5 pt-2 pb-18 text-center md:gap-8 md:px-20 md:pt-6 md:pb-32">
       <!-- Figma home R2 «Cabecera evento»: logo, organiser logos in B/N (2 × 2 on mobile, one row from md), level, dates and place -->
       <img [src]="logo" alt="GRS Cup 2" class="h-[120px] w-auto select-none md:h-[200px]" draggable="false" />
       <ul class="grid w-full max-w-[350px] grid-cols-2 gap-x-5 gap-y-4 md:flex md:max-w-none md:justify-center md:gap-6" aria-label="Organizan y colaboran">
