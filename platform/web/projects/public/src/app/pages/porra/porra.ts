@@ -529,7 +529,7 @@ export class PorraPage {
       this.exito.set(this.t().hecha(this.monedas(importe), nombre));
       await Promise.all([this.estado.cargarCartera(), this.store.recargarMercados(), this.store.cargarApuestas()]);
     } catch (err) {
-      this.errorPorra.set(mensajeError(err));
+      this.errorPorra.set(mensajeError(err, this.i18n.lang()));
       if (codigoError(err).startsWith('SESION_FAN')) this.fan.sesionPerdida();
     } finally {
       this.enviando.set(false);

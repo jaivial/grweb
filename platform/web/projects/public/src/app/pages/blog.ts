@@ -364,7 +364,7 @@ export class BlogPostPage {
         seo.set({ title: this.cms.failed() ? 'GR Strength Cup' : this.t().seoNoEncontrada, description: this.cms.failed() ? this.t().noDisponible : this.t().noExiste, path: '/blog/' + slug, ...(this.cms.failed() ? {} : { robots: 'noindex' }) });
         return;
       }
-      const r = renderMarkdown(p.cuerpo ?? '');
+      const r = renderMarkdown(p.cuerpo ?? '', this.i18n.lang());
       // the sanitizer drops «id»: sanitize, then put back our slug ids ([a-z0-9-]) on the h2 in order (as LegalPage)
       let n = 0;
       const limpio = (this.sanitizer.sanitize(SecurityContext.HTML, r.html) ?? '').replace(/<h2( class="ancla")?>/g, (_m, c?: string) => `<h2${c ?? ''} id="${r.headings[n++]?.id ?? 'seccion-' + n}">`);

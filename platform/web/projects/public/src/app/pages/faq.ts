@@ -133,6 +133,7 @@ const T = {
   `,
 })
 export class FaqPage {
+  private readonly lang = inject(I18n).lang;
   private readonly cms = inject(Cms);
   protected readonly t = inject(I18n).dict(T);
   protected readonly faq = signal<Faq[] | null>(null);
@@ -164,7 +165,7 @@ export class FaqPage {
     for (const f of items) m.set(f.categoria, [...(m.get(f.categoria) ?? []), f]);
     return [...m].map(([nombre, items]) => ({ nombre, items }));
   });
-  protected md = (s: string) => renderMarkdown(s).html;
+  protected md = (s: string) => renderMarkdown(s, this.lang()).html;
   private readonly comp = inject(Competition);
   protected readonly contacto = computed(() => this.comp.data()?.evento?.emailContacto ?? '');
   protected readonly instagram = computed(() => instagramOf(this.comp.data()));

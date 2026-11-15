@@ -294,20 +294,20 @@ export class DonarModal {
       if (r?.url) location.href = r.url;
       else this.estado.set('exito');
     } catch (e) {
-      this.error.set(detalleError(e));
+      this.error.set(detalleError(e, this.i18n.lang()));
     } finally {
       this.pagando.set(false);
     }
   }
 
   protected euros(c: number): string {
-    return euros(c);
+    return euros(c, this.i18n.lang());
   }
   protected eurosCorto(c: number): string {
-    return eurosCorto(c);
+    return eurosCorto(c, this.i18n.lang());
   }
   protected num(n: number): string {
-    return num(n);
+    return num(n, this.i18n.lang());
   }
   /** UX4-R2-2: the amount is kept as typed; anything but «15», «15,5» or «15.50» is invalid (never stripped to digits). */
   protected ponerOtro(v: string | null): void {

@@ -134,10 +134,10 @@ export class AccesoPage {
         })
         .catch((e) => {
           this.estado.set('error');
-          if (codigoError(e) === 'CUENTA_NO_ENCONTRADA') return this.error.set(detalleError(e));
+          if (codigoError(e) === 'CUENTA_NO_ENCONTRADA') return this.error.set(detalleError(e, this.i18n.lang()));
           // ENLACE_INVALIDO, VALIDACION (a malformed token answers 422 «validation failed») or any bare 4xx: the fan only needs a new link.
           const c = codigoError(e);
-          this.error.set(c === 'ENLACE_INVALIDO' || c === 'VALIDACION' || /^HTTP_4/.test(c) ? this.t().caducado : detalleError(e));
+          this.error.set(c === 'ENLACE_INVALIDO' || c === 'VALIDACION' || /^HTTP_4/.test(c) ? this.t().caducado : detalleError(e, this.i18n.lang()));
         });
     });
   }
@@ -157,7 +157,7 @@ export class AccesoPage {
       this.clave.set('');
       this.continuar();
     } catch (e) {
-      this.errorClave.set(detalleError(e));
+      this.errorClave.set(detalleError(e, this.i18n.lang()));
     } finally {
       this.guardando.set(false);
     }

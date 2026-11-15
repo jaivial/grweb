@@ -892,7 +892,8 @@ export class SecFaq {
   protected readonly ancho = ANCHO;
   protected readonly abierta = signal(0);
   protected t = (k: string) => str(this.s(), k);
-  protected md = (s: string) => renderMarkdown(s).html;
+  private readonly lang = inject(I18n).lang;
+  protected md = (s: string) => renderMarkdown(s, this.lang()).html;
 }
 
 /** UX1-R1-10: pagination dots are buttons that scroll the carousel to that card. */

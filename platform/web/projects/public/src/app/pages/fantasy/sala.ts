@@ -276,7 +276,7 @@ const T = {
 })
 export class SalaPage {
   protected readonly n2 = nota2;
-  protected readonly monedas = monedas;
+  protected readonly monedas = (v: number | null | undefined) => monedas(v, this.i18n.locale());
   private readonly juegos = inject(Juegos);
   private readonly ruta = inject(ActivatedRoute);
   private readonly router = inject(Router);

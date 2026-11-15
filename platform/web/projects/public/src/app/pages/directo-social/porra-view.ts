@@ -196,5 +196,5 @@ export class PorraView {
     void this.router.navigate([this.i18n.path('/porra')], { queryParams: q.trim() ? { q: q.trim() } : {} });
   }
 
-  protected readonly monedas = monedas;
+  protected readonly monedas = (v: number | null | undefined) => monedas(v, this.i18n.lang());
 }

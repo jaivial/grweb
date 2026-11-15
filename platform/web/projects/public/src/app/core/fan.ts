@@ -17,7 +17,7 @@ export interface Fan {
 }
 
 /** Destino interno al que vuelve el fan tras canjear el enlace mágico (solo rutas /fantasy/…; el backend ignora el resto). */
-export const DESTINO_INTERNO = /^\/fantasy(\/[A-Za-z0-9_-]+)*$/;
+export const DESTINO_INTERNO = /^(\/en)?\/fantasy(\/[A-Za-z0-9_-]+)*$/;
 
 export interface AccesoIn {
   email: string;

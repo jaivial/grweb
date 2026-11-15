@@ -8,7 +8,7 @@ import { firstValueFrom } from 'rxjs';
 import { GrAlert, GrButton, GrIcon, GrLogo, GrSkeleton, GrSelect, type GrLiveEstado, cdn, CdnPipe } from '@grcup/ui';
 import { Cms, type Album, type Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, FalloApi, type CompeticionPublica } from '../core/competition';
-import { DirectoPublic, MOV, ORD, catCorta, catLarga, embed, gl, kg, type Categoria, type Directo, type Edicion, type EnPlataforma, type Fila, type Pantalla, type ResultadosPublicos } from '../core/directo';
+import { DirectoPublic, MOV, MOV_EN, ORD, ORD_EN, catCorta, catLarga, embed, gl, kg, type Categoria, type Directo, type Edicion, type EnPlataforma, type Fila, type Pantalla, type ResultadosPublicos } from '../core/directo';
 import { ICS_URL } from '../core/horarios';
 import { I18n, LocPipe } from '../core/i18n';
 import { Seo } from '../core/seo';
@@ -60,7 +60,7 @@ const T = {
     seoOtro: 'Retransmisión y resultados en directo de la GRS Cup 2: quién compite, los siguientes atletas y la clasificación al momento.',
   },
   en: {
-    mov: { sq: 'Squat', bp: 'Bench press', dl: 'Deadlift' } as typeof MOV, ord: ['', '1st', '2nd', '3rd'], intento: 'attempt', seccion: 'The event', enDirecto: 'live', crumb: 'Live', h1: 'GRS Cup 2 live',
+    mov: MOV_EN, ord: ORD_EN, intento: 'attempt', seccion: 'The event', enDirecto: 'live', crumb: 'Live', h1: 'GRS Cup 2 live',
     falloT: 'We couldn’t load the live feed', falloD: 'Please try again in a few seconds.', pausaT: 'Technical break', pausaD: 'We’ll be right back.', retraso: (n: number) => 'We’re running ' + n + ' min late.',
     retransmision: 'Broadcast', iframe: 'GRS Cup 2 broadcast', empiezaEn: 'The broadcast starts in', empezara: 'The broadcast will start with the first block', recordar: 'Remind me',
     verRep: 'Watch the replay', repCompleta: 'Full replay', repBreve: 'The replay will be available shortly', breve: 'The video starts shortly · follow the attempts here', vivo: 'Live',
@@ -209,7 +209,7 @@ export class EnDirectoPage {
   protected readonly escritorio = escritorio();
   protected readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(T);
-  protected readonly kg = kg;
+  protected readonly kg = (v?: number | null) => kg(v, this.i18n.lang());
   protected readonly catLarga = catLarga;
   protected readonly diaHora = (iso: string) => diaHora(iso, this.i18n.locale());
   protected readonly ics = ICS_URL;
@@ -423,7 +423,7 @@ const TE = {
     <!-- Figma 17 «404»: an edition that does not exist -->
     @if (noExiste()) { <gr-navbar /><main><gr-no-encontrada /></main><gr-footer /> } @else {
     <gr-page [title]="t().titulo" [accent]="r?.competicion?.nombre ?? 'GRStrength Cup ' + anio()" [section]="t().titulo" [crumb]="anio()" [eyebrow]="r ? ((comp()?.sede?.ciudad || r.competicion.sede) + ' · ' + fechas(r.competicion.fechaInicio, r.competicion.fechaFin)) : ''"
-      [subtitle]="r?.publicado ? (comp()?.evento?.nivel ? comp()!.evento.nivel.replace(/^(AEP-\d Regional) (?!de )/, '$1 de ') + '. ' : '') + ((r.mejores['F'] || r.mejores['M']) ? t().subGl : t().sub) : ''">
+      [subtitle]="r?.publicado ? (comp()?.evento?.nivel ? (i18n.lang() === 'es' ? comp()!.evento.nivel.replace(/^(AEP-\d Regional) (?!de )/, '$1 de ') : comp()!.evento.nivel) + '. ' : '') + ((r.mejores['F'] || r.mejores['M']) ? t().subGl : t().sub) : ''">
       @if (r?.publicado) {
         <div pageStamps class="flex flex-wrap gap-2">
           <!-- Figma 25: «Fuente: acta oficial AEP (PDF)» + «Datos de ejemplo» -->
@@ -523,7 +523,7 @@ const TE = {
 })
 export class ResultadosEdicionPage {
   protected readonly noExiste = signal(false);
-  private readonly i18n = inject(I18n);
+  protected readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(TE);
   private noEncontrada(seo: Seo): void {
     this.noExiste.set(true);
@@ -568,8 +568,8 @@ export class ResultadosEdicionPage {
   protected readonly sx: ('F' | 'M')[] = ['F', 'M'];
   protected readonly sexos = [{ v: '' as const, l: 'Todas' }, { v: 'F' as const, l: 'Femenino' }, { v: 'M' as const, l: 'Masculino' }];
   protected readonly fechas = (a?: string, b?: string) => fechasCortas(a, b, this.i18n.locale());
-  protected readonly kg = kg;
-  protected readonly gl = gl;
+  protected readonly kg = (v?: number | null) => kg(v, this.i18n.lang());
+  protected readonly gl = (v?: number | null) => gl(v, this.i18n.lang());
   /** «Club · −63 kg» under the best lifter (Figma 25). */
   protected catDe(f: Fila): string {
     const c = this.res()?.categorias.find((c) => c.filas.includes(f) || c.filas.some((x) => x.nombre === f.nombre && x.total === f.total));
@@ -608,7 +608,7 @@ export class ResultadosEdicionPage {
       const [r, c] = await Promise.all([this.api.resultados(e.slug), firstValueFrom(this.http.get<CompeticionPublica>(`/api/competiciones/${e.slug}`)).catch(() => null)]);
       this.comp.set(c);
       this.res.set(r);
-      const mejores = r ? Object.values(r.mejores).map((f) => `${f!.nombre} (${gl(f!.gl)} GL)`).join(this.t().y) : '';
+      const mejores = r ? Object.values(r.mejores).map((f) => `${f!.nombre} (${gl(f!.gl, this.i18n.lang())} GL)`).join(this.t().y) : '';
       await applySeo(this.cms, seo, '/resultados/' + this.anio(), this.t().seoT(e.nombre),
         r?.publicado ? this.t().seoD(e.nombre, mejores) : this.t().seoNo(e.nombre));
     });
@@ -629,6 +629,7 @@ export class ResultadosEdicionPage {
 
 const TD = {
   es: {
+    celebrada: 'Celebrada',
     eyebrow: 'Edición anterior', seccion: 'Ediciones', fuente: (a: string) => 'Fuente: cartel oficial de la edición ' + a, cartel: (n: string) => 'Cartel de la ' + n,
     verResultados: 'Ver resultados', verGaleria: 'Ver galería', galEyebrow: 'Galería', galTitulo: (a: string) => 'Así fue *la edición ' + a + '*', ampliar: 'Ampliar: ',
     patro: (a: string) => 'Patrocinadores ' + a, patroTitulo: 'Gracias a *nuestros colaboradores*', logos: (a: string) => 'Logos del cartel de la edición ' + a + '.',
@@ -640,6 +641,7 @@ const TD = {
     seoT: (n: string, c: string) => n + ' · ' + c + ' · Edición anterior', seoD: (f: string, c: string, d: string) => f + ' en ' + c + '. ' + d,
   },
   en: {
+    celebrada: 'Held',
     eyebrow: 'Past edition', seccion: 'Editions', fuente: (a: string) => 'Source: official poster of the ' + a + ' edition', cartel: (n: string) => 'Poster of ' + n,
     verResultados: 'See results', verGaleria: 'See gallery', galEyebrow: 'Gallery', galTitulo: (a: string) => 'How *the ' + a + ' edition* went', ampliar: 'Enlarge: ',
     patro: (a: string) => a + ' sponsors', patroTitulo: 'Thanks to *our partners*', logos: (a: string) => 'Logos from the ' + a + ' edition poster.',
@@ -666,7 +668,7 @@ const TD = {
       @if (c) {
         <div pageStamps class="flex flex-wrap gap-2">
           <span class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />{{ t().fuente(anio()) }}</span>
-          <span class="inline-flex h-7 items-center rounded-full border border-text-muted bg-text-muted/12 px-3 text-label-xs text-text-tertiary uppercase">Celebrada</span>
+          <span class="inline-flex h-7 items-center rounded-full border border-text-muted bg-text-muted/12 px-3 text-label-xs text-text-tertiary uppercase">{{ t().celebrada }}</span>
         </div>
       }
       @if (c === undefined) { <gr-skeleton class="h-96 rounded-lg" /> }
@@ -818,10 +820,12 @@ export class EdicionPage {
 
 const TP = {
   es: {
+    enVivo: '● En directo', aContinuacion: 'A continuación',
     ...T.es, noVale: 'Este enlace de pantalla ya no vale.', copia: 'Copia el nuevo desde el backoffice: Directo › Pantalla del pabellón.', pausaD2: 'Volvemos enseguida', retraso2: (n: number) => ' · ' + n + ' min de retraso',
     webRes: 'Resultados en la web: /resultados', empezamos: (h: string) => 'Empezamos ' + h, enseguida: 'Enseguida empezamos', sigue: 'Sigue el directo', sigueD: '/en-directo · sigue a tus atletas y recibe aviso antes de que compitan',
   },
   en: {
+    enVivo: '● Live', aContinuacion: 'Up next',
     ...T.en, noVale: 'This screen link is no longer valid.', copia: 'Copy the new one from the back office: Live › Venue screen.', pausaD2: 'We’ll be right back', retraso2: (n: number) => ' · ' + n + ' min late',
     webRes: 'Results online: /en/resultados', empezamos: (h: string) => 'Starting ' + h, enseguida: 'Starting shortly', sigue: 'Follow it live', sigueD: '/en/en-directo · follow your athletes and get an alert before they compete',
   },
@@ -842,7 +846,7 @@ const TP = {
         @let d = p.directo;
         <header class="absolute top-[60px] left-[80px] flex items-center gap-8">
           <gr-logo [height]="76" />
-          @if (d.fase === 'en_directo') { <span class="rounded-pill border border-accent/70 px-4 py-1.5 font-mono text-[18px] text-accent-text">● En directo</span> }
+          @if (d.fase === 'en_directo') { <span class="rounded-pill border border-accent/70 px-4 py-1.5 font-mono text-[18px] text-accent-text">{{ t().enVivo }}</span> }
           @if (d.sesion) { <span class="font-display text-[30px] text-white/70 uppercase italic">Sesión de las {{ d.sesion.hora }}</span> }
         </header>
 
@@ -869,7 +873,7 @@ const TP = {
         <aside class="absolute top-[60px] right-[80px] flex w-[560px] flex-col gap-8">
           @if (p.pantalla.siguientes && d.fase === 'en_directo' && d.siguientes.length) {
             <section class="rounded-[24px] border border-white/10 bg-white/[0.04] p-8">
-              <p class="font-display text-[28px] text-white/70 uppercase italic">A continuación</p>
+              <p class="font-display text-[28px] text-white/70 uppercase italic">{{ t().aContinuacion }}</p>
               @for (s of d.siguientes; track $index) { <p class="mt-5 flex justify-between font-display text-[34px] uppercase italic"><span class="truncate pr-4">{{ s.nombre }}</span><span class="text-accent-text">{{ kg(s.peso) }} kg</span></p> }
             </section>
           }
@@ -913,7 +917,7 @@ export class PantallaPublicaPage {
   private readonly giro = signal(0);
   private readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(TP);
-  protected readonly kg = kg;
+  protected readonly kg = (v?: number | null) => kg(v, this.i18n.lang());
   protected readonly catLarga = catLarga;
   protected readonly diaHora = (iso: string) => diaHora(iso, this.i18n.locale());
   protected readonly host = signal('');

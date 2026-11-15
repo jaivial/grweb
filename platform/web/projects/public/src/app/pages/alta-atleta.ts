@@ -143,7 +143,7 @@ const MAX_MARCA = 600;
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <label class="text-label-s" for="c-email">{{ t().email }}</label>
-                        <input id="c-email" name="email" type="email" autocomplete="email" maxlength="254" placeholder="tu@email.com"
+                        <input id="c-email" name="email" type="email" autocomplete="email" maxlength="254" [placeholder]="t().emailPh"
                           class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                           [class]="err()['email'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.email" (ngModelChange)="revalidar()"
@@ -529,7 +529,7 @@ export class AltaAtletaPage {
     if (!v) return null;
     const n = Number(v);
     if (isNaN(n)) return null;
-    return n.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    return n.toLocaleString(this.i18n.locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   }
 
   /** El valor de un campo de marca como texto (los <input type=number> devuelven número). */
@@ -550,7 +550,7 @@ export class AltaAtletaPage {
       suma += n;
       hay = true;
     }
-    return hay ? suma.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null;
+    return hay ? suma.toLocaleString(this.i18n.locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null;
   }
 
   /** Errores por campo (con el texto corto del resumen). */
@@ -1030,6 +1030,7 @@ function competicionNombre(c: { nombre?: string } | null): string {
 }
 
 const T_ES = {
+  emailPh: 'tu@email.com',
   titulo: 'Alta de atleta de', acento: 'powerlifting', sufijo: 'para la GRS Cup', tituloExito: 'Solicitud recibida',
   eyebrow: 'Atletas · GRS Cup 2026', eyebrowExito: 'Solicitud enviada', seccion: 'Atletas', miga: 'Alta de atleta', inicio: 'Inicio',
   intro: 'Si compites en esta edición, crea tu perfil de atleta: foto, datos de competidor y tus mejores marcas en menos de cinco minutos. No es una inscripción y queda privado hasta que lo publiques.',
@@ -1084,6 +1085,7 @@ const T_ES = {
 const T = {
   es: T_ES,
   en: {
+    emailPh: 'you@email.com',
     titulo: 'Athlete sign-up for', acento: 'powerlifting', sufijo: 'at the GRS Cup', tituloExito: 'Request received',
     eyebrow: 'Athletes · GRS Cup 2026', eyebrowExito: 'Request sent', seccion: 'Athletes', miga: 'Athlete sign-up', inicio: 'Home',
     intro: "If you're competing in this edition, create your athlete profile: photo, competitor details and your best lifts in under five minutes. It isn't a registration and it stays private until you publish it.",

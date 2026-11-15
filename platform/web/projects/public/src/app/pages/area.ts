@@ -656,7 +656,7 @@ export class AreaAtletaPage {
   private readonly comp = inject(Competition);
   private readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(T);
-  protected readonly hora = hora;
+  protected readonly hora = (iso?: string) => hora(iso, this.i18n.lang());
   protected readonly cat = cat;
   protected readonly tile = 'group flex aspect-square flex-col items-center justify-center gap-3 rounded-xl border border-white/8 bg-white/3 p-4 text-center transition-[background-color,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-accent/50 hover:bg-white/6 focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transition-none motion-reduce:hover:translate-y-0 md:gap-4';
   protected readonly tileIcono = 'flex size-14 items-center justify-center rounded-lg bg-accent/16 text-accent-text transition-colors group-hover:bg-accent/24 md:size-16';
@@ -736,8 +736,8 @@ export class AreaAtletaPage {
       { k: t.competicion, v: this.textoPrueba() },
       { k: t.categoria, v: a.categoria ? `${a.sexo} ${cat(a.categoria)} kg` : t.porPublicar }, { k: t.division, v: a.divisionNombre },
       { k: t.orden, v: sinPrueba || (a.lote ? t.lote + a.lote : t.porPublicar) },
-      { k: t.pesaje, v: sinPrueba || (a.pesajeInicio ? `${hora(a.pesajeInicio)}–${hora(a.pesajeFin)}` : t.porPublicar) },
-      { k: t.inicio, v: sinPrueba || (a.horaInicio ? hora(a.horaInicio) : t.porPublicar) },
+      { k: t.pesaje, v: sinPrueba || (a.pesajeInicio ? `${hora(a.pesajeInicio, this.i18n.lang())}–${hora(a.pesajeFin, this.i18n.lang())}` : t.porPublicar) },
+      { k: t.inicio, v: sinPrueba || (a.horaInicio ? hora(a.horaInicio, this.i18n.lang()) : t.porPublicar) },
       { k: t.licencia, v: a.licencia || '–' },
     ];
   });

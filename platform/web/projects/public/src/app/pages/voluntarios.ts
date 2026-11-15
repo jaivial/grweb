@@ -20,6 +20,7 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
 
 const T = {
   es: {
+    emailPh: 'tu@email.com',
     /** Figma 33 «¿Cómo quieres ayudar?». */
     roles: [
       { id: 'jueces', t: 'Jueces', d: 'Arbitraje de los intentos en plataforma.', req: 'Licencia de juez AEP', icono: 'shield' },
@@ -53,6 +54,7 @@ const T = {
     seoTitulo: 'Voluntarios · GR Strength Cup', seoDesc: 'Jueces, cargadores, mesa técnica, foto y acreditaciones: apúntate como voluntario en la GR Strength Cup.',
   },
   en: {
+    emailPh: 'you@email.com',
     roles: [
       { id: 'jueces', t: 'Referees', d: 'Judging the attempts on the platform.', req: 'AEP referee licence', icono: 'shield' },
       { id: 'cargadores', t: 'Loaders', d: 'Loading plates and safety (spotters).', req: 'Strength training experience', icono: 'maximize' },
@@ -156,7 +158,7 @@ const T = {
                   <input grInput id="v-nombre" name="nombre" autocomplete="name" required [placeholder]="t().tuNombre" [(ngModel)]="nombre" [attr.aria-invalid]="falta() && nombre.trim().length < 2" /></label>
                 @if (falta() && nombre.trim().length < 2) { <span class="flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />{{ t().errNombre }}</span> }
                 <label class="flex flex-col gap-1.5" for="v-email"><span class="text-label-s">Email <span class="text-accent-text">*</span></span>
-                  <input grInput id="v-email" name="email" type="email" autocomplete="email" required placeholder="tu@email.com" [(ngModel)]="email" [attr.aria-invalid]="falta() && !emailOk()" /></label>
+                  <input grInput id="v-email" name="email" type="email" autocomplete="email" required [placeholder]="t().emailPh" [(ngModel)]="email" [attr.aria-invalid]="falta() && !emailOk()" /></label>
                 @if (falta() && !emailOk()) { <span class="flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />{{ t().errEmail }}</span> }
                 <label class="flex flex-col gap-1.5" for="v-tel"><span class="text-label-s">{{ t().telefono }}</span>
                   <span class="flex h-11 items-center overflow-hidden rounded-md border border-line-strong bg-bg-field focus-within:border-accent-text">
