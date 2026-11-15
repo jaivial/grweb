@@ -1,3 +1,4 @@
+import { textoError } from '../core/errores';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, Injector, PLATFORM_ID, PendingTasks, type Signal, afterNextRender, computed, inject, signal } from '@angular/core';
 import { NgTemplateOutlet, isPlatformBrowser } from '@angular/common';
@@ -695,7 +696,7 @@ export class AreaAtletaPage {
       await this.set(await firstValueFrom(this.http.post<Panel>(`${api}/login`, { competicion: COMPETITION_SLUG, email: this.email.trim(), password: this.password })));
       this.password = '';
     } catch (e) {
-      this.error.set(e instanceof HttpErrorResponse && e.status === 429 ? this.t().demasiados : (e as { error?: { detail?: string } }).error?.detail ?? this.t().noEntrar);
+      this.error.set(e instanceof HttpErrorResponse && e.status === 429 ? this.t().demasiados : textoError(e, this.t().noEntrar));
     } finally {
       this.busy.set(false);
     }
@@ -798,7 +799,7 @@ export class AreaAtletaPage {
       this.aviso(this.t().compGuardada + this.nombrePrueba(this.eleccion()));
     } catch (e) {
       const actual = this.panel()?.prueba?.elegida;
-      this.errorPrueba.set(((e as { error?: { detail?: string } }).error?.detail ?? this.t().noGuardarComp) + (actual ? this.t().seMantiene(this.nombrePrueba(actual)) : '') + this.t().reintenta);
+      this.errorPrueba.set((textoError(e, this.t().noGuardarComp)) + (actual ? this.t().seMantiene(this.nombrePrueba(actual)) : '') + this.t().reintenta);
       firstValueFrom(this.http.get<Panel>(`${api}/yo`)).then((p) => this.panel.set(p), () => undefined);
     } finally {
       this.guardandoPrueba.set(false);
@@ -954,7 +955,7 @@ export class AreaAtletaPage {
       this.set(p);
       this.aviso(this.t().fotoSubida);
     } catch (e) {
-      this.error.set((e as { error?: { detail?: string } }).error?.detail ?? this.t().noSubir);
+      this.error.set(textoError(e, this.t().noSubir));
     } finally {
       this.subiendo.set(false);
     }
@@ -1024,7 +1025,7 @@ export class AreaAtletaPage {
       this.vista.set('acceso');
       return '';
     }
-    return (e as { error?: { detail?: string } }).error?.detail ?? this.t().noGuardarGen;
+    return textoError(e, this.t().noGuardarGen);
   }
 
   private aviso(t: string): void {

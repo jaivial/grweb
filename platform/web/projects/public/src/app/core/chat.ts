@@ -1,3 +1,4 @@
+import { textoError } from './errores';
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
@@ -536,7 +537,7 @@ export class ChatService {
       this.marcarEnviado(cid);
       return true;
     } catch (e) {
-      const detalle = e instanceof HttpErrorResponse ? (e.error?.detail as string) || (e.error?.code as string) || this.t().noEnviado : this.t().noEnviado;
+      const detalle = e instanceof HttpErrorResponse ? textoError(e, this.t().noEnviado) : this.t().noEnviado;
       this.errorEnvio.set(detalle);
       this.items.update((l) => l.map((i) => (i.kind === 'msg' && i.cid === cid ? { ...i, estado: 'error', error: detalle } : i)));
       return false;

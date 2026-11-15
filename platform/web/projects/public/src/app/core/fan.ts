@@ -1,10 +1,11 @@
+import { errorEn } from './errores';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { NavigationStart, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG } from './competition';
-import type { Lang } from './i18n';
+import { idiomaActual, type Lang } from './i18n';
 
 /** Public community account of the live page («cuenta de directo»: atleta or público). Service `fans`. */
 export interface Fan {
@@ -34,8 +35,9 @@ export function codigoError(e: unknown): string {
   if (e instanceof HttpErrorResponse) return (e.error && (e.error.code as string)) || `HTTP_${e.status}`;
   return 'DESCONOCIDO';
 }
-export function detalleError(e: unknown, lang: Lang = 'es'): string {
-  if (e instanceof HttpErrorResponse && e.error?.detail) return e.error.detail as string;
+export function detalleError(e: unknown, lang: Lang = idiomaActual()): string {
+  if (e instanceof HttpErrorResponse && lang === 'en' && errorEn(e.error?.code)) return errorEn(e.error.code)!;
+  if (e instanceof HttpErrorResponse && lang !== 'en' && e.error?.detail) return e.error.detail as string;
   return lang === 'en' ? 'Could not complete. Please try again in a few seconds.' : 'No se ha podido completar. Inténtalo de nuevo en unos segundos.';
 }
 

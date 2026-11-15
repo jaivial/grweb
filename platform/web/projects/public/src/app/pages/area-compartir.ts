@@ -1,3 +1,4 @@
+import { textoError } from '../core/errores';
 import { HttpClient, HttpErrorResponse, HttpEventType } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, computed, effect, inject, signal, untracked } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
@@ -484,7 +485,7 @@ export class AreaCompartirPage {
       },
       error: (e: HttpErrorResponse) => {
         this.subida.set(null);
-        this.errorFoto.set(e.status === 413 || e.status === 415 || e.status === 422 ? e.error?.detail || this.t().noAdmitido : this.t().noSubir);
+        this.errorFoto.set(e.status === 413 || e.status === 415 || e.status === 422 ? textoError(e, this.t().noAdmitido) : this.t().noSubir);
       },
     });
   }

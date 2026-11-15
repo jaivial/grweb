@@ -23,6 +23,10 @@ export function sinPrefijo(p: string): string {
   return resto.startsWith('/') ? resto : '/' + resto;
 }
 
+let actual: Lang = 'es';
+/** Language of the page being shown (for plain helpers called without a lang, e.g. API error texts). */
+export const idiomaActual = (): Lang => actual;
+
 @Injectable({ providedIn: 'root' })
 export class I18n {
   private readonly router = inject(Router);
@@ -32,8 +36,9 @@ export class I18n {
   readonly locale = computed(() => (this.lang() === 'en' ? 'en-GB' : 'es-ES'));
 
   constructor() {
+    actual = this.lang();
     this.router.events.subscribe((e) => {
-      if (e instanceof NavigationStart) this.lang.set(langDe(e.url));
+      if (e instanceof NavigationStart) this.lang.set((actual = langDe(e.url)));
     });
   }
 
