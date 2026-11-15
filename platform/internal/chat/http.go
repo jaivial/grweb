@@ -240,6 +240,33 @@ func (s *Svc) ws(w http.ResponseWriter, r *http.Request) {
 					_ = conn.Close(websocket.StatusPolicyViolation, "lento")
 					return
 				}
+				if fr.lote != nil {
+					// a whole window of the room (#8): one write for ?lote=1 clients (shared bytes unless some
+					// items were already sent in the replay), one per item for the old protocol
+					if !soltar() {
+						return
+					}
+					nuevos := nuevosDe(fr.lote, &visto)
+					if len(nuevos) == 0 {
+						continue
+					}
+					if enLote {
+						b := fr.loteJSON
+						if len(nuevos) != len(fr.lote) {
+							b = unirLote(jsonsDe(nuevos))
+						}
+						if !escribir(b) {
+							return
+						}
+						continue
+					}
+					for _, f := range nuevos {
+						if !escribir(f.json) {
+							return
+						}
+					}
+					continue
+				}
 				// the room already encoded the frame (once for the whole room): no per-client JSON
 				b := fr.json
 				if b == nil {
@@ -445,13 +472,7 @@ func (s *Svc) sse(w http.ResponseWriter, r *http.Request) {
 			}
 			// only stream items carry an id (estado is published locally without one): replay duplicates
 			// are skipped by id, the rest always go out
-			if fr.it.ID != "" {
-				if visto != "" && !after(fr.it.ID, visto) {
-					continue
-				}
-				visto = fr.it.ID
-			}
-			if !escribirSinFlush(fr.it.ID, fr) {
+			if !sseFrame(fr, &visto, escribirSinFlush) {
 				return
 			}
 			// perf-20261115: drain what is already queued and flush once (one write per burst, not per event)
@@ -870,13 +891,7 @@ func drenarSSE(ch chan frame, visto *string, escribir func(string, frame) bool) 
 			if !ok {
 				return true // the next receive sees the closed channel
 			}
-			if fr.it.ID != "" {
-				if *visto != "" && !after(fr.it.ID, *visto) {
-					continue
-				}
-				*visto = fr.it.ID
-			}
-			if !escribir(fr.it.ID, fr) {
+			if !sseFrame(fr, visto, escribir) {
 				return false
 			}
 		default:
@@ -884,4 +899,48 @@ func drenarSSE(ch chan frame, visto *string, escribir func(string, frame) bool) 
 		}
 	}
 	return true
+}
+
+// nuevosDe returns the frames of a batch not yet sent (ids after visto) and advances visto.
+func nuevosDe(lote []frame, visto *string) []frame {
+	i := 0
+	for i < len(lote) && lote[i].it.ID != "" && *visto != "" && !after(lote[i].it.ID, *visto) {
+		i++
+	}
+	nuevos := lote[i:]
+	for _, f := range nuevos {
+		if f.it.ID != "" {
+			*visto = f.it.ID
+		}
+	}
+	return nuevos
+}
+
+func jsonsDe(fs []frame) [][]byte {
+	out := make([][]byte, 0, len(fs))
+	for _, f := range fs {
+		if f.json != nil {
+			out = append(out, f.json)
+		}
+	}
+	return out
+}
+
+// sseFrame writes one frame (or every item of a batch) as SSE events without flushing, skipping replayed ids.
+func sseFrame(fr frame, visto *string, escribir func(string, frame) bool) bool {
+	if fr.lote != nil {
+		for _, f := range nuevosDe(fr.lote, visto) {
+			if !escribir(f.it.ID, f) {
+				return false
+			}
+		}
+		return true
+	}
+	if fr.it.ID != "" {
+		if *visto != "" && !after(fr.it.ID, *visto) {
+			return true
+		}
+		*visto = fr.it.ID
+	}
+	return escribir(fr.it.ID, fr)
 }
