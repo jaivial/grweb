@@ -816,6 +816,17 @@ export class EdicionPage {
 
 // ============================================================ /pantalla/:slug ===
 
+const TP = {
+  es: {
+    ...T.es, noVale: 'Este enlace de pantalla ya no vale.', copia: 'Copia el nuevo desde el backoffice: Directo › Pantalla del pabellón.', pausaD2: 'Volvemos enseguida', retraso2: (n: number) => ' · ' + n + ' min de retraso',
+    webRes: 'Resultados en la web: /resultados', empezamos: (h: string) => 'Empezamos ' + h, enseguida: 'Enseguida empezamos', sigue: 'Sigue el directo', sigueD: '/en-directo · sigue a tus atletas y recibe aviso antes de que compitan',
+  },
+  en: {
+    ...T.en, noVale: 'This screen link is no longer valid.', copia: 'Copy the new one from the back office: Live › Venue screen.', pausaD2: 'We’ll be right back', retraso2: (n: number) => ' · ' + n + ' min late',
+    webRes: 'Results online: /en/resultados', empezamos: (h: string) => 'Starting ' + h, enseguida: 'Starting shortly', sigue: 'Follow it live', sigueD: '/en/en-directo · follow your athletes and get an alert before they compete',
+  },
+};
+
 /** Arena screen (Figma page 44 · «Pantalla del pabellón»): 1920 × 1080 scaled to the window, fed by the public SSE. */
 @Component({
   selector: 'gr-pantalla',
@@ -826,7 +837,7 @@ export class EdicionPage {
     @let p = data();
     <div class="absolute top-0 left-0 h-[1080px] w-[1920px] origin-top-left overflow-hidden bg-[radial-gradient(70%_80%_at_25%_30%,#3a0f17,#120d0f_70%)] text-white" [style.transform]="'scale(' + escala() + ')'">
       @if (p === 'enlace') {
-        <div class="flex size-full flex-col items-center justify-center gap-6"><gr-logo [height]="120" /><p class="text-[40px]">Este enlace de pantalla ya no vale.</p><p class="text-[28px] text-white/60">Copia el nuevo desde el backoffice: Directo › Pantalla del pabellón.</p></div>
+        <div class="flex size-full flex-col items-center justify-center gap-6"><gr-logo [height]="120" /><p class="text-[40px]">{{ t().noVale }}</p><p class="text-[28px] text-white/60">{{ t().copia }}</p></div>
       } @else if (p) {
         @let d = p.directo;
         <header class="absolute top-[60px] left-[80px] flex items-center gap-8">
@@ -836,12 +847,12 @@ export class EdicionPage {
         </header>
 
         @if (d.fase === 'en_directo' && d.pausa) {
-          <div class="absolute top-[300px] left-[80px]"><p class="font-display text-[150px] leading-none uppercase italic">Pausa técnica</p><p class="mt-6 text-[40px] text-white/70">Volvemos enseguida@if (d.retrasoMin) { · {{ d.retrasoMin }} min de retraso }</p></div>
+          <div class="absolute top-[300px] left-[80px]"><p class="font-display text-[150px] leading-none uppercase italic">{{ t().pausaT }}</p><p class="mt-6 text-[40px] text-white/70">{{ t().pausaD2 }}@if (d.retrasoMin) { {{ t().retraso2(d.retrasoMin) }} }</p></div>
         } @else if (d.fase === 'en_directo' && foco(); as a) {
           <div class="absolute top-[230px] left-[80px] w-[1180px]">
             <p class="overflow-hidden pt-[0.15em] font-display leading-[1.1] whitespace-nowrap uppercase italic" [style.font-size.px]="tamNombre(a.nombre)">{{ a.nombre }}</p>
             <p class="mt-6 font-display text-[40px] text-white/85 uppercase italic">{{ a.club ? a.club + ' · ' : '' }}{{ catLarga(a.sexo, a.categoria) }}@if (a.division) { · {{ a.division }} }</p>
-            <p class="mt-3 font-display text-[44px] text-accent-text uppercase italic">{{ MOVN[a.movimiento] }} · {{ ORD[a.numero] }} intento</p>
+            <p class="mt-3 font-display text-[44px] text-accent-text uppercase italic">{{ t().mov[a.movimiento] }} · {{ t().ord[a.numero] }} {{ t().intento }}</p>
             <div class="mt-6 flex items-center gap-10">
               <p class="font-display text-[260px] leading-[0.85] italic">{{ kg(a.peso) }}</p>
               <span class="self-end pb-8 font-display text-[60px] text-white/70 italic">KG</span>
@@ -851,7 +862,7 @@ export class EdicionPage {
         } @else {
           <div class="absolute top-[300px] left-[80px] w-[1180px]">
             <p class="font-display text-[130px] leading-none uppercase italic">{{ d.fase === 'finalizado' ? '¡Gracias!' : p.nombre }}</p>
-            <p class="mt-8 text-[44px] text-white/75">{{ d.fase === 'finalizado' ? 'Resultados en la web: /resultados' : d.proximo ? 'Empezamos ' + diaHora(d.proximo.inicio) : 'Enseguida empezamos' }}</p>
+            <p class="mt-8 text-[44px] text-white/75">{{ d.fase === 'finalizado' ? t().webRes : d.proximo ? t().empezamos(diaHora(d.proximo.inicio)) : t().enseguida }}</p>
           </div>
         }
 
@@ -873,7 +884,7 @@ export class EdicionPage {
         @if (p.pantalla.qr && qr()) {
           <section class="absolute right-[80px] bottom-[60px] flex w-[560px] items-center gap-6 rounded-[24px] border border-accent/50 bg-accent-deep/40 p-6">
             <img [src]="qr()" alt="" class="size-[150px] rounded-md bg-white p-2" />
-            <div><p class="font-display text-[30px] uppercase italic">Sigue el directo</p><p class="mt-2 text-[22px] text-white/75">{{ host() }}/en-directo · sigue a tus atletas y recibe aviso antes de que compitan</p></div>
+            <div><p class="font-display text-[30px] uppercase italic">{{ t().sigue }}</p><p class="mt-2 text-[22px] text-white/75">{{ host() }}{{ t().sigueD }}</p></div>
           </section>
         }
         @if (p.pantalla.carrusel && sponsors().length) {
@@ -900,11 +911,11 @@ export class PantallaPublicaPage {
   protected readonly sponsors = signal<Patrocinador[]>([]);
   private readonly ahora = signal(Date.now());
   private readonly giro = signal(0);
-  protected readonly MOVN = MOV;
-  protected readonly ORD = ORD;
+  private readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(TP);
   protected readonly kg = kg;
   protected readonly catLarga = catLarga;
-  protected readonly diaHora = diaHora;
+  protected readonly diaHora = (iso: string) => diaHora(iso, this.i18n.locale());
   protected readonly host = signal('');
   private readonly dir = computed(() => {
     const p = this.data();
@@ -943,7 +954,7 @@ export class PantallaPublicaPage {
     };
     void cargar();
     void this.cms.patrocinadores().then((p) => this.sponsors.set(p ?? []));
-    void import('qrcode').then(async (m) => this.qr.set(await (m.default ?? m).toDataURL(`${location.origin}/en-directo`, { margin: 1, width: 300 })));
+    void import('qrcode').then(async (m) => this.qr.set(await (m.default ?? m).toDataURL(location.origin + this.i18n.path('/en-directo'), { margin: 1, width: 300 })));
     const cerrar = escuchar(EVENTOS, () => void cargar());
     const tick = setInterval(() => this.ahora.set(Date.now()), 500);
     const poll = setInterval(() => void cargar(), 20_000); // also the «en línea» ping of the backoffice
