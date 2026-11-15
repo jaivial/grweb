@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/jaivial/grweb/platform/pkg/compref"
+	"github.com/jaivial/grweb/platform/pkg/entexto"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
@@ -146,6 +147,36 @@ func (s *Svc) horarios(ctx context.Context, c compref.Comp) (Horarios, error) {
 	return h, nil
 }
 
+// enHorarios overlays the English texts (config.en: Spanish → English) on a cache copy; session titles built by the
+// planner («Masculino −83 kg») get their sex word translated.
+func (s *Svc) enHorarios(ctx context.Context, cid uuid.UUID, h *Horarios) {
+	var d entexto.Dict
+	_ = s.a.DB.QueryRow(ctx, `SELECT en FROM config WHERE competition_id = $1`, cid).Scan(&d)
+	sexo := strings.NewReplacer("Masculino", "Men", "Femenino", "Women")
+	for i := range h.Dias {
+		dia := &h.Dias[i]
+		notas := make([]string, len(dia.Notas))
+		for j, n := range dia.Notas {
+			notas[j] = d.T(n)
+		}
+		dia.Notas = notas
+		ag := make([]AgendaItem, len(dia.Agenda))
+		for j, a := range dia.Agenda {
+			a.Titulo = d.T(a.Titulo)
+			ag[j] = a
+		}
+		dia.Agenda = ag
+		for j := range dia.Sesiones {
+			t := dia.Sesiones[j].Titulo
+			if v := d.T(t); v != t {
+				dia.Sesiones[j].Titulo = v
+			} else {
+				dia.Sesiones[j].Titulo = sexo.Replace(t)
+			}
+		}
+	}
+}
+
 func (s *Svc) registerPublic() {
 	api := s.a.API
 	type hOut struct {
@@ -156,6 +187,7 @@ func (s *Svc) registerPublic() {
 	type hIn struct {
 		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		Resumen bool   `query:"resumen" doc:"Compatibilidad: la respuesta ya no lleva listas de atletas"`
+		entexto.Lang
 	}
 	huma.Register(api, huma.Operation{OperationID: "horarios-publicos", Method: http.MethodGet, Path: "/api/competiciones/{slug}/horarios", Summary: "Horarios publicados: fechas y sesiones por hora", Tags: tagPub},
 		func(ctx context.Context, in *hIn) (*hOut, error) {
@@ -170,6 +202,9 @@ func (s *Svc) registerPublic() {
 			etag := fmt.Sprintf(`W/"%d-%s"`, h.Version, s.version(ctx, c.ID))
 			h = sinAtletas(h) // athletes come paginated from …/horarios/{id}/atletas
 			_ = in.Resumen
+			if in.En() {
+				s.enHorarios(ctx, c.ID, &h)
+			}
 			return &hOut{ETag: etag, CacheControl: "public, max-age=15", Body: h}, nil
 		})
 
