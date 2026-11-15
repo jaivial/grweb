@@ -28,3 +28,11 @@ func Pick(en map[string]any, k, es string) string {
 	}
 	return es
 }
+
+// Or is for overrides keyed by field name: d[k] when non-empty, else es.
+func (d Dict) Or(k, es string) string {
+	if v := d[k]; v != "" {
+		return v
+	}
+	return es
+}
