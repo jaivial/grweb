@@ -173,7 +173,7 @@ export class SecPorra {
     <div [class]="ancho + ' flex flex-col items-center gap-6 text-center'">
       <img src="/img/home/logo-fantasy.webp" alt="" width="280" height="132" class="h-auto w-[240px] md:w-[240px]" loading="lazy" decoding="async" />
       <p class="sr-only">J2 · Juegos · Fantasy</p>
-      <h2 class="font-display text-[36px] leading-[1.25] tracking-[0.1em] md:text-[48px]">GRS Fantasy</h2>
+      <h2 class="sr-only">GRS Fantasy</h2>
       <div class="w-full max-w-[490px]">
         <gr-pista-futsal [titulares]="titulares()" [rojo]="true" (abrir)="router.navigateByUrl('/fantasy')" />
       </div>
