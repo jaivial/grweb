@@ -1,5 +1,6 @@
+import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { Donaciones, type DonantesRanking } from '../../core/donaciones';
@@ -200,7 +201,16 @@ export class DonantesView {
         this.cargando.set(false);
       });
     });
-    // live refresh (a donation in the room) of the day shown
+    // live refresh: this tab has no chat socket (each tab only talks to its own service), so the ranking of the day
+    // shown is re-read every 30 s while the tab is open and visible; the shared signal below still applies
+    if (isPlatformBrowser(inject(PLATFORM_ID))) {
+      const t = setInterval(() => {
+        if (document.hidden) return;
+        const dia = this.diaSel();
+        void this.don.cargarRanking(dia || undefined);
+      }, 30_000);
+      inject(DestroyRef).onDestroy(() => clearInterval(t));
+    }
     effect(() => {
       const r = this.don.ranking();
       if (r && r.dia === untracked(this.diaSel)) this.ranking.set(r);

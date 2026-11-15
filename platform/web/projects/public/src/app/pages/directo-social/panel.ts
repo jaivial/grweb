@@ -6,7 +6,6 @@ import { map } from 'rxjs';
 import { GrIcon, GrToasts, type GrLiveEstado } from '@grcup/ui';
 import { ChatService, diaDeHoy } from '../../core/chat';
 import { type Directo } from '../../core/directo';
-import { Donaciones } from '../../core/donaciones';
 import { FanSession } from '../../core/fan';
 import { Juegos, type Jornada } from '../../core/juegos';
 import { ChatView } from './chat-view';
@@ -34,7 +33,14 @@ export function escritorio(): Signal<boolean> {
 /**
  * Panel social del directo (Figma 171:65287 · «Directo · Pestañas (móvil)» 393:120125): the connected count and the
  * Chat · Donantes · Porra · Tarima tabs right under the player (full width, no box, on mobile), and the body of each
- * tab. The tab lives in `?tab=` (chat by default). On desktop «Tarima» stays under the player, so the tab hides.
+ * tab. The tab lives in `?tab=` (always written, chat when absent or unknown). On desktop «Tarima» stays under the player.
+ *
+ * Connections per tab (contract with perf-20261115): each tab only talks to its own service and closes it on leaving.
+ * - chat: chat service (WS `/chat/ws`, SSE fallback, `/chat/estado`, `/chat/mensajes`); opened only while the tab is shown.
+ * - donantes: donaciones (ranking/totals) + juegos `/jornadas` (ids of the days); no chat socket.
+ * - porra: juegos (`/jornadas`, `/porra/mercados` every 20 s, cartera, mis-apuestas); no chat socket.
+ * - tarima: the page's live data (competition SSE + `/directo`), shared by the whole page; nothing else.
+ * Tab bodies are `@defer`red: their code and requests load when the tab is opened and die with it.
  */
 @Component({
   selector: 'gr-panel-social',
@@ -64,10 +70,10 @@ export function escritorio(): Signal<boolean> {
       <div id="panel-directo" role="tabpanel" [attr.aria-labelledby]="'tab-' + t" class="gr-tab flex flex-col lg:min-h-0 lg:flex-1"
         [class]="t === 'chat' ? 'h-[max(360px,calc(100dvh-382px))] md:h-[600px] lg:h-auto' : 'min-h-[480px] md:min-h-[600px]'">
         @switch (t) {
-          @case ('chat') { <gr-chat-view (donar)="donar.set(true)" /> }
-          @case ('donantes') { <gr-donantes-view [diaSala]="chat.dia()" [jornadaId]="jornadaId()" (donar)="donar.set(true)" /> }
-          @case ('porra') { <gr-porra-view [jornadaId]="jornadaPorra()?.id ?? ''" [jornadaNombre]="jornadaPorra()?.nombre ?? ''" [cargada]="jornadasCargadas()" /> }
-          @case ('tarima') { @if (directo(); as d) { <gr-tarima-view class="px-4 py-4 md:px-5" [directo]="d" [conexion]="conexion()" /> } }
+          @case ('chat') { @defer (on immediate) { <gr-chat-view (donar)="donar.set(true)" /> } }
+          @case ('donantes') { @defer (on immediate) { <gr-donantes-view [diaSala]="hoy" [jornadaId]="jornadaId()" (donar)="donar.set(true)" /> } }
+          @case ('porra') { @defer (on immediate) { <gr-porra-view [jornadaId]="jornadaPorra()?.id ?? ''" [jornadaNombre]="jornadaPorra()?.nombre ?? ''" [cargada]="jornadasCargadas()" /> } }
+          @case ('tarima') { @if (directo(); as d) { @defer (on immediate) { <gr-tarima-view class="px-4 py-4 md:px-5" [directo]="d" [conexion]="conexion()" /> } } }
         }
       </div>
       }
@@ -77,7 +83,6 @@ export function escritorio(): Signal<boolean> {
 })
 export class PanelSocial {
   protected readonly chat = inject(ChatService);
-  private readonly don = inject(Donaciones);
   private readonly juegos = inject(Juegos);
   protected readonly fan = inject(FanSession);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
@@ -111,12 +116,14 @@ export class PanelSocial {
   ];
   protected readonly visibles = computed(() => (this.escritorio() ? this.pestanas.filter((t) => t.v !== 'tarima') : this.pestanas));
 
+  /** Today (Madrid): the day of the chat room and of the games. */
+  protected readonly hoy = diaDeHoy();
   /** The jornada of today (its id is needed by the games). */
-  protected readonly jornadaId = computed(() => this.jornadas().find((j) => j.dia === this.chat.dia())?.id ?? '');
+  protected readonly jornadaId = computed(() => this.jornadas().find((j) => j.dia === this.hoy)?.id ?? '');
   /** The porra of today; without a jornada today it falls back to the open one (never a 404 «no jornada today»). */
   protected readonly jornadaPorra = computed<Jornada | undefined>(() => {
     const l = this.jornadas();
-    return l.find((j) => j.dia === this.chat.dia()) ?? l.find((j) => j.estado === 'abierta' || j.estado === 'en_juego');
+    return l.find((j) => j.dia === this.hoy) ?? l.find((j) => j.estado === 'abierta' || j.estado === 'en_juego');
   });
 
   /** Connected and live: the audience shows (no red dot, Figma 393:120125). */
@@ -125,14 +132,29 @@ export class PanelSocial {
 
   constructor() {
     if (this.browser) {
-      // one room: the active one of today (no day picker)
-      this.chat.conectar(diaDeHoy());
       void this.fan.cargar();
-      void this.juegos
-        .jornadas()
-        .then((l) => this.jornadas.set(l))
-        .catch(() => this.jornadas.set([]))
-        .finally(() => this.jornadasCargadas.set(true));
+      // Only the shown tab keeps a connection: the chat socket lives while «Chat» is open (one room, today's)
+      effect(() => {
+        const t = this.tab();
+        untracked(() => (t === 'chat' ? this.chat.conectar(this.hoy) : this.chat.desconectar()));
+      });
+      // The jornadas (juegos service) are only needed by «Donantes» and «Porra»: loaded the first time one opens
+      let pedidas = false;
+      effect(() => {
+        const t = this.tab();
+        if (pedidas || (t !== 'porra' && t !== 'donantes')) return;
+        pedidas = true;
+        void this.juegos
+          .jornadas()
+          .then((l) => this.jornadas.set(l))
+          .catch(() => this.jornadas.set([]))
+          .finally(() => this.jornadasCargadas.set(true));
+      });
+      // `?tab=` always names the tab shown (an absent or unknown value becomes the real one, without a history entry)
+      effect(() => {
+        const t = this.tab();
+        if (this.pedida() !== t) untracked(() => void this.router.navigate([], { relativeTo: this.route, queryParams: { tab: t }, queryParamsHandling: 'merge', replaceUrl: true }));
+      });
       // The return of the payment (the backend sends to /en-directo?donacion=ok|cancelada).
       const donacion = this.route.snapshot.queryParamMap.get('donacion');
       // consumed once: a re-created panel (the page reloads its data) must not toast again
@@ -147,17 +169,11 @@ export class PanelSocial {
         this.toasts.info('Donativo cancelado', 'No se ha hecho ningún cargo: puedes intentarlo otra vez cuando quieras.');
       }
     }
-    // A donation in the room refreshes the ranking of the day.
-    effect(() => {
-      const n = this.chat.items().filter((i) => i.kind === 'donacion').length;
-      if (!n) return;
-      untracked(() => void this.don.cargarRanking(this.chat.dia()));
-    });
     inject(DestroyRef).onDestroy(() => this.chat.desconectar());
   }
 
   protected elegir(t: Pestana): void {
-    if (t !== this.tab()) void this.router.navigate([], { relativeTo: this.route, queryParams: { tab: t === 'chat' ? null : t }, queryParamsHandling: 'merge', replaceUrl: true });
+    if (t !== this.tab()) void this.router.navigate([], { relativeTo: this.route, queryParams: { tab: t }, queryParamsHandling: 'merge', replaceUrl: true });
     // Figma 393:121897 · 5: on mobile, opening the chat scrolls the page so the block fits the screen
     if (t === 'chat' && this.browser && window.matchMedia('(max-width: 767px)').matches) {
       const suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
