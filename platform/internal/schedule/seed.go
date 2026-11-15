@@ -42,7 +42,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		time.Sleep(10 * time.Second)
 	}
 	var hay bool
-	if err := a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM jornada_atletas WHERE competition_id = $1) OR EXISTS (SELECT 1 FROM versiones WHERE competition_id = $1)`, c.ID).Scan(&hay); err != nil {
+	if err := a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM sesiones WHERE competition_id = $1) OR EXISTS (SELECT 1 FROM versiones WHERE competition_id = $1)`, c.ID).Scan(&hay); err != nil {
 		return err
 	}
 	if hay {
@@ -58,12 +58,13 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		if err != nil {
 			return err
 		}
-		// Example dates: 6 min per athlete and days until 21:00.
+		// Example day: 6 min per athlete and sesiones until 21:00, so the 11 sesiones fit (two platforms on a one-day event).
 		cfg.MinPorAtleta = 6
 		for i := range cfg.Dias {
 			cfg.Dias[i].Fin = "21:00"
 		}
-		if _, err := tx.Exec(ctx, `UPDATE config SET min_por_atleta = $2 WHERE competition_id = $1`, c.ID, cfg.MinPorAtleta); err != nil {
+		cfg.MesasPesaje = 2 // weigh-in windows of consecutive sessions overlap on a single platform
+		if _, err := tx.Exec(ctx, `UPDATE config SET min_por_atleta = $2, mesas_pesaje = $3 WHERE competition_id = $1`, c.ID, cfg.MinPorAtleta, cfg.MesasPesaje); err != nil {
 			return err
 		}
 		notas := []string{"Pesaje en la Sala 2 (planta baja).", "Entrada de público por la puerta principal con tu QR.", "Sorteo en directo tras la entrega de premios."}
@@ -76,19 +77,21 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		if _, err := tx.Exec(ctx, `UPDATE config SET dias = $2 WHERE competition_id = $1`, c.ID, cfg.Dias); err != nil {
 			return err
 		}
-		plan := generar(cfg, ats)
-		for f, ids := range plan {
-			if err := insertarJornada(ctx, tx, c.ID, f, ids); err != nil {
-				return err
-			}
+		plan := generar(cfg, loc, ats, nil)
+		if err := s.reemplazar(ctx, tx, c.ID, cfg, plan, nil, ""); err != nil {
+			return err
 		}
 		if len(cfg.Dias) == 0 {
 			return nil
 		}
-		// Doors on every day; awards and raffle 30 minutes after the estimated end of the last date.
-		last := cfg.Dias[len(cfg.Dias)-1]
-		ultimoDia := last.Fecha
-		_, ultimo, _, _ := tiempos(cfg, loc, last, len(plan[ultimoDia]))
+		// Doors on every day; awards and raffle 30 minutes after the last sesion.
+		var ultimo time.Time
+		ultimoDia := cfg.Dias[len(cfg.Dias)-1].Fecha
+		for _, p := range plan {
+			if f := p.Inicio.Add(time.Duration(p.Duracion) * time.Minute); p.Dia == ultimoDia && f.After(ultimo) {
+				ultimo = f
+			}
+		}
 		for i, d := range cfg.Dias {
 			first := "08:30"
 			if d.Puertas != "" {
@@ -102,7 +105,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 				return err
 			}
 		}
-		if len(plan[ultimoDia]) > 0 {
+		if !ultimo.IsZero() {
 			premios := hhmm(ceil30(ultimo.Add(30*time.Minute)), loc)
 			if _, err := tx.Exec(ctx, `INSERT INTO agenda (id, competition_id, dia, hora, titulo, icono, orden) VALUES ($1,$2,$3,$4,'Entrega de premios y sorteo en directo','trophy',1)`,
 				newID(), c.ID, ultimoDia, premios); err != nil {

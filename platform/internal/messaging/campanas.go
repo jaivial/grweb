@@ -177,12 +177,13 @@ func (s *Svc) horarioPublicado(ctx context.Context, cid uuid.UUID) map[string][]
 	}
 	var h struct {
 		Dias []struct {
-			Fecha        string    `json:"fecha"`
-			Inicio       time.Time `json:"inicio"`
-			PesajeInicio time.Time `json:"pesajeInicio"`
-			PesajeFin    time.Time `json:"pesajeFin"`
-			Total        int       `json:"total"`
-			Categorias   []string  `json:"categorias"`
+			Fecha    string `json:"fecha"`
+			Horarios []struct {
+				Titulo string    `json:"titulo"`
+				EP     string    `json:"ep"`
+				Inicio time.Time `json:"inicio"`
+				Total  int       `json:"total"`
+			} `json:"horarios"`
 		} `json:"dias"`
 	}
 	if err := s.schedule.Do(ctx, http.MethodGet, "/api/competiciones/"+c.Slug+"/horarios", nil, &h); err != nil {
@@ -190,13 +191,12 @@ func (s *Svc) horarioPublicado(ctx context.Context, cid uuid.UUID) map[string][]
 		return out
 	}
 	for _, d := range h.Dias {
-		if d.Total == 0 {
-			continue
-		}
-		hm := func(t time.Time) string { return t.In(madrid).Format("15:04") }
-		out[d.Fecha] = []FilaHorario{{"Pesaje", hm(d.PesajeInicio) + "–" + hm(d.PesajeFin)}, {fmt.Sprintf("Competición · %d atletas", d.Total), hm(d.Inicio)}}
-		if len(d.Categorias) > 0 {
-			out[d.Fecha] = append(out[d.Fecha], FilaHorario{strings.Join(d.Categorias, " · "), ""})
+		for _, x := range d.Horarios {
+			t := x.Titulo
+			if x.EP != "" {
+				t += " · " + x.EP
+			}
+			out[d.Fecha] = append(out[d.Fecha], FilaHorario{Titulo: fmt.Sprintf("%s · %d atletas", t, x.Total), Hora: x.Inicio.In(madrid).Format("15:04")})
 		}
 	}
 	return out

@@ -1,9 +1,7 @@
-// Package schedule owns the competition schedule (BO «Horarios» and public /horarios): the dates of the event
-// (jornadas, one platform, no flights), the athletes of each date in lot order (generated from the confirmed
-// athletes, moved by drag and drop), weigh-in windows, agenda of the day, conflict checks, versioned publication
-// with a diff and email notices, the public schedule with the live state of each date and «Mi horario» (.ics).
-// Other services (juegos) read the dates from GET /internal/competiciones/{cid}/horarios/jornadas and listen to
-// «horarios.jornadas».
+// Package schedule owns the competition schedule (Figma page 56 · «Horarios» and public page 41 ·
+// /horarios): a draft planned in the backoffice (sesiones generated from the confirmed athletes, moved by drag and
+// drop, weigh-in windows, agenda of the day), conflict checks, versioned publication with a diff and email notices,
+// the public schedule with the live state of each sesion and «Mi horario» as an .ics calendar.
 package schedule
 
 import (
@@ -79,7 +77,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	return nil
 }
 
-// readPerms may look at the planner (the desk, check-in and results teams need the dates too).
+// readPerms may look at the planner (the desk, check-in and results teams need the sesiones too).
 var readPerms = []string{"horarios.publicar", "atletas.editar", "directo.operar", "checkin.escanear", "resultados.publicar"}
 
 func requireAny(ctx context.Context, cid uuid.UUID, perms ...string) (*auth.Principal, error) {

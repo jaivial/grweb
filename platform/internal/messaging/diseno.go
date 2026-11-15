@@ -106,8 +106,8 @@ type Contexto struct {
 	Pre      string
 	Ahora    time.Time
 	Horario  map[string][]FilaHorario // by day (AAAA-MM-DD)
-	Absoluto func(string) string        // makes /relative links absolute (web of the competition)
-	Vars     map[string]string          // competition variables ({{competicion}}, {{fechas}}, {{sede}}, {{web}}): same for every recipient
+	Absoluto func(string) string      // makes /relative links absolute (web of the competition)
+	Vars     map[string]string        // competition variables ({{competicion}}, {{fechas}}, {{sede}}, {{web}}): same for every recipient
 }
 
 // expandir fills the competition variables in the texts of the blocks; {{nombre}} and {{baja}} stay as tokens.

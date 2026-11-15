@@ -79,25 +79,32 @@ func madrid() *time.Location {
 	return l
 }
 
-// horarioDeSnapshot extracts the day from the published schedule. There are no flights: each date is one session,
-// so the first and the last session of the day start at the same time.
+// horarioDeSnapshot extracts the day from the published schedule.
 func horarioDeSnapshot(dias []snapDia, dia string) horarioDia {
 	var h horarioDia
 	for _, d := range dias {
-		if d.Fecha == dia && !d.Inicio.IsZero() && len(d.Atletas) > 0 {
-			h.Inicio, h.UltimaSesion, h.OK = d.Inicio, d.Inicio, true
+		if d.Fecha != dia {
+			continue
+		}
+		for _, f := range d.Sesiones {
+			if !h.OK || f.Inicio.Before(h.Inicio) {
+				h.Inicio = f.Inicio
+			}
+			if !h.OK || f.Inicio.After(h.UltimaSesion) {
+				h.UltimaSesion = f.Inicio
+			}
+			h.OK = true
 		}
 	}
 	return h
 }
 
-// snapDia mirrors what juegos reads of schedule's published snapshot (one session per date).
+// snapDia mirrors what juegos reads of schedule's published snapshot.
 type snapDia struct {
-	Fecha   string    `json:"fecha"`
-	Inicio  time.Time `json:"inicio"`
-	Atletas []struct {
-		ID uuid.UUID `json:"id"`
-	} `json:"atletas"`
+	Fecha    string `json:"fecha"`
+	Sesiones []struct {
+		Inicio time.Time `json:"inicio"`
+	} `json:"sesiones"`
 }
 
 type horEntrada struct {

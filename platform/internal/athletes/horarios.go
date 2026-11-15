@@ -247,10 +247,10 @@ func (s *Svc) avisarSalidas(ctx context.Context) error {
 		return err
 	}
 	type sal struct {
-		id, cid              uuid.UUID
+		id, cid      uuid.UUID
 		nombre, slug string
-		hora                 time.Time
-		retraso              int
+		hora         time.Time
+		retraso      int
 	}
 	var list []sal
 	for rows.Next() {

@@ -60,11 +60,11 @@ func (r row) pub(d time.Time) AtletaPub {
 // ListaPub is /atletas (Figma page 39).
 type ListaPub struct {
 	Resumen struct {
-		Total       int `json:"total"`
-		Mujeres     int `json:"mujeres"`
-		Hombres     int `json:"hombres"`
-		Clubs       int `json:"clubs"`
-		Jornadas    int `json:"jornadas" doc:"Fechas con atletas"`
+		Total    int `json:"total"`
+		Mujeres  int `json:"mujeres"`
+		Hombres  int `json:"hombres"`
+		Clubs    int `json:"clubs"`
+		Jornadas int `json:"jornadas" doc:"Fechas con atletas"`
 	} `json:"resumen"`
 	Atletas     []AtletaPub `json:"atletas"`
 	Actualizado time.Time   `json:"actualizado"`
@@ -411,9 +411,11 @@ func participantes(plazas int, estado string, list []row) Participantes {
 		}
 		key, titulo, sub := "c:"+catOrder(r.Sexo+" "+r.Categoria), map[string]string{"F": "Femenino", "M": "Masculino"}[r.Sexo]+" · "+r.Categoria+" kg", ""
 		if r.Jornada != "" {
+			// One group per session of the published schedule (date + start time).
 			key, titulo = "j:"+r.Jornada, tituloJornada(r.Jornada)
 			if r.HoraInicio != nil {
-				sub = "Empieza a las " + r.HoraInicio.In(madrid).Format("15:04")
+				h := r.HoraInicio.In(madrid).Format("15:04")
+				key, titulo, sub = key+" "+h, titulo+" · "+h, "Empieza a las "+h
 			}
 		}
 		g, ok := byKey[key]

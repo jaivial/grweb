@@ -127,9 +127,9 @@ func (s *Svc) registerResultados() {
 		})
 
 	type retIn struct {
-		CID    uuid.UUID `path:"cid"`
-		Dia    string    `path:"dia" format:"date"`
-		Body   struct {
+		CID  uuid.UUID `path:"cid"`
+		Dia  string    `path:"dia" format:"date"`
+		Body struct {
 			RetrasoMin int `json:"retrasoMin" minimum:"0" maximum:"600"`
 		}
 	}

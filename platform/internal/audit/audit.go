@@ -106,7 +106,7 @@ func (s *Svc) handle(ctx context.Context, e events.Event) error {
 	}
 	var d map[string]any
 	_ = json.Unmarshal(data, &d)
-	if (e.Type == "horarios.jornada" || e.Type == "horarios.flight") && d["origen"] == "directo" {
+	if (e.Type == "horarios.sesion" || e.Type == "horarios.flight") && d["origen"] == "directo" {
 		return nil // the desk already logs directo.cambio
 	}
 	return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
