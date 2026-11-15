@@ -672,43 +672,66 @@ export class AtletaPage {
   }
 }
 
+const T3 = {
+  es: {
+    titulo: 'Participantes', accent: 'y flights', eyebrow: 'La plantilla', seccion: 'El evento',
+    sub: 'Lista de atletas por bloque de competición. Busca tu nombre para ver tu hora de pesaje y tu flight.', alta: 'Atletas dados de alta en esta web', ejemplo: 'Datos de ejemplo',
+    plazas: 'Plazas ocupadas', completa: 'Plantilla completa', reserva: (n: number) => n + ' en reserva', bloque: 'Bloque completo', mujeres: 'Mujeres', hombres: 'Hombres',
+    buscar: 'Buscar atleta o club', ph: 'Buscar atleta o club…', atleta: 'Atleta', club: 'Club', cat: 'Categoría', inicio: 'Inicio', pesaje: 'Pesaje', independiente: 'Independiente', porPublicar: 'Por publicar',
+    nadie: (q: string) => 'Nadie coincide con «' + q + '».', error: '¿No apareces en la lista o hay un error en tus datos? Escríbenos y lo corregimos.', contactar: 'Contactar',
+    sexos: [{ v: '' as const, label: 'Todas' }, { v: 'F' as const, label: 'Femenino' }, { v: 'M' as const, label: 'Masculino' }] as { v: '' | 'F' | 'M'; label: string }[],
+    rel: [{ titulo: 'Horarios', texto: 'Bloques por categoría', ruta: '/horarios' }, { titulo: 'En directo', texto: 'Sigue la competición', ruta: '/en-directo' }, { titulo: 'Reglamento', texto: 'Cómo funciona el pesaje', ruta: '/reglamento' }] as RelatedLink[],
+    seoT: 'Participantes y flights · GRS Cup', seoD: 'Lista de atletas por bloque de competición: busca tu nombre para ver tu hora de pesaje y tu flight.',
+  },
+  en: {
+    titulo: 'Participants', accent: 'and flights', eyebrow: 'The line-up', seccion: 'The event',
+    sub: 'List of athletes by competition block. Search for your name to see your weigh-in time and your flight.', alta: 'Athletes registered on this site', ejemplo: 'Sample data',
+    plazas: 'Places taken', completa: 'Line-up full', reserva: (n: number) => n + ' on the reserve list', bloque: 'Block full', mujeres: 'Women', hombres: 'Men',
+    buscar: 'Search athlete or club', ph: 'Search athlete or club…', atleta: 'Athlete', club: 'Club', cat: 'Class', inicio: 'Start', pesaje: 'Weigh-in', independiente: 'Independent', porPublicar: 'To be published',
+    nadie: (q: string) => 'Nobody matches “' + q + '”.', error: 'Not on the list or is there a mistake in your details? Write to us and we’ll fix it.', contactar: 'Contact',
+    sexos: [{ v: '' as const, label: 'All' }, { v: 'F' as const, label: 'Women' }, { v: 'M' as const, label: 'Men' }] as { v: '' | 'F' | 'M'; label: string }[],
+    rel: [{ titulo: 'Schedule', texto: 'Blocks by class', ruta: '/horarios' }, { titulo: 'Live', texto: 'Follow the competition', ruta: '/en-directo' }, { titulo: 'Rules', texto: 'How the weigh-in works', ruta: '/reglamento' }] as RelatedLink[],
+    seoT: 'Participants and flights · GRS Cup', seoD: 'List of athletes by competition block: search for your name to see your weigh-in time and your flight.',
+  },
+};
+
 // ======================================================= /participantes ===
 
 /** /participantes (Figma page 26): confirmed athletes by block (flight once published), searchable. */
 @Component({
   selector: 'gr-participantes-page',
-  imports: [RouterLink, Page, FormsModule, GrIcon, GrSkeleton, Related, Community],
+  imports: [RouterLink, LocPipe, Page, FormsModule, GrIcon, GrSkeleton, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let p = data();
-    <gr-page title="Participantes" accent="y flights" eyebrow="La plantilla" section="El evento" crumb="Participantes"
-      subtitle="Lista de atletas por bloque de competición. Busca tu nombre para ver tu hora de pesaje y tu flight.">
+    <gr-page [title]="t().titulo" [accent]="t().accent" [eyebrow]="t().eyebrow" [section]="t().seccion" [crumb]="t().titulo"
+      [subtitle]="t().sub">
       <p pageStamps class="flex flex-wrap gap-2">
-        <span class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Atletas dados de alta en esta web</span>
-        <span class="inline-flex h-7 items-center rounded-full border border-info bg-info/12 px-3 text-label-xs text-info uppercase">Datos de ejemplo</span>
+        <span class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />{{ t().alta }}</span>
+        <span class="inline-flex h-7 items-center rounded-full border border-info bg-info/12 px-3 text-label-xs text-info uppercase">{{ t().ejemplo }}</span>
       </p>
       @if (p === undefined) { <gr-skeleton class="h-40 rounded-lg" /> }
       @else if (p) {
         <!-- Figma «Resumen»: places with the bar, then women and men with the big number under the label -->
         <div class="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
           <div class="col-span-2 rounded-2xl border border-line-subtle bg-bg-card p-5 md:col-span-1">
-            <p class="flex items-center justify-between text-label-s">Plazas ocupadas @if (p.plazas) { <span class="text-mono-xs text-accent-text">{{ p.ocupadas }} / {{ p.plazas }}</span> }</p>
+            <p class="flex items-center justify-between text-label-s">{{ t().plazas }} @if (p.plazas) { <span class="text-mono-xs text-accent-text">{{ p.ocupadas }} / {{ p.plazas }}</span> }</p>
             @if (p.plazas) { <div class="mt-3 h-1.5 rounded-pill bg-bg-raised"><div class="h-full rounded-pill bg-accent" [style.width.%]="pct()"></div></div> }
-            <p class="mt-2 text-body-xs text-text-tertiary">{{ p.plazas && p.ocupadas >= p.plazas ? 'Plantilla completa' : (p.reserva ? p.reserva + ' en reserva' : 'Bloque completo') }}</p>
+            <p class="mt-2 text-body-xs text-text-tertiary">{{ p.plazas && p.ocupadas >= p.plazas ? t().completa : (p.reserva ? t().reserva(p.reserva) : t().bloque) }}</p>
           </div>
-          <div class="flex flex-col gap-1 rounded-2xl border border-line-subtle bg-bg-card p-5"><span class="text-label-s text-text-secondary">Mujeres</span><span class="font-display text-[44px] leading-none italic">{{ p.mujeres }}</span></div>
-          <div class="flex flex-col gap-1 rounded-2xl border border-line-subtle bg-bg-card p-5"><span class="text-label-s text-text-secondary">Hombres</span><span class="font-display text-[44px] leading-none italic">{{ p.hombres }}</span></div>
+          <div class="flex flex-col gap-1 rounded-2xl border border-line-subtle bg-bg-card p-5"><span class="text-label-s text-text-secondary">{{ t().mujeres }}</span><span class="font-display text-[44px] leading-none italic">{{ p.mujeres }}</span></div>
+          <div class="flex flex-col gap-1 rounded-2xl border border-line-subtle bg-bg-card p-5"><span class="text-label-s text-text-secondary">{{ t().hombres }}</span><span class="font-display text-[44px] leading-none italic">{{ p.hombres }}</span></div>
         </div>
 
         <div class="mt-8 flex flex-wrap items-center gap-2">
           <label class="relative min-w-0 flex-1 basis-64 md:max-w-sm">
-            <span class="sr-only">Buscar atleta o club</span>
+            <span class="sr-only">{{ t().buscar }}</span>
             <gr-icon name="search" [size]="18" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
-            <input type="search" placeholder="Buscar atleta o club…" [ngModel]="q()" (ngModelChange)="q.set($event)" class="h-12 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
+            <input type="search" [placeholder]="t().ph" [ngModel]="q()" (ngModelChange)="q.set($event)" class="h-12 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
           </label>
           <!-- mobile: the chips in one sideways row under the search (Figma 26) -->
           <div class="-mx-5 flex w-[calc(100%+40px)] gap-2 overflow-x-auto px-5 [scrollbar-width:none] md:contents">
-          @for (s of sexos; track s.v) {
+          @for (s of t().sexos; track s.v) {
             <button type="button" (click)="sexo.set(s.v)" [attr.aria-pressed]="sexo() === s.v" class="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-label-s md:h-10"
               [class]="sexo() === s.v ? 'border-accent bg-accent/16 text-text-primary' : 'border-line-strong text-text-secondary hover:text-text-primary'"><gr-icon [name]="sexo() === s.v ? 'check' : 'plus'" [size]="14" />{{ s.label }}</button>
           }
@@ -722,37 +745,37 @@ export class AtletaPage {
                 <span class="flex items-center gap-1.5 text-body-s text-text-secondary"><gr-icon name="clock" [size]="14" class="text-accent-text" />{{ g.subtitulo }}</span></h2>
               <div class="mt-3 hidden overflow-hidden rounded-2xl border border-line-subtle bg-bg-card md:block">
                 <table class="w-full table-fixed text-left">
-                  <thead class="border-b border-line-subtle text-label-xs text-text-muted uppercase"><tr><th class="px-4 py-3 font-medium">Atleta</th><th class="px-4 py-3 font-medium">Club</th><th class="w-28 px-4 py-3 font-medium">Categoría</th><th class="w-20 px-4 py-3 font-medium">Inicio</th><th class="w-36 px-4 py-3 font-medium">Pesaje</th></tr></thead>
+                  <thead class="border-b border-line-subtle text-label-xs text-text-muted uppercase"><tr><th class="px-4 py-3 font-medium">{{ t().atleta }}</th><th class="px-4 py-3 font-medium">{{ t().club }}</th><th class="w-28 px-4 py-3 font-medium">{{ t().cat }}</th><th class="w-20 px-4 py-3 font-medium">{{ t().inicio }}</th><th class="w-36 px-4 py-3 font-medium">{{ t().pesaje }}</th></tr></thead>
                   <tbody>
                     @for (f of g.filas; track f.slug) {
-                      <tr class="border-b border-line-subtle last:border-0"><td class="px-4 py-3.5"><a [routerLink]="'/atletas/' + f.slug" class="text-label-m hover:text-accent-text">{{ f.nombre }}</a></td><td class="truncate px-4 py-3 text-body-s text-text-secondary">{{ f.club || 'Independiente' }}</td>
-                        <td class="px-4 py-3 text-label-s text-accent-text">{{ cat(f.categoria) }} kg</td><td class="px-4 py-3 text-mono-s">{{ f.horaInicio ? hora(f.horaInicio) : '–' }}</td><td class="px-4 py-3 text-mono-s">{{ f.pesajeInicio ? hora(f.pesajeInicio) + ' – ' + hora(f.pesajeFin) : 'Por publicar' }}</td></tr>
+                      <tr class="border-b border-line-subtle last:border-0"><td class="px-4 py-3.5"><a [routerLink]="'/atletas/' + f.slug | loc" class="text-label-m hover:text-accent-text">{{ f.nombre }}</a></td><td class="truncate px-4 py-3 text-body-s text-text-secondary">{{ f.club || t().independiente }}</td>
+                        <td class="px-4 py-3 text-label-s text-accent-text">{{ cat(f.categoria) }} kg</td><td class="px-4 py-3 text-mono-s">{{ f.horaInicio ? hora(f.horaInicio) : '–' }}</td><td class="px-4 py-3 text-mono-s">{{ f.pesajeInicio ? hora(f.pesajeInicio) + ' – ' + hora(f.pesajeFin) : t().porPublicar }}</td></tr>
                     }
                   </tbody>
                 </table>
               </div>
               <ul class="mt-3 overflow-hidden rounded-2xl border border-line-subtle bg-bg-card md:hidden">
                 @for (f of g.filas; track f.slug) {
-                  <li class="border-b border-line-subtle last:border-0"><a [routerLink]="'/atletas/' + f.slug" class="flex min-h-14 items-center gap-3 px-4 py-2">
-                    <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ f.nombre }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ f.club || 'Independiente' }}</span></span>
+                  <li class="border-b border-line-subtle last:border-0"><a [routerLink]="'/atletas/' + f.slug | loc" class="flex min-h-14 items-center gap-3 px-4 py-2">
+                    <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ f.nombre }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ f.club || t().independiente }}</span></span>
                     <span class="rounded-pill bg-accent-deep/40 px-2 py-0.5 text-mono-xs text-accent-text">{{ cat(f.categoria) }} kg</span>
                   </a></li>
                 }
               </ul>
             </section>
-          } @empty { <p class="rounded-lg border border-line-subtle bg-bg-card p-8 text-center text-body-m text-text-tertiary">Nadie coincide con «{{ q() }}».</p> }
+          } @empty { <p class="rounded-lg border border-line-subtle bg-bg-card p-8 text-center text-body-m text-text-tertiary">{{ t().nadie(q()) }}</p> }
         </div>
 
         @if (contacto()) {
           <div class="mt-10 flex flex-col gap-3 rounded-xl border border-info/40 bg-info/8 p-4 md:flex-row md:items-center">
             <gr-icon name="info" [size]="18" class="text-info" />
-            <p class="flex-1 text-body-s text-text-secondary">¿No apareces en la lista o hay un error en tus datos? Escríbenos y lo corregimos.</p>
-            <a [href]="'mailto:' + contacto()" class="inline-flex h-10 items-center justify-center rounded-sm bg-info/15 px-3 text-label-s text-info hover:bg-info/25">Contactar</a>
+            <p class="flex-1 text-body-s text-text-secondary">{{ t().error }}</p>
+            <a [href]="'mailto:' + contacto()" class="inline-flex h-10 items-center justify-center rounded-sm bg-info/15 px-3 text-label-s text-info hover:bg-info/25">{{ t().contactar }}</a>
           </div>
         }
       }
       <div class="mt-18 flex flex-col gap-18 md:mt-24 md:gap-24">
-        <gr-related [items]="relacionados" />
+        <gr-related [items]="t().rel" />
         <gr-community />
       </div>
     </gr-page>
@@ -766,12 +789,7 @@ export class ParticipantesPage {
   protected readonly contacto = signal('');
   protected readonly q = signal('');
   protected readonly sexo = signal<'' | 'F' | 'M'>('');
-  protected readonly sexos = [{ v: '' as const, label: 'Todas' }, { v: 'F' as const, label: 'Femenino' }, { v: 'M' as const, label: 'Masculino' }];
-  protected readonly relacionados: RelatedLink[] = [
-    { titulo: 'Horarios', texto: 'Bloques por categoría', ruta: '/horarios' },
-    { titulo: 'En directo', texto: 'Sigue la competición', ruta: '/en-directo' },
-    { titulo: 'Reglamento', texto: 'Cómo funciona el pesaje', ruta: '/reglamento' },
-  ];
+  protected readonly t = inject(I18n).dict(T3);
   protected readonly pct = computed(() => {
     const p = this.data();
     return p?.plazas ? Math.min(100, Math.round((p.ocupadas * 100) / p.plazas)) : 0;
@@ -791,7 +809,7 @@ export class ParticipantesPage {
       const [p, c] = await Promise.all([this.api.participantes(), competition.load()]);
       this.data.set(p);
       this.contacto.set(c?.evento.emailContacto ?? '');
-      await applySeo(cms, seo, '/participantes', 'Participantes y flights · GRS Cup', 'Lista de atletas por bloque de competición: busca tu nombre para ver tu hora de pesaje y tu flight.');
+      await applySeo(cms, seo, '/participantes', this.t().seoT, this.t().seoD);
     });
   }
 }
