@@ -318,18 +318,18 @@ func (s *Svc) registerAdmin() {
 		})
 
 	type sesionBody struct {
-		Nombre        string     `json:"nombre" minLength:"1" maxLength:"80"`
-		Detalle       string     `json:"detalle,omitempty" maxLength:"160"`
+		Nombre        string            `json:"nombre" minLength:"1" maxLength:"80"`
+		Detalle       string            `json:"detalle,omitempty" maxLength:"160"`
 		En            map[string]string `json:"en,omitempty" doc:"Textos en inglés: nombre, detalle (ausente: no cambia)"`
-		Inicio        time.Time  `json:"inicio"`
-		Fin           time.Time  `json:"fin"`
-		Puertas       time.Time  `json:"puertas"`
-		Aforo         int        `json:"aforo" minimum:"1" maximum:"20000"`
-		MaxPorReserva int        `json:"maxPorReserva" minimum:"1" maximum:"20"`
-		AperturaAt    *time.Time `json:"aperturaAt,omitempty"`
-		CierreAt      *time.Time `json:"cierreAt,omitempty"`
-		Publicada     bool       `json:"publicada"`
-		ListaEspera   bool       `json:"listaEspera"`
+		Inicio        time.Time         `json:"inicio"`
+		Fin           time.Time         `json:"fin"`
+		Puertas       time.Time         `json:"puertas"`
+		Aforo         int               `json:"aforo" minimum:"1" maximum:"20000"`
+		MaxPorReserva int               `json:"maxPorReserva" minimum:"1" maximum:"20"`
+		AperturaAt    *time.Time        `json:"aperturaAt,omitempty"`
+		CierreAt      *time.Time        `json:"cierreAt,omitempty"`
+		Publicada     bool              `json:"publicada"`
+		ListaEspera   bool              `json:"listaEspera"`
 	}
 	valida := func(b sesionBody) error {
 		if !b.Fin.After(b.Inicio) || b.Puertas.After(b.Inicio) {

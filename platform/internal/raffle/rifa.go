@@ -17,8 +17,8 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/jaivial/grweb/platform/pkg/auth"
-	"github.com/jaivial/grweb/platform/pkg/entexto"
 	"github.com/jaivial/grweb/platform/pkg/db"
+	"github.com/jaivial/grweb/platform/pkg/entexto"
 	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
@@ -27,17 +27,17 @@ var tagRifa = []string{"Rifa"}
 
 // RifaConfig is the cash ticket info shown in the hero of /sorteo.
 type RifaConfig struct {
-	PrecioBoletoEfectivoCents int        `json:"precioBoletoEfectivoCents" minimum:"1" maximum:"100000"`
-	Moneda                    string     `json:"moneda" readOnly:"true"`
-	TextoInfo                 string     `json:"textoInfo" maxLength:"600"`
+	PrecioBoletoEfectivoCents int               `json:"precioBoletoEfectivoCents" minimum:"1" maximum:"100000"`
+	Moneda                    string            `json:"moneda" readOnly:"true"`
+	TextoInfo                 string            `json:"textoInfo" maxLength:"600"`
 	En                        map[string]string `json:"en,omitempty" doc:"Textos en inglés (mismas claves que los campos de texto; ausente: no cambia)"`
-	Lugar                     string     `json:"lugar" maxLength:"160"`
-	Horario                   string     `json:"horario" maxLength:"160"`
-	FechaSorteo               *time.Time `json:"fechaSorteo,omitempty"`
-	Visible                   bool       `json:"visible"`
-	ItemsVisibles             int        `json:"itemsVisibles" readOnly:"true"`
-	Version                   int        `json:"version" readOnly:"true"`
-	UpdatedAt                 time.Time  `json:"updatedAt" readOnly:"true"`
+	Lugar                     string            `json:"lugar" maxLength:"160"`
+	Horario                   string            `json:"horario" maxLength:"160"`
+	FechaSorteo               *time.Time        `json:"fechaSorteo,omitempty"`
+	Visible                   bool              `json:"visible"`
+	ItemsVisibles             int               `json:"itemsVisibles" readOnly:"true"`
+	Version                   int               `json:"version" readOnly:"true"`
+	UpdatedAt                 time.Time         `json:"updatedAt" readOnly:"true"`
 }
 
 // RifaGanador is the winning ticket of an object.
@@ -50,30 +50,30 @@ type RifaGanador struct {
 
 // RifaItem is one raffled object (Figma «Tarjeta item rifa»).
 type RifaItem struct {
-	ID                 uuid.UUID    `json:"id"`
-	Nombre             string       `json:"nombre"`
-	Descripcion        string       `json:"descripcion"`
+	ID                 uuid.UUID         `json:"id"`
+	Nombre             string            `json:"nombre"`
+	Descripcion        string            `json:"descripcion"`
 	En                 map[string]string `json:"en,omitempty" doc:"Textos en inglés (mismas claves que los campos de texto; ausente: no cambia)"`
-	ImagenURL          *string      `json:"imagenUrl"`
-	ValorEstimadoCents *int         `json:"valorEstimadoCents"`
-	Donante            *string      `json:"donante"`
-	Unidades           int          `json:"unidades"`
-	Orden              int          `json:"orden"`
-	Ganador            *RifaGanador `json:"ganador"`
-	Visible            *bool        `json:"visible,omitempty" doc:"Solo en el backoffice"`
-	Version            int          `json:"version,omitempty" doc:"Solo en el backoffice (If-Match)"`
+	ImagenURL          *string           `json:"imagenUrl"`
+	ValorEstimadoCents *int              `json:"valorEstimadoCents"`
+	Donante            *string           `json:"donante"`
+	Unidades           int               `json:"unidades"`
+	Orden              int               `json:"orden"`
+	Ganador            *RifaGanador      `json:"ganador"`
+	Visible            *bool             `json:"visible,omitempty" doc:"Solo en el backoffice"`
+	Version            int               `json:"version,omitempty" doc:"Solo en el backoffice (If-Match)"`
 }
 
 // RifaItemIn is what the backoffice sends to create or replace an object.
 type RifaItemIn struct {
-	Nombre             string  `json:"nombre" minLength:"1" maxLength:"80"`
-	Descripcion        string  `json:"descripcion,omitempty" maxLength:"400"`
+	Nombre             string            `json:"nombre" minLength:"1" maxLength:"80"`
+	Descripcion        string            `json:"descripcion,omitempty" maxLength:"400"`
 	En                 map[string]string `json:"en,omitempty" doc:"Textos en inglés (mismas claves que los campos de texto; ausente: no cambia)"`
-	ImagenURL          *string `json:"imagenUrl,omitempty" maxLength:"500"`
-	ValorEstimadoCents *int    `json:"valorEstimadoCents,omitempty" minimum:"0"`
-	Donante            *string `json:"donante,omitempty" maxLength:"120"`
-	Unidades           int     `json:"unidades" minimum:"1" maximum:"999"`
-	Visible            bool    `json:"visible"`
+	ImagenURL          *string           `json:"imagenUrl,omitempty" maxLength:"500"`
+	ValorEstimadoCents *int              `json:"valorEstimadoCents,omitempty" minimum:"0"`
+	Donante            *string           `json:"donante,omitempty" maxLength:"120"`
+	Unidades           int               `json:"unidades" minimum:"1" maximum:"999"`
+	Visible            bool              `json:"visible"`
 }
 
 type rifaListOut struct{ Body *rifaItems }
