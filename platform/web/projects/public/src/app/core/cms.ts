@@ -3,6 +3,7 @@ import { DOCUMENT, Injectable, RESPONSE_INIT, TransferState, inject, makeStateKe
 import { NavigationStart, Router } from '@angular/router';
 import { marked } from 'marked';
 import { firstValueFrom } from 'rxjs';
+import { I18n } from './i18n';
 import { COMPETITION_SLUG, FalloApi, esNoEncontrado } from './competition';
 import type { Lang } from './i18n';
 
@@ -100,7 +101,8 @@ export class Cms {
   private readonly fallo = inject(FalloApi);
   private readonly ts = inject(TransferState);
   private readonly doc = inject(DOCUMENT);
-  private seo?: Promise<SeoMap | null>;
+  private readonly i18n = inject(I18n);
+  private readonly seo: Partial<Record<string, Promise<SeoMap | null>>> = {};
   /** True when the API failed (not a 4xx «not found»): pages show a retry message and SSR answers 503 (429 when rate limited), never a false 404. */
   readonly failed = signal(false);
   /** Some API call of the page (any service) got the gateway's rate limit (429) for the visitor's network. */
@@ -145,7 +147,7 @@ export class Cms {
     return this.get<BlogPagina>(`/blog?page=${page}${categoria ? '&categoria=' + encodeURIComponent(categoria) : ''}`);
   }
   galeria(): Promise<Album[] | null> { return this.get<Album[]>('/galeria'); }
-  seoMap(): Promise<SeoMap | null> { return (this.seo ??= this.get<SeoMap>('/seo')); }
+  seoMap(): Promise<SeoMap | null> { return (this.seo[this.i18n.lang()] ??= this.get<SeoMap>('/seo')); }
 
   landing(pagina: 'publico' | 'en'): Promise<Landing | null> { return this.get<Landing>(`/web/${pagina}`); }
   mapas(): Promise<MapaAcceso[] | null> { return this.get<MapaAcceso[]>('/mapas'); }
@@ -160,6 +162,8 @@ export class Cms {
   }
 
   private async get<T>(path: string): Promise<T | null> {
+    // English content (?lang=en): the API overlays the English texts the CMS has; the rest stays in Spanish.
+    if (this.i18n.lang() === 'en') path += (path.includes('?') ? '&' : '?') + 'lang=en';
     try {
       return await firstValueFrom(this.http.get<T>(base + path));
     } catch (e) {
