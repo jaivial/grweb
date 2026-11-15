@@ -14,6 +14,7 @@ spec:
     metadata:
       labels: { app.kubernetes.io/name: openlifter, app.kubernetes.io/part-of: grcup, grcup.dev/tier: service, grcup.dev/servicio: openlifter, grcup.dev/db: "true" }
     spec:
+      priorityClassName: grcup-qa-low # perf-20261115: GRS QA cede ante prod (aplicado en Kraken 12:51)
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 30
       securityContext:
@@ -82,7 +83,7 @@ spec:
             capabilities: { drop: [ALL] }
           resources:
             requests: { cpu: 30m, memory: 48Mi }
-            limits: { cpu: 500m, memory: 256Mi }
+            limits: { cpu: 150m, memory: 256Mi }
 ---
 apiVersion: v1
 kind: Service
