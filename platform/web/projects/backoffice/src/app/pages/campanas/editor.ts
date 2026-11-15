@@ -515,7 +515,6 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
           <div class="flex items-start gap-3"><div class="flex-1"><h2 class="text-ui-h5">WhatsApp desde HTML</h2><p class="text-body-xs text-text-tertiary">Pega un email o cualquier HTML: los títulos pasan a *negrita*, la primera foto va como imagen y los botones como botones de enlace.</p></div>
             <button type="button" class="-mt-1 -mr-2 flex size-10 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" aria-label="Cerrar" (click)="htmlOpen.set(false)"><gr-icon name="x" [size]="20" /></button></div>
           <textarea grInput name="html" rows="10" class="font-mono text-[12px]" placeholder="<html>…" aria-label="HTML" [(ngModel)]="htmlTexto"></textarea>
-          <button type="button" class="self-start text-label-s text-text-secondary underline hover:text-text-primary" (click)="htmlTexto = previa()?.emailHtml ?? ''">Usar el email de esta campaña</button>
           <div class="flex justify-end gap-2"><button type="button" grButton variant="ghost" (click)="htmlOpen.set(false)">Cancelar</button><button type="submit" grButton variant="primary" [loading]="convirtiendo()" [disabled]="!htmlTexto.trim()">Convertir</button></div>
         </form>
       </div>
