@@ -7,6 +7,7 @@ import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
 import { Resource } from './resource';
 import { BoSchemaForm, pick, type FieldDef } from './schema-form';
+import { BoLangToggle, type Idioma } from './lang-toggle';
 import { BoDrawer, Confirm, errText } from './ui';
 
 type Row = { id: string } & Record<string, unknown>;
@@ -41,6 +42,8 @@ export interface CollectionConfig {
   /** Boolean field that publishes the item: the drawer offers «Guardar borrador» (false) and «Publicar» (true) instead of a switch. */
   publishKey?: string;
   perm?: string;
+  /** Translatable fields: the drawer offers ES | EN and saves the English text in the row's `en` object (selects become free text). */
+  en?: string[];
 }
 
 /**
@@ -49,7 +52,7 @@ export interface CollectionConfig {
  */
 @Component({
   selector: 'bo-collection',
-  imports: [CdkDropList, CdkDrag, CdkDragHandle, GrButton, GrIcon, GrBadge, GrEmpty, GrSelect, GrSkeleton, GrAlert, BoDrawer, BoSchemaForm],
+  imports: [CdkDropList, CdkDrag, CdkDragHandle, GrButton, GrIcon, GrBadge, GrEmpty, GrSelect, GrSkeleton, GrAlert, BoDrawer, BoSchemaForm, BoLangToggle],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block rounded-lg border border-line-subtle bg-bg-card' },
   template: `
@@ -124,7 +127,12 @@ export interface CollectionConfig {
     <bo-drawer [(open)]="drawer" [title]="editing() ? 'Editar ' + c.item : (c.femenino ? 'Nueva ' : 'Nuevo ') + c.item"
       [badge]="c.publishKey && editing() && !editing()![c.publishKey] ? 'Cambios sin publicar' : ''">
       @if (formError()) { <gr-alert class="mb-4" tone="danger" title="No se pudo guardar">{{ formError() }}</gr-alert> }
-      <bo-schema-form [fields]="formFields()" [(value)]="draft" />
+      @if (c.en) { <bo-lang-toggle class="mb-4 block" [(value)]="idioma" /> }
+      @if (c.en && idioma() === 'en') {
+        <bo-schema-form [fields]="enFields()" [(value)]="enDraft" [ref]="draft()" prefix="f-en-" />
+      } @else {
+        <bo-schema-form [fields]="formFields()" [(value)]="draft" />
+      }
       <ng-container drawerActions>
         @if (editing() && !c.noDelete && canEdit()) { <button grButton variant="danger" class="mr-auto" (click)="remove()">Borrar</button> }
         <button grButton variant="ghost" (click)="drawer.set(false)">Cancelar</button>
@@ -150,11 +158,14 @@ export class BoCollection {
   protected readonly drawer = signal(false);
   protected readonly editing = signal<Row | null>(null);
   protected readonly draft = signal<Record<string, unknown>>({});
+  protected readonly enDraft = signal<Record<string, unknown>>({});
+  protected readonly idioma = signal<Idioma>('es');
   protected readonly saving = signal(false);
   protected readonly formError = signal('');
   protected readonly canEdit = computed(() => this.auth.can(this.comps.current()?.id, this.config().perm ?? 'web.editar'));
   /** The publish switch becomes the «Guardar borrador» / «Publicar» buttons. */
   protected readonly formFields = computed(() => this.config().fields.filter((f) => f.clave !== this.config().publishKey));
+  protected readonly enFields = computed(() => this.config().fields.filter((f) => this.config().en?.includes(f.clave)).map((f): FieldDef => (f.tipo === 'select' ? { ...f, tipo: 'texto', opciones: undefined, aviso: undefined } : f)));
 
   protected readonly filters = computed(() => {
     const key = this.config().filterBy;
@@ -199,6 +210,8 @@ export class BoCollection {
     this.editing.set(r);
     this.formError.set('');
     this.draft.set(pick(r, this.config().fields, r ? {} : (this.config().defaults ?? {})));
+    this.enDraft.set(structuredClone((r?.['en'] as Record<string, unknown> | undefined) ?? {}));
+    this.idioma.set('es');
     this.drawer.set(true);
   }
 
@@ -208,7 +221,8 @@ export class BoCollection {
     try {
       const r = this.editing();
       const key = this.config().publishKey;
-      const body = key && publicar !== undefined ? { ...this.draft(), [key]: publicar } : this.draft();
+      const base = this.config().en ? { ...this.draft(), en: this.enDraft() } : this.draft();
+      const body = key && publicar !== undefined ? { ...base, [key]: publicar } : base;
       if (r) await this.res().update(r.id, body);
       else await this.res().create(body);
       this.drawer.set(false);

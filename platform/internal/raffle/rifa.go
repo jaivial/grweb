@@ -18,6 +18,7 @@ import (
 
 	"github.com/jaivial/grweb/platform/pkg/auth"
 	"github.com/jaivial/grweb/platform/pkg/db"
+	"github.com/jaivial/grweb/platform/pkg/entexto"
 	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
@@ -26,16 +27,17 @@ var tagRifa = []string{"Rifa"}
 
 // RifaConfig is the cash ticket info shown in the hero of /sorteo.
 type RifaConfig struct {
-	PrecioBoletoEfectivoCents int        `json:"precioBoletoEfectivoCents" minimum:"1" maximum:"100000"`
-	Moneda                    string     `json:"moneda" readOnly:"true"`
-	TextoInfo                 string     `json:"textoInfo" maxLength:"600"`
-	Lugar                     string     `json:"lugar" maxLength:"160"`
-	Horario                   string     `json:"horario" maxLength:"160"`
-	FechaSorteo               *time.Time `json:"fechaSorteo,omitempty"`
-	Visible                   bool       `json:"visible"`
-	ItemsVisibles             int        `json:"itemsVisibles" readOnly:"true"`
-	Version                   int        `json:"version" readOnly:"true"`
-	UpdatedAt                 time.Time  `json:"updatedAt" readOnly:"true"`
+	PrecioBoletoEfectivoCents int               `json:"precioBoletoEfectivoCents" minimum:"1" maximum:"100000"`
+	Moneda                    string            `json:"moneda" readOnly:"true"`
+	TextoInfo                 string            `json:"textoInfo" maxLength:"600"`
+	En                        map[string]string `json:"en,omitempty" doc:"Textos en inglés (mismas claves que los campos de texto; ausente: no cambia)"`
+	Lugar                     string            `json:"lugar" maxLength:"160"`
+	Horario                   string            `json:"horario" maxLength:"160"`
+	FechaSorteo               *time.Time        `json:"fechaSorteo,omitempty"`
+	Visible                   bool              `json:"visible"`
+	ItemsVisibles             int               `json:"itemsVisibles" readOnly:"true"`
+	Version                   int               `json:"version" readOnly:"true"`
+	UpdatedAt                 time.Time         `json:"updatedAt" readOnly:"true"`
 }
 
 // RifaGanador is the winning ticket of an object.
@@ -48,28 +50,30 @@ type RifaGanador struct {
 
 // RifaItem is one raffled object (Figma «Tarjeta item rifa»).
 type RifaItem struct {
-	ID                 uuid.UUID    `json:"id"`
-	Nombre             string       `json:"nombre"`
-	Descripcion        string       `json:"descripcion"`
-	ImagenURL          *string      `json:"imagenUrl"`
-	ValorEstimadoCents *int         `json:"valorEstimadoCents"`
-	Donante            *string      `json:"donante"`
-	Unidades           int          `json:"unidades"`
-	Orden              int          `json:"orden"`
-	Ganador            *RifaGanador `json:"ganador"`
-	Visible            *bool        `json:"visible,omitempty" doc:"Solo en el backoffice"`
-	Version            int          `json:"version,omitempty" doc:"Solo en el backoffice (If-Match)"`
+	ID                 uuid.UUID         `json:"id"`
+	Nombre             string            `json:"nombre"`
+	Descripcion        string            `json:"descripcion"`
+	En                 map[string]string `json:"en,omitempty" doc:"Textos en inglés (mismas claves que los campos de texto; ausente: no cambia)"`
+	ImagenURL          *string           `json:"imagenUrl"`
+	ValorEstimadoCents *int              `json:"valorEstimadoCents"`
+	Donante            *string           `json:"donante"`
+	Unidades           int               `json:"unidades"`
+	Orden              int               `json:"orden"`
+	Ganador            *RifaGanador      `json:"ganador"`
+	Visible            *bool             `json:"visible,omitempty" doc:"Solo en el backoffice"`
+	Version            int               `json:"version,omitempty" doc:"Solo en el backoffice (If-Match)"`
 }
 
 // RifaItemIn is what the backoffice sends to create or replace an object.
 type RifaItemIn struct {
-	Nombre             string  `json:"nombre" minLength:"1" maxLength:"80"`
-	Descripcion        string  `json:"descripcion,omitempty" maxLength:"400"`
-	ImagenURL          *string `json:"imagenUrl,omitempty" maxLength:"500"`
-	ValorEstimadoCents *int    `json:"valorEstimadoCents,omitempty" minimum:"0"`
-	Donante            *string `json:"donante,omitempty" maxLength:"120"`
-	Unidades           int     `json:"unidades" minimum:"1" maximum:"999"`
-	Visible            bool    `json:"visible"`
+	Nombre             string            `json:"nombre" minLength:"1" maxLength:"80"`
+	Descripcion        string            `json:"descripcion,omitempty" maxLength:"400"`
+	En                 map[string]string `json:"en,omitempty" doc:"Textos en inglés (mismas claves que los campos de texto; ausente: no cambia)"`
+	ImagenURL          *string           `json:"imagenUrl,omitempty" maxLength:"500"`
+	ValorEstimadoCents *int              `json:"valorEstimadoCents,omitempty" minimum:"0"`
+	Donante            *string           `json:"donante,omitempty" maxLength:"120"`
+	Unidades           int               `json:"unidades" minimum:"1" maximum:"999"`
+	Visible            bool              `json:"visible"`
 }
 
 type rifaListOut struct{ Body *rifaItems }
@@ -81,9 +85,9 @@ type rifaItems struct {
 
 func (s *Svc) rifaConfig(ctx context.Context, q rowQ, cid uuid.UUID) (RifaConfig, error) {
 	c := RifaConfig{Moneda: "EUR", PrecioBoletoEfectivoCents: 200, Visible: true}
-	err := q.QueryRow(ctx, `SELECT precio_boleto_efectivo_cents, texto_info, lugar, horario, fecha_sorteo, visible, version, updated_at,
+	err := q.QueryRow(ctx, `SELECT precio_boleto_efectivo_cents, texto_info, lugar, horario, fecha_sorteo, visible, version, updated_at, en,
 		(SELECT count(*) FROM rifa_items WHERE competition_id = $1 AND visible) FROM rifa_config WHERE competition_id = $1`, cid).
-		Scan(&c.PrecioBoletoEfectivoCents, &c.TextoInfo, &c.Lugar, &c.Horario, &c.FechaSorteo, &c.Visible, &c.Version, &c.UpdatedAt, &c.ItemsVisibles)
+		Scan(&c.PrecioBoletoEfectivoCents, &c.TextoInfo, &c.Lugar, &c.Horario, &c.FechaSorteo, &c.Visible, &c.Version, &c.UpdatedAt, &c.En, &c.ItemsVisibles)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return c, nil
 	}
@@ -91,7 +95,7 @@ func (s *Svc) rifaConfig(ctx context.Context, q rowQ, cid uuid.UUID) (RifaConfig
 }
 
 func (s *Svc) rifaItems(ctx context.Context, cid uuid.UUID, admin bool) ([]RifaItem, error) {
-	sql := `SELECT id, nombre, descripcion, imagen_url, valor_estimado_cents, donante, unidades, orden, visible, ganador_boleto, ganador_nombre, version, ganador_nota, ganador_at
+	sql := `SELECT id, nombre, descripcion, imagen_url, valor_estimado_cents, donante, unidades, orden, visible, ganador_boleto, ganador_nombre, version, ganador_nota, ganador_at, en
 		FROM rifa_items WHERE competition_id = $1`
 	if !admin {
 		sql += ` AND visible`
@@ -107,7 +111,7 @@ func (s *Svc) rifaItems(ctx context.Context, cid uuid.UUID, admin bool) ([]RifaI
 		var vis bool
 		var gb, gn, gnota *string
 		var gat *time.Time
-		if err := rows.Scan(&it.ID, &it.Nombre, &it.Descripcion, &it.ImagenURL, &it.ValorEstimadoCents, &it.Donante, &it.Unidades, &it.Orden, &vis, &gb, &gn, &it.Version, &gnota, &gat); err != nil {
+		if err := rows.Scan(&it.ID, &it.Nombre, &it.Descripcion, &it.ImagenURL, &it.ValorEstimadoCents, &it.Donante, &it.Unidades, &it.Orden, &vis, &gb, &gn, &it.Version, &gnota, &gat, &it.En); err != nil {
 			return nil, err
 		}
 		if gb != nil {
@@ -234,8 +238,12 @@ func (s *Svc) registerRifa() {
 		ETag         string `header:"ETag"`
 		Body         *RifaConfig
 	}
+	type pubIn struct {
+		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		entexto.Lang
+	}
 	huma.Register(api, huma.Operation{OperationID: "rifa-publica", Method: http.MethodGet, Path: "/api/competiciones/{slug}/rifa", Summary: "Rifa presencial: precio del boleto en efectivo, lugar y horario", Tags: tagRifa},
-		func(ctx context.Context, in *slugIn) (*cfgPub, error) {
+		func(ctx context.Context, in *pubIn) (*cfgPub, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
 				return nil, err
@@ -247,6 +255,11 @@ func (s *Svc) registerRifa() {
 			if !cfg.Visible {
 				return nil, problem.New(http.StatusNotFound, "RIFA_NO_PUBLICADA", "La rifa todavía no está publicada.")
 			}
+			if in.En() {
+				d := entexto.Dict(cfg.En)
+				cfg.TextoInfo, cfg.Lugar, cfg.Horario = d.Or("textoInfo", cfg.TextoInfo), d.Or("lugar", cfg.Lugar), d.Or("horario", cfg.Horario)
+			}
+			cfg.En = nil
 			return &cfgPub{CacheControl: "public, max-age=30", ETag: fmt.Sprintf(`"%d-%d"`, cfg.Version, cfg.ItemsVisibles), Body: &cfg}, nil
 		})
 	type itemsPub struct {
@@ -254,7 +267,7 @@ func (s *Svc) registerRifa() {
 		Body         *rifaItems
 	}
 	huma.Register(api, huma.Operation{OperationID: "rifa-items", Method: http.MethodGet, Path: "/api/competiciones/{slug}/rifa/items", Summary: "Objetos que se rifan (visibles, por orden)", Tags: tagRifa},
-		func(ctx context.Context, in *slugIn) (*itemsPub, error) {
+		func(ctx context.Context, in *pubIn) (*itemsPub, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
 				return nil, err
@@ -269,6 +282,13 @@ func (s *Svc) registerRifa() {
 			it, err := s.rifaItems(ctx, c.ID, false)
 			if err != nil {
 				return nil, err
+			}
+			for i := range it {
+				if in.En() {
+					d := entexto.Dict(it[i].En)
+					it[i].Nombre, it[i].Descripcion = d.Or("nombre", it[i].Nombre), d.Or("descripcion", it[i].Descripcion)
+				}
+				it[i].En = nil
 			}
 			return &itemsPub{CacheControl: "public, max-age=30", Body: &rifaItems{Items: it, Total: len(it)}}, nil
 		})
@@ -321,8 +341,8 @@ func (s *Svc) registerRifa() {
 					return problem.Conflict("CONFLICTO_EDICION", "Otra persona ha cambiado la configuración. Recarga la página.")
 				}
 				if _, err := tx.Exec(ctx, `UPDATE rifa_config SET precio_boleto_efectivo_cents=$2, texto_info=$3, lugar=$4, horario=$5, fecha_sorteo=$6, visible=$7,
-					version = version + 1, updated_por=$8, updated_at = now() WHERE competition_id = $1`,
-					in.CID, b.PrecioBoletoEfectivoCents, strings.TrimSpace(b.TextoInfo), strings.TrimSpace(b.Lugar), strings.TrimSpace(b.Horario), b.FechaSorteo, b.Visible, actor(ctx)); err != nil {
+					en = COALESCE($9::jsonb, en), version = version + 1, updated_por=$8, updated_at = now() WHERE competition_id = $1`,
+					in.CID, b.PrecioBoletoEfectivoCents, strings.TrimSpace(b.TextoInfo), strings.TrimSpace(b.Lugar), strings.TrimSpace(b.Horario), b.FechaSorteo, b.Visible, actor(ctx), b.En); err != nil {
 					return err
 				}
 				c, err := s.rifaConfig(ctx, tx, in.CID)
@@ -364,9 +384,9 @@ func (s *Svc) registerRifa() {
 				return nil, err
 			}
 			return s.cambioItems(ctx, in.CID, func(tx pgx.Tx) error {
-				_, err := tx.Exec(ctx, `INSERT INTO rifa_items (id, competition_id, nombre, descripcion, imagen_url, valor_estimado_cents, donante, unidades, visible, orden)
-					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, (SELECT coalesce(max(orden), 0) + 1 FROM rifa_items WHERE competition_id = $2))`,
-					newID(), in.CID, b.Nombre, b.Descripcion, b.ImagenURL, b.ValorEstimadoCents, b.Donante, b.Unidades, b.Visible)
+				_, err := tx.Exec(ctx, `INSERT INTO rifa_items (id, competition_id, nombre, descripcion, imagen_url, valor_estimado_cents, donante, unidades, visible, orden, en)
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, (SELECT coalesce(max(orden), 0) + 1 FROM rifa_items WHERE competition_id = $2), COALESCE($10::jsonb, '{}'))`,
+					newID(), in.CID, b.Nombre, b.Descripcion, b.ImagenURL, b.ValorEstimadoCents, b.Donante, b.Unidades, b.Visible, b.En)
 				return err
 			})
 		})
@@ -394,8 +414,8 @@ func (s *Svc) registerRifa() {
 					return err
 				}
 				_, err := tx.Exec(ctx, `UPDATE rifa_items SET nombre=$3, descripcion=$4, imagen_url=$5, valor_estimado_cents=$6, donante=$7, unidades=$8, visible=$9,
-					version = version + 1, updated_at = now() WHERE competition_id = $1 AND id = $2`,
-					in.CID, in.ID, b.Nombre, b.Descripcion, b.ImagenURL, b.ValorEstimadoCents, b.Donante, b.Unidades, b.Visible)
+					en = COALESCE($10::jsonb, en), version = version + 1, updated_at = now() WHERE competition_id = $1 AND id = $2`,
+					in.CID, in.ID, b.Nombre, b.Descripcion, b.ImagenURL, b.ValorEstimadoCents, b.Donante, b.Unidades, b.Visible, b.En)
 				return err
 			})
 		})

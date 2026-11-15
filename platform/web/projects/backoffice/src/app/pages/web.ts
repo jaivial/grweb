@@ -16,6 +16,7 @@ import { WebSponsorsTab } from './web-sponsors';
 import { BoEventoTabs } from './evento-tabs';
 import { moduloActivo } from '../layout/nav';
 import { WebSeoExtra } from './web-seo';
+import { BoLangToggle, type Idioma } from '../shared/lang-toggle';
 
 /** Static routes of the public app (projects/public/src/app/app.routes.ts); a redirect from one of them hides that page. */
 const RUTAS_PUBLICAS = new Set(['/preguntas-frecuentes', '/patrocinadores', '/galeria', '/voluntarios', '/como-llegar', '/donde-dormir-y-comer', '/mapa-de-accesos',
@@ -34,6 +35,9 @@ export interface Seccion {
   visible: boolean;
   borrador: Record<string, unknown>;
   publicado: Record<string, unknown> | null;
+  /** English overlay of the draft / published content (partial, same shape). */
+  enBorrador?: Record<string, unknown>;
+  enPublicado?: Record<string, unknown> | null;
   publicadoAt?: string;
   version: number;
   updatedAt: string;
@@ -81,7 +85,7 @@ export class WebSections {
     const list = await firstValueFrom(this.http.get<Seccion[]>(`/api/admin/competiciones/${cid}/web/secciones`, { params: { pagina } }));
     if (n === this.seq) this.items.set(list.map(campos)); // a later load (another page) wins: never show a stale page
   }
-  async save(id: string, body: { borrador?: unknown; visible?: boolean }, rev?: number): Promise<Seccion> {
+  async save(id: string, body: { borrador?: unknown; enBorrador?: unknown; visible?: boolean }, rev?: number): Promise<Seccion> {
     const headers = rev ? { 'If-Match': `W/"${rev}"` } : undefined;
     const s = campos(await firstValueFrom(this.http.put<Seccion>(`/api/admin/competiciones/${this.cid}/web/secciones/${id}`, body, { headers })));
     this.items.update((l) => (l ?? []).map((x) => (x.id === id ? s : x)));
@@ -211,7 +215,7 @@ export class WebPage {
 /** Figma «Web · home» + «Web · editar hero». */
 @Component({
   selector: 'bo-web-home',
-  imports: [CdkDropList, CdkDrag, CdkDragHandle, GrBadge, GrButton, GrIcon, GrSkeleton, GrAlert, BoToggle, BoDrawer, BoSchemaForm, WebHeroEditor],
+  imports: [CdkDropList, CdkDrag, CdkDragHandle, GrBadge, GrButton, GrIcon, GrSkeleton, GrAlert, BoToggle, BoDrawer, BoSchemaForm, WebHeroEditor, BoLangToggle],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (heroSec(); as h) {
@@ -286,7 +290,12 @@ export class WebPage {
       }
       @if (current(); as s) {
         <p class="mb-4 text-body-s text-text-tertiary">{{ s.descripcion }}. Se guarda como borrador; la web no cambia hasta publicar.</p>
-        <bo-schema-form [fields]="s.campos" [(value)]="draft" [prefix]="s.clave + '-'" />
+        <bo-lang-toggle class="mb-4 block" [(value)]="idioma" />
+        @if (idioma() === 'en') {
+          <bo-schema-form [fields]="s.campos" [(value)]="enDraft" [ref]="draft()" [prefix]="s.clave + '-en-'" />
+        } @else {
+          <bo-schema-form [fields]="s.campos" [(value)]="draft" [prefix]="s.clave + '-'" />
+        }
       }
       <ng-container drawerActions>
         <button grButton variant="ghost" (click)="drawer.set(false)">Cancelar</button>
@@ -306,6 +315,8 @@ export class WebHomeTab {
   protected readonly drawer = signal(false);
   protected readonly current = signal<Seccion | null>(null);
   protected readonly draft = signal<Record<string, unknown>>({});
+  protected readonly enDraft = signal<Record<string, unknown>>({});
+  protected readonly idioma = signal<Idioma>('es');
   protected readonly saving = signal(false);
   protected readonly error = signal('');
   protected readonly visibles = computed(() => (this.secs.items() ?? []).filter((s) => s.visible).length);
@@ -341,6 +352,8 @@ export class WebHomeTab {
     }
     this.current.set(s);
     this.draft.set(structuredClone(s.borrador ?? {}));
+    this.enDraft.set(structuredClone(s.enBorrador ?? {}));
+    this.idioma.set('es');
     this.error.set('');
     this.conflict.set(false);
     this.drawer.set(true);
@@ -361,7 +374,7 @@ export class WebHomeTab {
     this.error.set('');
     this.conflict.set(false);
     try {
-      const saved = await this.secs.save(s.id, { borrador: this.draft() }, s.rev);
+      const saved = await this.secs.save(s.id, { borrador: this.draft(), enBorrador: this.enDraft() }, s.rev);
       this.current.set(saved);
       if (publish) await this.secs.publish([s.clave]);
       this.drawer.set(false);
@@ -400,6 +413,7 @@ interface LegalVersion {
   version: string;
   titulo: string;
   contenido: string;
+  en?: { titulo?: string; contenido?: string };
   publicadoAt?: string;
   createdAt: string;
   /** Acceptances recorded under this version (cms forms). */
@@ -436,7 +450,7 @@ function diffLineas(a: string, b: string): Linea[] {
 /** Figma «Web · textos legales»: versioned, immutable once published; changes vX → vY and «Pedir nueva aceptación» on publish. */
 @Component({
   selector: 'bo-web-legal',
-  imports: [GrBadge, GrButton, GrSkeleton, GrAlert, GrEmpty, BoDrawer, BoSchemaForm, BoToggle],
+  imports: [GrBadge, GrButton, GrSkeleton, GrAlert, GrEmpty, BoDrawer, BoSchemaForm, BoToggle, BoLangToggle],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'pub.set(null)' },
   template: `
@@ -486,7 +500,12 @@ function diffLineas(a: string, b: string): Linea[] {
     <bo-drawer [(open)]="drawer" [title]="(editing() ? 'Editar ' : 'Nueva versión · ') + (group()?.nombre ?? '')">
       @if (error()) { <gr-alert class="mb-4" tone="danger" title="No se pudo guardar">{{ error() }}</gr-alert> }
       <gr-alert class="mb-4" tone="info" title="Versiones inmutables">Una versión publicada no cambia: los consentimientos guardan la versión aceptada. Para corregir, crea otra.</gr-alert>
-      <bo-schema-form [fields]="fields" [(value)]="draft" prefix="legal-" />
+      <bo-lang-toggle class="mb-4 block" [(value)]="idioma" />
+      @if (idioma() === 'en') {
+        <bo-schema-form [fields]="fieldsEn" [(value)]="enDraft" [ref]="draft()" prefix="legal-en-" />
+      } @else {
+        <bo-schema-form [fields]="fields" [(value)]="draft" prefix="legal-" />
+      }
       <ng-container drawerActions>
         <button grButton variant="ghost" (click)="drawer.set(false)">Cancelar</button>
         <button grButton variant="primary" [loading]="saving()" (click)="save()">Guardar borrador</button>
@@ -525,6 +544,8 @@ export class WebLegalTab {
   protected readonly group = signal<LegalGroup | null>(null);
   protected readonly editing = signal<LegalVersion | null>(null);
   protected readonly draft = signal<Record<string, unknown>>({});
+  protected readonly enDraft = signal<Record<string, unknown>>({});
+  protected readonly idioma = signal<Idioma>('es');
   protected readonly saving = signal(false);
   protected readonly error = signal('');
   protected readonly canEdit = computed(() => this.auth.can(this.comps.current()?.id, 'web.editar'));
@@ -534,6 +555,7 @@ export class WebLegalTab {
     { clave: 'titulo', etiqueta: 'Título', tipo: 'texto', max: 140, ancho: 'mitad' },
     { clave: 'contenido', etiqueta: 'Contenido', tipo: 'markdown', ayuda: 'Markdown: títulos ##, listas, negrita y enlaces.' },
   ];
+  protected readonly fieldsEn = this.fields.filter((f) => f.clave !== 'version');
   private base = computed(() => `/api/admin/competiciones/${this.comps.current()?.id}/legal`);
 
   constructor() {
@@ -571,6 +593,8 @@ export class WebLegalTab {
     this.error.set('');
     const d = new Date();
     this.draft.set(v ? { version: v.version, titulo: v.titulo, contenido: v.contenido } : { version: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, titulo: g.nombre, contenido: g.vigente?.contenido ?? '' });
+    this.enDraft.set({ ...((v ?? g.vigente)?.en ?? {}) });
+    this.idioma.set('es');
     this.drawer.set(true);
   }
 
@@ -581,8 +605,9 @@ export class WebLegalTab {
     this.error.set('');
     try {
       const v = this.editing();
-      if (v) await firstValueFrom(this.http.put(`${this.base()}/${g.tipo}/versiones/${v.id}`, this.draft()));
-      else await firstValueFrom(this.http.post(`${this.base()}/${g.tipo}/versiones`, this.draft()));
+      const body = { ...this.draft(), en: this.enDraft() };
+      if (v) await firstValueFrom(this.http.put(`${this.base()}/${g.tipo}/versiones/${v.id}`, body));
+      else await firstValueFrom(this.http.post(`${this.base()}/${g.tipo}/versiones`, body));
       this.drawer.set(false);
       this.toasts.success('Borrador guardado');
       await this.load();
@@ -623,7 +648,7 @@ const estadoBlog = (r: Record<string, unknown>): { label: string; tone: GrTone }
 /** Collections configured from the CMS API (Figma «Web · FAQ», «patrocinadores», «SEO», «blog y galería»). */
 export const COLLECTIONS: Record<string, CollectionConfig[]> = {
   faq: [{
-    title: 'Preguntas frecuentes', subtitle: 'Las destacadas aparecen en la home', path: '/web/faq', item: 'pregunta', femenino: true, reorder: true, filterBy: 'categoria', filterStyle: 'select', publishKey: 'publicada',
+    title: 'Preguntas frecuentes', subtitle: 'Las destacadas aparecen en la home', path: '/web/faq', item: 'pregunta', femenino: true, reorder: true, filterBy: 'categoria', filterStyle: 'select', publishKey: 'publicada', en: ['categoria', 'pregunta', 'respuesta'],
     columns: [{ key: 'pregunta', label: 'Pregunta' }, { key: 'categoria', label: 'Categoría', hideMobile: true }, { key: 'destacada', label: 'Home', kind: 'badge', value: (r) => (r['destacada'] ? 'Destacada' : '—'), tone: (r) => (r['destacada'] ? 'accent' : 'neutral'), hideMobile: true },
       { key: 'publicada', label: 'Estado', kind: 'badge', value: (r) => (r['publicada'] ? 'Publicada' : 'Borrador'), tone: (r) => (r['publicada'] ? 'success' : 'neutral') }],
     fields: [{ clave: 'pregunta', etiqueta: 'Pregunta', tipo: 'texto', max: 90 }, { clave: 'respuesta', etiqueta: 'Respuesta', tipo: 'markdown', max: 600, ayuda: 'Admite negrita y enlaces' },
@@ -653,7 +678,7 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
   }],
   seo: [
     {
-      title: 'SEO por ruta', subtitle: 'Title y description que ve Google', path: '/web/seo', item: 'ruta', femenino: true,
+      title: 'SEO por ruta', subtitle: 'Title y description que ve Google', path: '/web/seo', item: 'ruta', femenino: true, en: ['title', 'description'],
       columns: [{ key: 'ruta', label: 'URL', kind: 'mono' }, { key: 'title', label: 'Title', kind: 'meter', max: 60, hideMobile: true },
         { key: 'description', label: 'Description', kind: 'meter', max: 160, hideMobile: true },
         { key: 'indexable', label: 'Índice', kind: 'badge', value: (r) => (r['indexable'] ? 'Index' : 'Noindex'), tone: (r) => (r['indexable'] ? 'success' : 'neutral') },
@@ -673,7 +698,7 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
       empty: { title: 'Sin redirecciones', text: 'Útiles al cambiar de dominio o de ruta.' },
     },
     {
-      title: 'Páginas de contenido', subtitle: 'Reglamento, categorías, marcas mínimas… (/{slug})', path: '/web/paginas', item: 'página', femenino: true, reorder: true,
+      title: 'Páginas de contenido', subtitle: 'Reglamento, categorías, marcas mínimas… (/{slug})', path: '/web/paginas', item: 'página', femenino: true, reorder: true, en: ['titulo', 'resumen', 'cuerpo'],
       columns: [{ key: 'titulo', label: 'Página' }, { key: 'slug', label: 'Ruta', kind: 'mono', value: (r) => '/' + r['slug'] }, { key: 'publicada', label: 'Estado', kind: 'badge', value: (r) => (r['publicada'] ? 'Publicada' : 'Borrador'), tone: (r) => (r['publicada'] ? 'success' : 'neutral') }],
       fields: [{ clave: 'titulo', etiqueta: 'Título', tipo: 'texto', max: 140 }, { clave: 'slug', etiqueta: 'Ruta', tipo: 'texto', ayuda: 'Minúsculas y guiones', ancho: 'mitad' }, { clave: 'portadaUrl', etiqueta: 'Portada', tipo: 'imagen' },
         { clave: 'resumen', etiqueta: 'Resumen', tipo: 'area', max: 300 }, { clave: 'cuerpo', etiqueta: 'Contenido', tipo: 'markdown' }, { clave: 'publicada', etiqueta: 'Publicada', tipo: 'bool' }],
@@ -683,7 +708,7 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
   ],
   blog: [
     {
-      title: 'Blog', subtitle: 'Noticias de la competición', path: '/web/blog', item: 'entrada', femenino: true,
+      title: 'Blog', subtitle: 'Noticias de la competición', path: '/web/blog', item: 'entrada', femenino: true, en: ['titulo', 'resumen', 'cuerpo'],
       columns: [{ key: 'titulo', label: 'Artículo' }, { key: 'publicarAt', label: 'Fecha', kind: 'mono', value: (r) => fechaCorta(r['publicarAt'] ?? r['publicadaAt']), hideMobile: true },
         { key: 'publicada', label: 'Estado', kind: 'badge', value: (r) => estadoBlog(r).label, tone: (r) => estadoBlog(r).tone }],
       fields: [{ clave: 'titulo', etiqueta: 'Título', tipo: 'texto', max: 140 }, { clave: 'slug', etiqueta: 'Ruta', tipo: 'texto', ayuda: '/blog/{ruta}', ancho: 'mitad' }, { clave: 'publicarAt', etiqueta: 'Programar publicación', tipo: 'fecha', ancho: 'mitad' },
@@ -694,7 +719,7 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
       empty: { title: 'Sin entradas', text: 'Publica novedades: apertura de reservas, horarios, resultados.' },
     },
     {
-      title: 'Galería', subtitle: 'Álbumes de fotos (con consentimiento de imagen)', path: '/web/albumes', item: 'álbum', reorder: true,
+      title: 'Galería', subtitle: 'Álbumes de fotos (con consentimiento de imagen)', path: '/web/albumes', item: 'álbum', reorder: true, en: ['titulo', 'fotos'],
       columns: [{ key: 'titulo', label: 'Álbum' }, { key: 'fotos', label: 'Fotos', kind: 'mono', value: (r) => String((r['fotos'] as unknown[] | null)?.length ?? 0) + ' fotos' }, { key: 'publicado', label: 'Estado', kind: 'badge', value: (r) => (r['publicado'] ? 'Publicado' : 'Borrador'), tone: (r) => (r['publicado'] ? 'success' : 'neutral') }],
       fields: [{ clave: 'titulo', etiqueta: 'Título', tipo: 'texto', max: 120, ancho: 'mitad' }, { clave: 'slug', etiqueta: 'Ruta', tipo: 'texto', ancho: 'mitad' },
         { clave: 'fotos', etiqueta: 'Fotos', tipo: 'lista', max: 300, campos: [{ clave: 'url', etiqueta: 'Foto', tipo: 'imagen' }, { clave: 'alt', etiqueta: 'Texto alternativo', tipo: 'texto', max: 200 },
@@ -707,7 +732,7 @@ export const COLLECTIONS: Record<string, CollectionConfig[]> = {
     },
   ],
   mapas: [{
-    title: 'Mapas de acceso', subtitle: 'Planos para atletas y público de /mapa-de-accesos, en este orden (arrastra para ordenar)', path: '/web/mapas', item: 'mapa', reorder: true,
+    title: 'Mapas de acceso', subtitle: 'Planos para atletas y público de /mapa-de-accesos, en este orden (arrastra para ordenar)', path: '/web/mapas', item: 'mapa', reorder: true, en: ['titulo', 'subtitulo', 'descripcion'],
     columns: [{ key: 'imagenUrl', label: 'Imagen', kind: 'image' }, { key: 'titulo', label: 'Título', value: (r) => String(r['titulo'] || 'Sin título') }, { key: 'subtitulo', label: 'Subtítulo', hideMobile: true }],
     fields: [{ clave: 'imagenUrl', etiqueta: 'Imagen', tipo: 'imagen', subida: '/web/mapas/imagen', ayuda: 'JPG, PNG o WebP de hasta 10 MB. Se publica en el CDN.' },
       { clave: 'titulo', etiqueta: 'Título (opcional)', tipo: 'texto', max: 120 }, { clave: 'subtitulo', etiqueta: 'Subtítulo (opcional)', tipo: 'texto', max: 160 },
