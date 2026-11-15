@@ -236,7 +236,7 @@ func (s *Svc) registerStripeConnect() {
 			Cobros bool   `json:"cobros"`
 		}
 	}
-	huma.Register(s.a.API, huma.Operation{OperationID: "internal-stripe-connect", Method: http.MethodGet, Path: "/internal/competiciones/{cid}/stripe-connect", Summary: "Cuenta conectada de Stripe de la competición (solo servicios)", Tags: []string{"Interno"}, Hidden: true},
+	huma.Register(s.a.API, huma.Operation{OperationID: "internal-stripe-connect", Method: http.MethodGet, Path: "/internal/competiciones/{cid}/integraciones/stripe/connect", Summary: "Cuenta conectada de Stripe de la competición (solo servicios)", Tags: []string{"Interno"}, Hidden: true},
 		func(ctx context.Context, in *cidIn) (*intOut, error) {
 			if _, err := auth.RequireService(ctx); err != nil {
 				return nil, err

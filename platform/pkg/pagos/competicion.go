@@ -17,7 +17,7 @@ func DeCompeticion(ctx context.Context, comp *svcclient.Client, cid string, sim 
 		Cuenta string `json:"cuenta"`
 		Cobros bool   `json:"cobros"`
 	}
-	if err := comp.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid+"/stripe-connect", nil, &cc); err == nil && cc.Cobros {
+	if err := comp.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid+"/integraciones/stripe/connect", nil, &cc); err == nil && cc.Cobros {
 		if p := NewConnect(cc.Cuenta); p != nil {
 			return p
 		}
