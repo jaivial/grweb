@@ -212,8 +212,21 @@ func (c *conversorHTML) nodo(n *html.Node) {
 	}
 }
 
-// esPie: the legal footer of an email («Recibes este email…», opt-out), which WhatsApp replaces with its own line.
+// esPie: the legal footer of an email («Recibes este email…», opt-out), which WhatsApp replaces with its own line. Only a
+// cell without nested tables: the layout cells around the whole email contain the footer too.
 func esPie(n *html.Node) bool {
+	var anidada func(*html.Node) bool
+	anidada = func(x *html.Node) bool {
+		for h := x.FirstChild; h != nil; h = h.NextSibling {
+			if h.Type == html.ElementNode && (h.DataAtom == atom.Table || h.DataAtom == atom.Td) || anidada(h) {
+				return true
+			}
+		}
+		return false
+	}
+	if anidada(n) {
+		return false
+	}
 	t := strings.ToLower(textoDe(n))
 	return len(t) < 400 && (strings.Contains(t, "recibes este email") || strings.Contains(t, "darme de baja") || strings.Contains(t, "unsubscribe"))
 }
