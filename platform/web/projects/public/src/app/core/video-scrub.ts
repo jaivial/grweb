@@ -16,6 +16,9 @@ export class VideoScrub {
   private firstFrame = false;
   private abort?: AbortController;
   private objectUrl?: string;
+  private watchdog = 0;
+  private loadTimer = 0;
+  private stalls = 0;
 
   constructor(private readonly video: HTMLVideoElement, private readonly opts: VideoScrubOptions) {
     video.addEventListener('loadedmetadata', this.onLoadedMetadata);
@@ -30,8 +33,13 @@ export class VideoScrub {
   }
 
   /** Downloads the MP4 once into a Blob; direct Range-based playback is the network/CORS fallback. */
-  async load(url: string): Promise<void> {
+  async load(url: string, timeoutMs = 15000): Promise<void> {
     this.video.muted = true;
+    this.video.defaultMuted = true;
+    this.video.playsInline = true;
+    this.video.preload = 'auto';
+    // iOS: a slow network, a lost event or a decoder that never paints must not leave the hero frozen; the caller falls back to frames.
+    this.loadTimer = window.setTimeout(() => { if (!this.firstFrame) this.fail(); }, timeoutMs);
     const controller = new AbortController();
     this.abort = controller;
     try {
@@ -65,20 +73,28 @@ export class VideoScrub {
       if (controller.signal.aborted) return;
       this.opts.onProgress?.(100);
       this.objectUrl = URL.createObjectURL(blob);
-      this.video.src = this.objectUrl;
+      this.setSrc(this.objectUrl);
     } catch {
       if (controller.signal.aborted || this.failed) return;
       this.opts.onProgress?.(null);
       try {
-        this.video.src = url;
+        this.setSrc(url);
       } catch {
         this.fail();
       }
     }
   }
 
+  /** iOS Safari ignores `preload` on a src set from script until load() is called. */
+  private setSrc(src: string): void {
+    this.video.src = src;
+    this.video.load();
+  }
+
   destroy(): void {
     this.abort?.abort();
+    clearTimeout(this.watchdog);
+    clearTimeout(this.loadTimer);
     this.video.removeEventListener('loadedmetadata', this.onLoadedMetadata);
     this.video.removeEventListener('seeked', this.onSeeked);
     this.video.removeEventListener('error', this.onVideoError);
@@ -89,16 +105,37 @@ export class VideoScrub {
   }
 
   private readonly onLoadedMetadata = () => {
-    this.metadata = true;
-    this.pump();
+    if (this.metadata || this.failed) return;
+    // iOS Safari may not paint seeks of a video that never played: one muted play()/pause() wakes the decoder.
+    // Low Power Mode rejects it; seeking still works then, so the result is ignored (bounded by a timeout).
+    let done = false;
+    const ready = () => {
+      if (done) return;
+      done = true;
+      this.video.pause();
+      this.metadata = true;
+      this.shown = -1;
+      this.pump();
+    };
+    try {
+      const played = this.video.play();
+      if (played) played.then(() => { this.video.pause(); ready(); }, ready);
+      else ready();
+    } catch {
+      ready();
+    }
+    window.setTimeout(ready, 600);
   };
 
   private readonly onSeeked = () => {
     if (this.failed || this.inFlight < 0) return;
+    clearTimeout(this.watchdog);
+    this.stalls = 0;
     this.shown = this.inFlight;
     this.inFlight = -1;
     if (!this.firstFrame) {
       this.firstFrame = true;
+      clearTimeout(this.loadTimer);
       this.opts.onFirstFrame?.();
     }
     this.pump();
@@ -120,6 +157,15 @@ export class VideoScrub {
   private pump(): void {
     if (!this.metadata || this.failed || this.inFlight >= 0 || this.target === this.shown) return;
     this.inFlight = this.target;
+    clearTimeout(this.watchdog);
+    // WebKit can drop a `seeked` (target equal to the current time, decoder reclaimed): retry, and give up after 3 in a row.
+    this.watchdog = window.setTimeout(() => {
+      if (this.inFlight < 0 || this.failed) return;
+      if (++this.stalls >= 3) return this.fail();
+      this.inFlight = -1;
+      this.shown = -1;
+      this.pump();
+    }, 1200);
     try {
       this.video.currentTime = (this.inFlight + 0.5) / this.opts.fps;
     } catch {
@@ -132,6 +178,9 @@ export class VideoScrub {
     if (this.failed) return;
     this.failed = true;
     this.inFlight = -1;
+    clearTimeout(this.watchdog);
+    clearTimeout(this.loadTimer);
+    this.abort?.abort();
     this.opts.onError?.();
   }
 }

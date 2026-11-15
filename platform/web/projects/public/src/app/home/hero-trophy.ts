@@ -14,7 +14,10 @@ const VIDEO_DESKTOP = 'https://jaimedigitalstudio.b-cdn.net/grcup/videos/copa-sc
 const frameUrl = (i: number) => `https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_${String(i + 1).padStart(4, '0')}.webp`;
 
 /** Scroll timeline of Figma page 04 «Hero · Storyboard scroll» (the previous web's animation, same thresholds). */
-const T = { textoFuera: [0.12, 0.21], humo: [0.01, 0.12], frames: [0.04, 0.667], nubes: [0.567, 0.667] } as const;
+// Jaime 14-nov: the intro text fades with the smoke (same span), and the closing clouds rise earlier and end covering the trophy.
+const T = { textoFuera: [0.01, 0.12], humo: [0.01, 0.12], frames: [0.04, 0.6], nubes: [0.48, 0.6] } as const;
+/** Frame fallback (video failed or stalled): every 3rd WebP, loaded progressively, shown as the nearest loaded frame. */
+const PASO_FRAMES = 3;
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const tramo = (p: number, [a, b]: readonly [number, number]) => Math.min(1, Math.max(0, (p - a) / (b - a)));
 
@@ -73,11 +76,11 @@ const PUFFS = [
             [style.left.%]="p.left" [style.top.%]="p.top + 30" [style.width.%]="p.width" [style.height.%]="p.height"></span>
         }
       </div>
-      <div class="pointer-events-none absolute inset-x-0 bottom-0 h-[60%] bg-[linear-gradient(180deg,rgb(58_58_58/0)_0%,rgb(42_42_42/0.85)_50%,#141112_100%)]" [style.opacity]="nubes()"></div>
+      <div class="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(42_42_42/0.55)_0%,rgb(36_32_33/0.92)_45%,#141112_100%)]" [style.opacity]="nubes()" [style.transform]="'translateY(' + (1 - nubes()) * 60 + '%)'"></div>
       <!-- Bottom fade (300 px, base) -->
       <div class="pointer-events-none absolute inset-x-0 bottom-0 h-[300px] bg-[linear-gradient(180deg,transparent,#141112)]"></div>
       <!-- Intro (Figma home R2): GRS CUP 2 logo and tagline; dates, place and organiser logos moved to «Campeonato» -->
-      <div class="gr-intro pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-5 pb-[12dvh] text-center transition-opacity duration-700 motion-reduce:transition-none" [style.opacity]="texto()">
+      <div class="gr-intro pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-5 pb-[12dvh] text-center" [style.opacity]="texto()">
         <img [src]="logo" alt="GRS Cup 2" class="h-[clamp(80px,30vw,125px)] w-auto select-none md:h-[198px]" draggable="false" fetchpriority="high" />
         @if (hero().eyebrow) { <p class="gr-intro-extra mt-10 text-label-xs tracking-[0.12em] text-accent-text uppercase">{{ hero().eyebrow }}</p> }
         <h1 class="max-w-[1000px] font-display text-[clamp(22px,8vw,30px)] leading-[1.05] tracking-[-0.01em] uppercase [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-[56px]" [class]="hero().eyebrow ? 'mt-3' : 'mt-3 md:mt-1'">{{ titulo() || 'Los ganadores nunca se rinden' }}</h1>
@@ -173,8 +176,9 @@ export class HeroTrophy {
   protected readonly humo = computed(() => (this.reduced() ? 1 : 1 - ease(tramo(this.p(), T.humo)) * 0.85));
   protected readonly desvio = computed(() => ease(tramo(this.p(), T.humo)));
   // The trophy takes over while the intro text leaves (Figma 04: clean background behind the text at scroll 0)
-  protected readonly trofeo = computed(() => (this.reduced() ? 0 : ease(tramo(this.p(), T.textoFuera))));
   protected readonly nubes = computed(() => ease(tramo(this.p(), T.nubes)));
+  // ...and the clouds cover it completely at the end
+  protected readonly trofeo = computed(() => (this.reduced() ? 0 : ease(tramo(this.p(), T.textoFuera)) * (1 - this.nubes())));
 
   private progress = 0;
   private shown = 0;
@@ -185,6 +189,8 @@ export class HeroTrophy {
   private fade = 0;
   private wasDone = false;
   private io?: IntersectionObserver;
+  private readonly framesListos = new Set<number>();
+  private framesCargando = false;
 
   constructor() {
     const destroy = inject(DestroyRef);
@@ -269,7 +275,34 @@ export class HeroTrophy {
   }
 
   private updateTarget(): void {
-    this.scrub?.seek(Math.round(tramo(this.shown, T.frames) * (FRAMES - 1)));
+    const frame = Math.round(tramo(this.shown, T.frames) * (FRAMES - 1));
+    if (!this.videoFallido) return this.scrub?.seek(frame);
+    // nearest loaded fallback frame (frame 0 and the last are always first in the queue)
+    let best = -1;
+    for (const f of this.framesListos) if (best < 0 || Math.abs(f - frame) < Math.abs(best - frame)) best = f;
+    if (best >= 0) {
+      const url = frameUrl(best);
+      if (this.imagenTrofeo() !== url) this.imagenTrofeo.set(url);
+    }
+  }
+
+  /** Loads the fallback frames, 4 at a time, coarse to fine; the browser keeps them as encoded files. */
+  private cargarFrames(): void {
+    if (this.framesCargando) return;
+    this.framesCargando = true;
+    const cola: number[] = [0, FRAMES - 1];
+    for (const paso of [PASO_FRAMES * 8, PASO_FRAMES * 4, PASO_FRAMES * 2, PASO_FRAMES])
+      for (let f = 0; f < FRAMES; f += paso) if (!cola.includes(f)) cola.push(f);
+    const siguiente = () => {
+      const f = cola.shift();
+      if (f === undefined) return;
+      const img = new Image();
+      img.decoding = 'async';
+      img.onload = () => { this.framesListos.add(f); this.updateTarget(); siguiente(); };
+      img.onerror = () => siguiente();
+      img.src = frameUrl(f);
+    };
+    for (let i = 0; i < 4; i++) siguiente();
   }
 
   private finPrecarga(): void {
@@ -284,6 +317,7 @@ export class HeroTrophy {
     this.videoFallido = true;
     this.imagenFija.set(true);
     this.finPrecarga();
+    this.cargarFrames();
   }
 
   protected skip(): void {
