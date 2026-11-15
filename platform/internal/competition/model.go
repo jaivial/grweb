@@ -18,7 +18,7 @@ var ModulosCatalogo = []struct{ Clave, Nombre, Descripcion string }{
 	{"entradas", "Entradas", "Reserva de entradas gratuitas por sesión con QR"},
 	{"atletas", "Atletas", "Listado y perfiles públicos de atletas"},
 	{"alta-atleta", "Alta de atleta", "Formulario público de alta de atleta (solicitud con revisión humana)"},
-	{"horarios", "Horarios", "Flights y horarios publicados"},
+	{"horarios", "Horarios", "Sesiones y horarios publicados"},
 	{"directo", "Directo", "Resultados en vivo y pantalla del pabellón"},
 	{"resultados", "Resultados", "Clasificaciones y acta"},
 	{"sorteo", "Sorteo", "Venta de boletos y sorteo (requiere checklist legal)"},
@@ -49,7 +49,7 @@ var ChecklistPasos = []struct{ Clave, Titulo, Ayuda string }{
 	{"integracion-email", "Email de envío", "SMTP probado"},
 	{"textos-legales", "Textos legales", "Privacidad, términos y consentimientos"},
 	{"entradas-sesiones", "Sesiones de entradas", "Aforo y ventana de reserva"},
-	{"horarios-publicados", "Horarios publicados", "Flights visibles en la web"},
+	{"horarios-publicados", "Horarios publicados", "Sesiones por hora visibles en la web"},
 	{"web-publicada", "Web publicada", "Primera publicación de contenidos"},
 }
 

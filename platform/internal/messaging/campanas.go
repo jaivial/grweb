@@ -132,10 +132,10 @@ func (s *Svc) campana(ctx context.Context, cid, id uuid.UUID) (Campana, error) {
 	return c, err
 }
 
-// contexto builds what the compiler needs: brand, web, the published flights (for the «Flight / horario» block).
+// contexto builds what the compiler needs: brand, web, the published dates (for the «Horario del día» block).
 func (s *Svc) contexto(ctx context.Context, cid uuid.UUID, asunto, pre string, d []Bloque, canal, slug string) Contexto {
 	m := s.marca(ctx, cid)
-	c := Contexto{Marca: m, Asunto: asunto, Pre: pre, Ahora: time.Now(), Flights: map[string][]FlightResumen{}, Vars: s.variablesComp(ctx, cid, m)}
+	c := Contexto{Marca: m, Asunto: asunto, Pre: pre, Ahora: time.Now(), Horario: map[string][]FilaHorario{}, Vars: s.variablesComp(ctx, cid, m)}
 	img := absoluto(m.Web)
 	c.Absoluto = func(u string) string {
 		a := img(u)
@@ -146,7 +146,7 @@ func (s *Svc) contexto(ctx context.Context, cid uuid.UUID, asunto, pre string, d
 	}
 	for _, b := range d {
 		if b.Tipo == "horario" {
-			c.Flights = s.flightsPublicados(ctx, cid)
+			c.Horario = s.horarioPublicado(ctx, cid)
 			break
 		}
 	}
@@ -168,21 +168,22 @@ func (s *Svc) variablesComp(ctx context.Context, cid uuid.UUID, m Marca) map[str
 	return v
 }
 
-// flightsPublicados reads the public schedule (only what /horarios shows).
-func (s *Svc) flightsPublicados(ctx context.Context, cid uuid.UUID) map[string][]FlightResumen {
-	out := map[string][]FlightResumen{}
+// horarioPublicado reads the public schedule (only what /horarios shows).
+func (s *Svc) horarioPublicado(ctx context.Context, cid uuid.UUID) map[string][]FilaHorario {
+	out := map[string][]FilaHorario{}
 	c, err := s.comps.ByID(ctx, cid)
 	if err != nil {
 		return out
 	}
 	var h struct {
 		Dias []struct {
-			Fecha   string `json:"fecha"`
-			Flights []struct {
-				Codigo string    `json:"codigo"`
+			Fecha    string `json:"fecha"`
+			Horarios []struct {
 				Titulo string    `json:"titulo"`
+				EP     string    `json:"ep"`
 				Inicio time.Time `json:"inicio"`
-			} `json:"flights"`
+				Total  int       `json:"total"`
+			} `json:"horarios"`
 		} `json:"dias"`
 	}
 	if err := s.schedule.Do(ctx, http.MethodGet, "/api/competiciones/"+c.Slug+"/horarios", nil, &h); err != nil {
@@ -190,8 +191,12 @@ func (s *Svc) flightsPublicados(ctx context.Context, cid uuid.UUID) map[string][
 		return out
 	}
 	for _, d := range h.Dias {
-		for _, f := range d.Flights {
-			out[d.Fecha] = append(out[d.Fecha], FlightResumen{Codigo: f.Codigo, Titulo: f.Titulo, Hora: f.Inicio.In(madrid).Format("15:04")})
+		for _, x := range d.Horarios {
+			t := x.Titulo
+			if x.EP != "" {
+				t += " · " + x.EP
+			}
+			out[d.Fecha] = append(out[d.Fecha], FilaHorario{Titulo: fmt.Sprintf("%s · %d atletas", t, x.Total), Hora: x.Inicio.In(madrid).Format("15:04")})
 		}
 	}
 	return out

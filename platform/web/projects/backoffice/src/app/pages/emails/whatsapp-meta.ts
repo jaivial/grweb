@@ -102,7 +102,7 @@ interface Form { nombre: string; categoria: 'utilidad' | 'marketing'; cuerpo: st
           </div>
         </fieldset>
         <gr-field label="Texto" for="wa-c" hint="Variables posicionales: {{ '{{1}}' }}, {{ '{{2}}' }}…"><textarea grInput id="wa-c" name="c" rows="6" required maxlength="1024" [ngModel]="f().cuerpo" (ngModelChange)="set('cuerpo', $event)"></textarea></gr-field>
-        <gr-field label="Qué es cada variable" for="wa-v" hint="En orden, separadas por comas: nombre, flight · hora"><input grInput id="wa-v" name="v" maxlength="300" [ngModel]="f().variables" (ngModelChange)="set('variables', $event)" /></gr-field>
+        <gr-field label="Qué es cada variable" for="wa-v" hint="En orden, separadas por comas: nombre, fecha · hora"><input grInput id="wa-v" name="v" maxlength="300" [ngModel]="f().variables" (ngModelChange)="set('variables', $event)" /></gr-field>
         <div class="grid grid-cols-2 gap-2">
           <gr-field label="Botón (opcional)" for="wa-b"><input grInput id="wa-b" name="b" maxlength="25" [ngModel]="f().boton" (ngModelChange)="set('boton', $event)" /></gr-field>
           <gr-field label="Enlace del botón" for="wa-u"><input grInput id="wa-u" name="u" type="url" maxlength="300" placeholder="https://" [ngModel]="f().url" (ngModelChange)="set('url', $event)" /></gr-field>

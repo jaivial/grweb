@@ -45,7 +45,7 @@ type AtletaOL struct {
 type SyncOL struct {
 	Por    string `json:"por" maxLength:"120" doc:"Quién opera la mesa (auditoría)"`
 	Estado *struct {
-		Atletas    []uuid.UUID `json:"atletas" maxItems:"100" doc:"Atletas del grupo que la mesa tiene en pantalla: el flight en directo es el suyo"`
+		Atletas    []uuid.UUID `json:"atletas" maxItems:"100" doc:"Atletas del grupo que la mesa tiene en pantalla: el sesion en directo es el suyo"`
 		Movimiento string      `json:"movimiento" enum:"sq,bp,dl"`
 	} `json:"estado,omitempty" doc:"Grupo y movimiento que la mesa tiene en pantalla (solo cuando ya ha juzgado algún intento de ese grupo)"`
 	Atletas []AtletaOL `json:"atletas" maxItems:"500"`
@@ -62,7 +62,7 @@ type ResultadoSyncOL struct {
 	Intentos     int       `json:"intentos" doc:"Intentos creados o con el peso cambiado"`
 	Veredictos   int       `json:"veredictos"`
 	Correcciones int       `json:"correcciones"`
-	Estado       bool      `json:"estado" doc:"Cambió el flight o el movimiento en directo"`
+	Estado       bool      `json:"estado" doc:"Cambió el sesion o el movimiento en directo"`
 	Avisos       []AvisoOL `json:"avisos"`
 }
 
@@ -96,15 +96,15 @@ func (s *Svc) syncOpenLifter(ctx context.Context, cid uuid.UUID, b SyncOL) (Resu
 	if err != nil {
 		return res, err
 	}
-	var f *flight
+	var f *sesion
 	if b.Estado != nil {
-		// OpenLifter groups its own flights: the live flight is the published one most of the group's athletes are in.
+		// OpenLifter groups its own sesiones: the live sesion is the published one most of the group's athletes are in.
 		votos := map[uuid.UUID]int{}
 		for _, id := range b.Estado.Atletas {
-			if a := p.Atletas[id]; a != nil && a.Flight != uuid.Nil {
-				votos[a.Flight]++
-				if f == nil || votos[a.Flight] > votos[f.ID] {
-					f = p.flight(a.Flight)
+			if a := p.Atletas[id]; a != nil && a.Sesion != uuid.Nil {
+				votos[a.Sesion]++
+				if f == nil || votos[a.Sesion] > votos[f.ID] {
+					f = p.sesion(a.Sesion)
 				}
 			}
 		}
@@ -121,7 +121,7 @@ func (s *Svc) syncOpenLifter(ctx context.Context, cid uuid.UUID, b SyncOL) (Resu
 		}
 		for _, x := range b.Atletas {
 			a := p.Atletas[x.AtletaID]
-			if a == nil || a.Flight == uuid.Nil {
+			if a == nil || a.Sesion == uuid.Nil {
 				res.Avisos = append(res.Avisos, AvisoOL{x.AtletaID, "No está en los horarios publicados: sus intentos no salen en el directo."})
 				continue
 			}
@@ -139,28 +139,28 @@ func (s *Svc) syncOpenLifter(ctx context.Context, cid uuid.UUID, b SyncOL) (Resu
 				return err
 			}
 		}
-		// Nothing to do when the live already shows that flight and lift, or the organiser ended the live on it
-		// (a desk left open after the last flight must not reopen it).
-		if f == nil || (eqID(e.FlightID, &f.ID) && (e.Fase == "finalizado" || (e.Fase == "en_directo" && e.Movimiento == b.Estado.Movimiento))) {
+		// Nothing to do when the live already shows that sesion and lift, or the organiser ended the live on it
+		// (a desk left open after the last sesion must not reopen it).
+		if f == nil || (eqID(e.SesionID, &f.ID) && (e.Fase == "finalizado" || (e.Fase == "en_directo" && e.Movimiento == b.Estado.Movimiento))) {
 			return nil
 		}
-		// The desk moved to another flight or lift: the live follows it (same events as Directo › estado).
+		// The desk moved to another sesion or lift: the live follows it (same events as Directo › estado).
 		res.Estado = true
 		if err := abrir(ctx, tx, cid, p, f, b.Estado.Movimiento); err != nil {
 			return err
 		}
 		retraso := e.RetrasoMin
-		if e.FlightID != nil {
-			if prev := p.flight(*e.FlightID); prev != nil && prev.Dia != f.Dia {
+		if e.SesionID != nil {
+			if prev := p.sesion(*e.SesionID); prev != nil && prev.Dia != f.Dia {
 				retraso = 0 // a new day starts on time
 			}
 		}
-		if _, err := tx.Exec(ctx, `UPDATE estado SET fase = 'en_directo', flight_id = $2, movimiento = $3, pausa = false, retraso_min = $4, turno_at = now(),
+		if _, err := tx.Exec(ctx, `UPDATE estado SET fase = 'en_directo', sesion_id = $2, movimiento = $3, pausa = false, retraso_min = $4, turno_at = now(),
 			version = version + 1, updated_at = now() WHERE competition_id = $1`, cid, f.ID, b.Estado.Movimiento, retraso); err != nil {
 			return err
 		}
-		d := map[string]any{"fase": "en_directo", "movimiento": b.Estado.Movimiento, "pausa": false, "retrasoMin": retraso, "flightId": f.ID, "flight": f.Codigo}
-		sub := "flight " + f.Codigo
+		d := map[string]any{"fase": "en_directo", "movimiento": b.Estado.Movimiento, "pausa": false, "retrasoMin": retraso, "sesionId": f.ID, "hora": f.Hora}
+		sub := "sesión de las " + f.Hora
 		if err := evento(ctx, tx, cid, "directo.estado", d, events.Subject(sub)); err != nil {
 			return err
 		}
@@ -171,7 +171,7 @@ func (s *Svc) syncOpenLifter(ctx context.Context, cid uuid.UUID, b SyncOL) (Resu
 		return res, err
 	}
 	if b.Estado != nil && f == nil {
-		res.Avisos = append(res.Avisos, AvisoOL{Mensaje: "Ningún atleta del grupo en pantalla está en los horarios publicados: el directo no cambia de flight."})
+		res.Avisos = append(res.Avisos, AvisoOL{Mensaje: "Ningún atleta del grupo en pantalla está en los horarios publicados: el directo no cambia de sesión."})
 	}
 	if res.Intentos+res.Veredictos+res.Correcciones > 0 || res.Estado {
 		s.bump(ctx, cid)
@@ -193,22 +193,22 @@ func (s *Svc) reconciliar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, a *atle
 	juzgar := it.Resultado == "valido" || it.Resultado == "nulo"
 	veredicto := func(fl uuid.UUID, votos string) error {
 		res.Veredictos++
-		return evento(ctx, tx, cid, "directo.veredicto", map[string]any{"flightId": fl, "movimiento": it.Movimiento, "numero": it.Numero, "peso": peso,
+		return evento(ctx, tx, cid, "directo.veredicto", map[string]any{"sesionId": fl, "movimiento": it.Movimiento, "numero": it.Numero, "peso": peso,
 			"votos": votos, "resultado": it.Resultado})
 	}
 	switch {
 	case cur == nil:
-		if _, err := tx.Exec(ctx, `INSERT INTO intentos (id, competition_id, atleta_id, flight_id, movimiento, numero, peso, resultado, juzgado_at)
+		if _, err := tx.Exec(ctx, `INSERT INTO intentos (id, competition_id, atleta_id, sesion_id, movimiento, numero, peso, resultado, juzgado_at)
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8, CASE WHEN $8 = 'pendiente' THEN NULL ELSE now() END)
-			ON CONFLICT (competition_id, atleta_id, movimiento, numero) DO NOTHING`, newID(), cid, a.ID, a.Flight, it.Movimiento, it.Numero, peso, it.Resultado); err != nil {
+			ON CONFLICT (competition_id, atleta_id, movimiento, numero) DO NOTHING`, newID(), cid, a.ID, a.Sesion, it.Movimiento, it.Numero, peso, it.Resultado); err != nil {
 			return err
 		}
 		res.Intentos++
-		if err := evento(ctx, tx, cid, "directo.intento", map[string]any{"flightId": a.Flight, "movimiento": it.Movimiento, "numero": it.Numero, "peso": peso}); err != nil {
+		if err := evento(ctx, tx, cid, "directo.intento", map[string]any{"sesionId": a.Sesion, "movimiento": it.Movimiento, "numero": it.Numero, "peso": peso}); err != nil {
 			return err
 		}
 		if juzgar {
-			return veredicto(a.Flight, "")
+			return veredicto(a.Sesion, "")
 		}
 		return nil
 
@@ -218,7 +218,7 @@ func (s *Svc) reconciliar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, a *atle
 				return err
 			}
 			res.Intentos++
-			if err := evento(ctx, tx, cid, "directo.intento", map[string]any{"flightId": cur.FlightID, "movimiento": it.Movimiento, "numero": it.Numero, "peso": peso}); err != nil {
+			if err := evento(ctx, tx, cid, "directo.intento", map[string]any{"sesionId": cur.SesionID, "movimiento": it.Movimiento, "numero": it.Numero, "peso": peso}); err != nil {
 				return err
 			}
 		}
@@ -228,7 +228,7 @@ func (s *Svc) reconciliar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, a *atle
 		if _, err := tx.Exec(ctx, `UPDATE intentos SET resultado = $2, juzgado_at = now(), updated_at = now() WHERE id = $1`, cur.ID, it.Resultado); err != nil {
 			return err
 		}
-		return veredicto(cur.FlightID, cur.Votos)
+		return veredicto(cur.SesionID, cur.Votos)
 
 	case !juzgar: // judged in live (judges' lights), still pending in OpenLifter: live keeps it
 		return nil
@@ -248,7 +248,7 @@ func (s *Svc) reconciliar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, a *atle
 		return err
 	}
 	res.Correcciones++
-	if err := evento(ctx, tx, cid, "directo.correccion", map[string]any{"flightId": cur.FlightID, "movimiento": it.Movimiento, "numero": it.Numero}); err != nil {
+	if err := evento(ctx, tx, cid, "directo.correccion", map[string]any{"sesionId": cur.SesionID, "movimiento": it.Movimiento, "numero": it.Numero}); err != nil {
 		return err
 	}
 	return events.Enqueue(ctx, tx, events.New(ctx, "directo.correccion_registrada", map[string]any{"intentoId": cur.ID, "movimiento": movNombre[it.Movimiento], "numero": it.Numero,

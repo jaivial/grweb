@@ -40,7 +40,7 @@ func (s *Svc) out(ctx context.Context, cid uuid.UUID) (*borradorOut, error) {
 
 func (s *Svc) registerAdmin() {
 	api := s.a.API
-	huma.Register(api, huma.Operation{OperationID: "horarios-get", Method: http.MethodGet, Path: base, Summary: "Planificador: flights, atletas sin flight, conflictos y versión publicada", Tags: tagAdmin, Security: bearer},
+	huma.Register(api, huma.Operation{OperationID: "horarios-get", Method: http.MethodGet, Path: base, Summary: "Planificador: sesiones, atletas sin sesión, conflictos y versión publicada", Tags: tagAdmin, Security: bearer},
 		func(ctx context.Context, in *cidIn) (*borradorOut, error) {
 			if _, err := requireAny(ctx, in.CID, readPerms...); err != nil {
 				return nil, err
@@ -63,10 +63,110 @@ func (s *Svc) registerAdmin() {
 				return nil, err
 			}
 			_, err := s.change(ctx, in.CID, in.IfMatch, "cambió los ajustes de los horarios", func(tx pgx.Tx) error {
-				_, err := tx.Exec(ctx, `UPDATE config SET max_por_flight = $2, plataformas = $3, orden = $4, separar_sexo = $5, min_por_atleta = $6, descanso_min = $7,
-					pesaje_antes_min = $8, pesaje_duracion_min = $9, mesas_pesaje = $10, dias = $11 WHERE competition_id = $1`,
-					in.CID, c.MaxPorFlight, c.Plataformas, c.Orden, c.SepararSexo, c.MinPorAtleta, c.DescansoMin, c.PesajeAntesMin, c.PesajeDuracionMin, c.MesasPesaje, c.Dias)
-				return err
+				_, err := tx.Exec(ctx, `UPDATE config SET max_por_sesion = $2, min_por_atleta = $3, descanso_min = $4,
+					pesaje_antes_min = $5, pesaje_duracion_min = $6, mesas_pesaje = $7, dias = $8 WHERE competition_id = $1`,
+					in.CID, c.MaxPorSesion, c.MinPorAtleta, c.DescansoMin, c.PesajeAntesMin, c.PesajeDuracionMin, c.MesasPesaje, c.Dias)
+				if err != nil {
+					return err
+				}
+				return avisarDias(ctx, tx, in.CID, c.Dias)
+			})
+			if err != nil {
+				return nil, err
+			}
+			return s.out(ctx, in.CID)
+		})
+
+	type nuevaIn struct {
+		CID     uuid.UUID `path:"cid"`
+		IfMatch string    `header:"If-Match"`
+		Body    struct {
+			Fecha string `json:"fecha,omitempty" format:"date" doc:"Vacío: el día siguiente a la última fecha"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "horarios-dia-crear", Method: http.MethodPost, Path: base + "/dias", Summary: "Añadir una fecha (misma plantilla que la última: horario, puertas, pausa, info y agenda)", Tags: tagAdmin, Security: bearer},
+		func(ctx context.Context, in *nuevaIn) (*borradorOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "horarios.publicar"); err != nil {
+				return nil, err
+			}
+			_, err := s.change(ctx, in.CID, in.IfMatch, "añadió una fecha", func(tx pgx.Tx) error {
+				cfg, _, _, _, err := loadConfig(ctx, tx, in.CID)
+				if err != nil {
+					return err
+				}
+				if len(cfg.Dias) >= 7 {
+					return problem.Unprocessable("DEMASIADAS_FECHAS", "Como mucho 7 fechas por competición.")
+				}
+				plantilla := Dia{Inicio: "09:00", Fin: "21:00", Puertas: "08:30", PausaInicio: "14:00", PausaFin: "15:00"}
+				if n := len(cfg.Dias); n > 0 {
+					plantilla = cfg.Dias[n-1]
+				}
+				src, f := plantilla.Fecha, in.Body.Fecha
+				if f == "" {
+					t, err := time.Parse("2006-01-02", src)
+					if err != nil {
+						t = time.Now().AddDate(0, 0, 6)
+					}
+					f = t.AddDate(0, 0, 1).Format("2006-01-02")
+				}
+				plantilla.Fecha = f
+				cfg.Dias = append(cfg.Dias, plantilla)
+				if err := validarDias(cfg.Dias); err != nil {
+					return err
+				}
+				if _, err := tx.Exec(ctx, `UPDATE config SET dias = $2 WHERE competition_id = $1`, in.CID, cfg.Dias); err != nil {
+					return err
+				}
+				if src != "" {
+					if _, err := tx.Exec(ctx, `INSERT INTO agenda (id, competition_id, dia, hora, titulo, icono, orden)
+						SELECT gen_random_uuid(), competition_id, $3, hora, titulo, icono, orden FROM agenda WHERE competition_id = $1 AND dia = $2`, in.CID, src, f); err != nil {
+						return err
+					}
+				}
+				return avisarDias(ctx, tx, in.CID, cfg.Dias)
+			})
+			if err != nil {
+				return nil, err
+			}
+			return s.out(ctx, in.CID)
+		})
+
+	type diaIn struct {
+		CID     uuid.UUID `path:"cid"`
+		Dia     string    `path:"dia" format:"date"`
+		IfMatch string    `header:"If-Match"`
+	}
+	huma.Register(api, huma.Operation{OperationID: "horarios-dia-borrar", Method: http.MethodDelete, Path: base + "/dias/{dia}", Summary: "Quitar una fecha (sus sesiones se borran y sus atletas quedan sin sesión)", Tags: tagAdmin, Security: bearer},
+		func(ctx context.Context, in *diaIn) (*borradorOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "horarios.publicar"); err != nil {
+				return nil, err
+			}
+			_, err := s.change(ctx, in.CID, in.IfMatch, "quitó la fecha "+in.Dia, func(tx pgx.Tx) error {
+				cfg, _, _, _, err := loadConfig(ctx, tx, in.CID)
+				if err != nil {
+					return err
+				}
+				dias := []Dia{}
+				for _, d := range cfg.Dias {
+					if d.Fecha != in.Dia {
+						dias = append(dias, d)
+					}
+				}
+				if len(dias) == len(cfg.Dias) {
+					return problem.NotFound("Esa fecha ya no existe.")
+				}
+				if len(dias) == 0 {
+					return problem.Unprocessable("ULTIMA_FECHA", "La competición necesita al menos una fecha.")
+				}
+				for _, q := range []string{`DELETE FROM sesiones WHERE competition_id = $1 AND dia = $2`, `DELETE FROM agenda WHERE competition_id = $1 AND dia = $2`} {
+					if _, err := tx.Exec(ctx, q, in.CID, in.Dia); err != nil {
+						return err
+					}
+				}
+				if _, err := tx.Exec(ctx, `UPDATE config SET dias = $2 WHERE competition_id = $1`, in.CID, dias); err != nil {
+					return err
+				}
+				return avisarDias(ctx, tx, in.CID, dias)
 			})
 			if err != nil {
 				return nil, err
@@ -78,13 +178,11 @@ func (s *Svc) registerAdmin() {
 		CID     uuid.UUID `path:"cid"`
 		IfMatch string    `header:"If-Match"`
 		Body    struct {
-			MaxPorFlight int    `json:"maxPorFlight,omitempty" minimum:"2" maximum:"30"`
-			Plataformas  int    `json:"plataformas,omitempty" minimum:"1" maximum:"4"`
-			Orden        string `json:"orden,omitempty" enum:"total,categoria"`
-			Competicion  string `json:"competicion,omitempty" enum:"aep2,aep3" doc:"Solo esta competición: sus atletas, en su día; los flights de la otra no se tocan"`
+			MaxPorSesion int    `json:"maxPorSesion,omitempty" minimum:"2" maximum:"30"`
+			Competicion  string `json:"competicion,omitempty" enum:"aep2,aep3" doc:"Solo esta competición: sus atletas, en su día; los sesiones de la otra no se tocan"`
 		}
 	}
-	huma.Register(api, huma.Operation{OperationID: "horarios-generar", Method: http.MethodPost, Path: base + "/generar", Summary: "Generar los flights automáticamente (sustituye el borrador)", Tags: tagAdmin, Security: bearer},
+	huma.Register(api, huma.Operation{OperationID: "horarios-generar", Method: http.MethodPost, Path: base + "/generar", Summary: "Generar las sesiones automáticamente (sustituye el borrador)", Tags: tagAdmin, Security: bearer},
 		func(ctx context.Context, in *generarIn) (*borradorOut, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "horarios.publicar"); err != nil {
 				return nil, err
@@ -105,30 +203,24 @@ func (s *Svc) registerAdmin() {
 			}
 			loc := s.loc(ctx, in.CID)
 			n := 0
-			_, err = s.change(ctx, in.CID, in.IfMatch, "generó los flights automáticamente", func(tx pgx.Tx) error {
+			_, err = s.change(ctx, in.CID, in.IfMatch, "generó las sesiones automáticamente", func(tx pgx.Tx) error {
 				cfg, _, _, _, err := loadConfig(ctx, tx, in.CID)
 				if err != nil {
 					return err
 				}
-				if b := in.Body; b.MaxPorFlight > 0 || b.Plataformas > 0 || b.Orden != "" {
-					if b.MaxPorFlight > 0 {
-						cfg.MaxPorFlight = b.MaxPorFlight
+				if b := in.Body; b.MaxPorSesion > 0 {
+					if b.MaxPorSesion > 0 {
+						cfg.MaxPorSesion = b.MaxPorSesion
 					}
-					if b.Plataformas > 0 {
-						cfg.Plataformas = b.Plataformas
-					}
-					if b.Orden != "" {
-						cfg.Orden = b.Orden
-					}
-					if _, err := tx.Exec(ctx, `UPDATE config SET max_por_flight = $2, plataformas = $3, orden = $4 WHERE competition_id = $1`, in.CID, cfg.MaxPorFlight, cfg.Plataformas, cfg.Orden); err != nil {
+					if _, err := tx.Exec(ctx, `UPDATE config SET max_por_sesion = $2 WHERE competition_id = $1`, in.CID, cfg.MaxPorSesion); err != nil {
 						return err
 					}
 				}
 				var borrar []uuid.UUID
-				var quedan []flightRow
+				var quedan []sesionRow
 				if prueba != "" {
 					cfg.Dias = diasPrueba(cfg.Dias, prueba)
-					if borrar, quedan, err = flightsDePrueba(ctx, tx, in.CID, prueba, ats); err != nil {
+					if borrar, quedan, err = sesionesDePrueba(ctx, tx, in.CID, prueba, ats); err != nil {
 						return err
 					}
 				}
@@ -137,37 +229,36 @@ func (s *Svc) registerAdmin() {
 				if err := s.reemplazar(ctx, tx, in.CID, cfg, plan, borrar, prueba); err != nil {
 					return err
 				}
-				return events.Enqueue(ctx, tx, events.New(ctx, "horarios.generados", map[string]any{"flights": len(plan), "atletas": len(ats)},
+				return events.Enqueue(ctx, tx, events.New(ctx, "horarios.generados", map[string]any{"sesiones": len(plan), "atletas": len(ats)},
 					events.Competition(in.CID.String()), events.ForPermission("horarios.publicar")))
 			})
 			if err != nil {
 				return nil, err
 			}
-			s.a.Log.Info("flights generados", "competicion", in.CID, "flights", n, "atletas", len(ats))
+			s.a.Log.Info("sesiones generadas", "competicion", in.CID, "sesiones", n, "atletas", len(ats))
 			return s.out(ctx, in.CID)
 		})
 
-	type flightIn struct {
+	type sesionIn struct {
 		Dia          string `json:"dia,omitempty" format:"date"`
-		Plataforma   int    `json:"plataforma,omitempty" minimum:"1" maximum:"4"`
 		Inicio       string `json:"inicio,omitempty" pattern:"^[0-2][0-9]:[0-5][0-9]$" doc:"Hora local"`
 		DuracionMin  int    `json:"duracionMin,omitempty" minimum:"10" maximum:"600"`
 		PesajeInicio string `json:"pesajeInicio,omitempty" pattern:"^([0-2][0-9]:[0-5][0-9])?$" doc:"Hora local (mismo día)"`
 		PesajeFin    string `json:"pesajeFin,omitempty" pattern:"^([0-2][0-9]:[0-5][0-9])?$"`
-		Competicion  string `json:"competicion,omitempty" enum:"aep2,aep3" doc:"Competición del flight nuevo (solo al crear)"`
+		Competicion  string `json:"competicion,omitempty" enum:"aep2,aep3" doc:"Competición del sesion nuevo (solo al crear)"`
 	}
 	type crearIn struct {
 		CID     uuid.UUID `path:"cid"`
 		IfMatch string    `header:"If-Match"`
-		Body    flightIn
+		Body    sesionIn
 	}
-	huma.Register(api, huma.Operation{OperationID: "horarios-flight-crear", Method: http.MethodPost, Path: base + "/flights", Summary: "Crear un flight vacío", Tags: tagAdmin, Security: bearer},
+	huma.Register(api, huma.Operation{OperationID: "horarios-sesion-crear", Method: http.MethodPost, Path: base + "/sesiones", Summary: "Crear una sesión vacía", Tags: tagAdmin, Security: bearer},
 		func(ctx context.Context, in *crearIn) (*borradorOut, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "horarios.publicar"); err != nil {
 				return nil, err
 			}
 			loc := s.loc(ctx, in.CID)
-			_, err := s.change(ctx, in.CID, in.IfMatch, "creó un flight", func(tx pgx.Tx) error {
+			_, err := s.change(ctx, in.CID, in.IfMatch, "creó una sesión", func(tx pgx.Tx) error {
 				cfg, _, _, _, err := loadConfig(ctx, tx, in.CID)
 				if err != nil {
 					return err
@@ -180,9 +271,9 @@ func (s *Svc) registerAdmin() {
 					b.Dia = cfg.Dias[len(cfg.Dias)-1].Fecha
 				}
 				if b.Inicio == "" {
-					// After the last flight of the day.
+					// After the last sesion of the day.
 					var fin *time.Time
-					if err := tx.QueryRow(ctx, `SELECT max(inicio + duracion_min * interval '1 minute') FROM flights WHERE competition_id = $1 AND dia = $2`, in.CID, b.Dia).Scan(&fin); err != nil {
+					if err := tx.QueryRow(ctx, `SELECT max(inicio + duracion_min * interval '1 minute') FROM sesiones WHERE competition_id = $1 AND dia = $2`, in.CID, b.Dia).Scan(&fin); err != nil {
 						return err
 					}
 					if fin != nil {
@@ -200,15 +291,12 @@ func (s *Svc) registerAdmin() {
 				if ini.IsZero() {
 					return problem.Unprocessable("HORA_INVALIDA", "Revisa el día y la hora.")
 				}
-				if b.Plataforma == 0 {
-					b.Plataforma = 1
-				}
 				if b.DuracionMin == 0 {
-					b.DuracionMin = cfg.MaxPorFlight * cfg.MinPorAtleta
+					b.DuracionMin = cfg.MaxPorSesion * cfg.MinPorAtleta
 				}
 				pi, pf := pesaje(cfg, ini)
-				_, err = tx.Exec(ctx, `INSERT INTO flights (id, competition_id, dia, codigo, plataforma, inicio, duracion_min, pesaje_inicio, pesaje_fin, prueba) VALUES ($1,$2,$3,'?',$4,$5,$6,$7,$8,$9)`,
-					newID(), in.CID, b.Dia, b.Plataforma, ini, b.DuracionMin, pi, pf, b.Competicion)
+				_, err = tx.Exec(ctx, `INSERT INTO sesiones (id, competition_id, dia, inicio, duracion_min, pesaje_inicio, pesaje_fin, prueba) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+					newID(), in.CID, b.Dia, ini, b.DuracionMin, pi, pf, b.Competicion)
 				return err
 			})
 			if err != nil {
@@ -221,9 +309,9 @@ func (s *Svc) registerAdmin() {
 		CID     uuid.UUID `path:"cid"`
 		ID      uuid.UUID `path:"id"`
 		IfMatch string    `header:"If-Match"`
-		Body    flightIn
+		Body    sesionIn
 	}
-	huma.Register(api, huma.Operation{OperationID: "horarios-flight-editar", Method: http.MethodPatch, Path: base + "/flights/{id}", Summary: "Cambiar día, hora, plataforma, duración o pesaje de un flight", Tags: tagAdmin, Security: bearer},
+	huma.Register(api, huma.Operation{OperationID: "horarios-sesion-editar", Method: http.MethodPatch, Path: base + "/sesiones/{id}", Summary: "Cambiar día, hora, duración o pesaje de una sesión", Tags: tagAdmin, Security: bearer},
 		func(ctx context.Context, in *editarIn) (*borradorOut, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "horarios.publicar"); err != nil {
 				return nil, err
@@ -235,11 +323,11 @@ func (s *Svc) registerAdmin() {
 				if err != nil {
 					return err
 				}
-				var f flightRow
-				if err := tx.QueryRow(ctx, `SELECT id, codigo, dia, plataforma, duracion_min, inicio, pesaje_inicio, pesaje_fin FROM flights WHERE competition_id = $1 AND id = $2`, in.CID, in.ID).
-					Scan(&f.ID, &f.Codigo, &f.Dia, &f.Plataforma, &f.DuracionMin, &f.Inicio, &f.PesajeIni, &f.PesajeFn); err != nil {
+				var f sesionRow
+				if err := tx.QueryRow(ctx, `SELECT id, dia, duracion_min, inicio, pesaje_inicio, pesaje_fin FROM sesiones WHERE competition_id = $1 AND id = $2`, in.CID, in.ID).
+					Scan(&f.ID, &f.Dia, &f.DuracionMin, &f.Inicio, &f.PesajeIni, &f.PesajeFn); err != nil {
 					if db.IsNoRows(err) {
-						return problem.NotFound("Ese flight ya no existe.")
+						return problem.NotFound("Esa sesión ya no existe.")
 					}
 					return err
 				}
@@ -267,17 +355,14 @@ func (s *Svc) registerAdmin() {
 					pf = dayTime(dia, b.PesajeFin, loc)
 				}
 				if !pf.After(pi) || pf.After(ini) {
-					return problem.Unprocessable("PESAJE_INVALIDO", "El pesaje tiene que terminar después de empezar y antes de que salga el flight.")
-				}
-				if b.Plataforma > 0 {
-					f.Plataforma = b.Plataforma
+					return problem.Unprocessable("PESAJE_INVALIDO", "El pesaje tiene que terminar después de empezar y antes de que empiece la sesión.")
 				}
 				if b.DuracionMin > 0 {
 					f.DuracionMin = b.DuracionMin
 				}
-				accion = "cambió el horario del flight " + f.Codigo
-				_, err = tx.Exec(ctx, `UPDATE flights SET dia = $3, inicio = $4, plataforma = $5, duracion_min = $6, pesaje_inicio = $7, pesaje_fin = $8, updated_at = now()
-					WHERE competition_id = $1 AND id = $2`, in.CID, in.ID, dia, ini, f.Plataforma, f.DuracionMin, pi, pf)
+				accion = "cambió el horario de la sesión de las " + hhmm(f.Inicio, loc)
+				_, err = tx.Exec(ctx, `UPDATE sesiones SET dia = $3, inicio = $4, duracion_min = $5, pesaje_inicio = $6, pesaje_fin = $7, updated_at = now()
+					WHERE competition_id = $1 AND id = $2`, in.CID, in.ID, dia, ini, f.DuracionMin, pi, pf)
 				return err
 			}, func() string { return accion })
 			if err != nil {
@@ -291,15 +376,15 @@ func (s *Svc) registerAdmin() {
 		ID      uuid.UUID `path:"id"`
 		IfMatch string    `header:"If-Match"`
 	}
-	huma.Register(api, huma.Operation{OperationID: "horarios-flight-borrar", Method: http.MethodDelete, Path: base + "/flights/{id}", Summary: "Borrar un flight (sus atletas quedan sin flight)", Tags: tagAdmin, Security: bearer},
+	huma.Register(api, huma.Operation{OperationID: "horarios-sesion-borrar", Method: http.MethodDelete, Path: base + "/sesiones/{id}", Summary: "Borrar una sesión (sus atletas quedan sin sesión)", Tags: tagAdmin, Security: bearer},
 		func(ctx context.Context, in *borrarIn) (*borradorOut, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "horarios.publicar"); err != nil {
 				return nil, err
 			}
-			_, err := s.change(ctx, in.CID, in.IfMatch, "borró un flight", func(tx pgx.Tx) error {
-				tag, err := tx.Exec(ctx, `DELETE FROM flights WHERE competition_id = $1 AND id = $2`, in.CID, in.ID)
+			_, err := s.change(ctx, in.CID, in.IfMatch, "borró una sesión", func(tx pgx.Tx) error {
+				tag, err := tx.Exec(ctx, `DELETE FROM sesiones WHERE competition_id = $1 AND id = $2`, in.CID, in.ID)
 				if err == nil && tag.RowsAffected() == 0 {
-					return problem.NotFound("Ese flight ya no existe.")
+					return problem.NotFound("Esa sesión ya no existe.")
 				}
 				return err
 			})
@@ -314,10 +399,10 @@ func (s *Svc) registerAdmin() {
 		ID      uuid.UUID `path:"id"`
 		IfMatch string    `header:"If-Match"`
 		Body    struct {
-			Atletas []uuid.UUID `json:"atletas" maxItems:"40" doc:"Atletas del flight en orden de lote (los que vengan de otro flight se mueven)"`
+			Atletas []uuid.UUID `json:"atletas" maxItems:"40" doc:"Atletas del sesion en orden de lote (los que vengan de otro sesion se mueven)"`
 		}
 	}
-	huma.Register(api, huma.Operation{OperationID: "horarios-flight-atletas", Method: http.MethodPut, Path: base + "/flights/{id}/atletas", Summary: "Atletas de un flight y su orden (mover entre flights)", Tags: tagAdmin, Security: bearer},
+	huma.Register(api, huma.Operation{OperationID: "horarios-sesion-atletas", Method: http.MethodPut, Path: base + "/sesiones/{id}/atletas", Summary: "Atletas de una sesión y su orden (mover entre sesiones)", Tags: tagAdmin, Security: bearer},
 		func(ctx context.Context, in *atletasIn) (*borradorOut, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "horarios.publicar"); err != nil {
 				return nil, err
@@ -331,22 +416,25 @@ func (s *Svc) registerAdmin() {
 				byID[a.ID] = a
 			}
 			accion := ""
+			loc := s.loc(ctx, in.CID)
 			_, err = s.change(ctx, in.CID, in.IfMatch, "", func(tx pgx.Tx) error {
 				var codigo string
+				var inicioSes time.Time
 				var prueba string
-				if err := tx.QueryRow(ctx, `SELECT codigo, prueba FROM flights WHERE competition_id = $1 AND id = $2`, in.CID, in.ID).Scan(&codigo, &prueba); err != nil {
+				if err := tx.QueryRow(ctx, `SELECT inicio, prueba FROM sesiones WHERE competition_id = $1 AND id = $2`, in.CID, in.ID).Scan(&inicioSes, &prueba); err != nil {
 					if db.IsNoRows(err) {
-						return problem.NotFound("Ese flight ya no existe.")
+						return problem.NotFound("Esa sesión ya no existe.")
 					}
 					return err
 				}
+				codigo = hhmm(inicioSes, loc)
 				// Where everyone is now (to describe the move and keep withdrawn athletes that were already here).
-				rows, err := tx.Query(ctx, `SELECT fa.atleta_id, fa.flight_id, f.codigo FROM flight_atletas fa JOIN flights f ON f.id = fa.flight_id WHERE fa.competition_id = $1`, in.CID)
+				rows, err := tx.Query(ctx, `SELECT fa.atleta_id, fa.sesion_id, to_char(f.inicio AT TIME ZONE $2, 'DD/MM HH24:MI') FROM sesion_atletas fa JOIN sesiones f ON f.id = fa.sesion_id WHERE fa.competition_id = $1`, in.CID, loc.String())
 				if err != nil {
 					return err
 				}
 				type pos struct {
-					flight uuid.UUID
+					sesion uuid.UUID
 					codigo string
 				}
 				donde := map[uuid.UUID]pos{}
@@ -364,28 +452,28 @@ func (s *Svc) registerAdmin() {
 				}
 				seen := map[uuid.UUID]bool{}
 				var movidos []string
-				// A flight only takes athletes of one competition (AEP-2 / AEP-3 / sin competición): the flight's own
-				// one, or the first athlete's when the flight has none yet.
+				// A sesion only takes athletes of one competition (AEP-2 / AEP-3 / sin competición): the sesion's own
+				// one, or the first athlete's when the sesion has none yet.
 				fija := prueba != ""
 				for _, id := range in.Body.Atletas {
 					if seen[id] {
-						return problem.Unprocessable("ATLETA_REPETIDO", "Un atleta aparece dos veces en el flight.")
+						return problem.Unprocessable("ATLETA_REPETIDO", "Un atleta aparece dos veces en la sesión.")
 					}
 					seen[id] = true
 					if a, ok := byID[id]; ok {
 						if !fija {
 							prueba, fija = a.Prueba, true
 						} else if a.Prueba != prueba {
-							return problem.Unprocessable("PRUEBA_DISTINTA", fmt.Sprintf("%s %s y el flight %s es de %s. Cámbiale la competición en su ficha.", a.Nombre, compiteEn(a.Prueba), codigo, nombreOSin(prueba)))
+							return problem.Unprocessable("PRUEBA_DISTINTA", fmt.Sprintf("%s %s y la sesión de las %s es de %s. Cámbiale la competición en su ficha.", a.Nombre, compiteEn(a.Prueba), codigo, nombreOSin(prueba)))
 						}
 					}
 					p, aqui := donde[id]
-					aqui = aqui && p.flight == in.ID
+					aqui = aqui && p.sesion == in.ID
 					if _, ok := byID[id]; !ok && !aqui {
 						return problem.Unprocessable("ATLETA_NO_CONFIRMADO", "Solo puedes asignar atletas confirmados.")
 					}
 					if !aqui {
-						de := "sin flight"
+						de := "sin sesión"
 						if p.codigo != "" {
 							de = p.codigo
 						}
@@ -394,7 +482,7 @@ func (s *Svc) registerAdmin() {
 				}
 				quitados := 0
 				for a, p := range donde {
-					if p.flight == in.ID && !seen[a] {
+					if p.sesion == in.ID && !seen[a] {
 						quitados++
 					}
 				}
@@ -402,27 +490,27 @@ func (s *Svc) registerAdmin() {
 				case len(movidos) == 1 && quitados == 0:
 					accion = movidos[0]
 				case len(movidos) > 1:
-					accion = fmt.Sprintf("movió %d atletas al flight %s", len(movidos), codigo)
+					accion = fmt.Sprintf("movió %d atletas a la sesión de las %s", len(movidos), codigo)
 				case quitados > 0:
-					accion = fmt.Sprintf("quitó %d atleta(s) del flight %s", quitados, codigo)
+					accion = fmt.Sprintf("quitó %d atleta(s) de la sesión de las %s", quitados, codigo)
 				default:
-					accion = "reordenó el flight " + codigo
+					accion = "reordenó la sesión de las " + codigo
 				}
-				if _, err := tx.Exec(ctx, `DELETE FROM flight_atletas WHERE competition_id = $1 AND (flight_id = $2 OR atleta_id = ANY($3))`, in.CID, in.ID, in.Body.Atletas); err != nil {
+				if _, err := tx.Exec(ctx, `DELETE FROM sesion_atletas WHERE competition_id = $1 AND (sesion_id = $2 OR atleta_id = ANY($3))`, in.CID, in.ID, in.Body.Atletas); err != nil {
 					return err
 				}
-				if _, err := tx.Exec(ctx, `UPDATE flights SET prueba = $3 WHERE competition_id = $1 AND id = $2 AND prueba = ''`, in.CID, in.ID, prueba); err != nil {
+				if _, err := tx.Exec(ctx, `UPDATE sesiones SET prueba = $3 WHERE competition_id = $1 AND id = $2 AND prueba = ''`, in.CID, in.ID, prueba); err != nil {
 					return err
 				}
 				for i, id := range in.Body.Atletas {
-					if _, err := tx.Exec(ctx, `INSERT INTO flight_atletas (flight_id, competition_id, atleta_id, orden) VALUES ($1,$2,$3,$4)`, in.ID, in.CID, id, i+1); err != nil {
+					if _, err := tx.Exec(ctx, `INSERT INTO sesion_atletas (sesion_id, competition_id, atleta_id, orden) VALUES ($1,$2,$3,$4)`, in.ID, in.CID, id, i+1); err != nil {
 						return err
 					}
 				}
-				// Keep the lots of the flights that lost someone consecutive.
-				_, err = tx.Exec(ctx, `UPDATE flight_atletas fa SET orden = x.n FROM (
-					SELECT flight_id, atleta_id, row_number() OVER (PARTITION BY flight_id ORDER BY orden) AS n FROM flight_atletas WHERE competition_id = $1) x
-					WHERE fa.flight_id = x.flight_id AND fa.atleta_id = x.atleta_id AND fa.orden <> x.n`, in.CID)
+				// Keep the lots of the sesiones that lost someone consecutive.
+				_, err = tx.Exec(ctx, `UPDATE sesion_atletas fa SET orden = x.n FROM (
+					SELECT sesion_id, atleta_id, row_number() OVER (PARTITION BY sesion_id ORDER BY orden) AS n FROM sesion_atletas WHERE competition_id = $1) x
+					WHERE fa.sesion_id = x.sesion_id AND fa.atleta_id = x.atleta_id AND fa.orden <> x.n`, in.CID)
 				return err
 			}, func() string { return accion })
 			if err != nil {
@@ -469,7 +557,7 @@ func (s *Svc) registerAdmin() {
 		ID   uuid.UUID `path:"id"`
 		Body Directo
 	}
-	huma.Register(api, huma.Operation{OperationID: "horarios-flight-directo", Method: http.MethodPut, Path: base + "/flights/{id}/directo", Summary: "Estado en directo de un flight publicado (en curso, retraso)", Tags: tagAdmin, Security: bearer},
+	huma.Register(api, huma.Operation{OperationID: "horarios-sesion-directo", Method: http.MethodPut, Path: base + "/sesiones/{id}/directo", Summary: "Estado en directo de una sesión publicada (en curso, retraso)", Tags: tagAdmin, Security: bearer},
 		func(ctx context.Context, in *directoIn) (*struct{ Body Directo }, error) {
 			p, err := auth.User(ctx)
 			if err != nil {
@@ -489,39 +577,39 @@ func (s *Svc) registerAdmin() {
 		})
 }
 
-// setDirecto stores the live state of a published flight and announces it (public: no personal data).
+// setDirecto stores the live state of a published sesion and announces it (public: no personal data).
 func (s *Svc) setDirecto(ctx context.Context, cid, id uuid.UUID, d Directo, origen string) error {
 	v, err := s.versionPublicada(ctx, s.a.DB, cid)
 	if err != nil {
 		return err
 	}
-	var f *SnapFlight
+	var f *SnapSesion
 	if v != nil {
-		f = v.Snapshot.flight(id)
+		f = v.Snapshot.sesion(id)
 	}
 	if f == nil {
-		return problem.NotFound("Ese flight no está en los horarios publicados.")
+		return problem.NotFound("Esa sesión no está en los horarios publicados.")
 	}
 	loc := s.loc(ctx, cid)
 	err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `INSERT INTO directo (flight_id, competition_id, estado, retraso_min) VALUES ($1,$2,$3,$4)
-			ON CONFLICT (flight_id) DO UPDATE SET estado = EXCLUDED.estado, retraso_min = EXCLUDED.retraso_min, updated_at = now()`, id, cid, d.Estado, d.RetrasoMin); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO directo (sesion_id, competition_id, estado, retraso_min) VALUES ($1,$2,$3,$4)
+			ON CONFLICT (sesion_id) DO UPDATE SET estado = EXCLUDED.estado, retraso_min = EXCLUDED.retraso_min, updated_at = now()`, id, cid, d.Estado, d.RetrasoMin); err != nil {
 			return err
 		}
-		return events.Enqueue(ctx, tx, events.New(ctx, "horarios.flight", map[string]any{"flightId": id, "codigo": f.Codigo, "estado": d.Estado,
+		return events.Enqueue(ctx, tx, events.New(ctx, "horarios.sesion", map[string]any{"sesionId": id, "dia": f.Inicio.In(loc).Format("2006-01-02"), "hora": hhmm(f.Inicio, loc), "estado": d.Estado,
 			"retrasoMin": d.RetrasoMin, "inicioEstimado": hhmm(f.Inicio.Add(time.Duration(d.RetrasoMin)*time.Minute), loc), "origen": origen},
-			events.Competition(cid.String()), events.Audience(events.Public), events.Subject(f.Codigo)))
+			events.Competition(cid.String()), events.Audience(events.Public), events.Subject(id.String())))
 	})
 	if err == nil {
 		s.bump(ctx, cid)
-		if e := s.athletes.Do(ctx, http.MethodPut, "/internal/competiciones/"+cid.String()+"/flights/"+f.Codigo+"/retraso", map[string]int{"retrasoMin": d.RetrasoMin}, nil); e != nil {
-			s.a.Log.Warn("retraso del flight en athletes", "flight", f.Codigo, "err", e)
+		if e := s.athletes.Do(ctx, http.MethodPut, "/internal/competiciones/"+cid.String()+"/jornadas/"+f.Inicio.In(loc).Format("2006-01-02")+"/retraso", map[string]int{"retrasoMin": d.RetrasoMin}, nil); e != nil {
+			s.a.Log.Warn("retraso de la sesión en athletes", "sesion", id, "err", e)
 		}
 	}
 	return err
 }
 
-// registerInternal: live reads the published flights (athletes in lot order) and drives their live state.
+// registerInternal: live reads the published sesiones (athletes in lot order) and drives their live state.
 func (s *Svc) registerInternal() {
 	type cidOnly struct {
 		CID uuid.UUID `path:"cid"`
@@ -537,12 +625,33 @@ func (s *Svc) registerInternal() {
 			}
 			return &struct{ Body *Snapshot }{&v.Snapshot}, nil
 		})
+	type diasOut struct {
+		Body struct {
+			Dias []DiaInfo `json:"dias"`
+		}
+	}
+	huma.Register(s.a.API, huma.Operation{OperationID: "internal-horarios-dias", Method: http.MethodGet, Path: "/internal/competiciones/{cid}/horarios/dias", Summary: "Fechas del evento (borrador), en orden (solo servicios: juegos)", Tags: []string{"Interno"}, Hidden: true},
+		func(ctx context.Context, in *cidOnly) (*diasOut, error) {
+			if _, err := auth.RequireService(ctx); err != nil {
+				return nil, err
+			}
+			if err := s.ensureConfig(ctx, in.CID); err != nil {
+				return nil, err
+			}
+			cfg, _, _, _, err := loadConfig(ctx, s.a.DB, in.CID)
+			if err != nil {
+				return nil, err
+			}
+			o := &diasOut{}
+			o.Body.Dias = diasInfo(cfg.Dias)
+			return o, nil
+		})
 	type dirIn struct {
 		CID  uuid.UUID `path:"cid"`
 		ID   uuid.UUID `path:"id"`
 		Body Directo
 	}
-	huma.Register(s.a.API, huma.Operation{OperationID: "internal-horarios-directo", Method: http.MethodPut, Path: "/internal/competiciones/{cid}/horarios/flights/{id}/directo", Summary: "Estado en directo de un flight (solo live)", Tags: []string{"Interno"}, Hidden: true, DefaultStatus: http.StatusNoContent},
+	huma.Register(s.a.API, huma.Operation{OperationID: "internal-horarios-directo", Method: http.MethodPut, Path: "/internal/competiciones/{cid}/horarios/sesiones/{id}/directo", Summary: "Estado en directo de un sesion (solo live)", Tags: []string{"Interno"}, Hidden: true, DefaultStatus: http.StatusNoContent},
 		func(ctx context.Context, in *dirIn) (*struct{}, error) {
 			if _, err := auth.RequireService(ctx); err != nil {
 				return nil, err
@@ -551,9 +660,9 @@ func (s *Svc) registerInternal() {
 		})
 }
 
-// reemplazar swaps the draft for a generated plan (agenda and settings stay): every flight, or only the ones in borrar.
-func (s *Svc) reemplazar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, cfg Config, plan []planFlight, borrar []uuid.UUID, prueba string) error {
-	q, args := `DELETE FROM flights WHERE competition_id = $1`, []any{cid}
+// reemplazar swaps the draft for a generated plan (agenda and settings stay): every sesion, or only the ones in borrar.
+func (s *Svc) reemplazar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, cfg Config, plan []planSesion, borrar []uuid.UUID, prueba string) error {
+	q, args := `DELETE FROM sesiones WHERE competition_id = $1`, []any{cid}
 	if borrar != nil {
 		q, args = q+` AND id = ANY($2)`, append(args, borrar)
 	}
@@ -563,12 +672,12 @@ func (s *Svc) reemplazar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, cfg Conf
 	for _, p := range plan {
 		id := newID()
 		pi, pf := pesaje(cfg, p.Inicio)
-		if _, err := tx.Exec(ctx, `INSERT INTO flights (id, competition_id, dia, codigo, plataforma, inicio, duracion_min, pesaje_inicio, pesaje_fin, prueba) VALUES ($1,$2,$3,'?',$4,$5,$6,$7,$8,$9)`,
-			id, cid, p.Dia, p.Plataforma, p.Inicio, p.Duracion, pi, pf, prueba); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO sesiones (id, competition_id, dia, inicio, duracion_min, pesaje_inicio, pesaje_fin, prueba) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+			id, cid, p.Dia, p.Inicio, p.Duracion, pi, pf, prueba); err != nil {
 			return err
 		}
 		for i, a := range p.Atletas {
-			if _, err := tx.Exec(ctx, `INSERT INTO flight_atletas (flight_id, competition_id, atleta_id, orden) VALUES ($1,$2,$3,$4)`, id, cid, a, i+1); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO sesion_atletas (sesion_id, competition_id, atleta_id, orden) VALUES ($1,$2,$3,$4)`, id, cid, a, i+1); err != nil {
 				return err
 			}
 		}
@@ -593,4 +702,33 @@ func validarDias(ds []Dia) error {
 	}
 	sort.Slice(ds, func(i, j int) bool { return ds[i].Fecha < ds[j].Fecha })
 	return nil
+}
+
+// DiaInfo is a date of the event for other services (juegos creates one matchday per date).
+type DiaInfo struct {
+	Fecha  string `json:"fecha" format:"date"`
+	Orden  int    `json:"orden" doc:"1 = primera fecha"`
+	Prueba string `json:"prueba" doc:"aep2 (1.ª fecha), aep3 (2.ª) o vacío"`
+}
+
+func diasInfo(ds []Dia) []DiaInfo {
+	out := make([]DiaInfo, len(ds))
+	for i, d := range ds {
+		out[i] = DiaInfo{Fecha: d.Fecha, Orden: i + 1}
+		if len(ds) >= len(ordenPruebas) && i < len(ordenPruebas) {
+			out[i].Prueba = ordenPruebas[i]
+		}
+	}
+	return out
+}
+
+// avisarDias announces that the dates of the event changed (event «horarios.dias», internal: juegos reconciles its
+// matchdays at once).
+func avisarDias(ctx context.Context, tx pgx.Tx, cid uuid.UUID, ds []Dia) error {
+	fechas := make([]string, len(ds))
+	for i, d := range ds {
+		fechas[i] = d.Fecha
+	}
+	return events.Enqueue(ctx, tx, events.New(ctx, "horarios.dias", map[string]any{"fechas": fechas},
+		events.Competition(cid.String()), events.Audience(events.Internal)))
 }

@@ -15,7 +15,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
-// ---- the published flights (schedule) and the athletes (athletes) ----
+// ---- the published sesiones (schedule) and the athletes (athletes) ----
 
 type marcas struct {
 	SQ *float64 `json:"sq,omitempty"`
@@ -51,7 +51,7 @@ type atleta struct {
 	FotoURL        string    `json:"fotoUrl,omitempty"` // athletes sends it only with public profile + image consent
 	// from the published schedule
 	Lote   int       `json:"-"`
-	Flight uuid.UUID `json:"-"`
+	Sesion uuid.UUID `json:"-"`
 }
 
 type snapAtleta struct {
@@ -59,50 +59,49 @@ type snapAtleta struct {
 	Lote int       `json:"lote"`
 }
 
-// flight is a published flight with its athletes in lot order.
-type flight struct {
-	ID         uuid.UUID    `json:"id"`
-	Codigo     string       `json:"codigo"`
-	Titulo     string       `json:"titulo"`
-	Sexo       string       `json:"sexo"`
-	Plataforma int          `json:"plataforma"`
-	Inicio     time.Time    `json:"inicio"`
-	Fin        time.Time    `json:"fin"`
-	Atletas    []snapAtleta `json:"atletas"`
-	Dia        string       `json:"dia"`
+// sesion is a published sesion with its athletes in lot order.
+type sesion struct {
+	ID      uuid.UUID    `json:"id"`
+	Hora    string       `json:"hora" doc:"Hora de inicio (HH:MM, Europe/Madrid)"`
+	Titulo  string       `json:"titulo"`
+	Sexo    string       `json:"sexo"`
+	Inicio  time.Time    `json:"inicio"`
+	Fin     time.Time    `json:"fin"`
+	Atletas []snapAtleta `json:"atletas"`
+	Dia     string       `json:"dia"`
 }
 
 type snapshot struct {
 	Numero int `json:"numero"`
 	Dias   []struct {
-		Fecha   string   `json:"fecha"`
-		Flights []flight `json:"flights"`
+		Fecha    string   `json:"fecha"`
+		Sesiones []sesion `json:"sesiones"`
 	} `json:"dias"`
 }
 
 // plan is the published schedule joined with the athletes (cached a few seconds; bumped by the desk changes).
 type plan struct {
-	Version int                   `json:"version"`
-	Flights []flight              `json:"flights"`
-	Atletas map[uuid.UUID]*atleta `json:"atletas"`
-	porCat  map[string][]*atleta  `json:"-"`
-	fl      map[uuid.UUID]*flight `json:"-"`
+	Version  int                   `json:"version"`
+	Sesiones []sesion              `json:"sesiones"`
+	Atletas  map[uuid.UUID]*atleta `json:"atletas"`
+	porCat   map[string][]*atleta  `json:"-"`
+	fl       map[uuid.UUID]*sesion `json:"-"`
 }
 
 func (p *plan) index() {
 	p.porCat = map[string][]*atleta{}
-	p.fl = map[uuid.UUID]*flight{}
-	for i := range p.Flights {
-		f := &p.Flights[i]
+	p.fl = map[uuid.UUID]*sesion{}
+	for i := range p.Sesiones {
+		f := &p.Sesiones[i]
 		p.fl[f.ID] = f
 		for _, x := range f.Atletas {
 			if a := p.Atletas[x.ID]; a != nil {
-				a.Lote, a.Flight = x.Lote, f.ID
+				a.Lote, a.Sesion = x.Lote, f.ID
 			}
 		}
 	}
 	for _, a := range p.Atletas {
-		if a.Flight == uuid.Nil {
+		if a.Sesion == uuid.Nil {
 			continue // confirmed but not in the published schedule (late change): not on the desk
 		}
 		k := clave(a.Sexo, a.Categoria)
@@ -110,7 +109,7 @@ func (p *plan) index() {
 	}
 }
 
-func (p *plan) flight(id uuid.UUID) *flight { return p.fl[id] }
+func (p *plan) sesion(id uuid.UUID) *sesion { return p.fl[id] }
 
 func clave(sexo, cat string) string { return sexo + cat }
 
@@ -146,9 +145,9 @@ func (s *Svc) cargarPlan(ctx context.Context, cid uuid.UUID) (*plan, error) {
 		if sn != nil {
 			p.Version = sn.Numero
 			for _, d := range sn.Dias {
-				for _, f := range d.Flights {
-					f.Dia = d.Fecha
-					p.Flights = append(p.Flights, f)
+				for _, f := range d.Sesiones {
+					f.Dia, f.Hora = d.Fecha, f.Inicio.In(madrid).Format("15:04")
+					p.Sesiones = append(p.Sesiones, f)
 				}
 			}
 		}
@@ -176,7 +175,7 @@ func (s *Svc) planViejo(ctx context.Context, cid uuid.UUID, key string, p *plan)
 type intento struct {
 	ID           uuid.UUID  `json:"id"`
 	AtletaID     uuid.UUID  `json:"atletaId"`
-	FlightID     uuid.UUID  `json:"flightId"`
+	SesionID     uuid.UUID  `json:"sesionId"`
 	Mov          string     `json:"movimiento"`
 	Numero       int        `json:"numero"`
 	Peso         float64    `json:"peso"`
@@ -206,7 +205,7 @@ func (t tabla) get(a uuid.UUID, mov string, n int) *intento {
 }
 
 func cargarIntentos(ctx context.Context, q querier, cid uuid.UUID) (tabla, error) {
-	rows, err := q.Query(ctx, `SELECT id, atleta_id, flight_id, movimiento, numero, peso::float8, votos, resultado, corregido_por, motivo, juzgado_at
+	rows, err := q.Query(ctx, `SELECT id, atleta_id, sesion_id, movimiento, numero, peso::float8, votos, resultado, corregido_por, motivo, juzgado_at
 		FROM intentos WHERE competition_id = $1`, cid)
 	if err != nil {
 		return nil, err
@@ -215,7 +214,7 @@ func cargarIntentos(ctx context.Context, q querier, cid uuid.UUID) (tabla, error
 	t := tabla{}
 	for rows.Next() {
 		var x intento
-		if err := rows.Scan(&x.ID, &x.AtletaID, &x.FlightID, &x.Mov, &x.Numero, &x.Peso, &x.Votos, &x.Resultado, &x.CorregidoPor, &x.Motivo, &x.JuzgadoAt); err != nil {
+		if err := rows.Scan(&x.ID, &x.AtletaID, &x.SesionID, &x.Mov, &x.Numero, &x.Peso, &x.Votos, &x.Resultado, &x.CorregidoPor, &x.Motivo, &x.JuzgadoAt); err != nil {
 			return nil, err
 		}
 		if t[x.AtletaID] == nil {
@@ -239,9 +238,9 @@ type turno struct {
 	Intento *intento
 }
 
-// orden returns the current round of a lift in a flight (4 = the lift is over) and the queue: the athletes of this
+// orden returns the current round of a lift in a sesion (4 = the lift is over) and the queue: the athletes of this
 // round still to lift, in order, followed by the declared attempts of the next round.
-func orden(p *plan, f *flight, t tabla, mov string) (int, []turno) {
+func orden(p *plan, f *sesion, t tabla, mov string) (int, []turno) {
 	ronda := 4
 	sig := map[uuid.UUID]int{}
 	for _, x := range f.Atletas {
@@ -298,8 +297,8 @@ func sortTurnos(l []turno) {
 	})
 }
 
-// flightCompleto: every athlete of the flight has resolved the 9 attempts.
-func flightCompleto(f *flight, t tabla) bool {
+// sesionCompleta: every athlete of the sesion has resolved the 9 attempts.
+func sesionCompleta(f *sesion, t tabla) bool {
 	for _, x := range f.Atletas {
 		for _, m := range movs {
 			for n := 1; n <= 3; n++ {

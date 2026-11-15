@@ -10,7 +10,7 @@ import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BO_ROW, BoCheckbox, BoEmptyState, BoFilterPill, BoPagination, BoSearch, BoSkeleton, BoSortHeader, BoTableToolbar } from '../../shared/kit';
 import { BoPageHeader, BoToggle, errText, BoTabsMovil } from '../../shared/ui';
-import { AtletasApi, cat, type ItemLista, type Lista } from './api';
+import { AtletasApi, cat, diaFecha, type ItemLista, type Lista } from './api';
 
 type Pestana = 'todos' | 'confirmados' | 'reserva' | 'bajas' | 'incidencias';
 
@@ -103,10 +103,10 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                 <option value="">Categoría</option>
                 @for (c of l?.categorias ?? []; track c) { <option [value]="c">{{ cat(c) }}</option> }
               </gr-select>
-              @if (l?.flights?.length) {
-                <gr-select filters tipo="filtro" [ngModel]="flight()" (ngModelChange)="flight.set($event); recargar(1)" aria-label="Flight">
-                  <option value="">Flight</option>
-                  @for (f of l!.flights; track f) { <option [value]="f">{{ f }}</option> }
+              @if (l?.jornadas?.length) {
+                <gr-select filters tipo="filtro" [ngModel]="jornada()" (ngModelChange)="jornada.set($event); recargar(1)" aria-label="Fecha">
+                  <option value="">Fecha</option>
+                  @for (f of l!.jornadas; track f) { <option [value]="f">{{ diaFecha(f) }}</option> }
                 </gr-select>
               }
               <bo-filter-pill filters label="Perfil incompleto" [count]="incompletos() ? 1 : 0" (open)="incompletos.set(!incompletos()); recargar(1)" />
@@ -125,7 +125,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                     @if (pestana() === 'incidencias') { <th class="px-4 py-3 font-normal">Atleta</th> } @else { <th boSort class="px-4 py-3" [sort]="sortDe('nombre')" (toggle)="ordenar('nombre')">Atleta</th> }
                     @if (pestana() === 'incidencias') { <th class="w-24 px-3 py-3 font-normal">Categoría</th> } @else { <th boSort class="w-28 py-3" [sort]="sortDe('categoria')" (toggle)="ordenar('categoria')">Categoría</th> }
                     <th class="w-28 px-3 py-3 font-normal">Competición</th>
-                    <th class="w-16 px-3 py-3 font-normal">Flight</th>
+                    <th class="w-20 px-3 py-3 font-normal">Fecha</th>
                     <th class="w-32 px-3 py-3 font-normal">Estado AEP</th>
                     @if (pestana() === 'incidencias') { <th class="w-40 px-3 py-3 font-normal">Perfil público</th> } @else { <th boSort class="w-40 py-3" [sort]="sortDe('completo')" (toggle)="ordenar('completo')">Perfil público</th> }
                     <th class="w-24 px-3 py-3 font-normal">Imagen</th>
@@ -146,7 +146,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                       </td>
                       <td class="px-3 py-3 text-mono-s">{{ a.sexo }} @if (a.categoria) { {{ cat(a.categoria) }} } @else { <span class="text-text-tertiary">Sin elegir</span> }</td>
                       <td class="px-3 py-3 text-mono-s">@if (a.prueba) { {{ prueba[a.prueba] }} } @else { <span class="text-text-tertiary">Sin elegir</span> }</td>
-                      <td class="px-3 py-3 text-mono-s">{{ a.flight || '–' }}</td>
+                      <td class="px-3 py-3 text-mono-s">{{ a.jornada ? diaFecha(a.jornada) : '–' }}</td>
                       <td class="px-3 py-3">
                         @if (sinCategoria(a) && a.estado !== 'baja') { <gr-badge tone="warning">Sin categoría</gr-badge> }
                         @else if (a.incidencias && a.estado !== 'baja') { <gr-badge tone="warning">{{ a.estado === 'reserva' ? 'Reserva' : 'Revisar' }}</gr-badge> }
@@ -175,7 +175,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                     @if (a.fotoUrl) { <img [src]="a.fotoUrl" [alt]="a.nombreCompleto" class="size-10 shrink-0 rounded-full object-cover" loading="lazy" /> } @else { <gr-avatar [name]="a.nombreCompleto" /> }
                     <span class="min-w-0 flex-1">
                       <span class="block truncate text-label-s">{{ a.nombreCompleto }}</span>
-                      <span class="block truncate text-body-xs text-text-tertiary">{{ a.sexo }} {{ cat(a.categoria) }} · {{ a.club || 'Independiente' }}{{ a.flight ? ' · Flight ' + a.flight : '' }}</span>
+                      <span class="block truncate text-body-xs text-text-tertiary">{{ a.sexo }} {{ cat(a.categoria) }} · {{ a.club || 'Independiente' }}{{ a.jornada ? ' · ' + diaFecha(a.jornada) : '' }}</span>
                     </span>
                     @if (a.incidencias && a.estado !== 'baja') { <gr-badge tone="warning">Revisar</gr-badge> } @else { <gr-badge [tone]="estado[a.estado].tone">{{ estado[a.estado].label }}</gr-badge> }
                   </a>
@@ -255,12 +255,13 @@ export class AtletasPage {
   protected readonly q = signal(this.route.snapshot.queryParamMap.get('q') ?? '');
   protected readonly sexo = signal('');
   protected readonly categoria = signal('');
-  protected readonly flight = signal('');
+  protected readonly jornada = signal('');
+  protected readonly diaFecha = diaFecha;
   protected readonly incompletos = signal(false);
   protected readonly row = BO_ROW;
-  protected readonly filtrado = computed(() => !!(this.q() || this.sexo() || this.categoria() || this.flight() || this.incompletos()));
+  protected readonly filtrado = computed(() => !!(this.q() || this.sexo() || this.categoria() || this.jornada() || this.incompletos()));
   protected limpiar(): void {
-    this.q.set(''); this.sexo.set(''); this.categoria.set(''); this.flight.set(''); this.incompletos.set(false);
+    this.q.set(''); this.sexo.set(''); this.categoria.set(''); this.jornada.set(''); this.incompletos.set(false);
     void this.router.navigate([], { relativeTo: this.route, queryParams: { q: null }, queryParamsHandling: 'merge', replaceUrl: true });
     this.recargar(1);
   }
@@ -385,7 +386,7 @@ export class AtletasPage {
         }))));
       } else {
         this.lista.set(await this.api.lista(cid, {
-          pestana: this.pestana(), q: this.q(), sexo: this.sexo(), categoria: this.categoria(), flight: this.flight(), perfil: this.incompletos() ? 'incompleto' : '', orden: this.orden(), dir: this.dir(), pagina, por: this.por,
+          pestana: this.pestana(), q: this.q(), sexo: this.sexo(), categoria: this.categoria(), jornada: this.jornada(), perfil: this.incompletos() ? 'incompleto' : '', orden: this.orden(), dir: this.dir(), pagina, por: this.por,
         }));
       }
     } catch (e) {

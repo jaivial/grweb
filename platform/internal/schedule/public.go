@@ -20,7 +20,7 @@ type slugIn struct {
 	Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 }
 
-// PubAtleta is a public athlete of a flight.
+// PubAtleta is a public athlete of a sesion.
 type PubAtleta struct {
 	Slug           string `json:"slug"`
 	Nombre         string `json:"nombre"`
@@ -31,31 +31,28 @@ type PubAtleta struct {
 	Lote           int    `json:"lote"`
 }
 
-// PubFlight is a flight of /horarios with its live state.
-type PubFlight struct {
-	ID             uuid.UUID   `json:"id"`
-	Codigo         string      `json:"codigo"`
-	Titulo         string      `json:"titulo"`
-	Sexo           string      `json:"sexo"`
-	Plataforma     int         `json:"plataforma"`
-	Inicio         time.Time   `json:"inicio"`
-	InicioEstimado time.Time   `json:"inicioEstimado" doc:"Inicio + retraso"`
-	Fin            time.Time   `json:"fin"`
-	PesajeInicio   time.Time   `json:"pesajeInicio"`
-	PesajeFin      time.Time   `json:"pesajeFin"`
-	Estado         string      `json:"estado" enum:"programado,en_curso,finalizado"`
-	RetrasoMin     int         `json:"retrasoMin"`
-	Total          int         `json:"total" doc:"Atletas del flight"`
-	Atletas        []PubAtleta `json:"atletas" doc:"Solo perfiles públicos (los menores sin autorización no aparecen)"`
+// PubSesion is a session (time slot) of /horarios: information only, no live state or delays (Jaime, 14-nov).
+type PubSesion struct {
+	ID           uuid.UUID   `json:"id"`
+	Prueba       string      `json:"prueba,omitempty" doc:"aep2 o aep3"`
+	EP           string      `json:"ep,omitempty" doc:"«AEP-2» / «AEP-3»"`
+	Titulo       string      `json:"titulo"`
+	Sexo         string      `json:"sexo"`
+	Inicio       time.Time   `json:"inicio"`
+	Fin          time.Time   `json:"fin"`
+	PesajeInicio time.Time   `json:"pesajeInicio"`
+	PesajeFin    time.Time   `json:"pesajeFin"`
+	Total        int         `json:"total" doc:"Atletas de la sesión"`
+	Atletas      []PubAtleta `json:"atletas,omitempty" doc:"Solo en la caché interna: la web los pide paginados en …/horarios/{id}/atletas"`
 }
 
 // PubDia is a day of /horarios.
 type PubDia struct {
-	Fecha   string       `json:"fecha"`
-	Puertas string       `json:"puertas,omitempty"`
-	Notas   []string     `json:"notas"`
-	Agenda  []AgendaItem `json:"agenda"`
-	Flights []PubFlight  `json:"flights"`
+	Fecha    string       `json:"fecha"`
+	Puertas  string       `json:"puertas,omitempty"`
+	Notas    []string     `json:"notas"`
+	Agenda   []AgendaItem `json:"agenda"`
+	Sesiones []PubSesion  `json:"horarios" doc:"Sesiones del día por hora (una sola tarima)"`
 }
 
 // Horarios is the public schedule (Figma page 41). Not published yet → publicado false and no days.
@@ -67,16 +64,16 @@ type Horarios struct {
 	Dias          []PubDia  `json:"dias"`
 }
 
-// sinAtletas copies h without the per-flight athlete lists (h comes from the cache and is never modified).
+// sinAtletas copies h without the per-sesion athlete lists (h comes from the cache and is never modified).
 func sinAtletas(h Horarios) Horarios {
 	dias := make([]PubDia, len(h.Dias))
 	for i, d := range h.Dias {
-		fl := make([]PubFlight, len(d.Flights))
-		for j, f := range d.Flights {
-			f.Atletas = []PubAtleta{}
+		fl := make([]PubSesion, len(d.Sesiones))
+		for j, f := range d.Sesiones {
+			f.Atletas = nil
 			fl[j] = f
 		}
-		d.Flights = fl
+		d.Sesiones = fl
 		dias[i] = d
 	}
 	h.Dias = dias
@@ -120,22 +117,13 @@ func (s *Svc) horarios(ctx context.Context, c compref.Comp) (Horarios, error) {
 		return h, err
 	}
 	if v != nil {
-		dir, err := loadDirecto(ctx, s.a.DB, c.ID)
-		if err != nil {
-			return h, err
-		}
 		pub, fresh := s.publicos(ctx, c.ID)
 		h.Publicado, h.Version, h.ActualizadoAt, h.ZonaHoraria = true, v.Numero, v.At, v.Snapshot.ZonaHoraria
 		for _, d := range v.Snapshot.Dias {
-			pd := PubDia{Fecha: d.Fecha, Puertas: d.Puertas, Notas: d.Notas, Agenda: d.Agenda, Flights: []PubFlight{}}
-			for _, f := range d.Flights {
-				pf := PubFlight{ID: f.ID, Codigo: f.Codigo, Titulo: f.Titulo, Sexo: f.Sexo, Plataforma: f.Plataforma, Inicio: f.Inicio, InicioEstimado: f.Inicio, Fin: f.Fin,
-					PesajeInicio: f.PesajeInicio, PesajeFin: f.PesajeFin, Estado: "programado", Total: len(f.Atletas), Atletas: []PubAtleta{}}
-				if l, ok := dir[f.ID]; ok {
-					pf.Estado, pf.RetrasoMin = l.Estado, l.RetrasoMin
-					pf.InicioEstimado = f.Inicio.Add(time.Duration(l.RetrasoMin) * time.Minute)
-					pf.Fin = pf.Fin.Add(time.Duration(l.RetrasoMin) * time.Minute)
-				}
+			pd := PubDia{Fecha: d.Fecha, Puertas: d.Puertas, Notas: d.Notas, Agenda: d.Agenda, Sesiones: []PubSesion{}}
+			for _, f := range d.Sesiones {
+				pf := PubSesion{ID: f.ID, Prueba: f.Prueba, EP: nombrePrueba(f.Prueba), Titulo: f.Titulo, Sexo: f.Sexo, Inicio: f.Inicio, Fin: f.Fin,
+					PesajeInicio: f.PesajeInicio, PesajeFin: f.PesajeFin, Total: len(f.Atletas), Atletas: []PubAtleta{}}
 				for _, a := range f.Atletas {
 					// A profile hidden after publishing (consent withdrawn, erased…) disappears at once.
 					if !a.Publico || (fresh && !pub[a.ID]) {
@@ -143,7 +131,7 @@ func (s *Svc) horarios(ctx context.Context, c compref.Comp) (Horarios, error) {
 					}
 					pf.Atletas = append(pf.Atletas, PubAtleta{Slug: a.Slug, Nombre: a.Nombre, Club: a.Club, DivisionNombre: a.DivisionNombre, Sexo: a.Sexo, Categoria: a.Categoria, Lote: a.Lote})
 				}
-				pd.Flights = append(pd.Flights, pf)
+				pd.Sesiones = append(pd.Sesiones, pf)
 			}
 			if pd.Notas == nil {
 				pd.Notas = []string{}
@@ -167,9 +155,9 @@ func (s *Svc) registerPublic() {
 	}
 	type hIn struct {
 		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
-		Resumen bool   `query:"resumen" doc:"Sin las listas de atletas de cada flight (la home solo enseña categorías y horas)"`
+		Resumen bool   `query:"resumen" doc:"Compatibilidad: la respuesta ya no lleva listas de atletas"`
 	}
-	huma.Register(api, huma.Operation{OperationID: "horarios-publicos", Method: http.MethodGet, Path: "/api/competiciones/{slug}/horarios", Summary: "Horarios publicados con el estado en directo de cada flight", Tags: tagPub},
+	huma.Register(api, huma.Operation{OperationID: "horarios-publicos", Method: http.MethodGet, Path: "/api/competiciones/{slug}/horarios", Summary: "Horarios publicados: fechas y sesiones por hora", Tags: tagPub},
 		func(ctx context.Context, in *hIn) (*hOut, error) {
 			c, err := s.comps.Public(ctx, in.Slug)
 			if err != nil {
@@ -180,15 +168,55 @@ func (s *Svc) registerPublic() {
 				return nil, err
 			}
 			etag := fmt.Sprintf(`W/"%d-%s"`, h.Version, s.version(ctx, c.ID))
-			if in.Resumen {
-				h, etag = sinAtletas(h), etag[:len(etag)-1]+`-r"`
-			}
+			h = sinAtletas(h) // athletes come paginated from …/horarios/{id}/atletas
+			_ = in.Resumen
 			return &hOut{ETag: etag, CacheControl: "public, max-age=15", Body: h}, nil
+		})
+
+	type pagIn struct {
+		Slug     string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		ID       uuid.UUID `path:"id"`
+		Page     int       `query:"page" minimum:"1" default:"1"`
+		PageSize int       `query:"pageSize" minimum:"1" maximum:"50" default:"6"`
+	}
+	type pagOut struct {
+		CacheControl string `header:"Cache-Control"`
+		Body         struct {
+			Items    []PubAtleta `json:"items"`
+			Total    int         `json:"total" doc:"Atletas públicos de la sesión"`
+			Page     int         `json:"page"`
+			PageSize int         `json:"pageSize"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "horarios-sesion-atletas-publicos", Method: http.MethodGet, Path: "/api/competiciones/{slug}/horarios/{id}/atletas", Summary: "Atletas de una sesión publicada, paginados (orden de salida)", Tags: tagPub},
+		func(ctx context.Context, in *pagIn) (*pagOut, error) {
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			h, err := s.horarios(ctx, c)
+			if err != nil {
+				return nil, err
+			}
+			for _, d := range h.Dias {
+				for _, f := range d.Sesiones {
+					if f.ID != in.ID {
+						continue
+					}
+					o := &pagOut{CacheControl: "public, max-age=15"}
+					o.Body.Total, o.Body.Page, o.Body.PageSize, o.Body.Items = len(f.Atletas), in.Page, in.PageSize, []PubAtleta{}
+					if from := (in.Page - 1) * in.PageSize; from < len(f.Atletas) {
+						o.Body.Items = f.Atletas[from:min(from+in.PageSize, len(f.Atletas))]
+					}
+					return o, nil
+				}
+			}
+			return nil, problem.NotFound("Esa sesión no está en los horarios publicados.")
 		})
 
 	type icsIn struct {
 		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
-		Atletas string `query:"atletas" maxLength:"2000" doc:"Slugs separados por comas (Mi horario). Vacío: todos los flights."`
+		Atletas string `query:"atletas" maxLength:"2000" doc:"Slugs separados por comas (Mi horario). Vacío: todas las sesiones."`
 	}
 	type icsOut struct {
 		ContentType  string `header:"Content-Type"`
@@ -220,7 +248,7 @@ func (s *Svc) registerPublic() {
 		})
 }
 
-// calendario writes an iCalendar (RFC 5545) with one event per starred athlete (or per flight when none), each
+// calendario writes an iCalendar (RFC 5545) with one event per starred athlete (or per sesion when none), each
 // with a reminder 30 minutes before.
 func calendario(c compref.Comp, h Horarios, want map[string]bool) string {
 	var b strings.Builder
@@ -268,15 +296,15 @@ func calendario(c compref.Comp, h Horarios, want map[string]bool) string {
 		loc = madrid
 	}
 	for _, d := range h.Dias {
-		for _, f := range d.Flights {
-			desc := fmt.Sprintf("%s · Plataforma %d · Pesaje %s–%s", f.Titulo, f.Plataforma, hhmm(f.PesajeInicio, loc), hhmm(f.PesajeFin, loc))
+		for _, f := range d.Sesiones {
+			desc := fmt.Sprintf("%s · Pesaje %s–%s", f.Titulo, hhmm(f.PesajeInicio, loc), hhmm(f.PesajeFin, loc))
 			if len(want) == 0 {
-				evento(f.ID.String(), fmt.Sprintf("Flight %s · %s", f.Codigo, f.Titulo), desc, f.InicioEstimado, f.Fin)
+				evento(f.ID.String(), c.Nombre+" · "+f.Titulo, desc, f.Inicio, f.Fin)
 				continue
 			}
 			for _, a := range f.Atletas {
 				if want[a.Slug] {
-					evento(a.Slug+"-"+f.ID.String(), fmt.Sprintf("%s compite · Flight %s", a.Nombre, f.Codigo), desc, f.InicioEstimado, f.Fin)
+					evento(a.Slug+"-"+f.ID.String(), fmt.Sprintf("%s compite · %s", a.Nombre, f.Titulo), desc, f.Inicio, f.Fin)
 				}
 			}
 		}

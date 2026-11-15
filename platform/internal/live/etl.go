@@ -16,7 +16,7 @@ import (
 )
 
 // etlMySQL («live etl-mysql --mysql DSN [--dry-run] [--etiqueta …]») imports the attempts of the finished editions
-// and publishes their final results, computed by the same ranking as the desk (one flight per category, in the
+// and publishes their final results, computed by the same ranking as the desk (one sesion per category, in the
 // old registration order). An edition not held yet starts its live from zero. Example results seeded for an
 // edition («Datos de ejemplo») are replaced by the real ones.
 //
@@ -102,7 +102,7 @@ func (s *Svc) etlMySQL(ctx context.Context, a *app.App, args []string) error {
 		for _, ed := range mapa {
 			cid := ed.NuevaID
 			p := &plan{Atletas: map[uuid.UUID]*atleta{}}
-			fl := map[string]*flight{}
+			fl := map[string]*sesion{}
 			var flOrden []string
 			n := 0
 			for _, iid := range orden {
@@ -129,7 +129,7 @@ func (s *Svc) etlMySQL(ctx context.Context, a *app.App, args []string) error {
 				k := clave(sexo, cat)
 				f := fl[k]
 				if f == nil {
-					f = &flight{ID: legacy.ID("live/flight", cid.String()+"/"+k), Codigo: k, Sexo: sexo, Dia: ed.Fecha.Format("2006-01-02")}
+					f = &sesion{ID: legacy.ID("live/flight", cid.String()+"/"+k), Hora: k, Sexo: sexo, Dia: ed.Fecha.Format("2006-01-02")}
 					fl[k] = f
 					flOrden = append(flOrden, k)
 				}
@@ -170,7 +170,7 @@ func (s *Svc) etlMySQL(ctx context.Context, a *app.App, args []string) error {
 							}
 							id = legacy.ID("live/renuncia", fmt.Sprintf("%s/%s/%d", aid, m, num))
 						}
-						tag, err := tx.Exec(ctx, `INSERT INTO intentos (id, competition_id, atleta_id, flight_id, movimiento, numero, peso, votos, resultado, corregido_por, juzgado_at, updated_at)
+						tag, err := tx.Exec(ctx, `INSERT INTO intentos (id, competition_id, atleta_id, sesion_id, movimiento, numero, peso, votos, resultado, corregido_por, juzgado_at, updated_at)
 							VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11) ON CONFLICT DO NOTHING`, id, cid, aid, f.ID, m, num, peso, votos, res, o.Etiqueta, at)
 						if err != nil {
 							return fmt.Errorf("intento de la inscripción %d: %w", iid, err)
@@ -190,7 +190,7 @@ func (s *Svc) etlMySQL(ctx context.Context, a *app.App, args []string) error {
 			for _, k := range flOrden {
 				f := fl[k]
 				f.Titulo, _ = titulo(f.Sexo, k[1:])
-				p.Flights = append(p.Flights, *f)
+				p.Sesiones = append(p.Sesiones, *f)
 			}
 			p.index()
 			t, err := cargarIntentos(ctx, tx, cid)
@@ -227,7 +227,7 @@ func (s *Svc) etlMySQL(ctx context.Context, a *app.App, args []string) error {
 				}
 				inf.Escritos["categorías publicadas"]++
 			}
-			if _, err := tx.Exec(ctx, `INSERT INTO estado (competition_id, fase) VALUES ($1, 'finalizado') ON CONFLICT (competition_id) DO UPDATE SET fase = 'finalizado', flight_id = NULL`, cid); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO estado (competition_id, fase) VALUES ($1, 'finalizado') ON CONFLICT (competition_id) DO UPDATE SET fase = 'finalizado', sesion_id = NULL`, cid); err != nil {
 				return err
 			}
 			inf.Notas = append(inf.Notas, fmt.Sprintf("%s: %d atletas con intentos, %d categorías", ed.Nueva, len(p.Atletas), len(p.categorias())))

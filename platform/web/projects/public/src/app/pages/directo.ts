@@ -742,7 +742,7 @@ export class EdicionPage {
         <header class="absolute top-[60px] left-[80px] flex items-center gap-8">
           <gr-logo [height]="76" />
           @if (d.fase === 'en_directo') { <span class="rounded-pill border border-accent/70 px-4 py-1.5 font-mono text-[18px] text-accent-text">● En directo</span> }
-          @if (d.flight) { <span class="font-display text-[30px] text-white/70 uppercase italic">Plataforma {{ d.flight.plataforma }} · Flight {{ d.flight.codigo }}</span> }
+          @if (d.sesion) { <span class="font-display text-[30px] text-white/70 uppercase italic">Sesión de las {{ d.sesion.hora }}</span> }
         </header>
 
         @if (d.fase === 'en_directo' && d.pausa) {

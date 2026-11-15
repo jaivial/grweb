@@ -291,7 +291,7 @@ func (s *Svc) cargarResumenFantasy(ctx context.Context, cid uuid.UUID) (resumenF
 	enCurso := map[uuid.UUID]bool{}
 	if ats, err := s.mercadoFantasy(ctx, cid, *j, uuid.Nil, uuid.Nil); err == nil {
 		for _, a := range ats {
-			enCurso[a.AtletaID] = a.FlightEnCurso
+			enCurso[a.AtletaID] = a.SesionEnCurso
 		}
 	}
 	al := &alineacionDestacada{Alias: lider.Alias, Nota: lider.Nota, Atletas: []atletaAlineacion{}}

@@ -86,7 +86,7 @@ func horarioDeSnapshot(dias []snapDia, dia string) horarioDia {
 		if d.Fecha != dia {
 			continue
 		}
-		for _, f := range d.Flights {
+		for _, f := range d.Sesiones {
 			if !h.OK || f.Inicio.Before(h.Inicio) {
 				h.Inicio = f.Inicio
 			}
@@ -101,10 +101,10 @@ func horarioDeSnapshot(dias []snapDia, dia string) horarioDia {
 
 // snapDia mirrors what juegos reads of schedule's published snapshot.
 type snapDia struct {
-	Fecha   string `json:"fecha"`
-	Flights []struct {
+	Fecha    string `json:"fecha"`
+	Sesiones []struct {
 		Inicio time.Time `json:"inicio"`
-	} `json:"flights"`
+	} `json:"sesiones"`
 }
 
 type horEntrada struct {

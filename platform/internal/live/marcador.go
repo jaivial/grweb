@@ -30,8 +30,8 @@ type MarcadorAtleta struct {
 	FotoURL          string                       `json:"fotoUrl,omitempty" doc:"Foto pública: solo con perfil público e imagen consentida"`
 	Sexo             string                       `json:"sexo"`
 	Categoria        string                       `json:"categoria"`
-	FlightID         uuid.UUID                    `json:"flightId"`
-	FlightEnCurso    bool                         `json:"flightEnCurso"`
+	SesionID         uuid.UUID                    `json:"sesionId"`
+	SesionEnCurso    bool                         `json:"sesionEnCurso"`
 	Intentos         map[string][]MarcadorIntento `json:"intentos"`
 	Mejor            map[string]*float64          `json:"mejor"`
 	Total            *float64                     `json:"total"`
@@ -46,7 +46,7 @@ type MarcadorAtleta struct {
 // Marcador is the response of the internal scoreboard (GET /internal/competiciones/{cid}/marcador).
 type Marcador struct {
 	Fase                 string           `json:"fase" enum:"antes,en_directo,finalizado"`
-	FlightEnCurso        string           `json:"flightEnCurso" doc:"Id del flight que está en la plataforma («» = ninguno)"`
+	SesionEnCurso        string           `json:"sesionEnCurso" doc:"Id de la sesión que está en la tarima («» = ninguno)"`
 	Atletas              []MarcadorAtleta `json:"atletas"`
 	CategoriasPublicadas []string         `json:"categoriasPublicadas"`
 }
@@ -82,7 +82,7 @@ func sinMenos(cat string) string {
 }
 
 // marcadorDelDia builds the scoreboard of one day. It computes the places on a sub-plan with only that day's
-// flights, so two jornadas of the same competition (AEP-2, AEP-3) rank independently.
+// sesiones, so two jornadas of the same competition (AEP-2, AEP-3) rank independently.
 func (s *Svc) marcadorDelDia(ctx context.Context, cid uuid.UUID, dia string) (*Marcador, error) {
 	e, err := s.estadoLeer(ctx, cid)
 	if err != nil {
@@ -105,16 +105,16 @@ func (s *Svc) marcadorDelDia(ctx context.Context, cid uuid.UUID, dia string) (*M
 		return nil, err
 	}
 	sub := &plan{Version: p.Version, Atletas: p.Atletas}
-	for i := range p.Flights {
-		if dia == "" || p.Flights[i].Dia == dia {
-			sub.Flights = append(sub.Flights, p.Flights[i])
+	for i := range p.Sesiones {
+		if dia == "" || p.Sesiones[i].Dia == dia {
+			sub.Sesiones = append(sub.Sesiones, p.Sesiones[i])
 		}
 	}
 	sub.index()
 
 	m := &Marcador{Fase: e.Fase, Atletas: []MarcadorAtleta{}, CategoriasPublicadas: []string{}}
-	if e.FlightID != nil {
-		m.FlightEnCurso = e.FlightID.String()
+	if e.SesionID != nil {
+		m.SesionEnCurso = e.SesionID.String()
 	}
 	// category rankings of the day (admin view: real ids), plus the per-sex tables of GL and lifts.
 	cats := map[string]Categoria{}
@@ -199,8 +199,8 @@ func (s *Svc) marcadorDelDia(ctx context.Context, cid uuid.UUID, dia string) (*M
 		return pesoCat(a[1:]) < pesoCat(b[1:])
 	})
 
-	for i := range sub.Flights {
-		f := &sub.Flights[i]
+	for i := range sub.Sesiones {
+		f := &sub.Sesiones[i]
 		for _, x := range f.Atletas {
 			a := sub.Atletas[x.ID]
 			if a == nil {
@@ -209,7 +209,7 @@ func (s *Svc) marcadorDelDia(ctx context.Context, cid uuid.UUID, dia string) (*M
 			k := clave(a.Sexo, a.Categoria)
 			ma := MarcadorAtleta{
 				AtletaID: a.ID, NombrePublico: nombrePublico(a), FotoURL: fotoPublica(a), Sexo: a.Sexo, Categoria: a.Categoria,
-				FlightID: f.ID, FlightEnCurso: e.FlightID != nil && *e.FlightID == f.ID,
+				SesionID: f.ID, SesionEnCurso: e.SesionID != nil && *e.SesionID == f.ID,
 				Intentos: map[string][]MarcadorIntento{}, Mejor: map[string]*float64{},
 				PuestoMovimiento: map[string]int{}, Blanqueo: map[string]bool{},
 			}

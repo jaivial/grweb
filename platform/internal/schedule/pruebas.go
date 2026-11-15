@@ -39,7 +39,7 @@ func dePrueba(ats []atleta, p string) []atleta {
 }
 
 // diasPrueba: the day of the competition when the event has one day per competition; otherwise every day (the
-// generator then places it after the flights of the other competition, see colocar's ocupado).
+// generator then places it after the sesiones of the other competition, see colocar's ocupado).
 func diasPrueba(ds []Dia, p string) []Dia {
 	if len(ds) < len(ordenPruebas) {
 		return ds
@@ -52,22 +52,22 @@ func diasPrueba(ds []Dia, p string) []Dia {
 	return ds
 }
 
-// flightsDePrueba returns the flights a generation of competition p replaces (the ones of p, or whose athletes are
-// all of p) and the ones it keeps (the generator plans around them). Its athletes sitting in other flights are
+// sesionesDePrueba returns the sesiones a generation of competition p replaces (the ones of p, or whose athletes are
+// all of p) and the ones it keeps (the generator plans around them). Its athletes sitting in other sesiones are
 // taken out of them.
-func flightsDePrueba(ctx context.Context, tx pgx.Tx, cid uuid.UUID, p string, ats []atleta) ([]uuid.UUID, []flightRow, error) {
+func sesionesDePrueba(ctx context.Context, tx pgx.Tx, cid uuid.UUID, p string, ats []atleta) ([]uuid.UUID, []sesionRow, error) {
 	suyos := map[uuid.UUID]bool{}
 	ids := make([]uuid.UUID, 0, len(ats))
 	for _, a := range ats {
 		suyos[a.ID] = true
 		ids = append(ids, a.ID)
 	}
-	fl, asig, err := loadFlights(ctx, tx, cid)
+	fl, asig, err := loadSesiones(ctx, tx, cid)
 	if err != nil {
 		return nil, nil, err
 	}
 	out := []uuid.UUID{}
-	var quedan []flightRow
+	var quedan []sesionRow
 	for _, f := range fl {
 		as := asig[f.ID]
 		todos := len(as) > 0 && (f.Prueba == "" || f.Prueba == p)
@@ -80,6 +80,6 @@ func flightsDePrueba(ctx context.Context, tx pgx.Tx, cid uuid.UUID, p string, at
 			quedan = append(quedan, f)
 		}
 	}
-	_, err = tx.Exec(ctx, `DELETE FROM flight_atletas WHERE competition_id = $1 AND atleta_id = ANY($2)`, cid, ids)
+	_, err = tx.Exec(ctx, `DELETE FROM sesion_atletas WHERE competition_id = $1 AND atleta_id = ANY($2)`, cid, ids)
 	return out, quedan, err
 }

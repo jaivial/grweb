@@ -127,19 +127,19 @@ func (s *Svc) registerResultados() {
 		})
 
 	type retIn struct {
-		CID    uuid.UUID `path:"cid"`
-		Flight string    `path:"flight" maxLength:"8"`
-		Body   struct {
+		CID  uuid.UUID `path:"cid"`
+		Dia  string    `path:"dia" format:"date"`
+		Body struct {
 			RetrasoMin int `json:"retrasoMin" minimum:"0" maximum:"600"`
 		}
 	}
-	huma.Register(s.a.API, huma.Operation{OperationID: "internal-retraso", Method: http.MethodPut, Path: "/internal/competiciones/{cid}/flights/{flight}/retraso", Summary: "Retraso en directo de un flight (solo schedule)", Tags: []string{"Interno"}, Hidden: true, DefaultStatus: http.StatusNoContent},
+	huma.Register(s.a.API, huma.Operation{OperationID: "internal-retraso", Method: http.MethodPut, Path: "/internal/competiciones/{cid}/jornadas/{dia}/retraso", Summary: "Retraso en directo de una fecha (solo schedule)", Tags: []string{"Interno"}, Hidden: true, DefaultStatus: http.StatusNoContent},
 		func(ctx context.Context, in *retIn) (*struct{}, error) {
 			if _, err := auth.RequireService(ctx); err != nil {
 				return nil, err
 			}
-			_, err := s.a.DB.Exec(ctx, `INSERT INTO retrasos (competition_id, flight, retraso_min) VALUES ($1,$2,$3)
-				ON CONFLICT (competition_id, flight) DO UPDATE SET retraso_min = EXCLUDED.retraso_min, updated_at = now()`, in.CID, in.Flight, in.Body.RetrasoMin)
+			_, err := s.a.DB.Exec(ctx, `INSERT INTO retrasos (competition_id, dia, retraso_min) VALUES ($1,$2,$3)
+				ON CONFLICT (competition_id, dia) DO UPDATE SET retraso_min = EXCLUDED.retraso_min, updated_at = now()`, in.CID, in.Dia, in.Body.RetrasoMin)
 			return nil, err
 		})
 }

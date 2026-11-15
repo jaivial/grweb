@@ -25,8 +25,8 @@ type MarcadorAtleta struct {
 	FotoURL          string                       `json:"fotoUrl,omitempty"`
 	Sexo             string                       `json:"sexo"`
 	Categoria        string                       `json:"categoria"`
-	FlightID         uuid.UUID                    `json:"flightId"`
-	FlightEnCurso    bool                         `json:"flightEnCurso"`
+	SesionID         uuid.UUID                    `json:"sesionId"`
+	SesionEnCurso    bool                         `json:"sesionEnCurso"`
 	Intentos         map[string][]MarcadorIntento `json:"intentos"`
 	Mejor            map[string]*float64          `json:"mejor"`
 	Total            *float64                     `json:"total"`
@@ -41,7 +41,7 @@ type MarcadorAtleta struct {
 // Marcador mirrors the response of GET /internal/competiciones/{cid}/marcador.
 type Marcador struct {
 	Fase                 string           `json:"fase"`
-	FlightEnCurso        string           `json:"flightEnCurso"`
+	SesionEnCurso        string           `json:"sesionEnCurso"`
 	Atletas              []MarcadorAtleta `json:"atletas"`
 	CategoriasPublicadas []string         `json:"categoriasPublicadas"`
 }

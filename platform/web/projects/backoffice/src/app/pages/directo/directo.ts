@@ -20,7 +20,7 @@ const OPCIONES = [
 ];
 const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
 
-/** «Directo · mesa» (Figma page 57): flight table, the athlete on the platform, the judges' lights, delay, pause and corrections.
+/** «Directo · mesa» (Figma page 57): session table, the athlete on the platform («tarima»), the judges' lights, delay, pause and corrections.
  *  On a phone it opens the speaker view («Móvil · locutor»). Decisions made without network are kept on the device and sent in order. */
 @Component({
   selector: 'bo-directo',
@@ -29,7 +29,7 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
   template: `
     @let m = mesa();
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
-      <bo-page-header [title]="m?.flight ? 'Mesa · Flight ' + m.flight.codigo : 'Mesa del directo'" [badge]="badge()" [badgeTone]="m?.estado?.pausa ? 'warning' : m?.estado?.fase === 'en_directo' ? 'info' : 'neutral'"
+      <bo-page-header [title]="m?.sesion ? 'Mesa · Sesión de las ' + m.sesion.hora : 'Mesa del directo'" [badge]="badge()" [badgeTone]="m?.estado?.pausa ? 'warning' : m?.estado?.fase === 'en_directo' ? 'info' : 'neutral'"
         [subtitle]="subtitulo()" [crumbs]="[comps.current()?.nombreCorto || '', 'Hoy', 'Directo']">
         @if (m?.horariosPublicados) {
           <ng-container actions>
@@ -56,18 +56,18 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
       @if (m === null) { <gr-empty icon="wifi-off" title="No hemos podido cargar la mesa"><button grButton (click)="cargar()">Reintentar</button></gr-empty> }
       @else if (m === undefined) { <gr-skeleton class="h-[560px] rounded-lg" /> }
       @else if (!m.horariosPublicados) {
-        <gr-empty icon="clock" title="Publica los horarios primero">La mesa trabaja con los flights publicados: el orden de los atletas, sus lotes y sus primeros intentos del pesaje.
-          <a grButton class="mt-4" [routerLink]="['/', comps.current()?.slug, 'horarios']">Ir a Horarios y flights</a></gr-empty>
+        <gr-empty icon="clock" title="Publica los horarios primero">La mesa trabaja con las sesiones publicadas: el orden de los atletas, sus lotes y sus primeros intentos del pesaje.
+          <a grButton class="mt-4" [routerLink]="['/', comps.current()?.slug, 'horarios']">Ir a Horarios</a></gr-empty>
       } @else {
-        <!-- Controls: flight, lift, delay -->
+        <!-- Controls: session, lift -->
         <section class="flex flex-wrap items-end gap-3">
-          <gr-field label="Flight" class="w-full sm:w-80">
-            <gr-select [ngModel]="m.estado.flightId ?? ''" (ngModelChange)="elegirFlight($event)" [disabled]="!puedeOperar() || !!guardando()">
-              <option value="" disabled>Elige el flight</option>
-              @for (f of m.flights; track f.id) { <option [value]="f.id">{{ f.codigo }} · {{ f.titulo }} · {{ estadoFlight[f.estado] }}</option> }
+          <gr-field label="Sesión" class="w-full sm:w-80">
+            <gr-select [ngModel]="m.estado.sesionId ?? ''" (ngModelChange)="elegirSesion($event)" [disabled]="!puedeOperar() || !!guardando()">
+              <option value="" disabled>Elige la sesión</option>
+              @for (f of m.sesiones; track f.id) { <option [value]="f.id">{{ f.hora }} · {{ f.titulo }} · {{ estadoSesion[f.estado] }}</option> }
             </gr-select>
           </gr-field>
-          @if (m.flight) {
+          @if (m.sesion) {
             <div class="flex h-10 rounded-md border border-line-strong p-0.5" role="radiogroup" aria-label="Movimiento">
               @for (v of movs; track v) {
                 <button type="button" role="radio" [attr.aria-checked]="m.estado.movimiento === v" [disabled]="!puedeOperar() || !!guardando()" class="rounded-sm px-3 text-label-s"
@@ -75,21 +75,16 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
               }
             </div>
           }
-          <div class="flex h-10 items-center gap-1 rounded-md border border-line-strong pl-3" role="group" aria-label="Retraso">
-            <span class="text-label-s text-text-secondary">Retraso</span>
-            <button type="button" class="flex size-9 items-center justify-center rounded-sm hover:bg-bg-raised disabled:opacity-40" [disabled]="!puedeOperar() || m.estado.retrasoMin <= 0" (click)="cambiar({ retrasoMin: max0(m.estado.retrasoMin - 5) }, 'retraso')" aria-label="Menos retraso"><gr-icon name="minus" [size]="16" /></button>
-            <span class="min-w-14 text-center font-mono text-mono-s" [class.text-warning]="m.estado.retrasoMin > 0">{{ m.estado.retrasoMin ? '+' + m.estado.retrasoMin + ' min' : 'en hora' }}</span>
-            <button type="button" class="flex size-9 items-center justify-center rounded-sm hover:bg-bg-raised disabled:opacity-40" [disabled]="!puedeOperar()" (click)="cambiar({ retrasoMin: m.estado.retrasoMin + 5 }, 'retraso')" aria-label="Más retraso"><gr-icon name="plus" [size]="16" /></button>
-          </div>
+          <!-- No delay control: Jaime (14-nov) removed delays; the times are information only. -->
           <p class="pb-2.5 text-body-xs text-text-tertiary">{{ m.espectadores }} espectadores conectados · pantalla del pabellón {{ pantallaEnLinea() ? 'en línea' : 'sin conectar' }}</p>
         </section>
 
-        @if (!m.flight) {
+        @if (!m.sesion) {
           <section class="rounded-lg border border-line-subtle bg-bg-card p-6 md:p-8">
             <p class="text-mono-xs text-text-tertiary">{{ m.estado.fase === 'finalizado' ? 'Competición terminada' : 'Antes del directo' }}</p>
-            <h2 class="mt-2 text-ui-h4">{{ m.estado.fase === 'finalizado' ? 'El directo ha terminado' : 'Elige el flight que empieza' }}</h2>
-            <p class="mt-2 max-w-xl text-body-s text-text-secondary">Al elegir un flight la web pasa a «En directo», /horarios lo marca en la plataforma y se crean los primeros intentos con los pesos del pesaje.</p>
-            @if (primerFlight(); as f) { @if (puedeOperar()) { <button grButton variant="primary" icon="play" class="mt-5" [loading]="guardando() === 'flight'" (click)="elegirFlight(f.id)">Empezar con el Flight {{ f.codigo }}</button> } }
+            <h2 class="mt-2 text-ui-h4">{{ m.estado.fase === 'finalizado' ? 'El directo ha terminado' : 'Elige la sesión que empieza' }}</h2>
+            <p class="mt-2 max-w-xl text-body-s text-text-secondary">Al elegir una sesión la web pasa a «En directo» y se crean los primeros intentos con los pesos del pesaje. Con OpenLifter conectado, el avance lo marca OpenLifter.</p>
+            @if (primerSesion(); as f) { @if (puedeOperar()) { <button grButton variant="primary" icon="play" class="mt-5" [loading]="guardando() === 'sesion'" (click)="elegirSesion(f.id)">Empezar con la sesión de las {{ f.hora }}</button> } }
           </section>
         } @else {
           @if (vista() === 'locutor') {
@@ -98,7 +93,7 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
               @if (m.estado.fase === 'en_directo') { <span class="inline-flex w-fit items-center gap-1.5 text-label-s text-success"><gr-icon name="radio" [size]="14" />En directo · {{ m.espectadores }}</span> }
               @if (m.actual; as a) {
                 <div class="rounded-lg border border-accent/40 bg-[linear-gradient(140deg,#3a0f17,#1b1112_70%)] p-5">
-                  <p class="text-mono-xs text-text-tertiary">En la plataforma · {{ MOVN[m.estado.movimiento] }} {{ ORD[a.numero] }}</p>
+                  <p class="text-mono-xs text-text-tertiary">En la tarima · {{ MOVN[m.estado.movimiento] }} {{ ORD[a.numero] }}</p>
                   <p class="mt-2 font-display text-[34px] leading-none uppercase italic">{{ a.nombre }}</p>
                   <p class="mt-2 text-body-s text-text-secondary">{{ cat(a.sexo, a.categoria) }} · {{ a.club || 'Independiente' }} · <span class="font-mono text-text-primary">{{ kg(a.peso) }} kg</span></p>
                   @if (a.frase) { <p class="mt-3 text-body-s text-text-secondary italic">«{{ a.frase }}»</p> }
@@ -115,7 +110,7 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
             </section>
           }
           <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_360px]" [class.max-md:hidden]="vista() === 'locutor'">
-            <!-- Flight table -->
+            <!-- Session table -->
             <section class="min-w-0 overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
               <table boTablaMovil class="w-full min-w-[560px] text-left text-body-s">
                 <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary">
@@ -146,9 +141,9 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
             </section>
 
             <!-- On the platform -->
-            <aside class="flex h-fit flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-5 lg:sticky lg:top-20" aria-label="En la plataforma">
+            <aside class="flex h-fit flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-5 lg:sticky lg:top-20" aria-label="En la tarima">
               @if (m.actual; as a) {
-                <header class="flex items-center justify-between gap-2"><h2 class="text-ui-h5">En la plataforma</h2><gr-badge tone="accent">{{ MOVN[m.estado.movimiento] }} · {{ ORD[a.numero] }}</gr-badge></header>
+                <header class="flex items-center justify-between gap-2"><h2 class="text-ui-h5">En la tarima</h2><gr-badge tone="accent">{{ MOVN[m.estado.movimiento] }} · {{ ORD[a.numero] }}</gr-badge></header>
                 <div class="flex items-center gap-3">
                   <span class="flex size-11 shrink-0 items-center justify-center rounded-pill border border-line-strong bg-bg-raised text-label-s">{{ ini(a.nombre) }}</span>
                   <div class="min-w-0"><p class="truncate text-ui-h5">{{ a.nombre }} · {{ cat(a.sexo, a.categoria) }}</p><p class="text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }}@if (m.estado.movimiento === 'sq' && a.rackSq) { · rack SQ {{ a.rackSq }} }@if (m.estado.movimiento === 'bp' && a.rackBp) { · rack BP {{ a.rackBp }} }</p></div>
@@ -181,10 +176,10 @@ const JUECES = ['Lateral 1', 'Central', 'Lateral 2'];
                   <span>@if (m.siguientes[0]; as s) { Siguiente: {{ s.nombre }} · {{ kg(s.peso) }} kg } @else { Último de la ronda }</span>
                   @if (puedeOperar() && a.intentoId) { <button type="button" class="text-label-s hover:text-text-primary" (click)="renuncia()">Renuncia</button> }
                 </div>
-              } @else if (m.flightCompleto) {
-                <h2 class="text-ui-h5">Flight {{ m.flight.codigo }} terminado</h2>
+              } @else if (m.sesionCompleta) {
+                <h2 class="text-ui-h5">Sesión de las {{ m.sesion.hora }} terminada</h2>
                 <p class="text-body-s text-text-secondary">Todos los intentos están juzgados.@if (m.estado.publicarAuto) { Las categorías completas se publican solas en /resultados. }</p>
-                @if (siguienteFlight(); as f) { @if (puedeOperar()) { <button grButton variant="primary" icon="arrow-right" [loading]="guardando() === 'flight'" (click)="elegirFlight(f.id)">Pasar al Flight {{ f.codigo }}</button> } }
+                @if (siguienteSesion(); as f) { @if (puedeOperar()) { <button grButton variant="primary" icon="arrow-right" [loading]="guardando() === 'sesion'" (click)="elegirSesion(f.id)">Pasar a la sesión de las {{ f.hora }}</button> } }
                 <a grButton [routerLink]="['/', comps.current()?.slug, 'resultados']">Ver resultados</a>
               } @else if (m.movimientoCompleto && m.siguienteMovimiento) {
                 <h2 class="text-ui-h5">{{ MOVN[m.estado.movimiento] }} terminada</h2>
@@ -273,7 +268,7 @@ export class DirectoPage {
   protected readonly jueces = JUECES;
   protected readonly opciones = OPCIONES;
   protected readonly vistas = [{ v: 'mesa' as const, l: 'Mesa' }, { v: 'locutor' as const, l: 'Locutor' }];
-  protected readonly estadoFlight = { programado: 'programado', en_curso: 'en curso', finalizado: 'terminado' };
+  protected readonly estadoSesion = { programado: 'programado', en_curso: 'en curso', finalizado: 'terminado' };
   protected readonly kg = kg;
   protected readonly cat = cat;
   protected readonly ini = ini;
@@ -320,16 +315,16 @@ export class DirectoPage {
   });
   protected readonly subtitulo = computed(() => {
     const m = this.mesa();
-    if (!m?.flight) return '';
+    if (!m?.sesion) return '';
     const r = m.ronda > 3 ? 'terminada' : `ronda ${m.ronda} de 3`;
-    return `Plataforma ${m.flight.plataforma} · ${MOV[m.estado.movimiento]} · ${r} · ${m.atletas.length} atletas`;
+    return `Sesión de las ${m.sesion.hora} · ${MOV[m.estado.movimiento]} · ${r} · ${m.atletas.length} atletas`;
   });
-  protected readonly primerFlight = computed(() => this.mesa()?.flights.find((f) => f.estado !== 'finalizado'));
-  protected readonly siguienteFlight = computed(() => {
+  protected readonly primerSesion = computed(() => this.mesa()?.sesiones.find((f) => f.estado !== 'finalizado'));
+  protected readonly siguienteSesion = computed(() => {
     const m = this.mesa();
-    if (!m?.flight) return undefined;
-    const i = m.flights.findIndex((f) => f.id === m.flight!.id);
-    return m.flights.slice(i + 1).find((f) => f.estado !== 'finalizado');
+    if (!m?.sesion) return undefined;
+    const i = m.sesiones.findIndex((f) => f.id === m.sesion!.id);
+    return m.sesiones.slice(i + 1).find((f) => f.estado !== 'finalizado');
   });
   protected readonly resumenCola = computed(() => {
     const c = this.cola();
@@ -402,7 +397,7 @@ export class DirectoPage {
 
   private body(over: Partial<EstadoIn>): EstadoIn {
     const e = this.mesa()!.estado;
-    return { fase: e.fase, flightId: e.flightId, movimiento: e.movimiento, pausa: e.pausa, retrasoMin: e.retrasoMin, streamUrl: e.streamUrl, replayUrl: e.replayUrl, pantalla: e.pantalla, publicarAuto: e.publicarAuto, ...over };
+    return { fase: e.fase, sesionId: e.sesionId, movimiento: e.movimiento, pausa: e.pausa, retrasoMin: e.retrasoMin, streamUrl: e.streamUrl, replayUrl: e.replayUrl, pantalla: e.pantalla, publicarAuto: e.publicarAuto, ...over };
   }
 
   protected async cambiar(over: Partial<EstadoIn>, que: string): Promise<void> {
@@ -419,18 +414,17 @@ export class DirectoPage {
     }
   }
 
-  protected async elegirFlight(id: string): Promise<void> {
+  protected async elegirSesion(id: string): Promise<void> {
     const m = this.mesa();
-    if (!m || !id || id === m.estado.flightId) return;
-    if (m.flight && !m.flightCompleto) {
-      const f = m.flights.find((x) => x.id === id);
-      const ok = await this.confirm.ask({ title: `¿Pasar al Flight ${f?.codigo}?`, text: `El Flight ${m.flight.codigo} tiene intentos sin juzgar. Podrás volver a él desde este selector.`, confirm: 'Cambiar de flight' });
+    if (!m || !id || id === m.estado.sesionId) return;
+    if (m.sesion && !m.sesionCompleta) {
+      const f = m.sesiones.find((x) => x.id === id);
+      const ok = await this.confirm.ask({ title: `¿Pasar a la sesión de las ${f?.hora}?`, text: `La sesión de las ${m.sesion.hora} tiene intentos sin juzgar. Podrás volver a ella desde este selector.`, confirm: 'Cambiar de sesión' });
       if (!ok) return;
     }
-    await this.cambiar({ flightId: id, movimiento: 'sq', fase: 'en_directo', pausa: false }, 'flight');
+    await this.cambiar({ sesionId: id, movimiento: 'sq', fase: 'en_directo', pausa: false }, 'sesion');
   }
 
-  protected max0(v: number): number { return Math.max(0, v); }
   protected segundos(desde: number): string {
     const s = Math.floor((this.ahora() - desde) / 1000);
     return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min`;
@@ -634,7 +628,7 @@ export class DirectoPage {
   }
 
   protected async reabrir(): Promise<void> {
-    await this.cambiar({ fase: this.mesa()?.estado.flightId ? 'en_directo' : 'antes' }, 'ajustes');
+    await this.cambiar({ fase: this.mesa()?.estado.sesionId ? 'en_directo' : 'antes' }, 'ajustes');
     this.ajustesOpen.set(false);
   }
 }

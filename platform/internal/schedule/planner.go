@@ -9,41 +9,36 @@ import (
 	"github.com/google/uuid"
 )
 
-// planFlight is a flight proposed by the generator.
-type planFlight struct {
-	Dia        string
-	Plataforma int
-	Inicio     time.Time
-	Duracion   int
-	Atletas    []uuid.UUID
+// planSesion is a sesion proposed by the generator.
+type planSesion struct {
+	Dia      string
+	Inicio   time.Time
+	Duracion int
+	Atletas  []uuid.UUID
 }
 
-// generar splits the confirmed athletes into flights and places them on the days and platforms:
+// generar splits the confirmed athletes into sessions (time slots) and places them on the days, one after another on
+// the only platform:
 //
-//   - women first, then men (unless separarSexo is off); lighter classes first;
-//   - inside a class, by expected total (orden «total») or by surname (orden «categoria»);
-//   - groups of at most maxPorFlight, balanced (41 athletes with max 14 → 14 + 14 + 13);
-//   - each flight lasts minPorAtleta × athletes (rounded up to 5 min), takes the earliest free platform, skips the
+//   - women first, then men; lighter classes first; inside a class, by expected total;
+//   - groups of at most maxPorSesion, balanced (41 athletes with max 14 → 14 + 14 + 13);
+//   - each session lasts minPorAtleta × athletes (rounded up to 5 min), starts when the previous one ends, skips the
 //     lunch break, waits for a free weigh-in table (at most mesasPesaje windows at once) and moves to the next day
-//     when it would end after the day's end. Flights that fit nowhere go after
+//     when it would end after the day's end. Sesiones that fit nowhere go after
 //     the last one (the planner flags them «fuera de horario»).
 //
-// ocupado are the flights that stay (the other competition): their platforms and weigh-in tables are taken.
-func generar(cfg Config, loc *time.Location, ats []atleta, ocupado []flightRow) []planFlight {
+// ocupado are the sessions that stay (the other competition): their time and weigh-in tables are taken.
+func generar(cfg Config, loc *time.Location, ats []atleta, ocupado []sesionRow) []planSesion {
 	var grupos [][]atleta
-	if cfg.SepararSexo {
-		var f, m []atleta
-		for _, a := range ats {
-			if a.Sexo == "F" {
-				f = append(f, a)
-			} else {
-				m = append(m, a)
-			}
+	var f, m []atleta
+	for _, a := range ats {
+		if a.Sexo == "F" {
+			f = append(f, a)
+		} else {
+			m = append(m, a)
 		}
-		grupos = [][]atleta{f, m}
-	} else {
-		grupos = [][]atleta{ats}
 	}
+	grupos = [][]atleta{f, m}
 	var trozos [][]atleta
 	for _, g := range grupos {
 		if len(g) == 0 {
@@ -51,21 +46,15 @@ func generar(cfg Config, loc *time.Location, ats []atleta, ocupado []flightRow) 
 		}
 		sort.SliceStable(g, func(i, j int) bool {
 			a, b := g[i], g[j]
-			if !cfg.SepararSexo && a.Sexo != b.Sexo && catKey(a.Categoria) == catKey(b.Categoria) {
-				return a.Sexo < b.Sexo
-			}
 			if ka, kb := catKey(a.Categoria), catKey(b.Categoria); ka != kb {
 				return ka < kb
 			}
-			if cfg.Orden == "total" {
-				ta, tb := tot(a), tot(b)
-				if ta != tb {
-					return ta < tb
-				}
+			if ta, tb := tot(a), tot(b); ta != tb {
+				return ta < tb
 			}
 			return strings.ToLower(a.Nombre) < strings.ToLower(b.Nombre)
 		})
-		n := int(math.Ceil(float64(len(g)) / float64(cfg.MaxPorFlight)))
+		n := int(math.Ceil(float64(len(g)) / float64(cfg.MaxPorSesion)))
 		base, extra := len(g)/n, len(g)%n
 		i := 0
 		for k := 0; k < n; k++ {
@@ -95,32 +84,32 @@ func ceil5(t time.Time) time.Time {
 	return r
 }
 
-func colocar(cfg Config, loc *time.Location, trozos [][]atleta, ocupado []flightRow) []planFlight {
+func colocar(cfg Config, loc *time.Location, trozos [][]atleta, ocupado []sesionRow) []planSesion {
 	dias := cfg.Dias
 	if len(dias) == 0 {
 		dias = []Dia{{Fecha: time.Now().In(loc).AddDate(0, 0, 7).Format("2006-01-02"), Inicio: "09:00", Fin: "20:00"}}
 	}
 	d := 0
-	libre := make([]time.Time, cfg.Plataformas)
+	libre := make([]time.Time, 1) // one platform («tarima»)
 	reset := func() {
 		for p := range libre {
 			libre[p] = dayTime(dias[d].Fecha, dias[d].Inicio, loc)
 			for _, o := range ocupado {
 				fin := ceil5(o.Inicio.Add(time.Duration(o.DuracionMin+cfg.DescansoMin) * time.Minute))
-				if o.Dia.Format("2006-01-02") == dias[d].Fecha && o.Plataforma == p+1 && fin.After(libre[p]) {
+				if o.Dia.Format("2006-01-02") == dias[d].Fecha && fin.After(libre[p]) {
 					libre[p] = fin
 				}
 			}
 		}
 	}
 	reset()
-	var out []planFlight
+	var out []planSesion
 	type ventana struct{ ini, fin time.Time }
 	var pesajes []ventana
 	for _, o := range ocupado {
 		pesajes = append(pesajes, ventana{o.PesajeIni, o.PesajeFn})
 	}
-	// cabe moves ini forward until the flight skips the break and its weigh-in finds a free table.
+	// cabe moves ini forward until the sesion skips the break and its weigh-in finds a free table.
 	cabe := func(dia Dia, ini time.Time, dur int) time.Time {
 		pi, pf := dayTime(dia.Fecha, dia.PausaInicio, loc), dayTime(dia.Fecha, dia.PausaFin, loc)
 		for range 50 {
@@ -172,7 +161,7 @@ func colocar(cfg Config, loc *time.Location, trozos [][]atleta, ocupado []flight
 		for i, a := range t {
 			ids[i] = a.ID
 		}
-		out = append(out, planFlight{Dia: dias[d].Fecha, Plataforma: plat + 1, Inicio: ini, Duracion: dur, Atletas: ids})
+		out = append(out, planSesion{Dia: dias[d].Fecha, Inicio: ini, Duracion: dur, Atletas: ids})
 		wi, wf := pesaje(cfg, ini)
 		pesajes = append(pesajes, ventana{wi, wf})
 		libre[plat] = ceil5(ini.Add(time.Duration(dur+cfg.DescansoMin) * time.Minute))
@@ -180,7 +169,7 @@ func colocar(cfg Config, loc *time.Location, trozos [][]atleta, ocupado []flight
 	return out
 }
 
-// pesaje returns the weigh-in window of a flight: opens pesajeAntesMin before and lasts pesajeDuracionMin
+// pesaje returns the weigh-in window of a sesion: opens pesajeAntesMin before and lasts pesajeDuracionMin
 // (never past the start).
 func pesaje(cfg Config, inicio time.Time) (time.Time, time.Time) {
 	ini := inicio.Add(-time.Duration(cfg.PesajeAntesMin) * time.Minute)

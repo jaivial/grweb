@@ -286,7 +286,7 @@ export interface ConfirmRequest {
   resolve: (ok: boolean) => void;
 }
 
-/** Extra context for the mobile topbar title (e.g. «Pesaje · Flight B»), set by the page. */
+/** Extra context for the mobile topbar title (e.g. «Pesaje · sáb 19/12 09:00»), set by the page. */
 @Injectable({ providedIn: 'root' })
 export class TituloMovil {
   readonly texto = signal('');

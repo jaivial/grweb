@@ -42,7 +42,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		time.Sleep(10 * time.Second)
 	}
 	var hay bool
-	if err := a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM flights WHERE competition_id = $1) OR EXISTS (SELECT 1 FROM versiones WHERE competition_id = $1)`, c.ID).Scan(&hay); err != nil {
+	if err := a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM sesiones WHERE competition_id = $1) OR EXISTS (SELECT 1 FROM versiones WHERE competition_id = $1)`, c.ID).Scan(&hay); err != nil {
 		return err
 	}
 	if hay {
@@ -58,15 +58,13 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		if err != nil {
 			return err
 		}
-		// Example day: 6 min per athlete and flights until 21:00, so the 11 flights fit (two platforms on a one-day event).
+		// Example day: 6 min per athlete and sesiones until 21:00, so the 11 sesiones fit (two platforms on a one-day event).
 		cfg.MinPorAtleta = 6
 		for i := range cfg.Dias {
 			cfg.Dias[i].Fin = "21:00"
 		}
-		if len(cfg.Dias) == 1 && cfg.Plataformas < 2 {
-			cfg.Plataformas, cfg.MesasPesaje = 2, 2 // one weigh-in table per platform
-		}
-		if _, err := tx.Exec(ctx, `UPDATE config SET min_por_atleta = $2, plataformas = $3, mesas_pesaje = $4 WHERE competition_id = $1`, c.ID, cfg.MinPorAtleta, cfg.Plataformas, cfg.MesasPesaje); err != nil {
+		cfg.MesasPesaje = 2 // weigh-in windows of consecutive sessions overlap on a single platform
+		if _, err := tx.Exec(ctx, `UPDATE config SET min_por_atleta = $2, mesas_pesaje = $3 WHERE competition_id = $1`, c.ID, cfg.MinPorAtleta, cfg.MesasPesaje); err != nil {
 			return err
 		}
 		notas := []string{"Pesaje en la Sala 2 (planta baja).", "Entrada de público por la puerta principal con tu QR.", "Sorteo en directo tras la entrega de premios."}
@@ -86,7 +84,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		if len(cfg.Dias) == 0 {
 			return nil
 		}
-		// Doors on every day; awards and raffle 30 minutes after the last flight.
+		// Doors on every day; awards and raffle 30 minutes after the last sesion.
 		var ultimo time.Time
 		ultimoDia := cfg.Dias[len(cfg.Dias)-1].Fecha
 		for _, p := range plan {

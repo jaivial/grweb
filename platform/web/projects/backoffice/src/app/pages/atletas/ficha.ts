@@ -8,7 +8,7 @@ import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoCount, BoToggle, Confirm, Media, errText, BoTabsMovil } from '../../shared/ui';
-import { AtletasApi, CATEGORIAS, DIVISIONES, cat, kg, type Atleta, type Historial, type Marcas } from './api';
+import { AtletasApi, CATEGORIAS, DIVISIONES, cat, diaFecha, kg, type Atleta, type Historial, type Marcas } from './api';
 import { BoDatePicker } from '../../shared/kit';
 import { ESTADO } from './list';
 
@@ -121,7 +121,7 @@ const PUBLIC_WEB = webPublica();
                   <h2 class="text-ui-h5">Visibilidad y consentimientos</h2>
                   <ul class="mt-2">
                     <li class="flex items-center justify-between gap-4 border-b border-line-subtle py-2"><span><span class="block text-label-s">Mostrar en /atletas</span><span class="block text-body-xs text-text-tertiary">Ficha pública /atletas/{{ a.perfil.slug }}{{ a.menor && !p.autorizacionUrl ? ' · no se publica hasta tener la autorización del tutor' : '' }} (nombre, club y categoría siguen en participantes y resultados)</span></span><bo-toggle [(value)]="p.visible" label="Mostrar perfil público" [disabled]="!canEdit()" /></li>
-                    <li class="flex items-center justify-between gap-4 border-b border-line-subtle py-2"><span><span class="block text-label-s">Mostrar marcas previas</span><span class="block text-body-xs text-text-tertiary">Si se ocultan, la ficha solo enseña categoría y flight</span></span><bo-toggle [(value)]="p.mostrarMarcas" label="Mostrar marcas previas" [disabled]="!canEdit()" /></li>
+                    <li class="flex items-center justify-between gap-4 border-b border-line-subtle py-2"><span><span class="block text-label-s">Mostrar marcas previas</span><span class="block text-body-xs text-text-tertiary">Si se ocultan, la ficha solo enseña categoría y horario</span></span><bo-toggle [(value)]="p.mostrarMarcas" label="Mostrar marcas previas" [disabled]="!canEdit()" /></li>
                     <li class="flex items-center justify-between gap-4 py-2"><span><span class="block text-label-s">Permitir que le sigan</span><span class="block text-body-xs text-text-tertiary">{{ a.seguidores }} {{ a.seguidores === 1 ? 'persona recibe' : 'personas reciben' }} su hora de salida</span></span><bo-toggle [(value)]="p.permiteSeguir" label="Permitir que le sigan" [disabled]="!canEdit() || a.menor" /></li>
                   </ul>
                   @if (a.menor) {
@@ -167,7 +167,7 @@ const PUBLIC_WEB = webPublica();
                     <p class="mt-3 font-display text-[22px] leading-tight uppercase italic">{{ a.nombreCompleto }}</p>
                     <p class="text-body-xs text-text-tertiary">{{ a.sexo }} {{ cat(a.categoria) }} · {{ a.divisionNombre }} · {{ a.club || 'Independiente' }}</p>
                     <dl class="mt-3 text-body-xs">
-                      <div class="flex justify-between border-b border-line-subtle py-1.5"><dt class="text-text-tertiary">Flight</dt><dd>{{ a.flight ? a.flight + (a.horaInicio ? ' · ' + hora(a.horaInicio) : '') : 'Por publicar' }}</dd></div>
+                      <div class="flex justify-between border-b border-line-subtle py-1.5"><dt class="text-text-tertiary">Horario</dt><dd>{{ a.jornada ? diaFecha(a.jornada) + (a.horaInicio ? ' · ' + hora(a.horaInicio) : '') + (a.lote ? ' · lote ' + a.lote : '') : 'Por publicar' }}</dd></div>
                       @if (p.mostrarMarcas && total()) { <div class="flex justify-between py-1.5"><dt class="text-text-tertiary">Total previsto</dt><dd>{{ kg(total()) }} kg</dd></div> }
                     </dl>
                     @if (p.permiteSeguir && !a.menor) { <span class="mt-3 flex h-10 items-center justify-center rounded-md bg-accent text-label-s">Seguir · {{ a.seguidores }}</span> }
@@ -311,7 +311,7 @@ export class AtletaFichaPage {
   protected readonly subtitulo = computed(() => {
     const a = this.atleta();
     if (!a) return '';
-    return [a.categoria ? `${a.sexo} ${cat(a.categoria)} kg` : 'Sin categoría', a.divisionNombre, a.prueba ? 'Competición ' + a.prueba.toUpperCase().replace('AEP', 'AEP-') : '', a.club || 'Independiente', a.licencia ? `licencia ${a.licencia}` : '', a.flight ? `Flight ${a.flight}${a.horaInicio ? ' (' + this.hora(a.horaInicio) + ')' : ''}` : '']
+    return [a.categoria ? `${a.sexo} ${cat(a.categoria)} kg` : 'Sin categoría', a.divisionNombre, a.prueba ? 'Competición ' + a.prueba.toUpperCase().replace('AEP', 'AEP-') : '', a.club || 'Independiente', a.licencia ? `licencia ${a.licencia}` : '', a.jornada ? `${diaFecha(a.jornada)}${a.horaInicio ? ' ' + this.hora(a.horaInicio) : ''}` : '']
       .filter(Boolean).join(' · ');
   });
   protected categorias(): string[] {
@@ -494,7 +494,7 @@ export class AtletaFichaPage {
     if (!cid || !a) return;
     const ok = await this.confirmSvc.ask(accion === 'cambiar_categoria'
       ? { title: `¿Pasar a ${cat(a.pesaje.sugerencia)} kg?`, text: 'Compite en la categoría que le corresponde por peso. La AEP debe confirmarlo en su acta.', confirm: 'Cambiar de categoría' }
-      : { title: '¿Marcar que no compite?', text: 'Seguirá inscrito, pero no saldrá en los flights ni en la plataforma.', confirm: 'No compite', danger: true });
+      : { title: '¿Marcar que no compite?', text: 'Seguirá inscrito, pero no saldrá en los horarios ni en la tarima.', confirm: 'No compite', danger: true });
     if (!ok) return;
     try {
       this.set(await this.api.decidir(cid, a.id, accion));
@@ -519,6 +519,7 @@ export class AtletaFichaPage {
     }
   }
 
+  protected readonly diaFecha = diaFecha;
   protected hora(iso: string): string {
     return new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso));
   }

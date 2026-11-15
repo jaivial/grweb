@@ -121,7 +121,7 @@ export class PantallaPage {
     if (!m) return;
     const e = m.estado;
     try {
-      this.mesa.set(await this.api.estado(this.cid(), e.version, { fase: e.fase, flightId: e.flightId, movimiento: e.movimiento, pausa: e.pausa, retrasoMin: e.retrasoMin,
+      this.mesa.set(await this.api.estado(this.cid(), e.version, { fase: e.fase, sesionId: e.sesionId, movimiento: e.movimiento, pausa: e.pausa, retrasoMin: e.retrasoMin,
         streamUrl: e.streamUrl, replayUrl: e.replayUrl, pantalla: { ...e.pantalla, ...over }, publicarAuto: e.publicarAuto }));
     } catch (err) {
       this.toasts.error(errText(err, 'No se pudo guardar.'));

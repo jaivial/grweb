@@ -40,7 +40,7 @@ type atletaMercado struct {
 	ProtegidoHasta *time.Time `json:"protegidoHasta,omitempty"`
 	Libre          bool       `json:"libre"`
 	EsMio          bool       `json:"esMio"`
-	FlightEnCurso  bool       `json:"flightEnCurso"`
+	SesionEnCurso  bool       `json:"sesionEnCurso"`
 	Nota           notaAtleta `json:"nota"`
 }
 
@@ -60,7 +60,7 @@ func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, sala
 	enCurso := map[uuid.UUID]bool{}
 	fotos := map[uuid.UUID]string{}
 	for i := range m.Atletas {
-		if m.Atletas[i].FlightEnCurso {
+		if m.Atletas[i].SesionEnCurso {
 			enCurso[m.Atletas[i].AtletaID] = true
 		}
 		if m.Atletas[i].FotoURL != "" {
@@ -87,7 +87,7 @@ func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, sala
 		}
 		a.Libre = dueno == nil
 		a.EsMio = dueno != nil && fanID != uuid.Nil && *dueno == fanID
-		a.FlightEnCurso = enCurso[a.AtletaID]
+		a.SesionEnCurso = enCurso[a.AtletaID]
 		a.FotoURL = fotos[a.AtletaID]
 		a.Nota = notas[a.AtletaID]
 		if a.Nota.Desglose == nil {

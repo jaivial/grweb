@@ -36,7 +36,7 @@ export const NAV: NavGroup[] = [
       { label: 'Evento y módulos', path: 'evento', icon: 'trophy', perm: 'evento.editar' },
       { label: 'Web y contenidos', path: 'web', icon: 'layout', perm: 'web.editar' },
       { label: 'Atletas', path: 'atletas', icon: 'user', perm: 'atletas.editar', contador: 'solicitudes' },
-      { label: 'Horarios y flights', path: 'horarios', icon: 'clock', perm: 'horarios.publicar' },
+      { label: 'Horarios', path: 'horarios', icon: 'clock', perm: 'horarios.publicar' },
       { label: 'Resultados', path: 'resultados', icon: 'award', perm: 'resultados.publicar' },
     ],
   },

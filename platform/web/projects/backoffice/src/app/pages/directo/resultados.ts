@@ -21,7 +21,7 @@ const fecha = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: 'numeric'
     @let r = res();
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
       <bo-page-header title="Resultados" [badge]="r?.archivo ? 'Archivo' : r?.programado ? 'Programado · ' + fecha(r.programado) : r?.publicarAuto ? 'Publicación automática' : ''" badgeTone="info"
-        [subtitle]="r ? (r.archivo ? 'Edición celebrada · ' : r.cerrados + ' de ' + r.flights + ' flights cerrados · ') + totalAtletas() + ' atletas en ' + r.categorias.length + ' categorías' : ''"
+        [subtitle]="r ? (r.archivo ? 'Edición celebrada · ' : r.cerrados + ' de ' + r.sesiones + ' sesiones cerradas · ') + totalAtletas() + ' atletas en ' + r.categorias.length + ' categorías' : ''"
         [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Resultados']">
         @if (r?.categorias?.length) {
           <ng-container actions>
@@ -74,7 +74,7 @@ const fecha = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: 'numeric'
                 <gr-badge [tone]="a.cambios ? 'warning' : 'success'">{{ a.cambios ? 'Cambios sin publicar' : 'Publicada' }}</gr-badge>
                 v{{ a.publicado.version }} · {{ fecha(a.publicado.at) }} · {{ a.publicado.por }}
                 @if (puedePublicar() && !r.archivo) { <button type="button" class="ml-auto text-label-s text-text-tertiary hover:text-accent-text" (click)="retirar()">Retirar de /resultados</button> }
-                @if (r.archivo) { <span class="ml-auto text-body-xs text-text-tertiary">Edición sin horarios en la plataforma: solo lectura</span> }
+                @if (r.archivo) { <span class="ml-auto text-body-xs text-text-tertiary">Edición sin horarios en la plataforma web: solo lectura</span> }
               </p>
             }
           }
@@ -104,7 +104,7 @@ const fecha = (iso: string) => new Intl.DateTimeFormat('es-ES', { day: 'numeric'
             </table>
           </section>
           @if (!r.archivo) {
-          <gr-alert tone="info" [title]="r.programado ? 'Publicación programada · ' + fecha(r.programado) : r.publicarAuto ? 'Publicación programada al cerrar el flight' : 'Publicación manual'">
+          <gr-alert tone="info" [title]="r.programado ? 'Publicación programada · ' + fecha(r.programado) : r.publicarAuto ? 'Publicación programada al cerrar la sesión' : 'Publicación manual'">
             {{ r.publicarAuto ? 'Cuando terminen todos los atletas de la categoría se publicará en /resultados y se avisará a los seguidores de cada atleta.' : 'Publica cada categoría cuando la revises; la primera vez se avisa a los atletas y a sus seguidores.' }} El acta oficial la valida la AEP.
           </gr-alert>
           }
