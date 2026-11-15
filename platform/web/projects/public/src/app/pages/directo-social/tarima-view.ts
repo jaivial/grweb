@@ -161,7 +161,7 @@ const INTENTO = ['', '1.er', '2.º', '3.er'];
               <div class="flex flex-col gap-3">
                 <label class="relative flex h-10 items-center rounded-[10px] border border-[#433a3c] bg-[#181516] px-3">
                   <span class="sr-only">Categoría</span>
-                  <select class="w-full appearance-none bg-transparent pr-6 text-[14px] font-semibold outline-none" [value]="c.clave" (change)="cat_.set($any($event.target).value)">
+                  <select class="w-full appearance-none bg-transparent pr-6 text-[14px] font-semibold outline-none" [value]="c.clave" (change)="cat_.set($any($event.target).value); abierto.set(0)">
                     @for (o of d.clasificacion; track o.clave) { <option [value]="o.clave" class="bg-bg-card">{{ o.sexo === 'F' ? 'Femenino' : 'Masculino' }} · {{ cat(o.categoria) }} kg</option> }
                   </select>
                   <gr-icon name="chevron-down" [size]="16" class="pointer-events-none absolute right-3 text-text-tertiary" />
