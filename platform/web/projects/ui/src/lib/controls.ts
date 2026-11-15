@@ -113,7 +113,7 @@ export class GrSegmented {
   template: `
     <div class="flex items-start justify-between gap-3">
       <p class="min-w-0 text-label-xs text-text-tertiary">{{ label() }}</p>
-      @if (trend().length > 1) { <gr-sparkline class="shrink-0" [values]="trend()" [color]="trendColor()" /> }
+      @if (trend().length > 1) { <gr-sparkline class="shrink-0 max-sm:hidden" [values]="trend()" [color]="trendColor()" /> }
     </div>
     <p class="font-sans text-[32px] leading-none font-bold tracking-tight md:text-[40px]" [class.text-text-disabled]="value() === null">{{ value() ?? '0' }}</p>
     <div class="flex min-h-6 flex-wrap items-center gap-2 text-body-xs text-text-tertiary">
