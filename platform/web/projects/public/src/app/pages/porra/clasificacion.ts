@@ -8,7 +8,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTas
 import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { Cms } from '../../core/cms';
 import { FanSession } from '../../core/fan';
-import { JuegosEnVivo, JuegosEstado, PorraStore } from '../../core/juegos';
+import { JuegosEnVivo, JuegosEstado, PorraStore, nombreJornadaLoc } from '../../core/juegos';
 import { monedas } from './formato';
 import { I18n, LocPipe } from '../../core/i18n';
 import { Seo } from '../../core/seo';
@@ -161,7 +161,7 @@ export class PorraClasificacionPage {
   protected readonly monedas = (v: number | null | undefined) => monedas(v, this.i18n.locale());
   /** El bote total de la jornada (suma de los botes de sus mercados). */
   protected readonly bote = computed(() => this.store.mercados().reduce((s, m) => s + m.bote, 0));
-  protected readonly jornadaNombre = computed(() => (this.store.jornada() ?? this.estado.jornada())?.nombre.replace(/\s*\(.*\)$/, '') ?? '');
+  protected readonly jornadaNombre = computed(() => { const j = this.store.jornada() ?? this.estado.jornada(); return j ? nombreJornadaLoc(j, this.i18n.locale()) : ''; });
   protected readonly premios = computed(() => this.store.premios().filter((p) => p.ranking === 'porra'));
   /** La línea de premios del diseño. */
   protected readonly premiosTexto = computed(() => {
@@ -172,7 +172,7 @@ export class PorraClasificacionPage {
   });
   protected readonly jornadaTxt = computed(() => {
     const j = this.store.jornada() ?? this.estado.jornada();
-    return j ? '· ' + this.t().porra + ' ' + j.nombre.replace(/\s*\(.*\)$/, '') : '· ' + this.t().porra;
+    return j ? '· ' + this.t().porra + ' ' + nombreJornadaLoc(j, this.i18n.locale()) : '· ' + this.t().porra;
   });
 
   constructor() {

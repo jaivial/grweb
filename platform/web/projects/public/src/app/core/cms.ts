@@ -209,6 +209,8 @@ export function renderMarkdown(src: string, lang: Lang = 'es'): { html: string; 
       const id = slugify(text) || `seccion-${headings.length + 1}`;
       headings.push({ id, text });
       return `<h2${cls ?? ''} id="${id}">${cls ? text : inner}</h2>`;
-    });
+    })
+    // Internal absolute links stay in the reader's language (not /api/, not already /en).
+    .replace(/href="(\/(?!\/|api\/|en(?:[\/?#]|"))[^"]*)"/g, (m, p: string) => (lang === 'en' ? `href="/en${p === '/' ? '' : p}"` : m));
   return { html, headings };
 }

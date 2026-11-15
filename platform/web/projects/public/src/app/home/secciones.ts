@@ -565,7 +565,7 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
         <!-- mobile (Figma 211:126138): days · sex · views · search; desktop: views on top, then days · sex · search -->
         <div class="order-3 grid grid-cols-3 gap-1 rounded-md border border-line-subtle p-1 md:order-none md:w-[420px]" role="tablist" [attr.aria-label]="tx().vista">
           @for (v of vistas; track v.k) {
-            <button type="button" role="tab" [attr.aria-selected]="vista() === v.k" (click)="elegir(v.k)" class="h-10 rounded-sm px-1 text-label-s whitespace-nowrap" [class]="vista() === v.k ? 'bg-accent text-white' : 'text-text-secondary hover:text-text-primary'">{{ v.k === 'mio' ? '★ Mi horario (' + misAtletas().length + ')' : v.l }}</button>
+            <button type="button" role="tab" [attr.aria-selected]="vista() === v.k" (click)="elegir(v.k)" class="h-10 rounded-sm px-1 text-label-s whitespace-nowrap" [class]="vista() === v.k ? 'bg-accent text-white' : 'text-text-secondary hover:text-text-primary'">{{ v.k === 'mio' ? '★ ' + v.l + ' (' + misAtletas().length + ')' : v.l }}</button>
           }
         </div>
         <div class="contents md:flex md:flex-row md:items-center md:gap-4">

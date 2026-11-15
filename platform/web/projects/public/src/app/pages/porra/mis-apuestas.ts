@@ -8,7 +8,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTas
 import { GrAlert, GrButton, GrIcon, type GrIconName, GrSkeleton } from '@grcup/ui';
 import { Cms } from '../../core/cms';
 import { FanSession } from '../../core/fan';
-import { JuegosEstado, PorraStore, type Apuesta, type Mercado, cuota as cuotaFmt } from '../../core/juegos';
+import { JuegosEstado, PorraStore, type Apuesta, type Mercado, cuota as cuotaFmt, nombreJornadaLoc } from '../../core/juegos';
 import { monedas } from './formato';
 import { I18n, LocPipe } from '../../core/i18n';
 import { Seo } from '../../core/seo';
@@ -217,7 +217,7 @@ export class MisApuestasPage {
   protected readonly saldo = computed(() => this.estado.saldoPorra());
   protected readonly jornadaTxt = computed(() => {
     const j = this.store.jornada() ?? this.estado.jornada();
-    return j ? '· ' + j.nombre.replace(/\s*\(.*\)$/, '') : '';
+    return j ? '· ' + nombreJornadaLoc(j, this.i18n.locale()) : '';
   });
 
   /** El estado de cada apuesta, deducido del estado y el ganador de su mercado. */
