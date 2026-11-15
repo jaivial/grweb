@@ -1,0 +1,69 @@
+@import "tailwindcss" source(none);
+@source "./";
+@source "../../ui/src";
+@import "../../ui/src/styles/tokens.css";
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Archivo (BIZ-144 hero dates and place): self-hosted variable font, latin subset (weights 500–800). */
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/archivo-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@theme {
+  --font-archivo: "Archivo", "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Hero preload overlay: only when JS runs (index.html adds «js» to <html>). */
+html:not(.js) .gr-precarga { display: none !important; }
+
+/* iOS data detectors: if Safari still links a date/address, keep the design colour. */
+a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !important; font: inherit !important; }
+
+/* Red gradient text that survives WebKit: inline-block (clip-text on a plain inline span inside a composited layer
+   paints transparent/solid on iOS), no SVG-grain layer (feTurbulence + blend in clip-text fails on iOS), and the parent's
+   solid accent colour as fallback when background-clip:text is unsupported. */
+.gr-texto-acento { display: inline-block; }
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .gr-texto-acento {
+    background-image: linear-gradient(100deg, var(--color-accent-text) 0%, var(--color-accent) 55%, var(--color-accent-700) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+}
+
+/* R005 (Jaime 14-nov): en TODOS los títulos, la parte roja usa el rojo del botón fijo «Reservar» con su grano
+   (= utilidad bg-accent-grain) y no se parte a mitad: es un bloque en línea que baja entero a la línea siguiente. */
+:where(h1, h2, h3) .text-accent-text,
+:where(h1, h2, h3) .text-accent {
+  display: inline-block;
+  background-image: var(--grain-dark), linear-gradient(100deg, var(--color-accent) 0%, var(--color-accent-700) 55%, var(--color-accent-deep) 100%);
+  background-size: 128px 128px, 100% 100%;
+  background-blend-mode: multiply, normal;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+}

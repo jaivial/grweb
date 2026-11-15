@@ -1,0 +1,297 @@
+/*
+ * GR Cup design tokens — exported from the Figma file «GRSCup 2026 - UI Kit & Rutas»
+ * (collection «GR Cup · Tokens», 23 text styles, effect styles Grain/Glow/Shadow/Blur).
+ * Import after `@import "tailwindcss"` in every app.
+ */
+@theme {
+  /* Colours (color/*) */
+  --color-bg-deep: #0e0c0d;
+  --color-bg-base: #141112;
+  --color-bg-surface: #1b1718;
+  --color-bg-card: #221d1f;
+  --color-bg-raised: #2b2527;
+  --color-bg-field: #181516;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #d1d5db;
+  --color-text-tertiary: #9ca3af;
+  --color-text-muted: #8b93a1;
+  --color-text-disabled: #4b5563;
+  --color-line-subtle: #2e2729;
+  --color-line-strong: #433a3c;
+  --color-line-accent: #6e1420;
+  --color-accent: #c42b3e;
+  --color-accent-700: #a82334;
+  --color-accent-deep: #6e1420;
+  --color-accent-text: #e6606b;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-info: #38bdf8;
+  --color-danger: #e6606b;
+  /* medal/* (podiums, rankings) and nota/* (backoffice notes) */
+  --color-medal-gold: #d4af37;
+  --color-medal-silver: #c0c4cc;
+  --color-medal-bronze: #c8835a;
+  --color-crimson: #dc143c; /* color/legacy/crimson: bordes e iconos de error */
+  /* Nota 0–10 por tramo (color/nota/*): borde y número del componente «Nota» */
+  --color-nota-gris: #9ca3af;
+  --color-nota-rojo: #f87171;
+  --color-nota-ambar: #d97706;
+  --color-nota-azul: #60a5fa;
+  --color-nota-verde: #22c55e;
+  --color-nota-morado: #c084fc;
+
+  /* Type families */
+  --font-display: "Contrail One", "Impact", system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  /* Radii (radius/*): 2xs 4 · xs 6 · sm 8 · md 12 · lg 16 · xl 20 · 2xl 24 · pill */
+  --radius-2xs: 4px;
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-pill: 999px;
+
+  /* Effects */
+  --shadow-card: 0 12px 40px rgb(0 0 0 / 0.45);
+  --shadow-text: 0 2px 20px rgb(0 0 0 / 0.8);
+  --shadow-glow: 0 0 24px rgb(196 43 62 / 0.5);
+  --shadow-glow-deep: 0 4px 28px rgb(110 20 32 / 0.7);
+  /* Blur/Glass 20 (backdrop-blur-glass) · Blur/Smoke 80 (blur-smoke): Figma's blur radius is ~2× the CSS blur() sigma */
+  --blur-glass: 10px;
+  --blur-smoke: 40px;
+
+  /* Spacing (space/*): Tailwind's 4 px step covers the Figma scale (space/1 = 4 … space/32 = 128; compact 2 · 6 · 10 = 0.5 · 1.5 · 2.5). */
+
+  /* Breakpoints of the design: M 390 · T 768 · D 1440 (Tailwind md = 768, xl = 1280, 2xl = 1440) */
+  --breakpoint-2xl: 90rem;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Backoffice v7 (Figma 48 «BO · Componentes · base») */
+  --color-error: #f87171;
+  --color-live: #a78bfa;
+  --color-bg-hover: #342d2f;
+  --color-line-hover: #5a4f51;
+  --color-bg-tooltip: #3a3234;
+}
+
+/* ---- Text styles (Figma) ---- */
+@utility text-display-hero { font-family: var(--font-display); font-size: 4.5rem; line-height: 1; letter-spacing: 0.04em; text-transform: uppercase; }
+@utility text-display-xl { font-family: var(--font-display); font-size: 3.75rem; line-height: 1.05; letter-spacing: 0.04em; text-transform: uppercase; }
+@utility text-display-l { font-family: var(--font-display); font-size: 3rem; line-height: 1.1; letter-spacing: 0.05em; text-transform: uppercase; }
+@utility text-display-m { font-family: var(--font-display); font-size: 2.25rem; line-height: 1.15; letter-spacing: 0.04em; text-transform: uppercase; }
+@utility text-display-s { font-family: var(--font-display); font-size: 1.875rem; line-height: 1.2; letter-spacing: 0.05em; text-transform: uppercase; }
+@utility text-display-xs { font-family: var(--font-display); font-size: 1.5rem; line-height: 1.25; letter-spacing: 0.02em; text-transform: uppercase; }
+@utility text-display-2xs { font-family: var(--font-display); font-size: 1.25rem; line-height: 1.35; letter-spacing: 0.02em; text-transform: uppercase; }
+@utility text-display-body { font-family: var(--font-display); font-size: 1.125rem; line-height: 1.5; letter-spacing: 0.02em; text-transform: uppercase; }
+@utility text-display-label { font-family: var(--font-display); font-size: 0.875rem; line-height: 1.4; letter-spacing: 0.1em; text-transform: uppercase; }
+@utility text-ui-h1 { font-family: var(--font-sans); font-weight: 700; font-size: 3rem; line-height: 1.1; letter-spacing: -0.01em; }
+@utility text-ui-h2 { font-family: var(--font-sans); font-weight: 700; font-size: 2.25rem; line-height: 1.15; letter-spacing: -0.01em; }
+@utility text-ui-h3 { font-family: var(--font-sans); font-weight: 700; font-size: 1.5rem; line-height: 1.25; letter-spacing: -0.005em; }
+@utility text-ui-h4 { font-family: var(--font-sans); font-weight: 600; font-size: 1.25rem; line-height: 1.3; }
+@utility text-ui-h5 { font-family: var(--font-sans); font-weight: 600; font-size: 1.125rem; line-height: 1.35; }
+@utility text-body-l { font-family: var(--font-sans); font-weight: 400; font-size: 1.125rem; line-height: 1.55; }
+/* UX1-R1-7: 17 px body on phones (HIG), 16 px from md */
+@utility text-body-m { font-family: var(--font-sans); font-weight: 400; font-size: 1.0625rem; line-height: 1.55; @media (min-width: 768px) { font-size: 1rem; } }
+@utility text-body-s { font-family: var(--font-sans); font-weight: 400; font-size: 0.875rem; line-height: 1.5; }
+@utility text-body-xs { font-family: var(--font-sans); font-weight: 400; font-size: 0.8125rem; line-height: 1.45; @media (min-width: 768px) { font-size: 0.75rem; } }
+@utility text-label-m { font-family: var(--font-sans); font-weight: 600; font-size: 1rem; line-height: 1.2; }
+@utility text-label-s { font-family: var(--font-sans); font-weight: 600; font-size: 0.875rem; line-height: 1.2; }
+@utility text-label-xs { font-family: var(--font-sans); font-weight: 500; font-size: 0.75rem; line-height: 1.2; letter-spacing: 0.04em; text-transform: uppercase; }
+@utility text-mono-s { font-family: var(--font-mono); font-weight: 400; font-size: 0.8125rem; line-height: 1.4; }
+/* UX6-R1-5: metadata on mobile game cards, >= 13 px */
+@utility text-meta { font-family: var(--font-mono); font-weight: 500; font-size: 0.8125rem; line-height: 1.4; letter-spacing: 0.06em; text-transform: uppercase; }
+@utility text-mono-xs { font-family: var(--font-mono); font-weight: 500; font-size: 0.75rem; line-height: 1.4; letter-spacing: 0.08em; text-transform: uppercase; @media (min-width: 768px) { font-size: 0.6875rem; } }
+
+/* ---- Grain (effect styles Grain/Fondo, Grain/Fondo suave, Grain/Acento) ---- */
+@utility grain-acento {
+  position: relative;
+  isolation: isolate;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background-image: var(--grain-dark);
+    background-size: 128px 128px;
+    opacity: 0.16;
+    mix-blend-mode: multiply;
+  }
+}
+
+/* Accent fill: brand gradient + dark grain + glow (Figma «Button / Primary»). */
+@utility bg-accent-grain {
+  background-image: var(--grain-dark), linear-gradient(100deg, var(--color-accent) 0%, var(--color-accent-700) 55%, var(--color-accent-deep) 100%);
+  background-size: 128px 128px, 100% 100%;
+  background-blend-mode: multiply, normal;
+}
+
+:root {
+  /* Monotone noise (fractal turbulence) used by the grain layers; the light one is tuned so Grain/Fondo at 6.5 % lifts bg/base as much as in Figma (~+4 levels). */
+  --grain-light: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.66 -0.11'/></filter><rect width='128' height='128' filter='url(%23n)'/></svg>");
+  --grain-dark: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.32 0'/></filter><rect width='128' height='128' filter='url(%23n)'/></svg>");
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    background: var(--color-bg-base);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  /* «Fondo · grano»: the bottom layer of every page (opacity 6.5 %, Figma Grain/Fondo). */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: var(--grain-light);
+    background-size: 128px 128px;
+    opacity: 0.065;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent-text);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: rgb(196 43 62 / 0.45);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Long-form content rendered from Markdown (legal texts, pages, blog, FAQ answers). */
+@layer components {
+  .prose-gr { color: var(--color-text-secondary); line-height: 1.65; }
+  .prose-gr > * + * { margin-top: 0.9em; }
+  .prose-gr h1, .prose-gr h2, .prose-gr h3 { color: var(--color-text-primary); font-weight: 700; line-height: 1.25; margin-top: 1.6em; }
+  .prose-gr h2 { font-size: 1.35em; }
+  .prose-gr h3 { font-size: 1.15em; }
+  .prose-gr a { color: var(--color-accent-text); text-decoration: underline; text-underline-offset: 3px; }
+  .prose-gr strong { color: var(--color-text-primary); }
+  .prose-gr ul { list-style: disc; padding-left: 1.4em; }
+  .prose-gr ol { list-style: decimal; padding-left: 1.4em; }
+  .prose-gr li + li { margin-top: 0.35em; }
+  .prose-gr blockquote { border-left: 3px solid var(--color-accent); background: rgb(110 20 32 / 0.18); padding: 0.75em 1em; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+  .prose-gr table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
+  .prose-gr th, .prose-gr td { border-bottom: 1px solid var(--color-line-subtle); padding: 0.55em 0.75em; text-align: left; }
+  .prose-gr th { color: var(--color-text-primary); font-weight: 600; }
+  .prose-gr code { font-family: var(--font-mono); font-size: 0.9em; background: var(--color-bg-raised); padding: 0.1em 0.35em; border-radius: var(--radius-2xs); }
+
+  /* Legal documents (Figma 12–15): numbered sections in a ringed badge, hairline between sections, red dots. */
+  /* Blog post (Figma 34): 16 px text, UI/H2 headings, tables as cards, boxes «caja-*» from renderMarkdown */
+  .prose-blog { font-size: 16px; line-height: 1.55; }
+  @media (min-width: 768px) { .prose-blog { font-size: 18px; } }
+  .prose-blog > * + * { margin-top: 16px; }
+  .prose-blog > :first-child { margin-top: 0; }
+  .prose-blog h2 { font-size: 24px; font-weight: 700; line-height: 1.15; margin-top: 40px; scroll-margin-top: 112px; }
+  @media (min-width: 768px) { .prose-blog h2 { font-size: 36px; margin-top: 48px; } }
+  .prose-blog h3 { font-size: 18px; margin-top: 28px; }
+  .prose-blog img { border-radius: var(--radius-xl); }
+  .prose-blog table { display: block; overflow-x: auto; border: 1px solid var(--color-line-subtle); border-radius: var(--radius-lg); background: var(--color-bg-card); font-size: 14px; }
+  .prose-blog th { font-size: 12px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-text-muted); white-space: nowrap; }
+  .prose-blog th, .prose-blog td { padding: 12px 14px; }
+  .prose-blog tr:last-child td { border-bottom: 0; }
+  .prose-blog td strong { color: var(--color-text-primary); }
+  /* phones: each table row becomes a card (Figma 34 mobile) — 1st cell accent, 2nd the name, the rest one muted line */
+  @media (max-width: 767px) {
+    .prose-blog table, .prose-blog tbody, .prose-blog tr, .prose-blog td { display: block; }
+    .prose-blog table { border: 0; background: none; overflow: visible; }
+    .prose-blog thead { display: none; }
+    .prose-blog tr { border: 1px solid var(--color-line-subtle); border-radius: var(--radius-lg); background: var(--color-bg-card); padding: 14px 16px; }
+    .prose-blog tr + tr { margin-top: 12px; }
+    .prose-blog td { border: 0; padding: 0; }
+    .prose-blog td:first-child { color: var(--color-accent-text); font-weight: 600; font-size: 14px; }
+    .prose-blog td:nth-child(2) { color: var(--color-text-primary); font-weight: 600; margin-top: 4px; }
+    .prose-blog td:nth-child(n+3) { display: inline; color: var(--color-text-tertiary); font-size: 14px; }
+    .prose-blog td:nth-child(n+4)::before { content: ' · '; }
+    /* two-column tables (name · date): the name as the title, the date muted */
+    .prose-blog td:first-child:nth-last-child(2) { color: var(--color-text-primary); font-size: inherit; }
+    .prose-blog td:nth-child(2):last-child { color: var(--color-text-tertiary); font-weight: 400; font-size: 14px; }
+  }
+  .prose-blog .caja { position: relative; border-radius: var(--radius-lg); padding: 16px; background: rgb(96 165 250 / 0.08); font-size: 16px; }
+  .prose-blog .caja > * + * { margin-top: 6px; }
+  .prose-blog .caja-titulo { font-size: 14px; font-weight: 600; color: var(--color-info); }
+  .prose-blog .caja-consejo { background: rgb(52 211 153 / 0.08); } .prose-blog .caja-consejo .caja-titulo { color: var(--color-success); }
+  .prose-blog .caja-aviso { background: rgb(251 191 36 / 0.08); } .prose-blog .caja-aviso .caja-titulo { color: var(--color-warning); }
+  .prose-blog .caja-importante { background: rgb(196 43 62 / 0.08); } .prose-blog .caja-importante .caja-titulo { color: var(--color-accent-text); }
+  .prose-blog .caja-resumen { padding: 24px; border: 1px solid var(--color-accent); background: rgb(28 24 25 / 0.4); }
+  .prose-blog .caja-resumen .caja-titulo { font-size: 12px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-accent-text); }
+  .prose-blog .caja-resumen ul { list-style: none; padding-left: 0; margin-top: 12px; }
+  /* hidden contents anchor of a box ({toc: …}) and the «[!filas]» card (Figma 34 «Nacionales») */
+  .prose-blog h2.ancla { height: 0; margin: 0; overflow: hidden; font-size: 0; }
+  .prose-blog h2.ancla + * { margin-top: 32px; }
+  .prose-blog > h2.ancla:first-child + * { margin-top: 0; }
+  .prose-blog .caja-filas { padding: 4px 16px; border: 1px solid var(--color-line-subtle); background: var(--color-bg-card); }
+  .prose-blog .caja-filas ul { list-style: none; padding-left: 0; margin: 0; }
+  .prose-blog .caja-filas li { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; margin: 0; line-height: 1.5; }
+  @media (width >= 48rem) { .prose-blog .caja-filas li { flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; } }
+  .prose-blog .caja-filas li + li { border-top: 1px solid var(--color-line-subtle); }
+  .prose-blog .caja-filas strong { font-size: 16px; line-height: 1.2; font-weight: 600; color: var(--color-text-primary); }
+  .prose-blog .caja-filas li > span { font-size: 14px; line-height: 1.5; color: var(--color-text-secondary); }
+  .prose-blog .caja-resumen li { position: relative; padding-left: 28px; }
+  .prose-blog .caja-resumen li + li { margin-top: 12px; }
+  .prose-blog .caja-resumen li::before { content: ''; position: absolute; left: 0; top: 3px; width: 18px; height: 18px; background: var(--color-accent-text);
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat; }
+  /* UX9-R1-5: mobile menu as a sheet, accordions open smoothly (reduced-motion rule above cuts them) */
+  .gr-hoja-in { animation: gr-hoja-in 280ms cubic-bezier(.22,1,.36,1); }
+  .gr-hoja-out { animation: gr-hoja-in 200ms ease-in reverse; }
+  @keyframes gr-hoja-in { from { opacity: 0; transform: translateY(8px); } }
+  .gr-desplegar { animation: gr-desplegar 250ms cubic-bezier(.22,1,.36,1); }
+  @keyframes gr-desplegar { from { opacity: 0; transform: translateY(-4px); } }
+  .gr-visor-in { animation: gr-visor-in 250ms cubic-bezier(.22,1,.36,1); }
+  @keyframes gr-visor-in { from { opacity: 0; transform: scale(.96); } }
+  :root { interpolate-size: allow-keywords; }
+  details::details-content { height: 0; overflow: clip; transition: height 250ms cubic-bezier(.22,1,.36,1), content-visibility 250ms allow-discrete; }
+  details[open]::details-content { height: auto; }
+  .prose-legal { counter-reset: legal; font-size: 17px; line-height: 1.55; }
+  /* endless right-to-left strip (home sponsors): the track holds two equal halves and moves by one */
+  @keyframes gr-marquesina { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  /* raffle panel: the «1 €» sticker floats and the main button gets a shine every 4 s (none with reduced motion) */
+  .gr-flotar { transform: rotate(-10deg); animation: gr-flotar 4s ease-in-out infinite; }
+  @keyframes gr-flotar { 0%, 100% { transform: translateY(0) rotate(-10deg); } 50% { transform: translateY(-8px) rotate(-7deg); } }
+  .gr-brillo { overflow: hidden; }
+  .gr-brillo::after { content: ''; position: absolute; inset: 0; pointer-events: none; transform: translateX(-120%);
+    background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.28) 50%, transparent 65%); animation: gr-brillo 4s ease-in-out infinite; }
+  @keyframes gr-brillo { 0%, 70% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+  @media (prefers-reduced-motion: reduce) { .gr-flotar, .gr-brillo::after { animation: none; } }
+  /* panel that opens in place (area · competition picker) and bottom sheet entry (story crop) */
+  @keyframes gr-abrir { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+  @keyframes gr-hoja { from { transform: translateY(100%); } to { transform: none; } }
+  .prose-legal > * + * { margin-top: 12px; }
+  .prose-legal h2 { counter-increment: legal; display: flex; align-items: center; gap: 12px; font-size: 20px; font-weight: 600; line-height: 1.25; margin-top: 36px; }
+  @media (min-width: 768px) { .prose-legal { font-size: 16px; } .prose-legal h2 { font-size: 24px; } }
+  .prose-legal h2::before { content: counter(legal); flex: none; display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 999px; border: 1px solid var(--color-accent); background: rgb(196 43 62 / 0.15); color: var(--color-accent-text); font-size: 13px; font-weight: 600; }
+  /* Figma 12–15: the closing «Contacto» block has no number */
+  .prose-legal h2#contacto { counter-increment: none; }
+  .prose-legal h2#contacto::before { content: none; }
+  .prose-legal h2 ~ h2 { border-top: 1px solid var(--color-line-subtle); padding-top: 36px; margin-top: 32px; }
+  .prose-legal h3 { font-size: 18px; margin-top: 24px; }
+  .prose-legal ul { list-style: none; padding-left: 4px; }
+  .prose-legal ul > li { position: relative; padding-left: 16px; }
+  .prose-legal ul > li::before { content: ''; position: absolute; left: 0; top: 0.68em; width: 6px; height: 6px; border-radius: 999px; background: var(--color-accent); }
+  .prose-legal li + li { margin-top: 12px; }
+  .prose-legal > :first-child { margin-top: 0; }
+}
+
+/* Page transition (grViewTransitions): old page out in 120 ms, new page in over 200 ms; no movement (CLS 0). */
+::view-transition-old(root) { animation: 120ms ease-in both gr-vt-fuera; }
+::view-transition-new(root) { animation: 200ms ease-out 60ms both gr-vt-dentro; }
+@keyframes gr-vt-fuera { to { opacity: 0; } }
+@keyframes gr-vt-dentro { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; } }

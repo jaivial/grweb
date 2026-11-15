@@ -5,6 +5,7 @@ import { calculateAnimationState } from '@utils/heroAnimationState';
 import { FrameAnimator } from '@components/animations/FrameAnimator';
 import type { SmokeState } from '@components/effects/SmokeOverlay';
 import { HeroTextSequence } from '@components/animations/HeroTextSequence';
+import { WebGLEffect } from '@components/effects/WebGLEffect';
 
 // Lazy load Three.js effects — they are heavy and delay initial render
 const SmokeOverlay = lazy(() => import('@components/effects/SmokeOverlay').then(m => ({ default: m.SmokeOverlay as FC<{ smokeStateRef: React.RefObject<SmokeState>; className?: string }> })));
@@ -178,15 +179,19 @@ export const HeroSection: FC = () => {
           />
         </div>
 
-        <SmokeOverlay
-          smokeStateRef={smokeStateRef}
-          className="z-10"
-        />
+        <WebGLEffect name="smoke-overlay">
+          <SmokeOverlay
+            smokeStateRef={smokeStateRef}
+            className="z-10"
+          />
+        </WebGLEffect>
 
-        <CloudsEnter
-          progress={animationState.cloudsEnterProgress}
-          className="z-15"
-        />
+        <WebGLEffect name="clouds-enter">
+          <CloudsEnter
+            progress={animationState.cloudsEnterProgress}
+            className="z-15"
+          />
+        </WebGLEffect>
 
         {/* Fade cover at bottom-right */}
         <div

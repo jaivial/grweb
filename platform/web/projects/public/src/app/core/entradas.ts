@@ -1,0 +1,74 @@
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Injectable, inject, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { COMPETITION_SLUG, FalloApi } from './competition';
+import type { Lang } from './i18n';
+
+export type EstadoSesion = 'disponible' | 'ultimas' | 'agotada' | 'cerrada' | 'proximamente';
+export interface SesionPub {
+  id: string; nombre: string; detalle: string; inicio: string; fin: string; puertas: string; aforo: number; ocupadas: number; libres: number; estado: EstadoSesion;
+  listaEspera: boolean; enEspera: number; maxPorReserva: number; aperturaAt?: string;
+}
+export interface Entradas { sesiones: SesionPub[]; personas: number; plazas: number }
+export interface ReservaIn {
+  sesionId: string; nombre: string; apellidos: string; email: string; telefono?: string; personas: number; origen?: string; utm?: Record<string, string>; aceptaPrivacidad: boolean; novedades?: boolean;
+}
+export interface MiEntrada {
+  codigo: string; qr: string; nombre: string; apellidos: string; email: string; personas: number; dentro: number; estado: 'reservada' | 'usada' | 'anulada'; validadaAt?: string; sesion: SesionPub; lugar: string;
+  puedeCambiar: boolean; maxPersonas: number; compartir: string; novedades: '' | 'si' | 'no';
+}
+export interface Oferta { sesion: SesionPub; personas: number; expira: string; estado: string }
+
+const base = `/api/competiciones/${COMPETITION_SLUG}/entradas`;
+
+/** Free tickets (ticketing service). Upstream failures → 503 on the server render, never a false «agotado». */
+@Injectable({ providedIn: 'root' })
+export class EntradasPublic {
+  private readonly http = inject(HttpClient);
+  private readonly fallo = inject(FalloApi);
+  readonly failed = signal(false);
+
+  async sesiones(): Promise<Entradas | null> {
+    try {
+      return await firstValueFrom(this.http.get<Entradas>(base));
+    } catch (e) {
+      this.failed.set(true);
+      this.fallo.marcar(e);
+      return null;
+    }
+  }
+  reservar(b: ReservaIn): Promise<{ codigo: string; token: string }> { return firstValueFrom(this.http.post<{ codigo: string; token: string }>(base, b)); }
+  espera(b: { sesionId: string; email: string; nombre?: string; personas: number; aceptaPrivacidad: boolean }): Promise<void> { return firstValueFrom(this.http.post<void>(`${base}/espera`, b)); }
+  oferta(t: string): Promise<Oferta> { return firstValueFrom(this.http.get<Oferta>(`${base}/oferta`, { params: { t } })); }
+  aceptar(t: string): Promise<{ codigo: string; token: string }> { return firstValueFrom(this.http.post<{ codigo: string; token: string }>(`${base}/oferta`, { token: t })); }
+  enlace(email: string): Promise<void> { return firstValueFrom(this.http.post<void>(`${base}/enlace`, { email })); }
+  mia(t: string): Promise<MiEntrada> { return firstValueFrom(this.http.get<MiEntrada>('/api/mi-entrada', { params: { t } })); }
+  personas(t: string, personas: number): Promise<MiEntrada> { return firstValueFrom(this.http.put<MiEntrada>('/api/mi-entrada', { token: t, personas })); }
+  reenviar(t: string): Promise<void> { return firstValueFrom(this.http.post<void>('/api/mi-entrada/reenviar', { token: t })); }
+  anular(t: string): Promise<MiEntrada> { return firstValueFrom(this.http.post<MiEntrada>('/api/mi-entrada/anular', { token: t })); }
+  avisame(t: string, acepta: boolean): Promise<MiEntrada> { return firstValueFrom(this.http.post<MiEntrada>('/api/mi-entrada/avisame', { token: t, acepta })); }
+  ics(t: string): string { return `/api/mi-entrada/calendario.ics?t=${encodeURIComponent(t)}`; }
+}
+
+export function errorDe(e: unknown, def?: string, lang: Lang = 'es'): { code: string; detail: string } {
+  def ??= lang === 'en' ? 'We could not complete it. Please try again in a few minutes.' : 'No hemos podido completarlo. Inténtalo en unos minutos.';
+  if (e instanceof HttpErrorResponse) {
+    const p = e.error as { code?: string; detail?: string; errors?: { location?: string; message?: string }[] } | null;
+    return { code: p?.code ?? String(e.status), detail: p?.detail ?? def };
+  }
+  return { code: '', detail: def };
+}
+
+const TZ = 'Europe/Madrid';
+export const hora = (iso?: string, loc = 'es-ES') => (iso ? new Intl.DateTimeFormat(loc, { hour: '2-digit', minute: '2-digit', timeZone: TZ }).format(new Date(iso)) : '');
+export const dia = (iso?: string, loc = 'es-ES') => (iso ? new Intl.DateTimeFormat(loc, { weekday: 'long', day: 'numeric', month: 'short', timeZone: TZ }).format(new Date(iso)).replace(',', '').replace('.', '') : '');
+/** «25/07 · 10:12» (stamp of a used ticket). */
+export const validada = (iso?: string, loc = 'es-ES') => (iso ? `${new Intl.DateTimeFormat(loc, { day: '2-digit', month: '2-digit', timeZone: TZ }).format(new Date(iso))} · ${hora(iso, loc)}` : '');
+export const diaLargo = (iso?: string, loc = 'es-ES') => (iso ? new Intl.DateTimeFormat(loc, { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ }).format(new Date(iso)).replace(',', '') : '');
+
+/** QR as a data URL (qrcode is CommonJS: the dynamic import exposes it as `default`). */
+export async function qrDataURL(content: string, width = 240): Promise<string> {
+  const mod = await import('qrcode');
+  const QR = (mod as unknown as { default?: typeof mod }).default ?? mod;
+  return QR.toDataURL(content, { margin: 1, width, errorCorrectionLevel: 'M' });
+}

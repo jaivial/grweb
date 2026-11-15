@@ -1,0 +1,601 @@
+package cms
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+	"unicode/utf8"
+
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
+	"github.com/jaivial/grweb/platform/pkg/auth"
+	"github.com/jaivial/grweb/platform/pkg/db"
+	"github.com/jaivial/grweb/platform/pkg/events"
+	"github.com/jaivial/grweb/platform/pkg/problem"
+)
+
+// Campo describes one editable field of a home section; the backoffice renders the form from it.
+type Campo struct {
+	Clave    string   `json:"clave"`
+	Etiqueta string   `json:"etiqueta"`
+	Tipo     string   `json:"tipo" enum:"texto,area,imagen,numero,lista,select"`
+	Ayuda    string   `json:"ayuda,omitempty"`
+	Max      int      `json:"max,omitempty"`
+	Campos   []Campo  `json:"campos,omitempty" doc:"Subcampos de cada elemento (tipo lista)"`
+	Opciones []string `json:"opciones,omitempty" doc:"Valores posibles (tipo select)"`
+}
+
+// SeccionDef is a section of a page built from sections (Figma 03 «Secciones Home», 29 «/publico», 35 «/en»).
+type SeccionDef struct {
+	Clave       string  `json:"clave"`
+	Nombre      string  `json:"nombre"`
+	Descripcion string  `json:"descripcion"`
+	Campos      []Campo `json:"campos"`
+}
+
+var (
+	cTitulo  = Campo{Clave: "titulo", Etiqueta: "Título", Tipo: "texto", Max: 90}
+	cAcento  = Campo{Clave: "tituloAcento", Etiqueta: "Parte del título en rojo", Tipo: "texto", Max: 60}
+	cEyebrow = Campo{Clave: "eyebrow", Etiqueta: "Antetítulo", Tipo: "texto", Max: 40}
+	cTexto   = Campo{Clave: "texto", Etiqueta: "Texto", Tipo: "area", Max: 600}
+	cImagen  = Campo{Clave: "imagen", Etiqueta: "Imagen", Tipo: "imagen"}
+)
+
+// Secciones lists the sections the public home can show, in the default order of Figma page 05.
+var Secciones = []SeccionDef{
+	// Figma 54 «Web · editar hero»: texts over the trophy animation and the background image (mobile, no animation).
+	{Clave: "hero", Nombre: "Hero", Descripcion: "Intro con la animación del trofeo", Campos: []Campo{
+		{Clave: "eyebrow", Etiqueta: "Antetítulo", Tipo: "texto", Max: 32},
+		{Clave: "fecha", Etiqueta: "Fecha visible", Tipo: "texto", Max: 40},
+		{Clave: "titulo", Etiqueta: "Título", Tipo: "texto", Max: 40, Ayuda: "En móvil se corta a partir de 40 caracteres"},
+		{Clave: "ctaTexto", Etiqueta: "Texto del botón", Tipo: "texto", Max: 28},
+		{Clave: "ctaDestino", Etiqueta: "Destino", Tipo: "select", Opciones: []string{"/entradas", "/sorteo", "/inscripcion", "/alta-atleta", "/publico", "/horarios"}},
+		{Clave: "imagen", Etiqueta: "Imagen de fondo (móvil sin animación)", Tipo: "imagen", Ayuda: "JPG/WebP · el CDN genera 480/960/1600 px"},
+		{Clave: "focalX", Etiqueta: "Punto focal X (%)", Tipo: "numero"},
+		{Clave: "focalY", Etiqueta: "Punto focal Y (%)", Tipo: "numero"}}},
+	{Clave: "campeonato", Nombre: "Campeonato", Descripcion: "Nivel, datos, aviso, cuenta atrás y cinta de patrocinadores", Campos: []Campo{
+		{Clave: "titulo", Etiqueta: "Título", Tipo: "texto", Max: 90, Ayuda: "Lo leen los lectores de pantalla; en pantalla se ve el nivel (el hero ya dice «Campeonato de powerlifting»)"},
+		{Clave: "subtitulo", Etiqueta: "Nivel (título visible)", Tipo: "texto", Max: 120, Ayuda: "Vacío: el nivel del evento"},
+		{Clave: "aviso", Etiqueta: "Aviso bajo los datos", Tipo: "texto", Max: 40, Ayuda: "p. ej. «Fecha por confirmar». Vacío: sin aviso"}}},
+	{Clave: "cifras", Nombre: "Cifras", Descripcion: "Franja de cuatro cifras", Campos: []Campo{
+		{Clave: "items", Etiqueta: "Cifras", Tipo: "lista", Max: 4, Campos: []Campo{{Clave: "valor", Etiqueta: "Valor", Tipo: "texto", Max: 12}, {Clave: "etiqueta", Etiqueta: "Etiqueta", Tipo: "texto", Max: 40}}}}},
+	{Clave: "alta-atleta", Nombre: "Alta de atleta", Descripcion: "Llamada a completar la ficha de atleta (la plantilla de la competición está completa)", Campos: []Campo{cEyebrow, cTitulo, cTexto,
+		{Clave: "cta", Etiqueta: "Botón principal", Tipo: "texto", Max: 40, Ayuda: "Enlace a /alta-atleta"}}},
+	{Clave: "entradas", Nombre: "Entradas", Descripcion: "Ven a vivirlo en directo, con la entrada de ejemplo y el aforo en directo", Campos: []Campo{cEyebrow, cTituloRico, cAcento, cTexto,
+		{Clave: "puntos", Etiqueta: "Puntos", Tipo: "lista", Max: 4, Campos: []Campo{{Clave: "titulo", Etiqueta: "Título", Tipo: "texto", Max: 60}, {Clave: "texto", Etiqueta: "Texto", Tipo: "texto", Max: 140}}}}},
+	{Clave: "atletas", Nombre: "Los atletas", Descripcion: "Editorial con foto (primera fila)", Campos: []Campo{cEyebrow, cTituloRico, cAcento, cImagen, cAlt}},
+	{Clave: "dia", Nombre: "El día de la competición", Descripcion: "Editorial con foto (segunda fila, foto a la izquierda)", Campos: []Campo{cEyebrow, cTituloRico, cAcento, cImagen, cAlt}},
+	{Clave: "premios", Nombre: "Premios", Descripcion: "Premio por movimiento", Campos: []Campo{cEyebrow, cTituloRico, cAcento,
+		{Clave: "items", Etiqueta: "Premios", Tipo: "lista", Max: 3, Campos: []Campo{{Clave: "titulo", Etiqueta: "Movimiento", Tipo: "texto", Max: 40}, {Clave: "imagen", Etiqueta: "Foto", Tipo: "imagen"}}},
+		{Clave: "lema", Etiqueta: "Lema", Tipo: "texto", Max: 80},
+		// Premios v2 (Figma 80): block B (weight classes) and block C (absolute GL Points). Empty: the web default texts.
+		{Clave: "catEyebrow", Etiqueta: "Antetítulo de categorías", Tipo: "texto", Max: 40},
+		{Clave: "catTitulo", Etiqueta: "Título de categorías", Tipo: "texto", Max: 90, Ayuda: ayudaTitulo},
+		{Clave: "catTexto", Etiqueta: "Texto de categorías", Tipo: "area", Max: 200},
+		{Clave: "absEyebrow", Etiqueta: "Antetítulo de absolutos", Tipo: "texto", Max: 40},
+		{Clave: "absTitulo", Etiqueta: "Título de absolutos", Tipo: "texto", Max: 90, Ayuda: ayudaTitulo},
+		{Clave: "absTexto", Etiqueta: "Texto de absolutos", Tipo: "area", Max: 200}}},
+	{Clave: "organizacion", Nombre: "Organización y equipamiento", Descripcion: "Texto y cuatro fotos con pie", Campos: []Campo{cEyebrow, cTituloRico, cAcento, cTexto,
+		{Clave: "imagenes", Etiqueta: "Fotos", Tipo: "lista", Max: 4, Campos: []Campo{{Clave: "imagen", Etiqueta: "Foto", Tipo: "imagen"}, {Clave: "titulo", Etiqueta: "Título", Tipo: "texto", Max: 40},
+			{Clave: "texto", Etiqueta: "Texto", Tipo: "texto", Max: 120}, {Clave: "alt", Etiqueta: "Texto alternativo", Tipo: "texto", Max: 120}}}}},
+	{Clave: "afiliaciones", Nombre: "Organizadores y afiliaciones", Descripcion: "Quién organiza y avala, y las marcas del material", Campos: []Campo{cEyebrow, cTituloRico, cAcento,
+		{Clave: "tarjetas", Etiqueta: "Tarjetas", Tipo: "lista", Max: 3, Campos: []Campo{{Clave: "tipo", Etiqueta: "Tipo", Tipo: "texto", Max: 10, Ayuda: "logo · foto"}, {Clave: "imagen", Etiqueta: "Logo o foto", Tipo: "imagen"},
+			{Clave: "titulo", Etiqueta: "Nombre", Tipo: "texto", Max: 40}, {Clave: "texto", Etiqueta: "Texto", Tipo: "texto", Max: 200}}},
+		{Clave: "eyebrow2", Etiqueta: "Antetítulo del material", Tipo: "texto", Max: 40}, {Clave: "titulo2", Etiqueta: "Título del material", Tipo: "texto", Max: 90, Ayuda: ayudaTitulo},
+		{Clave: "texto2", Etiqueta: "Texto del material", Tipo: "area", Max: 300},
+		{Clave: "marcas", Etiqueta: "Marcas", Tipo: "lista", Max: 4, Campos: []Campo{{Clave: "nombre", Etiqueta: "Marca", Tipo: "texto", Max: 30}, {Clave: "logo", Etiqueta: "Logo (opcional)", Tipo: "imagen"}}}}},
+	{Clave: "sorteo", Nombre: "Sorteo", Descripcion: "Panel del sorteo: elegir boletos, precio, vendidos y cuenta atrás en directo (también es la cabecera de /sorteo)", Campos: []Campo{
+		{Clave: "titulo", Etiqueta: "Título con el sorteo abierto", Tipo: "texto", Max: 120, Ayuda: ayudaTitulo + " · vacío: «Gana un *premio*». Cerrado: «Sorteo de un premio»"},
+		{Clave: "texto", Etiqueta: "Texto con el sorteo abierto", Tipo: "area", Max: 240},
+		{Clave: "imagen", Etiqueta: "Imagen del premio", Tipo: "imagen", Ayuda: "Vacío: la del sorteo. El cinturón del CDN gira con el scroll"}}},
+	{Clave: "categorias", Nombre: "Categorías de peso", Descripcion: "Categorías por sexo y enlace a las marcas mínimas", Campos: []Campo{cEyebrow, cTituloRico, cAcento, cTexto, cImagen,
+		{Clave: "ctaTitulo", Etiqueta: "Título del aviso", Tipo: "texto", Max: 60}, {Clave: "ctaTexto", Etiqueta: "Texto del aviso", Tipo: "texto", Max: 120}}},
+	{Clave: "horarios", Nombre: "Horarios", Descripcion: "Horario publicado por día (se oculta si no hay)", Campos: []Campo{cEyebrow, cTituloRico, cAcento, cImagen}},
+	{Clave: "localizacion", Nombre: "Localización", Descripcion: "Fotos de la sede y mapa (dirección del evento)", Campos: []Campo{cEyebrow, cTituloRico, cAcento, cTexto,
+		{Clave: "imagenes", Etiqueta: "Fotos (la primera, grande)", Tipo: "lista", Max: 4, Campos: []Campo{{Clave: "imagen", Etiqueta: "Foto", Tipo: "imagen"}, {Clave: "alt", Etiqueta: "Texto alternativo", Tipo: "texto", Max: 120}}},
+		{Clave: "mapa", Etiqueta: "Imagen del mapa", Tipo: "imagen"}}},
+	{Clave: "faq", Nombre: "Preguntas frecuentes", Descripcion: "Muestra las FAQ destacadas", Campos: []Campo{cEyebrow, cTituloRico, cAcento}},
+	{Clave: "patrocinadores", Nombre: "Patrocinadores", Descripcion: "Cinta de logos bajo «Campeonato» (se gestionan en Patrocinadores)", Campos: []Campo{cTitulo}},
+}
+
+// ayudaTitulo explains the markup of home titles (rendered by the public web).
+const ayudaTitulo = "*texto* en rojo · | salto de línea"
+
+var (
+	cTituloRico = Campo{Clave: "titulo", Etiqueta: "Título", Tipo: "texto", Max: 120, Ayuda: ayudaTitulo}
+	cAlt        = Campo{Clave: "alt", Etiqueta: "Pie de la foto (móvil) y texto alternativo", Tipo: "texto", Max: 120}
+)
+
+// Lists of sub-items shared by the landings.
+var (
+	cItemsTituloTexto = func(clave, etiqueta string, max int) Campo {
+		return Campo{Clave: clave, Etiqueta: etiqueta, Tipo: "lista", Max: max, Campos: []Campo{{Clave: "titulo", Etiqueta: "Título", Tipo: "texto", Max: 60}, {Clave: "texto", Etiqueta: "Texto", Tipo: "texto", Max: 200}}}
+	}
+	cIcono = Campo{Clave: "icono", Etiqueta: "Icono", Tipo: "texto", Max: 20, Ayuda: "ticket · clock · map-pin · users · plane · train · car"}
+)
+
+// SeccionesPublico is /publico («Ven a ver la competición», Figma page 29).
+var SeccionesPublico = []SeccionDef{
+	{Clave: "intro", Nombre: "Cabecera", Descripcion: "Título y entradilla de la página", Campos: []Campo{cEyebrow, cTitulo, cAcento, cTexto}},
+	{Clave: "datos", Nombre: "Datos clave", Descripcion: "Rejilla de 4 datos (2×2 en móvil)", Campos: []Campo{
+		{Clave: "items", Etiqueta: "Datos", Tipo: "lista", Max: 4, Campos: []Campo{cIcono, {Clave: "etiqueta", Etiqueta: "Etiqueta", Tipo: "texto", Max: 20}, {Clave: "valor", Etiqueta: "Valor", Tipo: "texto", Max: 40}}}}},
+	{Clave: "movimientos", Nombre: "Qué verás", Descripcion: "Los tres movimientos (carrusel en móvil)", Campos: []Campo{cEyebrow, cTitulo, cAcento, cTexto,
+		{Clave: "items", Etiqueta: "Movimientos", Tipo: "lista", Max: 3, Campos: []Campo{{Clave: "titulo", Etiqueta: "Movimiento", Tipo: "texto", Max: 40}, cImagen,
+			{Clave: "alt", Etiqueta: "Texto alternativo", Tipo: "texto", Max: 120, Ayuda: "Vacío: el nombre del movimiento"}}}}},
+	{Clave: "juicio", Nombre: "Cómo se juzga", Descripcion: "Un intento paso a paso", Campos: []Campo{cEyebrow, cTitulo, cAcento, cItemsTituloTexto("pasos", "Pasos", 6)}},
+	{Clave: "normas", Nombre: "Normas de la grada", Descripcion: "Lista de normas para el público", Campos: []Campo{cEyebrow, cTitulo, cAcento,
+		{Clave: "items", Etiqueta: "Normas", Tipo: "lista", Max: 8, Campos: []Campo{{Clave: "texto", Etiqueta: "Norma", Tipo: "texto", Max: 160}}}}},
+	{Clave: "interesar", Nombre: "Te puede interesar", Descripcion: "Tres enlaces a otras páginas", Campos: []Campo{cTitulo,
+		{Clave: "items", Etiqueta: "Enlaces", Tipo: "lista", Max: 3, Campos: []Campo{{Clave: "titulo", Etiqueta: "Título", Tipo: "texto", Max: 40}, {Clave: "texto", Etiqueta: "Texto", Tipo: "texto", Max: 60}, {Clave: "ruta", Etiqueta: "Ruta", Tipo: "texto", Max: 120}}}}},
+}
+
+// SeccionesEN is the English landing /en (Figma page 35).
+var SeccionesEN = []SeccionDef{
+	{Clave: "hero", Nombre: "Hero", Descripcion: "Title, intro and key facts (date and venue come from the event)", Campos: []Campo{cEyebrow, cTitulo, cAcento, cTexto,
+		{Clave: "plazas", Etiqueta: "Lifters (places)", Tipo: "numero"}, {Clave: "cta", Etiqueta: "Main button", Tipo: "texto", Max: 30}, {Clave: "ctaSorteo", Etiqueta: "Raffle button", Tipo: "texto", Max: 30}}},
+	{Clave: "compete", Nombre: "Compete", Descripcion: "How to compete and sign up", Campos: []Campo{cEyebrow, cTitulo, cAcento, cTexto,
+		{Clave: "cta", Etiqueta: "Sign-up button", Tipo: "texto", Max: 40, Ayuda: "Links to /alta-atleta (Spanish)"}, cItemsTituloTexto("items", "Cards", 4)}},
+	{Clave: "raffle", Nombre: "Raffle", Descripcion: "Raffle card (€1 per ticket, Spanish law)", Campos: []Campo{cEyebrow, cTitulo, cAcento,
+		{Clave: "subtitulo", Etiqueta: "Card title", Tipo: "texto", Max: 40}, cTexto, cImagen, {Clave: "cta", Etiqueta: "Button", Tipo: "texto", Max: 30}}},
+	{Clave: "travel", Nombre: "Getting there", Descripcion: "Plane, train and car", Campos: []Campo{cEyebrow, cTitulo, cAcento,
+		{Clave: "items", Etiqueta: "Ways", Tipo: "lista", Max: 3, Campos: []Campo{cIcono, {Clave: "titulo", Etiqueta: "Title", Tipo: "texto", Max: 40}, {Clave: "texto", Etiqueta: "Text", Tipo: "texto", Max: 160}, {Clave: "nota", Etiqueta: "Note", Tipo: "texto", Max: 40}}}}},
+	{Clave: "faq", Nombre: "FAQ", Descripcion: "Frequently asked questions in English", Campos: []Campo{cEyebrow, cTitulo, cAcento,
+		{Clave: "items", Etiqueta: "Questions", Tipo: "lista", Max: 8, Campos: []Campo{{Clave: "pregunta", Etiqueta: "Question", Tipo: "texto", Max: 120}, {Clave: "respuesta", Etiqueta: "Answer", Tipo: "area", Max: 600}}}}},
+}
+
+// Paginas are the pages built from sections and their public route.
+var Paginas = map[string][]SeccionDef{"home": Secciones, "publico": SeccionesPublico, "en": SeccionesEN}
+
+func seccionDef(pagina, clave string) *SeccionDef {
+	defs := Paginas[pagina]
+	for i := range defs {
+		if defs[i].Clave == clave {
+			return &defs[i]
+		}
+	}
+	return nil
+}
+
+// validCampos checks a draft against its field definitions: text length, list size, select options and
+// image links (https or a site-relative path). Unknown keys and non-string values are left alone.
+func validCampos(campos []Campo, obj map[string]any) error {
+	for _, c := range campos {
+		v, ok := obj[c.Clave]
+		if !ok || v == nil {
+			continue
+		}
+		switch c.Tipo {
+		case "lista":
+			items, _ := v.([]any)
+			if c.Max > 0 && len(items) > c.Max {
+				return problem.Unprocessable("CAMPO_INVALIDO", fmt.Sprintf("«%s» admite como mucho %d elementos.", c.Etiqueta, c.Max))
+			}
+			for _, it := range items {
+				if m, ok := it.(map[string]any); ok {
+					if err := validCampos(c.Campos, m); err != nil {
+						return err
+					}
+				}
+			}
+			continue
+		}
+		str, ok := v.(string)
+		if !ok {
+			continue
+		}
+		switch {
+		case (c.Tipo == "texto" || c.Tipo == "area") && c.Max > 0 && utf8.RuneCountInString(str) > c.Max:
+			return problem.Unprocessable("CAMPO_INVALIDO", fmt.Sprintf("«%s» admite como mucho %d caracteres.", c.Etiqueta, c.Max))
+		case c.Tipo == "select" && str != "" && !contains(c.Opciones, str):
+			return problem.Unprocessable("CAMPO_INVALIDO", fmt.Sprintf("«%s» no es una opción válida.", c.Etiqueta))
+		case c.Tipo == "imagen" && str != "" && !(validURL(str, true) && !strings.HasPrefix(strings.ToLower(str), "http:")):
+			return problem.Unprocessable("CAMPO_INVALIDO", fmt.Sprintf("«%s» debe ser un enlace https://.", c.Etiqueta))
+		}
+	}
+	return nil
+}
+
+func validBorrador(pagina, clave string, raw json.RawMessage) error {
+	def := seccionDef(pagina, clave)
+	if def == nil || raw == nil {
+		return nil
+	}
+	var obj map[string]any
+	if json.Unmarshal(raw, &obj) != nil {
+		return problem.Unprocessable("JSON_INVALIDO", "El contenido debe ser un objeto JSON.")
+	}
+	if err := validCampos(def.Campos, obj); err != nil {
+		var pe *problem.Error
+		if errors.As(err, &pe) {
+			pe.Detail = def.Nombre + ": " + pe.Detail
+		}
+		return err
+	}
+	return nil
+}
+
+type seccionRow struct {
+	ID          uuid.UUID       `json:"id" db:"id"`
+	Pagina      string          `json:"pagina" db:"pagina"`
+	Clave       string          `json:"clave" db:"clave"`
+	Orden       int             `json:"orden" db:"orden"`
+	Visible     bool            `json:"visible" db:"visible"`
+	Borrador    json.RawMessage `json:"borrador" db:"borrador"`
+	Publicado   json.RawMessage `json:"publicado" db:"publicado"`
+	PubVisible  bool            `json:"publicadoVisible" db:"pub_visible" doc:"Visibilidad que ve la web pública"`
+	PubOrden    int             `json:"publicadoOrden" db:"pub_orden"`
+	PublicadoAt *time.Time      `json:"publicadoAt,omitempty" db:"publicado_at"`
+	Version     int             `json:"version" db:"version"`
+	Rev         int             `json:"rev" db:"rev" doc:"Revisión del borrador (ETag / If-Match)"`
+	// «Programar» (Figma 54): the draft is published automatically at this time.
+	ProgramadaAt *time.Time `json:"programadaAt,omitempty" db:"programada_at"`
+	UpdatedAt    time.Time  `json:"updatedAt" db:"updated_at"`
+}
+
+type seccionView struct {
+	seccionRow
+	Nombre      string  `json:"nombre"`
+	Descripcion string  `json:"descripcion"`
+	Campos      []Campo `json:"campos"`
+	Estado      string  `json:"estado" enum:"publicada,cambios,sin_publicar" doc:"Si el borrador (contenido, visibilidad u orden) difiere de lo publicado"`
+}
+
+const selSeccion = `SELECT id, pagina, clave, orden, visible, borrador, publicado, pub_visible, pub_orden, publicado_at, version, rev, updated_at, programada_at FROM secciones`
+
+func view(r seccionRow) seccionView {
+	v := seccionView{seccionRow: r}
+	if d := seccionDef(r.Pagina, r.Clave); d != nil {
+		v.Nombre, v.Descripcion, v.Campos = d.Nombre, d.Descripcion, d.Campos
+	}
+	switch {
+	case r.Publicado == nil:
+		v.Estado = "sin_publicar"
+	case pending(r):
+		v.Estado = "cambios"
+	default:
+		v.Estado = "publicada"
+	}
+	return v
+}
+
+// pending reports whether publishing would change what the public home shows.
+func pending(r seccionRow) bool {
+	return r.Publicado == nil || !jsonEqual(r.Borrador, r.Publicado) || r.Visible != r.PubVisible || r.Orden != r.PubOrden
+}
+
+func etag(rev int) string { return `W/"` + strconv.Itoa(rev) + `"` }
+
+func ifMatch(h string) int {
+	v, _ := strconv.Atoi(strings.Trim(strings.TrimPrefix(strings.TrimSpace(h), "W/"), `"`))
+	return v
+}
+
+func jsonEqual(a, b json.RawMessage) bool {
+	var x, y any
+	if json.Unmarshal(a, &x) != nil || json.Unmarshal(b, &y) != nil {
+		return false
+	}
+	ja, _ := json.Marshal(x)
+	jb, _ := json.Marshal(y)
+	return string(ja) == string(jb)
+}
+
+func (s *Svc) seccionesOf(ctx context.Context, q interface {
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+}, cid uuid.UUID, pagina string) ([]seccionView, error) {
+	rows, err := q.Query(ctx, selSeccion+` WHERE competition_id = $1 AND pagina = $2 ORDER BY orden`, cid, pagina)
+	if err != nil {
+		return nil, err
+	}
+	list, err := pgx.CollectRows(rows, pgx.RowToStructByName[seccionRow])
+	out := make([]seccionView, 0, len(list))
+	for _, r := range list {
+		out = append(out, view(r))
+	}
+	return out, err
+}
+
+// ensureSecciones creates the missing sections of a page with empty drafts.
+func ensureSecciones(ctx context.Context, tx pgx.Tx, cid uuid.UUID, pagina string) error {
+	for i, d := range Paginas[pagina] {
+		if _, err := tx.Exec(ctx, `INSERT INTO secciones (id, competition_id, pagina, clave, orden, pub_orden) VALUES ($1,$2,$3,$4,$5,$5) ON CONFLICT (competition_id, pagina, clave) DO NOTHING`, newID(), cid, pagina, d.Clave, i+1); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Svc) registerSecciones() {
+	api := s.a.API
+	tags := []string{"Web y contenidos"}
+	base := "/api/admin/competiciones/{cid}/web/secciones"
+
+	type listIn struct {
+		CID    uuid.UUID `path:"cid"`
+		Pagina string    `query:"pagina" enum:"home,publico,en" default:"home" doc:"home · publico (/publico) · en (/en)"`
+	}
+	type listOut struct{ Body []seccionView }
+	huma.Register(api, huma.Operation{OperationID: "secciones-list", Method: http.MethodGet, Path: base, Summary: "Secciones de una página (borrador y publicado)", Tags: tags, Security: bearer},
+		func(ctx context.Context, in *listIn) (*listOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "web.editar"); err != nil {
+				return nil, err
+			}
+			if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error { return ensureSecciones(ctx, tx, in.CID, in.Pagina) }); err != nil {
+				return nil, err
+			}
+			list, err := s.seccionesOf(ctx, s.a.DB, in.CID, in.Pagina)
+			return &listOut{Body: list}, err
+		})
+
+	type putIn struct {
+		CID     uuid.UUID `path:"cid"`
+		ID      uuid.UUID `path:"id"`
+		IfMatch string    `header:"If-Match" doc:"ETag de la revisión editada; si otra persona guardó antes → 409 CONFLICTO_EDICION"`
+		Body    struct {
+			Borrador json.RawMessage `json:"borrador,omitempty" doc:"Contenido (objeto JSON según los campos de la sección)"`
+			Visible  *bool           `json:"visible,omitempty"`
+		}
+	}
+	type oneOut struct {
+		ETag string `header:"ETag"`
+		Body seccionView
+	}
+	huma.Register(api, huma.Operation{OperationID: "secciones-update", Method: http.MethodPut, Path: base + "/{id}", Summary: "Guardar el borrador o la visibilidad de una sección (no cambia la web hasta publicar)", Tags: tags, Security: bearer},
+		func(ctx context.Context, in *putIn) (*oneOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "web.editar"); err != nil {
+				return nil, err
+			}
+			if in.Body.Borrador != nil {
+				var obj map[string]any
+				if json.Unmarshal(in.Body.Borrador, &obj) != nil {
+					return nil, problem.Unprocessable("JSON_INVALIDO", "El contenido debe ser un objeto JSON.")
+				}
+			}
+			var out seccionView
+			err := s.change(ctx, in.CID, "cms.seccion_actualizada", map[string]any{"id": in.ID}, func(tx pgx.Tx) error {
+				var rev int
+				var pagina, clave string
+				if err := tx.QueryRow(ctx, `SELECT rev, pagina, clave FROM secciones WHERE competition_id = $1 AND id = $2 FOR UPDATE`, in.CID, in.ID).Scan(&rev, &pagina, &clave); err != nil {
+					return problem.NotFound("Sección no encontrada.")
+				}
+				if err := validBorrador(pagina, clave, in.Body.Borrador); err != nil {
+					return err
+				}
+				// Only content edits are guarded: a visibility switch in the list must not invalidate an open editor.
+				if in.Body.Borrador != nil && in.IfMatch != "" && ifMatch(in.IfMatch) != rev {
+					return problem.Conflict("CONFLICTO_EDICION", "Otra persona ha guardado esta sección mientras la editabas. Recarga para ver sus cambios.")
+				}
+				if _, err := tx.Exec(ctx, `UPDATE secciones SET borrador = COALESCE($3, borrador), visible = COALESCE($4, visible),
+					rev = rev + CASE WHEN $3::jsonb IS NULL THEN 0 ELSE 1 END, updated_at = now() WHERE id = $1 AND competition_id = $2`,
+					in.ID, in.CID, nullRaw(in.Body.Borrador), in.Body.Visible); err != nil {
+					return err
+				}
+				rows, err := tx.Query(ctx, selSeccion+` WHERE id = $1`, in.ID)
+				if err != nil {
+					return err
+				}
+				r, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[seccionRow])
+				out = view(r)
+				return err
+			})
+			return &oneOut{ETag: etag(out.Rev), Body: out}, err
+		})
+
+	huma.Register(api, huma.Operation{OperationID: "secciones-reorder", Method: http.MethodPut, Path: base + "/orden", Summary: "Reordenar las secciones (borrador: la web cambia al publicar)", Tags: tags, Security: bearer, DefaultStatus: http.StatusNoContent},
+		func(ctx context.Context, in *orderIn) (*struct{}, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "web.editar"); err != nil {
+				return nil, err
+			}
+			return nil, s.change(ctx, in.CID, "cms.secciones_reordenadas", nil, func(tx pgx.Tx) error {
+				_, err := tx.Exec(ctx, `UPDATE secciones t SET orden = o.n FROM unnest($2::uuid[]) WITH ORDINALITY AS o(id, n) WHERE t.id = o.id AND t.competition_id = $1`, in.CID, in.Body.IDs)
+				return err
+			})
+		})
+
+	type pubIn struct {
+		CID  uuid.UUID `path:"cid"`
+		Body struct {
+			Pagina       string     `json:"pagina,omitempty" enum:"home,publico,en" default:"home"`
+			Claves       []string   `json:"claves,omitempty" doc:"Secciones a publicar; vacío = todas las que tienen cambios"`
+			ProgramadaAt *time.Time `json:"programadaAt,omitempty" doc:"«Programar»: publica estas secciones a esa hora (futura) en vez de ahora"`
+		}
+	}
+	type pubOut struct {
+		Body struct {
+			Publicadas  []string `json:"publicadas"`
+			Programadas []string `json:"programadas,omitempty"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "web-publish", Method: http.MethodPost, Path: "/api/admin/competiciones/{cid}/web/publicar", Summary: "Publicar (o programar) los borradores de una página (home, /publico o /en)", Tags: tags, Security: bearer},
+		func(ctx context.Context, in *pubIn) (*pubOut, error) {
+			p, err := auth.Require(ctx, in.CID.String(), "web.publicar")
+			if err != nil {
+				return nil, err
+			}
+			out := &pubOut{}
+			out.Body.Publicadas = []string{}
+			pagina := in.Body.Pagina
+			if pagina == "" {
+				pagina = "home"
+			}
+			if at := in.Body.ProgramadaAt; at != nil {
+				if !at.After(time.Now()) {
+					return nil, problem.Unprocessable("FECHA_PASADA", "Elige una fecha y hora futuras para programar.")
+				}
+				err = s.change(ctx, in.CID, "cms.web_programada", map[string]any{"pagina": pagina, "claves": in.Body.Claves, "at": at}, func(tx pgx.Tx) error {
+					rows, err := tx.Query(ctx, `UPDATE secciones SET programada_at = $3 WHERE competition_id = $1 AND pagina = $2 AND (cardinality($4::text[]) = 0 OR clave = ANY($4)) RETURNING clave`,
+						in.CID, pagina, *at, in.Body.Claves)
+					if err != nil {
+						return err
+					}
+					out.Body.Programadas, err = pgx.CollectRows(rows, pgx.RowTo[string])
+					return err
+				})
+				return out, err
+			}
+			var by *uuid.UUID
+			if p.UserID != uuid.Nil {
+				by = &p.UserID
+			}
+			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				var err error
+				out.Body.Publicadas, err = publishPage(ctx, tx, in.CID, pagina, in.Body.Claves, by)
+				if err == nil && len(out.Body.Publicadas) == 0 {
+					return problem.Conflict("SIN_CAMBIOS", "No hay cambios pendientes de publicar.")
+				}
+				return err
+			})
+			if err == nil {
+				s.bump(ctx, in.CID)
+			}
+			return out, err
+		})
+
+	type descIn struct {
+		CID uuid.UUID `path:"cid"`
+		ID  uuid.UUID `path:"id"`
+	}
+	huma.Register(api, huma.Operation{OperationID: "secciones-discard", Method: http.MethodPost, Path: base + "/{id}/descartar", Summary: "Descartar el borrador: vuelve a lo publicado y anula la programación", Tags: tags, Security: bearer},
+		func(ctx context.Context, in *descIn) (*oneOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "web.editar"); err != nil {
+				return nil, err
+			}
+			var out seccionView
+			err := s.change(ctx, in.CID, "cms.seccion_descartada", map[string]any{"id": in.ID}, func(tx pgx.Tx) error {
+				tag, err := tx.Exec(ctx, `UPDATE secciones SET borrador = COALESCE(publicado, '{}'::jsonb), visible = pub_visible, programada_at = NULL, rev = rev + 1, updated_at = now()
+					WHERE competition_id = $1 AND id = $2`, in.CID, in.ID)
+				if err != nil {
+					return err
+				}
+				if tag.RowsAffected() == 0 {
+					return problem.NotFound("Sección no encontrada.")
+				}
+				rows, err := tx.Query(ctx, selSeccion+` WHERE id = $1`, in.ID)
+				if err != nil {
+					return err
+				}
+				r, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[seccionRow])
+				out = view(r)
+				return err
+			})
+			return &oneOut{ETag: etag(out.Rev), Body: out}, err
+		})
+}
+
+// publishPage publishes the pending drafts of a page (all, or only claves) and clears their schedule.
+func publishPage(ctx context.Context, tx pgx.Tx, cid uuid.UUID, pagina string, claves []string, by *uuid.UUID) ([]string, error) {
+	rows, err := tx.Query(ctx, selSeccion+` WHERE competition_id = $1 AND pagina = $2 FOR UPDATE`, cid, pagina)
+	if err != nil {
+		return nil, err
+	}
+	list, err := pgx.CollectRows(rows, pgx.RowToStructByName[seccionRow])
+	if err != nil {
+		return nil, err
+	}
+	done := []string{}
+	for _, r := range list {
+		if len(claves) > 0 && !contains(claves, r.Clave) {
+			continue
+		}
+		if r.ProgramadaAt != nil {
+			if _, err := tx.Exec(ctx, `UPDATE secciones SET programada_at = NULL WHERE id = $1`, r.ID); err != nil {
+				return nil, err
+			}
+		}
+		if !pending(r) {
+			continue
+		}
+		if err := validBorrador(r.Pagina, r.Clave, r.Borrador); err != nil {
+			return nil, err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE secciones SET publicado = borrador, pub_visible = visible, pub_orden = orden, publicado_at = now(), version = version + 1 WHERE id = $1`, r.ID); err != nil {
+			return nil, err
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO secciones_versiones (id, seccion_id, datos, publicado_por) VALUES ($1,$2,$3,$4)`, newID(), r.ID, r.Borrador, by); err != nil {
+			return nil, err
+		}
+		done = append(done, r.Clave)
+	}
+	if len(done) == 0 {
+		return done, nil
+	}
+	return done, events.Enqueue(ctx, tx, events.New(ctx, "web.publicada", map[string]any{"pagina": pagina, "secciones": done},
+		events.Competition(cid.String()), events.Audience(events.Public)))
+}
+
+// runProgramadas publishes the scheduled sections that are due, every 30 s. Safe with several replicas:
+// the page rows are locked (FOR UPDATE) before the due claves are re-read inside the same transaction.
+func (s *Svc) runProgramadas(ctx context.Context) {
+	t := time.NewTicker(30 * time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		rows, err := s.a.DB.Query(ctx, `SELECT DISTINCT competition_id, pagina FROM secciones WHERE programada_at <= now()`)
+		if err != nil {
+			s.a.Log.Error("secciones programadas", "err", err)
+			continue
+		}
+		type due struct {
+			CID    uuid.UUID
+			Pagina string
+		}
+		list, err := pgx.CollectRows(rows, pgx.RowToStructByPos[due])
+		if err != nil {
+			s.a.Log.Error("secciones programadas", "err", err)
+			continue
+		}
+		for _, d := range list {
+			var done []string
+			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				if _, err := tx.Exec(ctx, `SELECT 1 FROM secciones WHERE competition_id = $1 AND pagina = $2 FOR UPDATE`, d.CID, d.Pagina); err != nil {
+					return err
+				}
+				rows, err := tx.Query(ctx, `SELECT clave FROM secciones WHERE competition_id = $1 AND pagina = $2 AND programada_at <= now()`, d.CID, d.Pagina)
+				if err != nil {
+					return err
+				}
+				claves, err := pgx.CollectRows(rows, pgx.RowTo[string])
+				if err != nil || len(claves) == 0 {
+					return err
+				}
+				done, err = publishPage(ctx, tx, d.CID, d.Pagina, claves, nil)
+				return err
+			})
+			if err != nil {
+				s.a.Log.Error("publicar secciones programadas", "err", err, "competicion", d.CID.String())
+				continue
+			}
+			if len(done) > 0 {
+				s.bump(ctx, d.CID)
+				s.a.Log.Info("secciones programadas publicadas", "competicion", d.CID.String(), "pagina", d.Pagina, "secciones", done)
+			}
+		}
+	}
+}
+
+func nullRaw(b json.RawMessage) any {
+	if len(b) == 0 {
+		return nil
+	}
+	return b
+}
+
+func contains(list []string, v string) bool {
+	for _, x := range list {
+		if x == v {
+			return true
+		}
+	}
+	return false
+}

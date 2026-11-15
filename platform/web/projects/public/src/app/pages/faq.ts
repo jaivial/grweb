@@ -1,0 +1,194 @@
+import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, signal } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+import { GrIcon, GrSkeleton } from '@grcup/ui';
+import { Cms, renderMarkdown, type Faq } from '../core/cms';
+import { Competition } from '../core/competition';
+import { Seo } from '../core/seo';
+import { GrEyebrow } from '../home/bloques';
+import { instagramOf } from '../layout/layout';
+import { Page } from '../layout/page';
+import { Community, Related, type RelatedLink } from './landings';
+import { I18n } from '../core/i18n';
+
+const T = {
+  es: {
+    titulo: 'Preguntas', acento: 'frecuentes', eyebrow: 'Ayuda', stamp: 'Actualizado el 28/10/2026',
+    subtitulo: 'Todo lo que necesitas saber sobre el alta de atleta, la competición, el sorteo y cómo venir a Almussafes.',
+    temas: 'Temas', todas: 'Todas', buscarSr: 'Buscar una pregunta', buscar: 'Busca una pregunta…', filtros: 'Filtros', filtroActivo: '1 filtro activo',
+    preguntas: (n: number) => n + ' ' + (n === 1 ? 'pregunta' : 'preguntas'), quitar: 'Quitar filtro',
+    sinResultados: (q: string) => 'No hay preguntas con «' + q + '»', otraPalabra: 'Prueba con otra palabra o escríbenos.',
+    noEncuentras: '¿No encuentras tu respuesta?', contestamos: 'Escríbenos y te contestamos en menos de 48 h.', email: 'Email',
+    relacionados: [
+      { titulo: 'Reglamento', texto: 'Cómo funciona la competición', ruta: '/reglamento' },
+      { titulo: 'Cómo llegar', texto: 'Pabellón de Almussafes', ruta: '/como-llegar' },
+      { titulo: 'Sorteo', texto: 'Gana un cinturón SBD', ruta: '/sorteo' },
+    ] as RelatedLink[],
+    seoTitulo: 'Preguntas frecuentes · GRS Cup 2', seoDesc: 'Alta de atleta, entradas gratuitas, sorteo y cómo llegar al pabellón de Almussafes.',
+  },
+  en: {
+    titulo: 'Frequently asked', acento: 'questions', eyebrow: 'Help', stamp: 'Updated on 28/10/2026',
+    subtitulo: 'Everything you need to know about athlete sign-up, the competition, the giveaway and getting to Almussafes.',
+    temas: 'Topics', todas: 'All', buscarSr: 'Search for a question', buscar: 'Search for a question…', filtros: 'Filters', filtroActivo: '1 active filter',
+    preguntas: (n: number) => n + ' ' + (n === 1 ? 'question' : 'questions'), quitar: 'Clear filter',
+    sinResultados: (q: string) => 'No questions match «' + q + '»', otraPalabra: 'Try another word or write to us.',
+    noEncuentras: "Can't find your answer?", contestamos: "Write to us and we'll reply within 48 h.", email: 'Email',
+    relacionados: [
+      { titulo: 'Rules', texto: 'How the competition works', ruta: '/reglamento' },
+      { titulo: 'Getting there', texto: 'Almussafes sports hall', ruta: '/como-llegar' },
+      { titulo: 'Giveaway', texto: 'Win an SBD belt', ruta: '/sorteo' },
+    ] as RelatedLink[],
+    seoTitulo: 'Frequently asked questions · GRS Cup 2', seoDesc: 'Athlete sign-up, free tickets, the giveaway and how to get to the Almussafes sports hall.',
+  },
+};
+
+/** /preguntas-frecuentes (Figma page 24): topics, search and accordions grouped by topic. */
+@Component({
+  selector: 'gr-faq-page',
+  imports: [Page, GrIcon, GrSkeleton, GrEyebrow, Related, Community],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <gr-page [title]="t().titulo" [accent]="t().acento" [eyebrow]="t().eyebrow" [stamp]="t().stamp" [subtitle]="t().subtitulo">
+      <!-- Figma 24: «Temas» card (260, sticky) next to the questions; on mobile, search then wrapping topic chips -->
+      <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-10">
+        <nav class="hidden h-fit min-w-0 rounded-lg border border-line-subtle bg-bg-card p-4 lg:sticky lg:top-28 lg:block" [attr.aria-label]="t().temas">
+          <p class="px-2 pb-2 text-label-xs text-text-muted uppercase">{{ t().temas }}</p>
+          <ul class="flex flex-col gap-1">
+            @for (tm of temas(); track tm.nombre) {
+              <li><button type="button" (click)="elegir(tm.nombre)" [attr.aria-pressed]="activo() === tm.nombre" class="flex h-10 w-full items-center justify-between gap-4 rounded-sm px-3 text-label-s whitespace-nowrap"
+                [class]="activo() === tm.nombre ? 'bg-accent/12 text-text-primary' : 'text-text-secondary hover:bg-bg-raised'">{{ tm.nombre === 'Todas' ? t().todas : tm.nombre }}<span class="text-body-xs text-text-tertiary">{{ tm.n }}</span></button></li>
+            }
+          </ul>
+        </nav>
+        <div class="flex min-w-0 flex-col gap-6">
+          <!-- Figma 46:18: search + «Filtros» in one row; the topics stay folded until opened (desktop keeps the side card) -->
+          <div class="flex flex-col gap-2">
+          <div class="flex gap-2">
+          <label class="relative block min-w-0 flex-1">
+            <span class="sr-only">{{ t().buscarSr }}</span>
+            <gr-icon name="search" [size]="18" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
+            <input type="search" enterkeyhint="search" [placeholder]="t().buscar" [value]="q()" (input)="q.set($any($event.target).value)"
+              class="h-12 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
+          </label>
+          <button type="button" (click)="filtros.set(!filtros())" [attr.aria-expanded]="filtros()" aria-controls="faq-filtros"
+            class="flex h-12 shrink-0 items-center gap-2 rounded-md border border-line-strong px-3 text-label-s text-text-secondary hover:border-white lg:hidden">
+            <gr-icon name="sliders" [size]="16" />{{ t().filtros }}
+            @if (activo() !== 'Todas') { <span class="flex size-5 items-center justify-center rounded-full bg-accent text-label-xs text-white" [attr.aria-label]="t().filtroActivo">1</span> }
+            <gr-icon name="chevron-down" [size]="16" class="transition-transform duration-200 motion-reduce:transition-none" [class.rotate-180]="filtros()" />
+          </button>
+          </div>
+          @if (activo() !== 'Todas') {
+            <p class="flex items-center justify-between gap-3 text-body-xs text-text-tertiary lg:hidden">
+              <span>{{ activo() }} · {{ t().preguntas(nActivo()) }}</span>
+              <button type="button" (click)="elegir('Todas')" class="text-label-xs text-accent-text hover:underline">{{ t().quitar }}</button>
+            </p>
+          }
+          </div>
+          <div id="faq-filtros" class="-mt-2 grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none lg:hidden"
+            [class]="filtros() ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'" [attr.inert]="filtros() ? null : ''">
+          <ul class="flex min-h-0 flex-wrap gap-2 overflow-hidden" [attr.aria-label]="t().temas">
+            @for (tm of temas(); track tm.nombre) {
+              <li><button type="button" (click)="elegir(tm.nombre)" [attr.aria-pressed]="activo() === tm.nombre" class="flex h-11 md:h-9 items-center gap-1.5 rounded-pill border px-3 text-label-s"
+                [class]="activo() === tm.nombre ? 'border-accent bg-accent/12 text-text-primary' : 'border-line-strong text-text-secondary'"><gr-icon [name]="activo() === tm.nombre ? 'check' : 'plus'" [size]="14" />{{ tm.nombre === 'Todas' ? t().todas : tm.nombre }}</button></li>
+            }
+          </ul>
+          </div>
+          @if (faq() === null) { <div class="flex flex-col gap-3">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-16 rounded-lg" /> }</div> }
+          @for (g of grupos(); track g.nombre; let gi = $index) {
+            <section class="flex flex-col gap-3">
+              <h2><gr-eyebrow [texto]="(gi + 1) + ' · ' + g.nombre" /></h2>
+              @for (f of g.items; track f.pregunta; let fi = $index) {
+                <!-- Figma «FAQ item»: 16 radius, Label/L question, ± in a disc; the first one open -->
+                <details class="group rounded-lg border border-line-subtle bg-bg-card open:border-accent/60" [attr.open]="gi === 0 && fi === 0 && !q() ? '' : null">
+                  <summary class="flex min-h-16 min-w-0 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-label-l"><span class="min-w-0 break-words [overflow-wrap:anywhere]">{{ f.pregunta }}</span>
+                    <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/8 text-text-secondary group-open:bg-accent/20 group-open:text-accent-text"><gr-icon name="plus" [size]="14" class="transition-transform group-open:rotate-45" /></span>
+                  </summary>
+                  <div class="prose-gr min-w-0 px-5 pb-5 break-words [overflow-wrap:anywhere] text-body-s text-text-tertiary" [innerHTML]="md(f.respuesta)"></div>
+                </details>
+              }
+            </section>
+          } @empty {
+            @if (faq() !== null) {
+              <div class="flex flex-col items-center gap-2 rounded-md border border-line-subtle bg-bg-card px-6 py-10 text-center">
+                <gr-icon name="search" [size]="22" class="text-text-tertiary" />
+                <p class="text-label-l">{{ t().sinResultados(q()) }}</p>
+                <p class="text-body-s text-text-tertiary">{{ t().otraPalabra }}</p>
+              </div>
+            }
+          }
+          <!-- «¿No encuentras tu respuesta?» -->
+          <div class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div><p class="text-label-l">{{ t().noEncuentras }}</p><p class="text-body-s text-text-tertiary">{{ t().contestamos }}</p></div>
+            <div class="flex gap-2">
+              @if (contacto()) { <a [href]="'mailto:' + contacto()" class="flex h-11 flex-1 items-center justify-center rounded-sm border border-line-strong px-4 text-label-s hover:border-white sm:flex-none">{{ t().email }}</a> }
+              <a [href]="instagram()" target="_blank" rel="noopener" class="flex h-11 flex-1 items-center justify-center gap-2 rounded-sm border border-white/10 bg-white/5 px-4 text-label-s hover:bg-white/10 sm:flex-none"><gr-icon name="instagram" [size]="16" />Instagram</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mt-12 flex flex-col gap-12 md:mt-20 md:gap-20">
+        <gr-related [items]="t().relacionados" />
+        <gr-community />
+      </div>
+    </gr-page>
+  `,
+})
+export class FaqPage {
+  private readonly lang = inject(I18n).lang;
+  private readonly cms = inject(Cms);
+  protected readonly t = inject(I18n).dict(T);
+  protected readonly faq = signal<Faq[] | null>(null);
+  protected readonly q = signal('');
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  /** Slug of the selected topic (?categoria=), single choice. */
+  protected readonly tema = signal(this.route.snapshot.queryParamMap.get('categoria') ?? '');
+  protected readonly filtros = signal(false);
+  /** The selected topic, or «Todas» if it no longer exists in the list. */
+  protected readonly activo = computed(() => this.temas().find((t) => t.nombre !== 'Todas' && slug(t.nombre) === this.tema())?.nombre ?? 'Todas');
+  protected readonly nActivo = computed(() => this.temas().find((t) => t.nombre === this.activo())?.n ?? 0);
+  protected elegir(nombre: string) {
+    const c = nombre === 'Todas' ? '' : slug(nombre);
+    this.tema.set(c);
+    void this.router.navigate([], { relativeTo: this.route, queryParams: { categoria: c || null }, queryParamsHandling: 'merge', replaceUrl: true });
+  }
+  protected readonly temas = computed(() => {
+    const all = this.faq() ?? [];
+    const m = new Map<string, number>();
+    for (const f of all) m.set(f.categoria, (m.get(f.categoria) ?? 0) + 1);
+    return [{ nombre: 'Todas', n: all.length }, ...[...m].map(([nombre, n]) => ({ nombre, n }))];
+  });
+  protected readonly grupos = computed(() => {
+    const q = plano(this.q().trim());
+    const tema = this.activo();
+    const items = (this.faq() ?? []).filter((f) => (tema === 'Todas' || f.categoria === tema) && (!q || plano(f.pregunta + ' ' + f.respuesta).includes(q)));
+    const m = new Map<string, Faq[]>();
+    for (const f of items) m.set(f.categoria, [...(m.get(f.categoria) ?? []), f]);
+    return [...m].map(([nombre, items]) => ({ nombre, items }));
+  });
+  protected md = (s: string) => renderMarkdown(s, this.lang()).html;
+  private readonly comp = inject(Competition);
+  protected readonly contacto = computed(() => this.comp.data()?.evento?.emailContacto ?? '');
+  protected readonly instagram = computed(() => instagramOf(this.comp.data()));
+  constructor() {
+    const seo = inject(Seo);
+    void inject(PendingTasks).run(async () => {
+      const [list, map] = await Promise.all([this.cms.faq(), this.cms.seoMap(), this.comp.load()]);
+      this.faq.set(list ?? []);
+      // the CMS overrides are Spanish: only in ES
+      const o = seo.i18n.lang() === 'es' ? map?.paginas.find((p) => p.ruta === '/preguntas-frecuentes') : undefined;
+      seo.set({
+        title: o?.title || this.t().seoTitulo,
+        description: o?.description || this.t().seoDesc,
+        path: '/preguntas-frecuentes',
+        // FAQPage structured data (rich results), from the published questions.
+        jsonLd: list?.length ? { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: list.map((f) => ({ '@type': 'Question', name: f.pregunta, acceptedAnswer: { '@type': 'Answer', text: f.respuesta } })) } : undefined,
+      });
+    });
+  }
+}
+
+/** Lower case without diacritics: «categoría» matches «categoria». */
+const plano = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+
+/** URL slug of a topic: «Cómo llegar» → «como-llegar». */
+const slug = (s: string) => plano(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');

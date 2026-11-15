@@ -1,0 +1,747 @@
+package cms
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
+	"github.com/jaivial/grweb/platform/pkg/events"
+	"github.com/jaivial/grweb/platform/pkg/httpx"
+	"github.com/jaivial/grweb/platform/pkg/problem"
+	"github.com/jaivial/grweb/platform/pkg/ratelimit"
+)
+
+var tagPub = []string{"Web pública"}
+
+type slugIn struct {
+	Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+}
+
+// Home is what the public home renders: published sections + featured FAQ + sponsors.
+type Home struct {
+	Version        string                     `json:"version"`
+	Secciones      map[string]json.RawMessage `json:"secciones" doc:"Contenido publicado y visible, por clave"`
+	Orden          []string                   `json:"orden"`
+	FaqDestacadas  []faqPub                   `json:"faqDestacadas"`
+	Patrocinadores []patroPub                 `json:"patrocinadores"`
+}
+
+type faqPub struct {
+	Categoria string `json:"categoria" db:"categoria"`
+	Pregunta  string `json:"pregunta" db:"pregunta"`
+	Respuesta string `json:"respuesta" db:"respuesta"`
+}
+
+type patroPub struct {
+	Nombre  string `json:"nombre" db:"nombre"`
+	Nivel   string `json:"nivel" db:"nivel"`
+	LogoURL string `json:"logoUrl" db:"logo_url"`
+	URL     string `json:"url" db:"url"`
+	// One line under the name on /patrocinadores.
+	Descripcion string `json:"descripcion" db:"descripcion"`
+	// Shown in the logo row of the home hero (BIZ-144).
+	MostrarEnHero bool `json:"mostrarEnHero" db:"mostrar_en_hero"`
+	// Team photo (Figma 54) with its focal point (object-position %) and alternative text.
+	FotoURL string `json:"fotoUrl" db:"foto_url"`
+	FocalX  int    `json:"focalX" db:"focal_x"`
+	FocalY  int    `json:"focalY" db:"focal_y"`
+	Alt     string `json:"alt" db:"alt"`
+}
+
+// blogPorPagina is the /blog page size (Figma 34: «Cargar más (24 de 96)» and 8 pages).
+const blogPorPagina = 12
+
+// blogPub is one page of /blog: its posts, the total for the filter and the categories in use (chips).
+type blogPub struct {
+	Items      []paginaPub `json:"items"`
+	Total      int         `json:"total"`
+	Pagina     int         `json:"pagina"`
+	PorPagina  int         `json:"porPagina"`
+	Categorias []string    `json:"categorias"`
+}
+
+type paginaPub struct {
+	Slug        string     `json:"slug" db:"slug"`
+	Titulo      string     `json:"titulo" db:"titulo"`
+	Resumen     string     `json:"resumen" db:"resumen"`
+	Cuerpo      string     `json:"cuerpo,omitempty" db:"cuerpo"`
+	PortadaURL  string     `json:"portadaUrl" db:"portada_url"`
+	PublicadoAt *time.Time `json:"publicadoAt,omitempty" db:"publicado"`
+	// Blog: category, source line and reading time (200 words a minute, at least 1).
+	Categoria string `json:"categoria" db:"categoria"`
+	Fuente    string `json:"fuente" db:"fuente"`
+	Minutos   int    `json:"minutos" db:"minutos"`
+}
+
+type legalPub struct {
+	Tipo        string    `json:"tipo" db:"tipo"`
+	Version     string    `json:"version" db:"version"`
+	Titulo      string    `json:"titulo" db:"titulo"`
+	Contenido   string    `json:"contenido" db:"contenido"`
+	Hash        string    `json:"hash" db:"hash"`
+	PublicadoAt time.Time `json:"publicadoAt" db:"publicado_at"`
+}
+
+type seoPub struct {
+	Paginas       []seoRow   `json:"paginas"`
+	Redirecciones []redirRow `json:"redirecciones"`
+	Rutas         []string   `json:"rutas" doc:"Páginas y entradas publicadas (sitemap)"`
+}
+
+const visible = `publicada AND (publicar_at IS NULL OR publicar_at <= now())`
+
+func (s *Svc) registerPublic() {
+	api := s.a.API
+	pub := "/api/competiciones/{slug}"
+	cacheHdr := "public, max-age=60"
+
+	type homeOut struct {
+		CacheControl string `header:"Cache-Control"`
+		Body         Home
+	}
+	huma.Register(api, huma.Operation{OperationID: "web-public", Method: http.MethodGet, Path: pub + "/web", Summary: "Contenido publicado de la home", Tags: tagPub},
+		func(ctx context.Context, in *slugIn) (*homeOut, error) {
+			cid, err := s.cidFor(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			h, err := cached(ctx, s, cid, "home-v2", ttlContent, func() (Home, error) { return s.home(ctx, cid, in.Slug) })
+			return &homeOut{CacheControl: cacheHdr, Body: h}, err
+		})
+
+	type faqOut struct {
+		CacheControl string `header:"Cache-Control"`
+		Body         []faqPub
+	}
+	huma.Register(api, huma.Operation{OperationID: "faq-public", Method: http.MethodGet, Path: pub + "/faq", Summary: "Preguntas frecuentes publicadas", Tags: tagPub},
+		func(ctx context.Context, in *slugIn) (*faqOut, error) {
+			cid, err := s.cidFor(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			list, err := cached(ctx, s, cid, "faq", ttlContent, func() ([]faqPub, error) {
+				rows, err := s.a.DB.Query(ctx, `SELECT categoria, pregunta, respuesta FROM faq WHERE competition_id = $1 AND publicada ORDER BY categoria, orden`, cid)
+				if err != nil {
+					return nil, err
+				}
+				return collect[faqPub](rows)
+			})
+			return &faqOut{CacheControl: cacheHdr, Body: list}, err
+		})
+
+	type patroOut struct {
+		CacheControl string `header:"Cache-Control"`
+		Body         []patroPub
+	}
+	type patroPubIn struct {
+		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Hero bool   `query:"hero" required:"false" doc:"Solo los marcados «Mostrar en hero» (BIZ-144)"`
+	}
+	huma.Register(api, huma.Operation{OperationID: "patrocinadores-public", Method: http.MethodGet, Path: pub + "/patrocinadores", Summary: "Patrocinadores activos", Tags: tagPub},
+		func(ctx context.Context, in *patroPubIn) (*patroOut, error) {
+			cid, err := s.cidFor(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			list, err := cached(ctx, s, cid, "patrocinadores-v3", ttlContent, func() ([]patroPub, error) { return s.patrocinadores(ctx, cid, in.Slug) })
+			if err == nil && in.Hero {
+				hero := []patroPub{}
+				for _, p := range list {
+					if p.MostrarEnHero {
+						hero = append(hero, p)
+					}
+				}
+				list = hero
+			}
+			return &patroOut{CacheControl: cacheHdr, Body: list}, err
+		})
+
+	type legalIn struct {
+		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Tipo string `path:"tipo" enum:"privacidad,terminos,cookies,consentimiento,whatsapp,bases-sorteo"`
+	}
+	type legalOut struct {
+		CacheControl string `header:"Cache-Control"`
+		Body         legalPub
+	}
+	huma.Register(api, huma.Operation{OperationID: "legal-public", Method: http.MethodGet, Path: pub + "/legal/{tipo}", Summary: "Versión vigente de un texto legal", Tags: tagPub},
+		func(ctx context.Context, in *legalIn) (*legalOut, error) {
+			cid, err := s.cidFor(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			l, err := cached(ctx, s, cid, "legal:"+in.Tipo, ttlContent, func() (legalPub, error) {
+				rows, err := s.a.DB.Query(ctx, `SELECT tipo, version, titulo, contenido, hash, publicado_at FROM legal WHERE competition_id = $1 AND tipo = $2 AND publicado_at IS NOT NULL ORDER BY publicado_at DESC LIMIT 1`, cid, in.Tipo)
+				if err != nil {
+					return legalPub{}, err
+				}
+				l, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[legalPub])
+				if err != nil {
+					return l, problem.NotFound("Este texto todavía no está publicado.")
+				}
+				return l, nil
+			})
+			return &legalOut{CacheControl: cacheHdr, Body: l}, err
+		})
+
+	type pagIn struct {
+		Slug  string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		PSlug string `path:"pslug" pattern:"^[a-z0-9-]{1,120}$"`
+	}
+	type pagOut struct {
+		CacheControl string `header:"Cache-Control"`
+		Body         paginaPub
+	}
+	for _, tipo := range []string{"pagina", "blog"} {
+		seg := "paginas"
+		if tipo == "blog" {
+			seg = "blog"
+		}
+		huma.Register(api, huma.Operation{OperationID: seg + "-public-get", Method: http.MethodGet, Path: pub + "/" + seg + "/{pslug}", Summary: "Página o entrada publicada", Tags: tagPub},
+			func(ctx context.Context, in *pagIn) (*pagOut, error) {
+				cid, err := s.cidFor(ctx, in.Slug)
+				if err != nil {
+					return nil, err
+				}
+				p, err := cached(ctx, s, cid, seg+":"+in.PSlug, ttlTimed, func() (paginaPub, error) {
+					rows, err := s.a.DB.Query(ctx, `SELECT slug, titulo, resumen, cuerpo, portada_url, COALESCE(publicar_at, updated_at) AS publicado, categoria, fuente, `+minutosLectura+` FROM paginas
+						WHERE competition_id = $1 AND tipo = $2 AND slug = $3 AND `+visible, cid, tipo, in.PSlug)
+					if err != nil {
+						return paginaPub{}, err
+					}
+					p, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[paginaPub])
+					if err != nil {
+						return p, problem.NotFound("Página no encontrada.")
+					}
+					return p, nil
+				})
+				return &pagOut{CacheControl: cacheHdr, Body: p}, err
+			})
+	}
+	type blogOut struct {
+		CacheControl string `header:"Cache-Control"`
+		Body         blogPub
+	}
+	type blogIn struct {
+		Slug      string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Page      int    `query:"page" minimum:"1" maximum:"1000" default:"1"`
+		Categoria string `query:"categoria" maxLength:"20"`
+	}
+	huma.Register(api, huma.Operation{OperationID: "blog-public-list", Method: http.MethodGet, Path: pub + "/blog", Summary: "Entradas del blog publicadas (12 por página, filtro por categoría)", Tags: tagPub},
+		func(ctx context.Context, in *blogIn) (*blogOut, error) {
+			cid, err := s.cidFor(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			if !categoriasBlog[in.Categoria] {
+				in.Categoria = "" // unknown category → «Todos»
+			}
+			out, err := cached(ctx, s, cid, fmt.Sprintf("blog:%s:%d", in.Categoria, in.Page), ttlTimed, func() (blogPub, error) {
+				b := blogPub{Pagina: in.Page, PorPagina: blogPorPagina, Categorias: []string{}}
+				if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FILTER (WHERE $2 = '' OR categoria = $2), COALESCE(array_agg(DISTINCT categoria) FILTER (WHERE categoria <> ''), '{}')
+					FROM paginas WHERE competition_id = $1 AND tipo = 'blog' AND `+visible, cid, in.Categoria).Scan(&b.Total, &b.Categorias); err != nil {
+					return b, err
+				}
+				rows, err := s.a.DB.Query(ctx, `SELECT slug, titulo, resumen, '' AS cuerpo, portada_url, COALESCE(publicar_at, updated_at) AS publicado, categoria, fuente, `+minutosLectura+` FROM paginas
+					WHERE competition_id = $1 AND tipo = 'blog' AND `+visible+` AND ($2 = '' OR categoria = $2) ORDER BY publicado DESC, slug LIMIT $3 OFFSET $4`,
+					cid, in.Categoria, blogPorPagina, (in.Page-1)*blogPorPagina)
+				if err != nil {
+					return b, err
+				}
+				b.Items, err = collect[paginaPub](rows)
+				return b, err
+			})
+			return &blogOut{CacheControl: cacheHdr, Body: out}, err
+		})
+
+	type galOut struct {
+		CacheControl string `header:"Cache-Control"`
+		Body         []albumPub
+	}
+	huma.Register(api, huma.Operation{OperationID: "galeria-public", Method: http.MethodGet, Path: pub + "/galeria", Summary: "Álbumes publicados", Tags: tagPub},
+		func(ctx context.Context, in *slugIn) (*galOut, error) {
+			cid, err := s.cidFor(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			list, err := cached(ctx, s, cid, "galeria", ttlContent, func() ([]albumPub, error) {
+				rows, err := s.a.DB.Query(ctx, `SELECT titulo, slug, fotos FROM albumes WHERE competition_id = $1 AND publicado ORDER BY orden`, cid)
+				if err != nil {
+					return nil, err
+				}
+				list, err := collect[albumPub](rows)
+				if err != nil {
+					return nil, err
+				}
+				return s.conMedidas(ctx, cid, list)
+			})
+			return &galOut{CacheControl: cacheHdr, Body: list}, err
+		})
+
+	type seoOut struct {
+		CacheControl string `header:"Cache-Control"`
+		Body         seoPub
+	}
+	huma.Register(api, huma.Operation{OperationID: "seo-public", Method: http.MethodGet, Path: pub + "/seo", Summary: "SEO por ruta, redirecciones y rutas publicadas (sitemap)", Tags: tagPub},
+		func(ctx context.Context, in *slugIn) (*seoOut, error) {
+			cid, err := s.cidFor(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			out, err := cached(ctx, s, cid, "seo", ttlTimed, func() (seoPub, error) {
+				var o seoPub
+				rows, err := s.a.DB.Query(ctx, `SELECT id, ruta, title, description, imagen_url, indexable, orden FROM seo WHERE competition_id = $1 ORDER BY ruta`, cid)
+				if err != nil {
+					return o, err
+				}
+				if o.Paginas, err = collect[seoRow](rows); err != nil {
+					return o, err
+				}
+				rows, err = s.a.DB.Query(ctx, `SELECT id, desde, hacia, codigo, orden FROM redirecciones WHERE competition_id = $1 ORDER BY desde`, cid)
+				if err != nil {
+					return o, err
+				}
+				if o.Redirecciones, err = collect[redirRow](rows); err != nil {
+					return o, err
+				}
+				rows, err = s.a.DB.Query(ctx, `SELECT CASE WHEN tipo = 'blog' THEN '/blog/' ELSE '/' END || slug FROM paginas WHERE competition_id = $1 AND `+visible+`
+					UNION SELECT DISTINCT '/' || pagina FROM secciones WHERE competition_id = $1 AND pagina <> 'home' AND publicado IS NOT NULL ORDER BY 1`, cid)
+				if err != nil {
+					return o, err
+				}
+				o.Rutas, err = pgx.CollectRows(rows, pgx.RowTo[string])
+				return o, err
+			})
+			return &seoOut{CacheControl: cacheHdr, Body: out}, err
+		})
+
+	type volIn struct {
+		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Session string `cookie:"grcup_fan" maxLength:"4096"`
+		Header  string `header:"X-GrCup-Fan" maxLength:"4096"`
+		Body    struct {
+			Nombre           string   `json:"nombre" minLength:"2" maxLength:"120"`
+			Email            string   `json:"email" format:"email" maxLength:"254"`
+			Telefono         string   `json:"telefono,omitempty" maxLength:"30"`
+			Disponibilidad   string   `json:"disponibilidad,omitempty" maxLength:"200"`
+			Roles            []string `json:"roles,omitempty" maxItems:"5" uniqueItems:"true" doc:"jueces · cargadores · mesa · foto · acreditaciones"`
+			Experiencia      string   `json:"experiencia,omitempty" maxLength:"1000"`
+			EsMenor          bool     `json:"esMenor,omitempty"`
+			AceptaPrivacidad bool     `json:"aceptaPrivacidad,omitempty" doc:"Obligatorio: casilla sin premarcar (si falta o es false → 422 CONSENTIMIENTO_OBLIGATORIO)"`
+		}
+	}
+	// The signed-in fan's own request (Figma 33/68): /voluntarios shows its status instead of a blank form once reviewed.
+	type miIn struct {
+		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Session string `cookie:"grcup_fan" maxLength:"4096"`
+		Header  string `header:"X-GrCup-Fan" maxLength:"4096"`
+	}
+	type miOut struct {
+		Body struct {
+			Estado string `json:"estado" enum:",pendiente,revision,confirmado,descartado" doc:"Vacío = no ha enviado ninguna"`
+			Puesto string `json:"puesto"`
+			Turno  string `json:"turno"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "voluntarios-mi-solicitud", Method: http.MethodGet, Path: pub + "/voluntarios/mi-solicitud", Summary: "Estado de mi solicitud de voluntariado (sesión de fan)", Tags: tagPub},
+		func(ctx context.Context, in *miIn) (*miOut, error) {
+			cid, err := s.cidFor(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			email, err := s.fanEmail(ctx, in.Session, in.Header, cid)
+			if err != nil {
+				return nil, err
+			}
+			out := &miOut{}
+			var puesto string
+			err = s.a.DB.QueryRow(ctx, `SELECT estado, puesto, turno FROM voluntarios WHERE competition_id = $1 AND email = $2`, cid, email).Scan(&out.Body.Estado, &puesto, &out.Body.Turno)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return out, nil
+			}
+			if out.Body.Estado == "confirmado" {
+				out.Body.Puesto = rolesVoluntario[puesto]
+			} else {
+				out.Body.Turno = ""
+			}
+			return out, err
+		})
+
+	huma.Register(api, huma.Operation{OperationID: "voluntarios-public", Method: http.MethodPost, Path: pub + "/voluntarios", Summary: "Enviar una solicitud de voluntariado", Tags: tagPub, DefaultStatus: http.StatusAccepted},
+		func(ctx context.Context, in *volIn) (*struct{}, error) {
+			cid, err := s.cidFor(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			email, err := s.fanEmail(ctx, in.Session, in.Header, cid)
+			if err != nil {
+				return nil, err
+			}
+			if !in.Body.AceptaPrivacidad {
+				return nil, problem.Unprocessable("CONSENTIMIENTO_OBLIGATORIO", "Para enviar la solicitud tienes que aceptar la política de privacidad.")
+			}
+			if len(in.Body.Roles) == 0 {
+				return nil, problem.Unprocessable("ROL_OBLIGATORIO", "Elige al menos un rol de voluntariado.")
+			}
+			roles, nombres := []string{}, []string{}
+			for _, r := range in.Body.Roles {
+				nombre, ok := rolesVoluntario[r]
+				if !ok {
+					return nil, problem.Unprocessable("ROL_INVALIDO", "Rol de voluntario no válido: "+r)
+				}
+				roles, nombres = append(roles, r), append(nombres, nombre)
+			}
+			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "voluntarios", httpx.ClientIPFrom(ctx)), 5, time.Hour); !r.Allowed {
+				return nil, problem.TooMany("Has enviado varias solicitudes seguidas. Inténtalo más tarde.")
+			}
+			detalle := strings.Join(append(nombres, in.Body.Disponibilidad), " · ")
+			var version string
+			_ = s.a.DB.QueryRow(ctx, `SELECT version FROM legal WHERE competition_id = $1 AND tipo = 'privacidad' AND publicado_at IS NOT NULL ORDER BY publicado_at DESC LIMIT 1`, cid).Scan(&version)
+			id := newID()
+			return nil, s.change(ctx, cid, "cms.voluntario_solicitado", map[string]any{"id": id, "esMenor": in.Body.EsMenor}, func(tx pgx.Tx) error {
+				// one request per (competition, fan email): a resend updates it only while pendiente and does not send a second acknowledgement
+				var nuevo bool
+				err := tx.QueryRow(ctx, `INSERT INTO voluntarios (id, competition_id, nombre, email, telefono, disponibilidad, roles, experiencia, es_menor, consentimiento_at, legal_version)
+					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,now(),$10)
+					ON CONFLICT (competition_id, email) DO UPDATE SET nombre = EXCLUDED.nombre, telefono = EXCLUDED.telefono, disponibilidad = EXCLUDED.disponibilidad,
+						roles = EXCLUDED.roles, experiencia = EXCLUDED.experiencia, es_menor = EXCLUDED.es_menor, consentimiento_at = now(), legal_version = EXCLUDED.legal_version, updated_at = now()
+					WHERE voluntarios.estado = 'pendiente'
+					RETURNING xmax = 0`, id, cid, strings.TrimSpace(in.Body.Nombre), email, in.Body.Telefono, in.Body.Disponibilidad, roles,
+					strings.TrimSpace(in.Body.Experiencia), in.Body.EsMenor, version).Scan(&nuevo)
+				if errors.Is(err, pgx.ErrNoRows) {
+					return problem.Conflict("SOLICITUD_REVISADA", "Tu solicitud ya está revisada y no se puede cambiar desde aquí. Escríbenos si necesitas modificarla.")
+				}
+				if err != nil {
+					return err
+				}
+				if err := events.Enqueue(ctx, tx, events.New(ctx, "cms.contacto", map[string]any{"email": email, "telefono": in.Body.Telefono, "nombre": strings.TrimSpace(in.Body.Nombre),
+					"origen": "voluntarios", "relacion": map[string]any{"voluntario": true},
+					"consentimientos": []map[string]any{{"finalidad": "privacidad", "estado": "confirmado", "version": version, "origen": "/voluntarios · formulario", "ip": httpx.ClientIPFrom(ctx)}},
+					"actividad":       map[string]any{"tipo": "voluntario", "titulo": "Se ofreció como voluntario", "detalle": strings.Trim(detalle, " ·")}},
+					events.Competition(cid.String()), events.Audience(events.Internal))); err != nil {
+					return err
+				}
+				if !nuevo {
+					return nil
+				}
+				return events.Enqueue(ctx, tx, events.New(ctx, "cms.email_solicitado", map[string]any{"para": email, "plantilla": "voluntario-recibido",
+					"vars": map[string]string{"nombre": in.Body.Nombre}}, events.Competition(cid.String()), events.Audience(events.Internal)))
+			})
+		})
+}
+
+// Landing is a page built from sections (/publico, /en): published, visible sections in published order.
+type Landing struct {
+	Version   string                     `json:"version"`
+	Secciones map[string]json.RawMessage `json:"secciones"`
+	Orden     []string                   `json:"orden"`
+}
+
+type clubPub struct {
+	Nombre      string `json:"nombre" db:"nombre"`
+	Ciudad      string `json:"ciudad" db:"ciudad"`
+	Provincia   string `json:"provincia" db:"provincia"`
+	LogoURL     string `json:"logoUrl" db:"logo_url"`
+	Web         string `json:"web" db:"web"`
+	Instagram   string `json:"instagram" db:"instagram"`
+	Etiquetas   string `json:"etiquetas" db:"etiquetas"`
+	Rol         string `json:"rol" db:"rol"`
+	AfiliadoAEP *bool  `json:"afiliadoAep" db:"afiliado_aep"`
+}
+
+func (s *Svc) registerPublicExtra() {
+	api := s.a.API
+	pub := "/api/competiciones/{slug}"
+	cacheHdr := "public, max-age=60"
+
+	type landIn struct {
+		Slug   string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Pagina string `path:"pagina" enum:"publico,en"`
+	}
+	type landOut struct {
+		CacheControl string `header:"Cache-Control"`
+		Body         Landing
+	}
+	huma.Register(api, huma.Operation{OperationID: "landing-public", Method: http.MethodGet, Path: pub + "/web/{pagina}", Summary: "Contenido publicado de /publico o /en", Tags: tagPub},
+		func(ctx context.Context, in *landIn) (*landOut, error) {
+			cid, err := s.cidFor(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			l, err := cached(ctx, s, cid, "landing:"+in.Pagina, ttlContent, func() (Landing, error) {
+				secs, orden, err := s.publishedSections(ctx, cid, in.Pagina)
+				return Landing{Version: s.version(ctx, cid), Secciones: secs, Orden: orden}, err
+			})
+			return &landOut{CacheControl: cacheHdr, Body: l}, err
+		})
+
+	type clubsOut struct {
+		CacheControl string `header:"Cache-Control"`
+		Body         []clubPub
+	}
+	huma.Register(api, huma.Operation{OperationID: "clubs-public", Method: http.MethodGet, Path: pub + "/clubs", Summary: "Directorio de clubs publicados", Tags: tagPub},
+		func(ctx context.Context, in *slugIn) (*clubsOut, error) {
+			cid, err := s.cidFor(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			list, err := cached(ctx, s, cid, "clubs", ttlContent, func() ([]clubPub, error) {
+				rows, err := s.a.DB.Query(ctx, `SELECT nombre, ciudad, provincia, logo_url, web, instagram, etiquetas, rol, afiliado_aep FROM clubs
+					WHERE competition_id = $1 AND estado = 'publicado' ORDER BY orden, nombre`, cid)
+				if err != nil {
+					return nil, err
+				}
+				return collect[clubPub](rows)
+			})
+			return &clubsOut{CacheControl: cacheHdr, Body: list}, err
+		})
+
+	type clubSolIn struct {
+		Slug    string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		Session string `cookie:"grcup_fan" maxLength:"4096"`
+		Header  string `header:"X-GrCup-Fan" maxLength:"4096"`
+		Body    struct {
+			Nombre           string `json:"nombre" minLength:"2" maxLength:"120"`
+			Ciudad           string `json:"ciudad" minLength:"2" maxLength:"80"`
+			Provincia        string `json:"provincia,omitempty" maxLength:"40"`
+			Web              string `json:"web,omitempty" maxLength:"300"`
+			Instagram        string `json:"instagram,omitempty" maxLength:"300"`
+			AfiliadoAEP      *bool  `json:"afiliadoAep,omitempty" doc:"Sin elegir = null (sin respuesta)"`
+			Email            string `json:"email" format:"email" maxLength:"254" doc:"Contacto para verificar el club (no se publica)"`
+			ContactoNombre   string `json:"contactoNombre" minLength:"2" maxLength:"120" doc:"Persona de contacto (no se publica)"`
+			Mensaje          string `json:"mensaje,omitempty" maxLength:"1000"`
+			AceptaPrivacidad bool   `json:"aceptaPrivacidad,omitempty" doc:"Obligatorio: casilla sin premarcar (si falta o es false → 422 CONSENTIMIENTO_OBLIGATORIO)"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "clubs-public-solicitud", Method: http.MethodPost, Path: pub + "/clubs", Summary: "Proponer un club para el directorio (queda pendiente de revisión)", Tags: tagPub, DefaultStatus: http.StatusAccepted},
+		func(ctx context.Context, in *clubSolIn) (*struct{}, error) {
+			cid, err := s.cidFor(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			email, err := s.fanEmail(ctx, in.Session, in.Header, cid)
+			if err != nil {
+				return nil, err
+			}
+			if !in.Body.AceptaPrivacidad {
+				return nil, problem.Unprocessable("CONSENTIMIENTO_OBLIGATORIO", "Para enviar el club tienes que aceptar la política de privacidad.")
+			}
+			b := clubIn{Nombre: in.Body.Nombre, Ciudad: in.Body.Ciudad, Provincia: in.Body.Provincia, Web: in.Body.Web, Instagram: instagramURL(in.Body.Instagram)}
+			if err := validClub(&b); err != nil {
+				return nil, err
+			}
+			// validate before the rate limit: rejected submissions must not spend the visitor's 3/h
+			contacto := strings.TrimSpace(in.Body.ContactoNombre)
+			if conMarcado(contacto, true) {
+				return nil, problem.Unprocessable("NOMBRE_INVALIDO", "El nombre de contacto no puede contener HTML ni enlaces.")
+			}
+			if conMarcado(in.Body.Mensaje, false) {
+				return nil, problem.Unprocessable("MENSAJE_INVALIDO", "El mensaje no puede contener HTML ni enlaces.")
+			}
+			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "clubs", httpx.ClientIPFrom(ctx)), 3, time.Hour); !r.Allowed {
+				return nil, problem.TooMany("Has enviado varias propuestas seguidas. Inténtalo más tarde.")
+			}
+			var version string
+			_ = s.a.DB.QueryRow(ctx, `SELECT version FROM legal WHERE competition_id = $1 AND tipo = 'privacidad' AND publicado_at IS NOT NULL ORDER BY publicado_at DESC LIMIT 1`, cid).Scan(&version)
+			id := newID()
+			return nil, s.change(ctx, cid, "cms.club_solicitado", map[string]any{"id": id, "nombre": b.Nombre}, func(tx pgx.Tx) error {
+				if _, err := tx.Exec(ctx, `INSERT INTO clubs (id, competition_id, nombre, ciudad, provincia, web, instagram, afiliado_aep, estado, contacto_email, contacto_nombre, mensaje, consentimiento_at, legal_version, orden)
+					VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pendiente',$9,$10,$11,now(),$12, (SELECT COALESCE(max(orden), 0) + 1 FROM clubs WHERE competition_id = $2))`,
+					id, cid, b.Nombre, b.Ciudad, b.Provincia, b.Web, b.Instagram, in.Body.AfiliadoAEP, email,
+					contacto, strings.TrimSpace(in.Body.Mensaje), version); err != nil {
+					return err
+				}
+				if err := events.Enqueue(ctx, tx, events.New(ctx, "cms.contacto", map[string]any{"email": email, "nombre": contacto, "origen": "club",
+					"consentimientos": []map[string]any{{"finalidad": "privacidad", "estado": "confirmado", "version": version, "origen": "/clubs · formulario", "ip": httpx.ClientIPFrom(ctx)}},
+					"actividad":       map[string]any{"tipo": "club", "titulo": "Propuso un club", "detalle": b.Nombre + " · " + b.Ciudad}},
+					events.Competition(cid.String()), events.Audience(events.Internal))); err != nil {
+					return err
+				}
+				return events.Enqueue(ctx, tx, events.New(ctx, "cms.email_solicitado", map[string]any{"para": email, "plantilla": "club-recibido",
+					"vars": map[string]string{"nombre": contacto, "club": b.Nombre}}, events.Competition(cid.String()), events.Audience(events.Internal)))
+			})
+		})
+}
+
+// publishedSections returns the published, visible sections of a page in published order.
+func (s *Svc) publishedSections(ctx context.Context, cid uuid.UUID, pagina string) (map[string]json.RawMessage, []string, error) {
+	secs, orden := map[string]json.RawMessage{}, []string{}
+	rows, err := s.a.DB.Query(ctx, `SELECT clave, publicado FROM secciones WHERE competition_id = $1 AND pagina = $2 AND pub_visible AND publicado IS NOT NULL ORDER BY pub_orden, orden`, cid, pagina)
+	if err != nil {
+		return secs, orden, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var k string
+		var v json.RawMessage
+		if err := rows.Scan(&k, &v); err != nil {
+			return secs, orden, err
+		}
+		secs[k] = v
+		orden = append(orden, k)
+	}
+	return secs, orden, rows.Err()
+}
+
+func collect[T any](rows pgx.Rows) ([]T, error) {
+	list, err := pgx.CollectRows(rows, pgx.RowToStructByName[T])
+	if list == nil {
+		list = []T{}
+	}
+	return list, err
+}
+
+// patrocinadores lists the active sponsors; their links carry ?utm_source={slug}&utm_medium=web (Figma 54).
+func (s *Svc) patrocinadores(ctx context.Context, cid uuid.UUID, slug string) ([]patroPub, error) {
+	rows, err := s.a.DB.Query(ctx, `SELECT nombre, nivel, logo_url, url, descripcion, mostrar_en_hero, foto_url, focal_x, focal_y, alt FROM patrocinadores WHERE competition_id = $1 AND activo ORDER BY orden`, cid)
+	if err != nil {
+		return nil, err
+	}
+	list, err := collect[patroPub](rows)
+	for i := range list {
+		list[i].URL = conUTM(list[i].URL, slug)
+	}
+	return list, err
+}
+
+// conUTM sets utm_source/utm_medium on an absolute link, overwriting any previous values.
+func conUTM(raw, source string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return raw
+	}
+	q := u.Query()
+	q.Set("utm_source", source)
+	q.Set("utm_medium", "web")
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
+func (s *Svc) home(ctx context.Context, cid uuid.UUID, slug string) (Home, error) {
+	h := Home{Version: s.version(ctx, cid)}
+	var err error
+	if h.Secciones, h.Orden, err = s.publishedSections(ctx, cid, "home"); err != nil {
+		return h, err
+	}
+	rows, err := s.a.DB.Query(ctx, `SELECT categoria, pregunta, respuesta FROM faq WHERE competition_id = $1 AND publicada AND destacada ORDER BY orden LIMIT 8`, cid)
+	if err != nil {
+		return h, err
+	}
+	if h.FaqDestacadas, err = collect[faqPub](rows); err != nil {
+		return h, err
+	}
+	h.Patrocinadores, err = s.patrocinadores(ctx, cid, slug)
+	return h, err
+}
+
+// albumPub is a published album of /galeria.
+type albumPub struct {
+	Titulo string          `json:"titulo" db:"titulo"`
+	Slug   string          `json:"slug" db:"slug"`
+	Fotos  json.RawMessage `json:"fotos" db:"fotos"`
+}
+
+// conMedidas adds «ancho» and «alto» to the photos that come from the media library, so /galeria can lay out its
+// mosaic before the images load (no layout shift). Photos with other URLs keep their JSON as it is.
+func (s *Svc) conMedidas(ctx context.Context, cid uuid.UUID, list []albumPub) ([]albumPub, error) {
+	ids := []uuid.UUID{}
+	fotos := make([][]map[string]any, len(list))
+	for i, a := range list {
+		if err := json.Unmarshal(a.Fotos, &fotos[i]); err != nil {
+			return nil, err
+		}
+		visibles := fotos[i][:0]
+		for _, f := range fotos[i] {
+			if oculta, _ := f["oculta"].(bool); !oculta {
+				visibles = append(visibles, f)
+			}
+		}
+		fotos[i] = visibles
+		for _, f := range fotos[i] {
+			u, _ := f["url"].(string)
+			if id, err := uuid.Parse(strings.TrimPrefix(u, "/api/medios/")); err == nil && strings.HasPrefix(u, "/api/medios/") {
+				ids = append(ids, id)
+			}
+		}
+	}
+	if len(ids) == 0 {
+		for i := range list {
+			b, err := json.Marshal(fotos[i])
+			if err != nil {
+				return nil, err
+			}
+			list[i].Fotos = b
+		}
+		return list, nil
+	}
+	medidas := map[string][2]int{}
+	rows, err := s.a.DB.Query(ctx, `SELECT id, ancho, alto FROM medios WHERE competition_id = $1 AND id = ANY($2) AND ancho > 0 AND alto > 0`, cid, ids)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var id uuid.UUID
+		var w, h int
+		if err := rows.Scan(&id, &w, &h); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		medidas["/api/medios/"+id.String()] = [2]int{w, h}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for i := range list {
+		for _, f := range fotos[i] {
+			u, _ := f["url"].(string)
+			if m, ok := medidas[u]; ok {
+				f["ancho"], f["alto"] = m[0], m[1]
+			}
+		}
+		b, err := json.Marshal(fotos[i])
+		if err != nil {
+			return nil, err
+		}
+		list[i].Fotos = b
+	}
+	return list, nil
+}
+
+// rolesVoluntario are the roles of /voluntarios (Figma 33) and their names (CRM activity, as in the backoffice list).
+var rolesVoluntario = map[string]string{"jueces": "Jueces", "cargadores": "Cargadores", "mesa": "Mesa técnica", "foto": "Foto y vídeo", "acreditaciones": "Acreditaciones y logística"}
+
+// minutosLectura is the reading time of a page in whole minutes (200 words a minute, at least 1).
+const minutosLectura = `COALESCE(minutos_lectura, GREATEST(1, ceil(cardinality(regexp_split_to_array(btrim(cuerpo), '\s+')) / 200.0))::int) AS minutos`
+
+// conMarcado reports HTML or links in a free text (names also reject slashes, braces and «@»).
+func conMarcado(v string, nombre bool) bool {
+	l := strings.ToLower(v)
+	if strings.Contains(l, "http") || strings.Contains(l, "www.") || strings.Contains(l, "://") || strings.ContainsAny(v, "<>") {
+		return true
+	}
+	return nombre && strings.ContainsAny(v, "{}[]\\/@")
+}
+
+// instagramURL turns «@club», «club» or «instagram.com/club» into https://instagram.com/club (a full https link stays).
+func instagramURL(v string) string {
+	v = strings.TrimSpace(v)
+	if v == "" || strings.HasPrefix(v, "https://") {
+		return v
+	}
+	v = strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(v, "http://"), "www."), "instagram.com/")
+	v = strings.Trim(strings.TrimPrefix(v, "@"), "/ ")
+	if v == "" || strings.ContainsAny(v, " /?#") {
+		return v // validClub rejects it with its message
+	}
+	return "https://instagram.com/" + v
+}

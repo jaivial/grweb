@@ -1,0 +1,111 @@
+# Gateway: the only entry point (host nginx → fixed ClusterIP set in the overlay).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  labels: { app.kubernetes.io/name: gateway, app.kubernetes.io/part-of: grcup, grcup.dev/tier: edge }
+spec:
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels: { app.kubernetes.io/name: gateway }
+  strategy:
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: gateway, app.kubernetes.io/part-of: grcup, grcup.dev/tier: edge, grcup.dev/servicio: gateway }
+    spec:
+      priorityClassName: grcup-qa-low # perf-20261115: GRS QA cede ante prod (aplicado en Kraken 12:51)
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: gateway
+          image: grcup/gateway
+          imagePullPolicy: IfNotPresent
+          args: ["serve"]
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: salud, containerPort: 8081 }
+          envFrom:
+            - configMapRef: { name: grcup-config }
+          env:
+            - { name: GOMEMLIMIT, value: "410MiB" } # ~80% of the 512Mi limit
+            - { name: UPLOADS_MAX, value: "32" } # concurrent multipart uploads per replica; over it 503 code=busy
+            - { name: UPSTREAMS, value: "identity,competition,audit,realtime,cms,athletes,schedule,crm,messaging,ticketing,live,ai,raffle,fans,chat,donaciones,patrocinio,juegos,openlifter" }
+            - { name: RATE_LIMIT_IP_MIN, value: "600" }
+            # GETs of the SSR (carry SSR_SECRET): own per-visitor bucket; a home render costs ~6 API calls.
+            - { name: RATE_LIMIT_SSR_IP_MIN, value: "3000" }
+            - { name: SSE_CONN_IP_MAX, value: "2000" }
+            - name: SSR_SECRET
+              valueFrom: { secretKeyRef: { name: grcup-ssr, key: SSR_SECRET, optional: true } }
+            - name: REDIS_PASSWORD
+              valueFrom: { secretKeyRef: { name: grcup-redis, key: REDIS_PASSWORD } }
+            - name: INTERNAL_TOKEN_SECRET
+              valueFrom: { secretKeyRef: { name: grcup-internal, key: INTERNAL_TOKEN_SECRET } }
+          # Own listener (HEALTH_ADDR), outside the connection cap of :8080: a flood must not fail the probes.
+          startupProbe:
+            httpGet: { path: /healthz, port: salud }
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: { path: /readyz, port: salud }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: salud }
+            periodSeconds: 10
+          lifecycle:
+            preStop: { sleep: { seconds: 5 } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          resources:
+            # ST1 QA r2: 300 writers = 1317m of gateway (8 × 150m maxed out). QA r3: 1000 idle WS on 2–3 pods = 61–70Mi
+            # per pod (63–73 % of 96Mi): request = observed working set + margin, so the scheduler reserves what it uses.
+            requests: { cpu: 250m, memory: 128Mi }
+            # ST2-R4-1: 500 SSE + bet load peaked at 292Mi and OOMKilled at 384Mi: headroom for the peak.
+            limits: { cpu: 700m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  labels: { app.kubernetes.io/name: gateway, app.kubernetes.io/part-of: grcup }
+spec:
+  selector: { app.kubernetes.io/name: gateway }
+  ports:
+    - { name: http, port: 8080, targetPort: http }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: gateway
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: gateway }
+  minReplicas: 4 # ST2-R5-2: 500 SSE right after a deploy overran 2 pods before the HPA reacted
+  maxReplicas: 6 # perf-20261115 §8: WS buffers of 4 KB (#389), chat WS direct (nginx) and batched frames: the old 1317m peak is gone; 6 × 700m keeps the quota
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+  # No memory metric (ST1-R3-2): idle WS hold memory but no CPU, and GOMEMLIMIT keeps the heap in check, so memory
+  # flapped 2↔3 replicas with nothing to serve and each scale-down cut the WS. Scale-down: 1 pod per minute.
+  behavior:
+    scaleUp: { stabilizationWindowSeconds: 0, policies: [{ type: Pods, value: 4, periodSeconds: 15 }] }
+    scaleDown:
+      # ST2-R4-4: open SSE use no CPU, so a scale-down cut them mid-run; wait the 30 min SSE recycle period (after
+      # which public streams reconnect and spread over the pods anyway).
+      stabilizationWindowSeconds: 1800
+      policies: [{ type: Pods, value: 1, periodSeconds: 60 }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: gateway
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: gateway }

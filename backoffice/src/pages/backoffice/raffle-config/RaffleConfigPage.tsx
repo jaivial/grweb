@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, type JSX } from 'react';
 import { api } from '../../../utils/api';
+import { BackofficeLayout } from '../../../layouts/BackofficeLayout';
 
 interface RaffleConfigData {
   isEnabled: boolean;
@@ -286,6 +287,7 @@ export function RaffleConfigPage(): JSX.Element {
   };
 
   return (
+    <BackofficeLayout>
       <div className="p-3 xs:p-4 sm:p-6 xl:p-8" data-testid="raffle-config-content" data-ui="raffle-config-page">
         <div className="mb-6 xs:mb-8" data-ui="raffle-config-header">
           <h1 className="text-xl xs:text-2xl sm2:text-2xl lg:text-3xl font-bold text-white mb-1.5 xs:mb-2" data-ui="raffle-config-title">
@@ -582,7 +584,7 @@ export function RaffleConfigPage(): JSX.Element {
           </div>
         )}
       </div>
-
+    </BackofficeLayout>
   );
 }
 

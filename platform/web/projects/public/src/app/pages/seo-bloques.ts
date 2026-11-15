@@ -1,0 +1,93 @@
+import { isPlatformBrowser } from '@angular/common';
+import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, inject, input, linkedSignal } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { GrIcon, type GrIconName } from '@grcup/ui';
+import { I18n } from '../core/i18n';
+
+const T = {
+  es: { dato: 'Dato', consejo: 'Consejo', aviso: 'Aviso', importante: 'Importante', resumen: 'En resumen', secciones: 'Secciones' },
+  en: { dato: 'Fact', consejo: 'Tip', aviso: 'Warning', importante: 'Important', resumen: 'In short', secciones: 'Sections' },
+};
+
+/**
+ * Shared blocks of the SEO pages (Figma 20–35): callouts («Dato», «Consejo», «Aviso»), the «En resumen» key facts card
+ * and the sticky anchor chips of mobile.
+ */
+
+/** Figma «Callout»: 3 px bar, icon and a coloured label over the text. */
+@Component({
+  selector: 'gr-callout',
+  imports: [GrIcon],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[class]': "'relative flex gap-3 overflow-hidden rounded-lg p-4 ' + estilo[tono()].caja" },
+  template: `
+    <gr-icon [name]="estilo[tono()].icono" [size]="20" class="shrink-0 self-start" [class]="estilo[tono()].texto" />
+    <div class="flex flex-col gap-1">
+      <p class="text-label-s" [class]="estilo[tono()].texto">{{ titulo() || t()[tono()] }}</p>
+      <div class="text-body-m text-text-secondary"><ng-content /></div>
+    </div>
+  `,
+})
+export class GrCallout {
+  readonly tono = input<'dato' | 'consejo' | 'aviso' | 'importante'>('dato');
+  readonly titulo = input('');
+  protected readonly t = inject(I18n).dict(T);
+  protected readonly estilo: Record<string, { caja: string; barra: string; texto: string; icono: GrIconName }> = {
+    dato: { caja: 'bg-info/8', barra: 'bg-info', texto: 'text-info', icono: 'zap' },
+    consejo: { caja: 'bg-success/8', barra: 'bg-success', texto: 'text-success', icono: 'circle-check' },
+    aviso: { caja: 'bg-warning/8', barra: 'bg-warning', texto: 'text-warning', icono: 'triangle-alert' },
+    importante: { caja: 'bg-accent/8', barra: 'bg-accent', texto: 'text-accent-text', icono: 'circle-alert' },
+  };
+}
+
+/** Figma «Key facts»: «En resumen» in red and a list with checks, in a card with a red border. */
+@Component({
+  selector: 'gr-hechos',
+  imports: [GrIcon],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'flex flex-col gap-3 rounded-lg border border-accent/10 bg-bg-card/40 p-6' },
+  template: `
+    <p class="text-label-xs text-accent-text uppercase">{{ titulo() || t().resumen }}</p>
+    <ul class="flex flex-col gap-3">
+      @for (h of items(); track h; let i = $index) { <li class="flex gap-2.5 text-body-m text-text-secondary"><gr-icon [name]="iconos()[i] ?? 'check'" [size]="18" class="mt-[3px] shrink-0 text-accent-text" />{{ h }}</li> }
+    </ul>
+  `,
+})
+export class GrHechos {
+  readonly titulo = input('');
+  protected readonly t = inject(I18n).dict(T);
+  readonly items = input<string[]>([]);
+  /** Optional icon per item (Figma «Key facts · reglamento»); defaults to a check. */
+  readonly iconos = input<GrIconName[]>([]);
+}
+
+/** Figma «Anchor chips» (mobile): sticky under the navbar; the chip of the section on screen is highlighted. */
+@Component({
+  selector: 'gr-chips-ancla',
+  imports: [RouterLink],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'sticky top-[76px] z-20 -mx-5 -mt-4 mb-6 block border-b border-line-subtle bg-bg-base/95 backdrop-blur md:hidden' },
+  template: `
+    <nav class="flex gap-2 overflow-x-auto px-5 py-3 [scrollbar-width:none]" [attr.aria-label]="t().secciones">
+      @for (s of anclas(); track s.id) {
+        <a routerLink="." [fragment]="s.id" [attr.aria-current]="activa() === s.id ? 'location' : null" [class]="'flex h-11 md:h-9 shrink-0 items-center rounded-full border px-4 text-label-s ' + (activa() === s.id ? 'border-accent bg-accent text-white' : 'border-line-strong text-text-secondary')">{{ s.t }}</a>
+      }
+    </nav>
+  `,
+})
+export class GrChipsAncla {
+  readonly anclas = input<{ id: string; t: string }[]>([]);
+  protected readonly t = inject(I18n).dict(T);
+  protected readonly activa = linkedSignal(() => this.anclas()[0]?.id ?? '');
+  constructor() {
+    if (!isPlatformBrowser(inject(PLATFORM_ID))) return;
+    // scroll-spy: the last section whose top has passed 40 % of the screen (sections may render after async data)
+    const spy = () => {
+      let id = this.anclas()[0]?.id ?? '';
+      for (const a of this.anclas()) { const el = document.getElementById(a.id); if (el && el.getBoundingClientRect().top < innerHeight * 0.4) id = a.id; }
+      this.activa.set(id);
+    };
+    addEventListener('scroll', spy, { passive: true });
+    inject(DestroyRef).onDestroy(() => removeEventListener('scroll', spy));
+  }
+}

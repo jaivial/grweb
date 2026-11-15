@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { JSX } from 'react';
 import { api } from '../../utils/api';
+import { BackofficeLayout } from '../../layouts/BackofficeLayout';
 
 interface InscripcionConfigData {
   active: boolean;
@@ -70,6 +71,7 @@ export function InscripcionConfigPage(): JSX.Element {
   };
 
   return (
+    <BackofficeLayout>
       <div className="p-3 xs:p-4 sm:p-6 xl:p-8" data-ui="inscripcion-config-page">
         {/* Header */}
         <div className="mb-6 xs:mb-8" data-ui="config-header">
@@ -163,7 +165,7 @@ export function InscripcionConfigPage(): JSX.Element {
           </div>
         )}
       </div>
-
+    </BackofficeLayout>
   );
 }
 

@@ -1,0 +1,387 @@
+import { RouterLink } from '@angular/router';
+/**
+ * fantasy/pista.ts — la alineación de /fantasy como una pista de fútbol sala (Figma «72 · /fantasy»: componentes
+ * «Jugador · pista», «Pista · fútbol sala» y «Hoja · jugador»). En la pista solo va el avatar, el nombre corto y
+ * la nota (0–10, con el color de su tramo); todo lo demás (cláusula, desglose, flight y acciones) vive en la hoja
+ * inferior. La alineación son exactamente 5 atletas: no hay banquillo.
+ */
+import { isPlatformBrowser } from '@angular/common';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, afterNextRender, computed, inject, input, output, signal, viewChild } from '@angular/core';
+import { GrIcon } from '@grcup/ui';
+import { type AtletaDetalle, type AtletaMercado, nota1, tramoNota } from '../../core/juegos';
+import { iniciales } from '../porra/componentes';
+import { monedas } from '../porra/formato';
+import { I18n, LocPipe } from '../../core/i18n';
+import { ClauseTrend, GrNota, TEXTO_NOTA, lineasNota } from './componentes';
+
+/** El atleta de la pista (la foto pública solo llega si el perfil tiene imagen consentida). */
+export type AtletaPista = AtletaMercado;
+
+/**
+ * Color estable del avatar sin foto, según el nombre (tokens de marca mezclados con bg/raised; mismo orden que la
+ * paleta del Figma).
+ */
+const PALETA = [
+  'bg-[color-mix(in_oklab,var(--color-accent)_55%,var(--color-bg-raised))]',
+  'bg-[color-mix(in_oklab,var(--color-info)_40%,var(--color-bg-raised))]',
+  'bg-[color-mix(in_oklab,var(--color-success)_35%,var(--color-bg-raised))]',
+  'bg-[color-mix(in_oklab,var(--color-warning)_40%,var(--color-bg-raised))]',
+  'bg-accent-700',
+  'bg-[color-mix(in_oklab,var(--color-text-muted)_50%,var(--color-bg-raised))]',
+];
+export function colorAvatar(nombre: string): string {
+  let h = 0;
+  for (const ch of nombre) h = (h * 31 + ch.codePointAt(0)!) >>> 0;
+  return PALETA[h % PALETA.length];
+}
+
+/** «Lucía Rubio Peris» → «Lucía Rubio» (nombre y primer apellido). */
+export function nombreCorto(nombre: string): string {
+  return nombre.trim().split(/\s+/).slice(0, 2).join(' ');
+}
+
+const TAM = { l: 'size-20', m: 'size-16', s: 'size-14' } as const;
+
+const T = {
+  es: {
+    etiqueta: (n: string, nota: string, vivo: boolean) => `${n}, nota ${nota}${vivo ? ', compitiendo ahora' : ''}. Ver detalles`,
+    posiciones: ['Pívot', 'Ala izquierda', 'Ala derecha', 'Cierre', 'Portero'],
+    alineacion: 'Alineación en la pista',
+    hueco: (p: string) => 'Hueco libre (' + p + '): fichar en el mercado',
+    fichar: 'Fichar',
+    cerrar: 'Cerrar',
+    fotoDe: 'Foto de ',
+    compitiendo: 'Compitiendo ahora',
+    libreMover: 'Libre para moverse',
+    clausula: 'Cláusula',
+    notaMedia: 'Nota media',
+    vender: 'Vender',
+    noVender: 'Mientras compite no se puede vender ni cambiar de sitio.',
+    guardando: 'Guardando…',
+    femenino: 'Femenino',
+    masculino: 'Masculino',
+    duenoTu: 'dueño @tú',
+    dueno: 'dueño @',
+    libre: 'libre',
+    evolucion: (a: string, b: string) => `Evolución de la cláusula: de ${a} a ${b}`,
+    sinCambios: 'Cláusula sin cambios en la jornada',
+  },
+  en: {
+    etiqueta: (n: string, nota: string, vivo: boolean) => `${n}, score ${nota}${vivo ? ', competing now' : ''}. See details`,
+    posiciones: ['Pivot', 'Left wing', 'Right wing', 'Defender', 'Goalkeeper'],
+    alineacion: 'Line-up on the court',
+    hueco: (p: string) => 'Empty slot (' + p + '): sign in the market',
+    fichar: 'Sign',
+    cerrar: 'Close',
+    fotoDe: 'Photo of ',
+    compitiendo: 'Competing now',
+    libreMover: 'Free to move',
+    clausula: 'Release clause',
+    notaMedia: 'Average score',
+    vender: 'Sell',
+    noVender: "While competing it can't be sold or moved.",
+    guardando: 'Saving…',
+    femenino: 'Women',
+    masculino: 'Men',
+    duenoTu: 'owner @you',
+    dueno: 'owner @',
+    libre: 'free',
+    evolucion: (a: string, b: string) => `Release clause trend: from ${a} to ${b}`,
+    sinCambios: 'Release clause unchanged over the day',
+  },
+};
+
+/** Un jugador en la pista (Figma «Jugador · pista»): avatar (foto o iniciales), nombre corto y chip de la nota. */
+@Component({
+  selector: 'gr-jugador-pista',
+  imports: [GrIcon, GrNota],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block' },
+  template: `
+    <button type="button" class="group flex w-[6.5rem] flex-col items-center gap-2.5 rounded-lg p-1 outline-offset-4 lg:w-[7.5rem]" (click)="abrir.emit($event)" [attr.aria-label]="etiqueta()" aria-haspopup="dialog">
+      <span class="relative block shrink-0" [class]="tam()">
+        <span class="flex size-full items-center justify-center overflow-hidden rounded-full border-2 font-display text-white italic shadow-[0_6px_16px_rgb(0_0_0/0.5)] transition-transform duration-200 group-hover:scale-105 group-active:scale-95 motion-reduce:transform-none"
+          [class]="(atleta().sesionEnCurso ? 'border-warning ' : 'border-white/25 ') + (foto() ? 'bg-bg-raised' : color()) + (tamano() === 'l' ? ' text-[27px]' : tamano() === 'm' ? ' text-[22px]' : ' text-[19px]')">
+          @if (foto(); as f) { <img [src]="f" alt="" class="size-full object-cover" loading="lazy" decoding="async" (error)="sinFoto.set(true)" /> } @else { {{ ini() }} }
+        </span>
+        <gr-nota class="absolute -right-2 -bottom-0.5" tamano="s" [nota]="atleta().nota" aria-hidden="true" />
+        @if (atleta().sesionEnCurso) {
+          <span class="absolute -top-1 -right-1 flex size-[22px] items-center justify-center rounded-full bg-warning text-bg-deep" aria-hidden="true"><gr-icon name="lock" [size]="12" [stroke]="2.5" /></span>
+        }
+      </span>
+      <span class="line-clamp-2 w-full text-center text-[12px] [overflow-wrap:anywhere] leading-tight font-semibold text-text-primary [text-shadow:0_1px_6px_rgb(0_0_0/0.8)] lg:text-[14px]">{{ corto() }}</span>
+    </button>
+  `,
+})
+export class JugadorPista {
+  readonly atleta = input.required<AtletaPista>();
+  readonly tamano = input<'l' | 'm' | 's'>('m');
+  /** Every avatar in the brand red (home, Figma 05-home-juegos) instead of the colour by name. */
+  readonly rojo = input(false);
+  readonly abrir = output<Event>();
+  private readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(T);
+
+  protected readonly sinFoto = signal(false);
+  protected readonly foto = computed(() => (this.sinFoto() ? '' : this.atleta().fotoUrl || ''));
+  protected readonly tam = computed(() => TAM[this.tamano()] + (this.tamano() === 'l' ? ' max-lg:size-16' : ''));
+  protected readonly ini = computed(() => iniciales(this.atleta().nombre));
+  protected readonly color = computed(() => (this.rojo() ? 'bg-[color-mix(in_oklab,var(--color-accent)_80%,black)]' : colorAvatar(this.atleta().nombre)));
+  protected readonly corto = computed(() => nombreCorto(this.atleta().nombre));
+  protected readonly etiqueta = computed(() => {
+    const a = this.atleta();
+    return this.t().etiqueta(a.nombre, nota1(a.nota?.valor ?? 0), !!a.sesionEnCurso);
+  });
+}
+
+/** Las posiciones de la pista (rombo 1-1-2-1 de fútbol sala, el «portero» abajo); solo son visuales. */
+const POSICIONES = [
+  { left: '50%', top: '6%' },
+  { left: '21%', top: '28%' },
+  { left: '79%', top: '28%' },
+  { left: '50%', top: '52.5%' },
+  { left: '50%', top: '76.5%' },
+];
+
+/**
+ * La pista de fútbol sala (Figma «Pista · fútbol sala»): degradado de rojo de marca a negro con trama de puntos y
+ * líneas muy sutiles (CSS, sin imágenes), y los 5 atletas de la alineación en rombo. Los huecos llevan al mercado.
+ */
+@Component({
+  selector: 'gr-pista-futsal',
+  imports: [RouterLink, LocPipe, GrIcon, JugadorPista],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block' },
+  styles: `
+    .pista {
+      background-color: var(--color-bg-deep);
+      background-image:
+        radial-gradient(rgb(255 255 255 / 0.11) 1.1px, transparent 1.5px),
+        radial-gradient(120% 55% at 50% 0%, rgb(196 43 62 / 0.24), transparent 70%),
+        linear-gradient(180deg, var(--color-accent-deep) 0%, color-mix(in oklab, var(--color-accent-deep) 50%, var(--color-bg-deep)) 55%, var(--color-bg-deep) 100%);
+      background-size: 18px 18px, 100% 100%, 100% 100%;
+    }
+  `,
+  template: `
+    <div class="pista relative isolate aspect-[358/500] w-full overflow-hidden rounded-2xl shadow-[0_24px_60px_rgb(0_0_0/0.45)] lg:aspect-[680/760]">
+      <!-- Líneas (área, medio campo y círculo central), decorativas -->
+      <span class="pointer-events-none absolute inset-3 rounded-[10px] border-[1.5px] border-white/10 lg:inset-[18px] lg:rounded-[14px]" aria-hidden="true"></span>
+      <span class="pointer-events-none absolute inset-x-3 top-1/2 h-0 border-t-[1.5px] border-white/10 lg:inset-x-[18px]" aria-hidden="true"></span>
+      <span class="pointer-events-none absolute top-1/2 left-1/2 aspect-square w-[26%] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-white/10" aria-hidden="true"></span>
+      <span class="pointer-events-none absolute top-1/2 left-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/15" aria-hidden="true"></span>
+      <span class="pointer-events-none absolute top-3 left-1/2 h-[13%] w-[46%] -translate-x-1/2 rounded-b-full border-[1.5px] border-t-0 border-white/10 lg:top-[18px]" aria-hidden="true"></span>
+      <span class="pointer-events-none absolute bottom-3 left-1/2 h-[13%] w-[46%] -translate-x-1/2 rounded-t-full border-[1.5px] border-b-0 border-white/10 lg:bottom-[18px]" aria-hidden="true"></span>
+
+      <ul class="absolute inset-0" [attr.aria-label]="t().alineacion">
+        @for (p of posiciones(); track p.nombre; let i = $index) {
+          <li class="absolute -translate-x-1/2" [style.left]="p.left" [style.top]="p.top">
+            @if (titulares()[i]; as a) {
+              <gr-jugador-pista [atleta]="a" [rojo]="rojo()" tamano="l" (abrir)="abrir.emit({ atleta: a, origen: $event })" />
+            } @else {
+              <a [routerLink]="mercado() | loc" class="group flex w-[6.5rem] flex-col items-center gap-2.5 rounded-lg p-1 lg:w-[7.5rem]" [attr.aria-label]="t().hueco(p.nombre)">
+                <span class="flex size-16 items-center justify-center rounded-full border-[1.5px] border-dashed border-white/40 bg-bg-deep/35 text-text-secondary transition-colors group-hover:border-white/70 group-hover:text-white lg:size-20">
+                  <gr-icon name="plus" [size]="24" />
+                </span>
+                <span class="text-[12px] font-semibold text-text-tertiary lg:text-[14px]">{{ t().fichar }}</span>
+              </a>
+            }
+          </li>
+        }
+      </ul>
+    </div>
+  `,
+})
+export class PistaFutsal {
+  /** La alineación en orden de posición (pívot, alas, cierre, portero); los que falten son huecos. */
+  readonly titulares = input<AtletaPista[]>([]);
+  /** Brand-red avatars (home). */
+  readonly rojo = input(false);
+  /** A dónde llevan los huecos (el mercado de la sala). */
+  readonly mercado = input('/fantasy/mercado');
+  readonly abrir = output<{ atleta: AtletaPista; origen: Event }>();
+  private readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(T);
+  protected readonly posiciones = computed(() => POSICIONES.map((p, i) => ({ ...p, nombre: this.t().posiciones[i] })));
+}
+
+/**
+ * La hoja inferior del jugador (Figma «Hoja · jugador»): foto grande, sexo y categoría, flight, cláusula con
+ * tendencia y minigráfica, desglose de la nota y vender. role="dialog" con foco atrapado, cierre con Escape, con
+ * el velo o arrastrando hacia abajo; sin animación con prefers-reduced-motion.
+ */
+@Component({
+  selector: 'gr-hoja-jugador',
+  imports: [GrIcon, ClauseTrend],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'contents', '(document:keydown)': 'tecla($event)' },
+  styles: `
+    .velo { animation: aparece 0.2s ease-out both; }
+    .panel { animation: sube 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    @keyframes aparece { from { opacity: 0; } }
+    @keyframes sube { from { transform: translateY(100%); } }
+    @media (min-width: 1024px) { @keyframes sube { from { transform: translateY(24px); opacity: 0; } } }
+    @media (prefers-reduced-motion: reduce) { .velo, .panel { animation: none; } }
+  `,
+  template: `
+    <div class="fixed inset-0 z-50 flex items-end justify-center lg:p-6" role="presentation">
+      <button type="button" tabindex="-1" class="velo absolute inset-0 bg-bg-deep/75 backdrop-blur-[2px]" [attr.aria-label]="t().cerrar" (click)="cerrar.emit()"></button>
+      <div #panel class="panel relative flex max-h-[92dvh] w-full max-w-[560px] flex-col overflow-y-auto overscroll-contain rounded-t-3xl border border-line-strong bg-bg-raised shadow-[0_-8px_40px_rgb(0_0_0/0.55)] lg:rounded-3xl"
+        role="dialog" aria-modal="true" aria-labelledby="hoja-jugador-nombre" [style.transform]="arrastre() ? 'translateY(' + arrastre() + 'px)' : null">
+        <!-- Agarre: se arrastra hacia abajo para cerrar -->
+        <div class="flex shrink-0 cursor-grab touch-none justify-center pt-2.5 pb-1 active:cursor-grabbing" (pointerdown)="empieza($event)" (pointermove)="mueve($event)" (pointerup)="suelta()" (pointercancel)="suelta()" aria-hidden="true">
+          <span class="h-1 w-11 rounded-pill bg-line-strong"></span>
+        </div>
+        <div class="flex flex-col gap-4 px-5 pt-2 pb-6">
+          <header class="flex items-start gap-4" (pointerdown)="empieza($event)" (pointermove)="mueve($event)" (pointerup)="suelta()" (pointercancel)="suelta()">
+            <span class="flex size-[88px] shrink-0 items-center justify-center overflow-hidden rounded-full border-2 font-display text-[32px] text-white italic"
+              [class]="(atleta().sesionEnCurso ? 'border-warning ' : 'border-white/25 ') + (foto() ? 'bg-bg-raised' : color())">
+              @if (foto(); as f) { <img [src]="f" [alt]="t().fotoDe + atleta().nombre" class="size-full object-cover" (error)="sinFoto.set(true)" /> } @else { {{ ini() }} }
+            </span>
+            <span class="min-w-0 flex-1 pt-1">
+              <h2 id="hoja-jugador-nombre" class="text-ui-h4 text-text-primary">{{ atleta().nombre }}</h2>
+              <span class="mt-0.5 block text-body-s text-text-tertiary">{{ meta() }}</span>
+              @if (atleta().sesionEnCurso) {
+                <span class="mt-2 inline-flex items-center gap-1.5 rounded-pill border border-warning/40 bg-warning/12 px-2.5 py-1 text-label-xs text-warning"><gr-icon name="lock" [size]="13" />{{ t().compitiendo }}</span>
+              } @else {
+                <span class="mt-2 inline-flex items-center gap-1.5 rounded-pill border border-success/35 bg-success/10 px-2.5 py-1 text-label-xs text-success"><span class="size-1.5 rounded-full bg-success"></span>{{ t().libreMover }}</span>
+              }
+            </span>
+            <button #cerrarBtn type="button" class="-mt-1 -mr-2 flex size-11 shrink-0 items-center justify-center rounded-sm text-text-secondary hover:bg-bg-card hover:text-text-primary" [attr.aria-label]="t().cerrar" (click)="cerrar.emit()"><gr-icon name="x" [size]="20" /></button>
+          </header>
+
+          <section class="flex items-center justify-between gap-4 rounded-lg border border-line-subtle bg-bg-card p-3.5" [attr.aria-label]="t().clausula">
+            <span class="min-w-0">
+              <span class="block text-meta text-text-tertiary">{{ t().clausula }} · {{ dueno() }}</span>
+              <span class="mt-1 flex items-center gap-2"><span class="font-mono text-[24px] leading-none font-bold text-text-primary tabular-nums">{{ monedas(atleta().clausula) }}</span><gr-clause-trend [delta]="delta()" /></span>
+            </span>
+            <svg class="h-8 w-28 shrink-0" viewBox="0 0 112 32" fill="none" role="img" [attr.aria-label]="resumenSerie()">
+              <path [attr.d]="curva()" [attr.stroke]="serie().length < 2 ? 'var(--color-text-muted)' : delta() < 0 ? 'var(--color-warning)' : 'var(--color-success)'" [attr.stroke-dasharray]="serie().length < 2 ? '3 4' : null" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </section>
+
+          <section class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-3.5" aria-labelledby="hoja-nota">
+            <p class="flex items-center justify-between gap-2">
+              <span id="hoja-nota" class="text-meta text-text-tertiary">{{ t().notaMedia }}</span>
+              <span class="font-mono text-[22px] leading-[1.3] font-bold tabular-nums" [class]="colorNota()">{{ notaTxt() }}</span>
+            </p>
+            @for (l of lineas(); track l.concepto) {
+              <p class="flex items-center justify-between gap-2 border-t border-line-subtle py-1.5 text-body-s">
+                <span class="min-w-0 text-text-secondary" [class.line-through]="atleta().nota.blanqueo && !l.blanqueo">{{ l.concepto }}</span>
+                <span class="shrink-0 font-mono text-[13px] font-bold tabular-nums" [class]="l.clase">{{ l.valor }}</span>
+              </p>
+            }
+          </section>
+
+          <div class="flex flex-col gap-3 pt-1">
+            <button type="button" class="h-12 w-full rounded-sm bg-accent-grain px-6 text-label-m text-white transition-shadow hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-45" [disabled]="bloqueado()" (click)="vender.emit()">{{ t().vender }} · {{ monedas(atleta().clausula) }}</button>
+            @if (atleta().sesionEnCurso) {
+              <p class="text-body-s text-warning">{{ t().noVender }}</p>
+            }
+            @if (cargando()) { <p class="text-body-s text-text-tertiary" role="status">{{ t().guardando }}</p> }
+            @if (error() && !cargando()) {
+              <p class="flex items-center gap-2 rounded-md border border-crimson bg-bg-deep p-3 text-body-s text-text-secondary" role="alert"><gr-icon name="circle-alert" [size]="16" class="shrink-0 text-crimson" />{{ error() }}</p>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  `,
+})
+export class HojaJugador {
+  private readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(T);
+  protected readonly monedas = (v: number | null | undefined) => monedas(v, this.i18n.locale());
+  readonly atleta = input.required<AtletaPista>();
+  readonly detalle = input<AtletaDetalle | null>(null);
+  readonly delta = input(0);
+  /** La serie de la cláusula (del historial o de lo que llega en vivo). */
+  readonly serie = input<number[]>([]);
+  /** Lo que resta cada intento nulo (de la configuración pública). */
+  readonly nulo = input(0.3);
+  readonly cargando = input(false);
+  readonly error = input<string | null>(null);
+  readonly cerrar = output<void>();
+  readonly vender = output<void>();
+
+  private readonly panel = viewChild.required<ElementRef<HTMLElement>>('panel');
+  private readonly cerrarBtn = viewChild.required<ElementRef<HTMLButtonElement>>('cerrarBtn');
+  protected readonly arrastre = signal(0);
+  private inicioY: number | null = null;
+  protected readonly sinFoto = signal(false);
+
+  protected readonly foto = computed(() => (this.sinFoto() ? '' : this.atleta().fotoUrl || ''));
+  protected readonly ini = computed(() => iniciales(this.atleta().nombre));
+  protected readonly color = computed(() => colorAvatar(this.atleta().nombre));
+  protected readonly bloqueado = computed(() => this.atleta().sesionEnCurso || this.cargando());
+  protected readonly meta = computed(() => {
+    const a = this.atleta();
+    return `${a.sexo === 'F' ? this.t().femenino : this.t().masculino} · ${(a.categoria ?? '').replace('-', '−')} kg`;
+  });
+  protected readonly dueno = computed(() => (this.atleta().esMio ? this.t().duenoTu : this.atleta().duenoAlias ? this.t().dueno + this.atleta().duenoAlias : this.t().libre));
+  /** La nota con desglose: la de la ficha si ya llegó (más fresca) o la de la alineación. */
+  protected readonly notaAtleta = computed(() => this.detalle()?.atleta?.nota ?? this.atleta().nota);
+  protected readonly notaTxt = computed(() => nota1(this.notaAtleta()?.valor ?? 0));
+  protected readonly colorNota = computed(() => TEXTO_NOTA[tramoNota(this.notaAtleta()?.valor ?? 0, this.notaAtleta()?.tieneNota ?? false)]);
+  protected readonly lineas = computed(() => lineasNota(this.notaAtleta(), this.nulo(), this.i18n.lang()));
+  protected readonly curva = computed(() => {
+    const v = this.serie().length > 1 ? this.serie() : [this.atleta().clausula, this.atleta().clausula];
+    const min = Math.min(...v);
+    const span = Math.max(...v) - min || 1;
+    return v.map((y, i) => `${i ? 'L' : 'M'}${(2 + (i / (v.length - 1)) * 108).toFixed(1)} ${(29 - ((y - min) / span) * 26).toFixed(1)}`).join(' ');
+  });
+  protected readonly resumenSerie = computed(() => {
+    const v = this.serie();
+    return v.length > 1 ? this.t().evolucion(this.monedas(v[0]), this.monedas(v[v.length - 1])) : this.t().sinCambios;
+  });
+
+  constructor() {
+    const browser = isPlatformBrowser(inject(PLATFORM_ID));
+    afterNextRender(() => this.cerrarBtn().nativeElement.focus());
+    if (browser) {
+      // Sin scroll de fondo mientras la hoja está abierta.
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      inject(DestroyRef).onDestroy(() => (document.body.style.overflow = prev));
+    }
+  }
+
+  /** Escape cierra; Tab y Mayús+Tab no salen de la hoja (foco atrapado). */
+  protected tecla(e: KeyboardEvent): void {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      this.cerrar.emit();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const focusables = [...this.panel().nativeElement.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')];
+    if (!focusables.length) return;
+    const primero = focusables[0];
+    const ultimo = focusables[focusables.length - 1];
+    const activo = document.activeElement;
+    if (e.shiftKey && (activo === primero || !this.panel().nativeElement.contains(activo))) {
+      e.preventDefault();
+      ultimo.focus();
+    } else if (!e.shiftKey && (activo === ultimo || !this.panel().nativeElement.contains(activo))) {
+      e.preventDefault();
+      primero.focus();
+    }
+  }
+
+  /** Arrastrar hacia abajo desde el agarre o la cabecera: más de 110 px cierra la hoja. */
+  protected empieza(e: PointerEvent): void {
+    if ((e.target as HTMLElement).closest('button')) return;
+    this.inicioY = e.clientY;
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  }
+  protected mueve(e: PointerEvent): void {
+    if (this.inicioY === null) return;
+    this.arrastre.set(Math.max(0, e.clientY - this.inicioY));
+  }
+  protected suelta(): void {
+    if (this.inicioY === null) return;
+    const d = this.arrastre();
+    this.inicioY = null;
+    this.arrastre.set(0);
+    if (d > 110) this.cerrar.emit();
+  }
+}

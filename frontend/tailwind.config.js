@@ -24,6 +24,7 @@ export default {
       fontFamily: {
         mono: ['Roboto Mono', 'monospace'],
         display: ['Inter', 'system-ui', 'sans-serif'],
+        contrail: ['"Contrail One"', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.6s ease-out forwards',
@@ -34,6 +35,7 @@ export default {
         'text-fade-out': 'textFadeOut 0.8s ease-in-out forwards',
         'smoke-reveal': 'smokeReveal 1.5s ease-in-out forwards',
         'hero-entrance': 'heroEntrance 0.5s ease-out forwards',
+        'medal-swing': 'medalSwing 2s ease-in-out infinite alternate',
       },
       keyframes: {
         fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
@@ -47,6 +49,7 @@ export default {
           '100%': { clipPath: 'inset(0 50% 0 50%)', opacity: '0' },
         },
         heroEntrance: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+        medalSwing: { '0%': { transform: 'rotate(-2deg)' }, '100%': { transform: 'rotate(2deg)' } },
       },
       boxShadow: {
         'red-accent': '0 0 5px #DC143C, 0 0 20px #DC143C',

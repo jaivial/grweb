@@ -1,0 +1,105 @@
+# Namespace-wide guard rails: defaults for containers without resources, quota, and network policies.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: grcup-defaults
+spec:
+  limits:
+    - type: Container
+      defaultRequest: { cpu: 25m, memory: 32Mi }
+      default: { cpu: 500m, memory: 256Mi }
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: grcup-quota
+spec:
+  hard:
+    requests.cpu: "7" # ST1 QA r1: real requests of chat/gateway/juegos → ~6.2 CPU with every HPA at max (node: 16)
+    requests.memory: 8Gi
+    # perf-20261115: matches Kraken grcup-qa (applied 12:51 with the per-service limits below the node's 12 CPU);
+    # the old 60 overcommitted the node 5×. Limits are ceilings; reservations are bounded by requests.cpu.
+    limits.cpu: "28"
+    limits.memory: 32Gi
+    pods: "110"
+---
+# perf-20261115 (applied in Kraken 12:51): GRS QA yields to the rest of the node under pressure and never preempts.
+# Cluster-scoped: kustomize's namespace transformer leaves it without a namespace.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: grcup-qa-low
+value: -100
+preemptionPolicy: Never
+globalDefault: false
+description: "GRS QA: cede ante el resto de pods bajo presion"
+---
+# Default deny: nothing reaches a pod unless a policy below allows it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+---
+# The node itself (host nginx → ClusterIP, kubelet probes) reaches every pod. Host traffic to local pods
+# leaves through cni0 (10.42.0.1); the public and tailnet node IPs are listed for completeness.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-node
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock: { cidr: 10.42.0.1/32 }
+        - ipBlock: { cidr: 65.109.100.94/32 }
+        - ipBlock: { cidr: 100.66.235.72/32 }
+---
+# Each service has its own policy (allow-<service>, generated from LLAMADAS in deploy/k8s/generar.py): the gateway,
+# audit (health checks) and only the services that call it.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-postgres
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: postgres }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { grcup.dev/db: "true" } }
+      ports:
+        - { port: 5432, protocol: TCP }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mailpit-smtp
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: mailpit }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { grcup.dev/tier: service } }
+      ports:
+        - { port: 1025, protocol: TCP }
+---
+# The public web renders on the server against the gateway (in-cluster).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-from-web
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: gateway }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: web } }
+      ports:
+        - { port: 8080, protocol: TCP }

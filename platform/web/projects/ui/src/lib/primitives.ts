@@ -1,0 +1,196 @@
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { LOGO } from './cdn';
+import { GrIcon, type GrIconName } from './icon';
+import { GR_SKIN } from './skin';
+import { grDict } from './lang';
+
+export type GrTone = 'neutral' | 'accent' | 'success' | 'warning' | 'info' | 'danger' | 'live';
+
+const toneBadge: Record<GrTone, string> = {
+  neutral: 'bg-bg-raised text-text-secondary border-line-strong',
+  accent: 'bg-accent-deep/50 text-accent-text border-accent/40',
+  success: 'bg-success/10 text-success border-success/30',
+  warning: 'bg-warning/10 text-warning border-warning/30',
+  info: 'bg-info/10 text-info border-info/30',
+  danger: 'bg-accent-deep/40 text-accent-text border-accent-text/30',
+  live: 'bg-live/10 text-live border-live/30',
+};
+
+/* Figma 48 «BO / Badge»: Soft (fill 14 %) or Outline (stroke 55 %), 24 high, r6, 12 Medium +4 % uppercase. */
+const boTone: Record<GrTone, string> = {
+  neutral: 'text-text-tertiary bg-text-tertiary/14 border-text-tertiary/55',
+  success: 'text-success bg-success/14 border-success/55',
+  warning: 'text-warning bg-warning/14 border-warning/55',
+  danger: 'text-error bg-error/14 border-error/55',
+  info: 'text-info bg-info/14 border-info/55',
+  accent: 'text-accent-text bg-accent-text/14 border-accent-text/55',
+  live: 'text-live bg-live/14 border-live/55',
+};
+
+/** Status badge (mono, uppercase). Per the design system badges carry no dot. In the backoffice it follows «BO / Badge». */
+@Component({
+  selector: 'gr-badge',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[class]': 'cls()' },
+  template: `@if (bo) { <span class="size-1.5 shrink-0 rounded-full bg-current" aria-hidden="true"></span> }<ng-content />`,
+})
+export class GrBadge {
+  readonly tone = input<GrTone>('neutral');
+  /** BO only: «Outline» style instead of «Soft». */
+  readonly outline = input(false);
+  protected readonly bo = inject(GR_SKIN) === 'bo';
+  protected readonly cls = computed(() =>
+    this.bo
+      ? // BO (Jaime, 15-nov): no pill / tag shapes — a status reads as a coloured dot + text, no fill and no border
+        'inline-flex min-h-5 items-center gap-1.5 font-sans text-[13px] leading-4 font-medium whitespace-nowrap ' + boTone[this.tone()].split(' ')[0]
+      : 'inline-flex h-6 items-center gap-1 rounded-2xs border px-2 text-mono-xs whitespace-nowrap ' + toneBadge[this.tone()],
+  );
+}
+
+/** Card surface (bg/card, line/subtle, radius 16). */
+@Component({
+  selector: 'gr-card',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[class]': '"block rounded-lg border border-line-subtle bg-bg-card " + (pad() ? "p-5 md:p-6" : "")' },
+  template: `
+    @if (title()) {
+      <header class="mb-4 flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          <h2 class="text-ui-h5 text-text-primary">{{ title() }}</h2>
+          @if (subtitle()) { <p class="mt-1 text-body-xs text-text-tertiary">{{ subtitle() }}</p> }
+        </div>
+        <ng-content select="[cardActions]" />
+      </header>
+    }
+    <ng-content />
+  `,
+})
+export class GrCard {
+  readonly title = input<string | null>(null);
+  readonly subtitle = input<string | null>(null);
+  readonly pad = input(true);
+}
+
+@Component({
+  selector: 'gr-spinner',
+  imports: [GrIcon],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'inline-flex text-text-tertiary', role: 'status', '[attr.aria-label]': 'label() || t()' },
+  template: `<gr-icon name="loader" [size]="size()" [spin]="true" />`,
+})
+export class GrSpinner {
+  readonly size = input(20);
+  readonly label = input('');
+  protected readonly t = grDict({ es: 'Cargando', en: 'Loading' });
+}
+
+/** Loading placeholder (Figma «BO / Skeleton»). */
+@Component({
+  selector: 'gr-skeleton',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block animate-pulse rounded-sm bg-bg-raised', 'aria-hidden': 'true' },
+  template: ``,
+})
+export class GrSkeleton {}
+
+@Component({
+  selector: 'gr-avatar',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-line-strong bg-bg-raised text-label-xs text-text-secondary', '[attr.aria-label]': 'name()', role: 'img' },
+  template: `{{ initials() }}`,
+})
+export class GrAvatar {
+  readonly name = input('');
+  protected readonly initials = computed(() =>
+    this.name().split(/\s+/).map((w) => w.match(/\p{L}/u)?.[0] ?? '').filter(Boolean).slice(0, 2).join('').toUpperCase() || '·',
+  );
+}
+
+const toneAlert: Record<GrTone, { box: string; icon: GrIconName; title: string }> = {
+  neutral: { box: 'border-line-strong bg-bg-raised', icon: 'info', title: 'text-text-primary' },
+  accent: { box: 'border-accent/45 bg-accent/8', icon: 'info', title: 'text-accent-text' },
+  success: { box: 'border-success/45 bg-success/8', icon: 'circle-check', title: 'text-success' },
+  warning: { box: 'border-warning/45 bg-warning/8', icon: 'triangle-alert', title: 'text-warning' },
+  info: { box: 'border-info/45 bg-info/8', icon: 'circle-alert', title: 'text-info' },
+  danger: { box: 'border-accent/45 bg-accent/8', icon: 'circle-alert', title: 'text-accent-text' },
+  live: { box: 'border-accent/45 bg-accent/8', icon: 'circle-alert', title: 'text-accent-text' },
+};
+
+/**
+ * Inline alert (Figma «Alert»: Tone × Action, border tone 45 %, fill tone 8 %, radius 12) with optional action slot.
+ * Without `title` the content is the message (body S, white), as in the public web; with it, the backoffice layout.
+ */
+@Component({
+  selector: 'gr-alert',
+  imports: [GrIcon],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[class]': '"flex gap-3 rounded-md border p-4 " + t().box', '[attr.role]': 'tone() === "danger" || tone() === "warning" ? "alert" : "status"' },
+  template: `
+    <gr-icon [name]="icon() ?? t().icon" [size]="20" [class]="t().title + ' mt-0.5'" />
+    <div class="min-w-0 flex-1">
+      @if (title()) { <p class="mb-1 text-label-s" [class]="t().title">{{ title() }}</p> }
+      <div class="text-body-s" [class]="title() ? 'text-text-secondary' : 'text-text-primary'"><ng-content /></div>
+      <ng-content select="[alertAction]" />
+    </div>
+    <!-- Figma «Alert / Action=Sí»: action chip and close on the right, vertically centred (give the slot self-center) -->
+    <ng-content select="[alertEnd]" />
+  `,
+})
+export class GrAlert {
+  readonly tone = input<GrTone>('neutral');
+  readonly title = input<string | null>(null);
+  readonly icon = input<GrIconName | null>(null);
+  protected readonly t = computed(() => toneAlert[this.tone()]);
+}
+
+/** Empty / error state (Figma «BO / Empty state»). */
+@Component({
+  selector: 'gr-empty',
+  imports: [GrIcon],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'flex flex-col items-center justify-center gap-3 px-6 py-10 text-center' },
+  template: `
+    <span class="flex size-12 items-center justify-center rounded-md border border-line-strong bg-bg-raised text-text-tertiary"><gr-icon [name]="icon()" [size]="22" /></span>
+    <p class="text-ui-h5 text-text-primary">{{ title() }}</p>
+    @if (text()) { <p class="max-w-md text-body-s text-text-tertiary">{{ text() }}</p> }
+    <div class="mt-2 flex flex-wrap justify-center gap-2"><ng-content /></div>
+  `,
+})
+export class GrEmpty {
+  readonly icon = input<GrIconName>('info');
+  readonly title = input.required<string>();
+  readonly text = input<string | null>(null);
+}
+
+/** GRS Cup 2 logo (CDN, Figma «Logo» 588 × 366). `width` gives the Figma frame: the image is fitted and centred in it (FIT). */
+@Component({
+  selector: 'gr-logo',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'inline-flex' },
+  template: `<img [src]="src" alt="GRS Cup 2" [style.height.px]="height()" [style.width.px]="width()" class="object-contain select-none" [class.w-auto]="!width()" draggable="false" fetchpriority="high" />`,
+})
+export class GrLogo {
+  readonly height = input(40);
+  readonly width = input<number | null>(null);
+  protected readonly src = LOGO;
+}
+
+/** Tiny trend line for KPI tiles. */
+@Component({
+  selector: 'gr-sparkline',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'inline-flex', 'aria-hidden': 'true' },
+  template: `<svg [attr.width]="w" [attr.height]="h" [attr.viewBox]="'0 0 ' + w + ' ' + h" fill="none"><path [attr.d]="d()" [attr.stroke]="color()" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>`,
+})
+export class GrSparkline {
+  readonly values = input<number[]>([]);
+  readonly color = input('#22C55E');
+  protected readonly w = 64;
+  protected readonly h = 20;
+  protected readonly d = computed(() => {
+    const v = this.values();
+    if (v.length < 2) return `M0 ${this.h / 2} H${this.w}`;
+    const min = Math.min(...v), max = Math.max(...v), span = max - min || 1;
+    return v.map((y, i) => `${i ? 'L' : 'M'}${((i / (v.length - 1)) * this.w).toFixed(1)} ${(this.h - 2 - ((y - min) / span) * (this.h - 4)).toFixed(1)}`).join(' ');
+  });
+}

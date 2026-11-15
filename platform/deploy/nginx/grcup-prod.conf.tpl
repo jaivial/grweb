@@ -1,0 +1,103 @@
+# GR Cup platform · PRODUCTION on kraken: its own site for grscup.com (web + the API on the same origin, /api),
+# www.grscup.com (301 to the apex) and backoffice.grscup.com. Template: deploy/scripts/nginx-prod.sh instalar fills
+# __WEB_HOST__, __WWW_HOST__, __BO_HOST__ and __CERT__ (one Let's Encrypt certificate for the three names, HTTP-01 by
+# webroot: DNS is in Bunny, not Cloudflare), checks it with `nginx -t` and installs it as
+# /etc/nginx/sites-available/__WEB_HOST__.conf. It does not touch the previous web's domain nor other sites.
+#
+# Public (not tailnet-only like QA): DNS only (no CDN) because SSE needs unbuffered long-lived responses and the rate
+# limits need the client's IP. Upstreams are the fixed ClusterIPs of the grcup namespace (10.43.241.x). No QUIC here:
+# `reuseport` may appear only once per address and another site of the node already declares it.
+
+map $http_upgrade $grcup_connection { default upgrade; '' ''; }
+
+# Keep-alive pools to the ClusterIPs (one TCP connection per request saturated TIME_WAIT/conntrack under load, ST1-R8-1).
+upstream grcup_gateway { server 10.43.241.10:8080; keepalive 256; keepalive_requests 10000; keepalive_timeout 60s; }
+upstream grcup_web { server 10.43.241.11:80; keepalive 64; }
+upstream grcup_bo { server 10.43.241.12:80; keepalive 32; }
+
+# Alta de atleta (POST): límite por IP para que un formulario no se llene de peticiones (10 r/min, ráfaga de 5).
+limit_req_zone $binary_remote_addr zone=alta_atleta_prod:10m rate=10r/m;
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name __WEB_HOST__ __WWW_HOST__ __BO_HOST__;
+    # HTTP-01 (issue and renewal): certbot --webroot -w /var/www/certbot
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 301 https://$host$request_uri; }
+}
+
+# Public web (Angular SSR); /api on the same origin goes to the gateway.
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name __WEB_HOST__;
+    # gzip of HTML/JS/CSS/JSON/SVG, proxied SSR included (cdn-20261115: the bundles went out uncompressed, ~2 MB per
+    # page). text/event-stream stays out so SSE is never buffered.
+    gzip on; gzip_vary on; gzip_proxied any; gzip_comp_level 5; gzip_min_length 1024;
+    gzip_types text/css application/javascript text/javascript application/json application/manifest+json image/svg+xml application/xml text/plain;
+    ssl_certificate __CERT__/fullchain.pem;
+    ssl_certificate_key __CERT__/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    client_max_body_size 12m;
+
+    location ~ ^/api/competiciones/[^/]+/alta-atleta$ {
+        limit_req zone=alta_atleta_prod burst=5 nodelay;
+        limit_req_status 429; # el formulario lo muestra como «demasiadas altas», no como «cerrada»
+        client_max_body_size 10m;
+        proxy_pass http://grcup_gateway;
+        include /etc/nginx/snippets/grcup-proxy.conf;
+    }
+    location /api/ {
+        proxy_pass http://grcup_gateway;
+        include /etc/nginx/snippets/grcup-proxy.conf;
+    }
+    location / {
+        proxy_pass http://grcup_web;
+        include /etc/nginx/snippets/grcup-proxy.conf;
+    }
+}
+
+# Backoffice (Angular SPA + PWA); /api on the same origin (SameSite=Strict session cookie).
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name __BO_HOST__;
+    # gzip of HTML/JS/CSS/JSON/SVG, proxied SSR included (cdn-20261115: the bundles went out uncompressed, ~2 MB per
+    # page). text/event-stream stays out so SSE is never buffered.
+    gzip on; gzip_vary on; gzip_proxied any; gzip_comp_level 5; gzip_min_length 1024;
+    gzip_types text/css application/javascript text/javascript application/json application/manifest+json image/svg+xml application/xml text/plain;
+    ssl_certificate __CERT__/fullchain.pem;
+    ssl_certificate_key __CERT__/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    client_max_body_size 12m;
+
+    location /api/ {
+        proxy_pass http://grcup_gateway;
+        include /etc/nginx/snippets/grcup-proxy.conf;
+    }
+    location / {
+        proxy_pass http://grcup_bo;
+        include /etc/nginx/snippets/grcup-proxy.conf;
+    }
+}
+
+# www → apex (the same certificate covers it).
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name __WWW_HOST__;
+    ssl_certificate __CERT__/fullchain.pem;
+    ssl_certificate_key __CERT__/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    return 301 https://__WEB_HOST__$request_uri;
+}

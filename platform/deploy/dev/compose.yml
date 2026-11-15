@@ -1,0 +1,342 @@
+# Local development stack. Mirrors QA: PostgreSQL 17 (one DB per service), Redis 6.0 (same major as kraken), Mailpit.
+# make dev-up  → gateway on http://127.0.0.1:18300, Mailpit on http://127.0.0.1:18325
+# Every service carries a mem_limit (machine rule: the dev stack shares the laptop with builds).
+name: grcup-dev
+
+x-svc: &svc
+  restart: unless-stopped
+  mem_limit: 256m
+  cpus: 1.0  # perf-20261115: per-service CPU cap (mirrors the k8s limits), so one hot service cannot starve the rest
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+
+x-env: &env
+  SERVICE_ENV: dev
+  AUTO_MIGRATE: "true"
+  REDIS_ADDR: redis:6379
+  REDIS_PASSWORD: dev-redis
+  JWKS_URL: http://identity:8080/.well-known/jwks.json
+  INTERNAL_TOKEN_SECRET: dev-internal-secret-change-me
+  LOG_LEVEL: info
+  PPROF_ADDR: ":6060"  # local profiling only (docs/carga/2026-11-15-concurrencia.md); not proxied by the gateway
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    mem_limit: 512m
+    cpus: 2.0
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: dev-postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro,z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      retries: 20
+
+  redis:
+    image: redis:6.0-alpine
+    mem_limit: 128m
+    # perf-20261115: maxmemory under the 128m limit; volatile-lru evicts keys with a TTL (per-fan counters, rate
+    # buckets, dedup) instead of the kernel OOM-killing Redis (happened 13:06 under k6). Streams have no TTL: kept.
+    command: ["redis-server", "--requirepass", "dev-redis", "--appendonly", "no", "--maxmemory", "100mb", "--maxmemory-policy", "volatile-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "dev-redis", "ping"]
+      interval: 3s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    mem_limit: 256m
+    ports:
+      - "127.0.0.1:18325:8025"
+
+  identity:
+    <<: *svc
+    build: { context: ../.., args: { SVC: identity, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_identity:dev_identity@postgres:5432/grcup_identity?sslmode=disable
+      BACKOFFICE_URL: http://127.0.0.1:4201
+      COOKIE_SECURE: "false"
+
+  identity-bootstrap:
+    build: { context: ../.., args: { SVC: identity, VERSION: "${VERSION:-dev}" } }
+    command: ["bootstrap-root"]
+    restart: "no"
+    mem_limit: 256m
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_identity:dev_identity@postgres:5432/grcup_identity?sslmode=disable
+      ROOT_EMAIL: root@grcup.local
+      ROOT_PASSWORD: root-dev-password
+      ROOT_NOMBRE: Root (dev)
+
+  competition:
+    <<: *svc
+    build: { context: ../.., args: { SVC: competition, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_competition:dev_competition@postgres:5432/grcup_competition?sslmode=disable
+
+  competition-seed:
+    build: { context: ../.., args: { SVC: competition, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    restart: on-failure
+    mem_limit: 256m
+    depends_on:
+      identity-bootstrap: { condition: service_completed_successfully }
+      identity: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_competition:dev_competition@postgres:5432/grcup_competition?sslmode=disable
+      ROOT_EMAIL: root@grcup.local
+
+  audit:
+    <<: *svc
+    build: { context: ../.., args: { SVC: audit, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_audit:dev_audit@postgres:5432/grcup_audit?sslmode=disable
+
+  realtime:
+    <<: *svc
+    build: { context: ../.., args: { SVC: realtime, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+
+  fans:
+    <<: *svc
+    build: { context: ../.., args: { SVC: fans, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_fans:dev_fans@postgres:5432/grcup_fans?sslmode=disable
+      COOKIE_SECURE: "false"
+
+  chat:
+    <<: *svc
+    mem_limit: 768m  # ~200 KiB per connection (docs/carga/2026-11-08-chat.md)
+    cpus: 2.0
+    build: { context: ../.., args: { SVC: chat, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_chat:dev_chat@postgres:5432/grcup_chat?sslmode=disable
+      CHAT_MAX_CONEXIONES: "10000"
+      # White list of Origin hosts for the WebSocket handshake (the gateway rewrites the Host): in dev the web
+      # runs in localhost (4200/4201).
+      CHAT_ORIGENES: "localhost:*,127.0.0.1:*"
+    # perf-20261115: WS directo del chat (sin pasar por el gateway). nginx enruta solo
+    # /api/competiciones/<slug>/chat/ws aquí (deploy/k8s/propuestas/nginx-chat-ws-directo.conf).
+    ports:
+      - "127.0.0.1:18302:8080"
+
+  donaciones:
+    <<: *svc
+    build: { context: ../.., args: { SVC: donaciones, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_donaciones:dev_donaciones@postgres:5432/grcup_donaciones?sslmode=disable
+
+  raffle:
+    <<: *svc
+    build: { context: ../.., args: { SVC: raffle, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_raffle:dev_raffle@postgres:5432/grcup_raffle?sslmode=disable
+
+  patrocinio:
+    <<: *svc
+    build: { context: ../.., args: { SVC: patrocinio, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_patrocinio:dev_patrocinio@postgres:5432/grcup_patrocinio?sslmode=disable
+
+  juegos:
+    <<: *svc
+    build: { context: ../.., args: { SVC: juegos, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_juegos:dev_juegos@postgres:5432/grcup_juegos?sslmode=disable
+
+  juegos-worker:
+    <<: *svc
+    build: { context: ../.., args: { SVC: juegos, VERSION: "${VERSION:-dev}" } }
+    command: ["worker"]
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_juegos:dev_juegos@postgres:5432/grcup_juegos?sslmode=disable
+
+  athletes:
+    <<: *svc
+    build: { context: ../.., args: { SVC: athletes, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_athletes:dev_athletes@postgres:5432/grcup_athletes?sslmode=disable
+      # The private files of the «alta de atleta» requests (the processed photo, private until it is approved)
+      # and the published copy when the competition has no CDN.
+      ATLETAS_DIR: /data/atletas
+    volumes:
+      - atletas-data:/data/atletas
+
+  athletes-seed:
+    build: { context: ../.., args: { SVC: athletes, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    restart: on-failure
+    mem_limit: 256m
+    depends_on:
+      competition-seed: { condition: service_completed_successfully }
+      athletes: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_athletes:dev_athletes@postgres:5432/grcup_athletes?sslmode=disable
+
+  schedule:
+    <<: *svc
+    build: { context: ../.., args: { SVC: schedule, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_schedule:dev_schedule@postgres:5432/grcup_schedule?sslmode=disable
+
+  schedule-seed:
+    build: { context: ../.., args: { SVC: schedule, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    restart: on-failure
+    mem_limit: 256m
+    depends_on:
+      athletes-seed: { condition: service_completed_successfully }
+      schedule: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_schedule:dev_schedule@postgres:5432/grcup_schedule?sslmode=disable
+
+  live:
+    <<: *svc
+    build: { context: ../.., args: { SVC: live, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_live:dev_live@postgres:5432/grcup_live?sslmode=disable
+
+  live-seed:
+    build: { context: ../.., args: { SVC: live, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    restart: on-failure
+    mem_limit: 256m
+    depends_on:
+      competition-seed: { condition: service_completed_successfully }
+      live: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_live:dev_live@postgres:5432/grcup_live?sslmode=disable
+
+  cms:
+    <<: *svc
+    build: { context: ../.., args: { SVC: cms, VERSION: "${VERSION:-dev}" } }
+    volumes:
+      - cmsdata:/data/medios
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_cms:dev_cms@postgres:5432/grcup_cms?sslmode=disable
+
+  cms-seed:
+    build: { context: ../.., args: { SVC: cms, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    restart: on-failure
+    mem_limit: 256m
+    depends_on:
+      competition-seed: { condition: service_completed_successfully }
+      cms: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_cms:dev_cms@postgres:5432/grcup_cms?sslmode=disable
+
+  messaging:
+    <<: *svc
+    build: { context: ../.., args: { SVC: messaging, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_messaging:dev_messaging@postgres:5432/grcup_messaging?sslmode=disable
+      # WhatsApp managed by the platform: the BO only links the number (QR or pairing code).
+      EVO_WEAI_URL: http://evo-weai:8080
+      EVO_WEAI_API_KEY: dev-weai-api-key-change-me
+
+  # Contacts, segments and suppressions (audience of the campaigns).
+  crm:
+    <<: *svc
+    build: { context: ../.., args: { SVC: crm, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_crm:dev_crm@postgres:5432/grcup_crm?sslmode=disable
+
+  # Campaign assistant (MiniMax). The key comes from the shell (`set -a; . <(grep ^MINIMAX_ ~/.env)`); without it the
+  # editor shows the assistant as not configured.
+  ai:
+    <<: *svc
+    build: { context: ../.., args: { SVC: ai, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      MINIMAX_API_KEY: ${MINIMAX_TOKEN_PLAN_API_KEY:-}
+      MINIMAX_BASE_URL: ${MINIMAX_TOKEN_PLAN_BASE_URL:-https://api.minimax.io/anthropic}
+
+  # Réplica del chat con puerto publicado para la prueba de carga (cmd/carga-chat sin pasar por el gateway).
+  chat-load:
+    <<: *svc
+    mem_limit: 768m  # ~200 KiB per connection (docs/carga/2026-11-08-chat.md)
+    build: { context: ../.., args: { SVC: chat, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_chat:dev_chat@postgres:5432/grcup_chat?sslmode=disable
+      CHAT_MAX_CONEXIONES: "10000"
+      CHAT_ORIGENES: "localhost:*,127.0.0.1:*"
+    ports:
+      - "127.0.0.1:18301:8080"
+
+  gateway:
+    <<: *svc
+    cpus: 2.0
+    mem_limit: 512m  # = k8s limit; ~60-120 KiB per proxied WS
+    build: { context: ../.., args: { SVC: gateway, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      UPSTREAMS: identity,competition,audit,realtime,fans,chat,donaciones,raffle,patrocinio,juegos,athletes,schedule,live,cms,messaging,crm,ai
+      CORS_ORIGINS: http://127.0.0.1:4200,http://127.0.0.1:4201,http://localhost:4200,http://localhost:4201
+      # Overload protection (internal/gateway/proteccion.go): waiting room off by default (ADMISION_MAX=0).
+      UPSTREAM_MAX_INFLIGHT: "128"
+    ports:
+      - "127.0.0.1:18300:8080"
+
+  # WhatsApp (evo-weai). The image comes from its own repository (the release, not the sources):
+  #   docker build -f ~/evo-weai/Dockerfile.prebuilt --build-arg EVO_WEAI_REF=v0.2.15 \
+  #     --secret id=evo_weai_gh_token,env=EVO_WEAI_GH_TOKEN -t grcup/evo-weai:v0.2.15 ~/evo-weai
+  evo-weai:
+    image: grcup/evo-weai:v0.2.15
+    restart: unless-stopped
+    mem_limit: 256m
+    environment:
+      WEAI_API_KEY: dev-weai-api-key-change-me
+      WEAI_DATA_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      WEAI_HOST: 0.0.0.0
+      WEAI_PORT: "8080"
+      WEAI_DATABASE_PATH: /data/weai.db
+      # The webhook of QA points to the internal URL of messaging.
+      WEAI_WEBHOOK_ALLOW_INTERNAL: "true"
+    volumes:
+      - weai-data:/data
+    ports:
+      - "127.0.0.1:18380:8080"
+    healthcheck:
+      test: ["CMD", "/bin/bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET / HTTP/1.0\\r\\n\\r\\n' >&3 && head -n 1 <&3 | grep -q '200'"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  pgdata:
+  weai-data:
+  atletas-data:
+  cmsdata:

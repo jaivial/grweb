@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Runs ON kraken as root, sent by deploy/scripts/nginx-prod.sh: aplicar-corte.sh <dir with plataforma.conf,
+# anterior.tpl, grcup-proxy.conf, mantenimiento.html, rellenar-anterior.py>.
+# Env: MODO (instalar|mantenimiento|redirigir|anterior), WEB_HOST, WWW_HOST, BO_HOST, ANTERIOR (previous domain).
+# Paths can be overridden for a dry test in a container: NGINX_DIR, LE_DIR, CF_INI.
+set -euo pipefail
+src="$1"
+NGINX_DIR="${NGINX_DIR:-/etc/nginx}"; LE_DIR="${LE_DIR:-/etc/letsencrypt/live}"; WEBROOT="${WEBROOT:-/var/www/certbot}"
+d="$NGINX_DIR/grcup-corte"
+mkdir -p "$d" "$NGINX_DIR/snippets"
+install -m 0644 "$src/grcup-proxy.conf" "$NGINX_DIR/snippets/grcup-proxy.conf"
+install -m 0644 "$src/mantenimiento.html" "$d/mantenimiento.html"
+
+# aplicar <file> <new content file> <undo>: install, nginx -t, reload; on failure run <undo> and do not reload
+aplicar() {
+  if nginx -t 2>"$d/nginx-t.log"; then
+    systemctl reload nginx
+    echo "nginx: $MODO aplicado y recargado"
+  else
+    eval "$1"
+    cat "$d/nginx-t.log"
+    echo "nginx -t falló: se deshace el cambio y nginx no se ha recargado" >&2
+    exit 1
+  fi
+}
+
+case "$MODO" in
+  instalar)
+    sitio="$NGINX_DIR/sites-available/$WEB_HOST.conf"
+    enlace="$NGINX_DIR/sites-enabled/$WEB_HOST.conf"
+    # one certificate for the three names by HTTP-01 (webroot; DNS is in Bunny). An existing one is re-issued
+    # (--expand) when it does not cover all of them. Port 80 must already answer the challenge: the full site does
+    # (its :80 block), and before the first certificate a minimal :80-only site is installed for it.
+    falta=""
+    if [ -f "$LE_DIR/$WEB_HOST/fullchain.pem" ]; then
+      sans=$(openssl x509 -in "$LE_DIR/$WEB_HOST/fullchain.pem" -noout -ext subjectAltName 2>/dev/null | tr ',' '\n' | sed -n 's/.*DNS://p')
+      for h in "$WEB_HOST" "$WWW_HOST" "$BO_HOST"; do printf '%s\n' "$sans" | grep -qx "$h" || falta="$falta $h"; done
+    else
+      falta=" (sin certificado)"
+    fi
+    if [ -n "$falta" ]; then
+      echo "certificado para$falta"
+      mkdir -p "$WEBROOT"
+      if [ ! -f "$sitio" ]; then
+        printf 'server {\n    listen 80;\n    listen [::]:80;\n    server_name %s %s %s;\n    location /.well-known/acme-challenge/ { root %s; }\n    location / { return 503; }\n}\n' \
+          "$WEB_HOST" "$WWW_HOST" "$BO_HOST" "$WEBROOT" > "$sitio"
+        ln -sf "$sitio" "$enlace"
+        nginx -t 2>"$d/nginx-t.log" || { rm -f "$enlace" "$sitio"; cat "$d/nginx-t.log"; echo "nginx -t falló con el sitio mínimo de :80" >&2; exit 1; }
+        systemctl reload nginx
+        primero=1
+      fi
+      if ! certbot certonly --non-interactive --agree-tos --expand --webroot -w "$WEBROOT" --cert-name "$WEB_HOST" \
+          -d "$WEB_HOST" -d "$WWW_HOST" -d "$BO_HOST"; then
+        [ -n "${primero:-}" ] && { rm -f "$enlace" "$sitio"; nginx -t 2>/dev/null && systemctl reload nginx; }
+        echo "certbot falló (¿DNS o puerto 80?): nada instalado" >&2; exit 1
+      fi
+      [ -n "${primero:-}" ] && rm -f "$sitio" # the minimal site is replaced below (no backup of it)
+    fi
+    [ -f "$sitio" ] && cp -p "$sitio" "$d/plataforma-previo.conf"
+    install -m 0644 "$src/plataforma.conf" "$sitio"
+    ln -sf "$sitio" "$enlace"
+    if [ -f "$d/plataforma-previo.conf" ]; then aplicar "cp -p '$d/plataforma-previo.conf' '$sitio'"; else aplicar "rm -f '$enlace' '$sitio'"; fi
+    ;;
+  mantenimiento|redirigir|anterior)
+    sitio="$NGINX_DIR/sites-available/$ANTERIOR"
+    [ -f "$sitio" ] || { echo "no existe $sitio" >&2; exit 1; }
+    # the previous web's original block, saved once (the rollback restores it)
+    [ -f "$d/anterior.conf" ] || { cp -p "$sitio" "$d/anterior.conf"; echo "guardado el server block original en $d/anterior.conf"; }
+    if [ "$MODO" = anterior ]; then
+      cp "$d/anterior.conf" "$src/nuevo.conf"
+    else
+      # the same certificate lines as the original block
+      grep -E '^\s*ssl_certificate(_key)?\s' "$d/anterior.conf" | head -2 > "$src/cert"
+      [ "$(wc -l < "$src/cert")" = 2 ] || { echo "no encuentro ssl_certificate en $d/anterior.conf" >&2; exit 1; }
+      python3 "$src/rellenar-anterior.py" "$src/anterior.tpl" "$src/cert" "$MODO" "$WEB_HOST" "$BO_HOST" > "$src/nuevo.conf"
+    fi
+    cp -p "$sitio" "$d/previo.conf"
+    install -m 0644 "$src/nuevo.conf" "$sitio"
+    aplicar "cp -p '$d/previo.conf' '$sitio'"
+    ;;
+  *) echo "modo desconocido: $MODO" >&2; exit 2 ;;
+esac
