@@ -40,9 +40,10 @@ type legalRow struct {
 	PedirAceptacion bool `json:"pedirAceptacion" db:"pedir_aceptacion"`
 	// Acceptances recorded by cms forms (volunteers, clubs) under this version; athletes and tickets live in other services.
 	Aceptaciones int `json:"aceptaciones" db:"aceptaciones"`
+	enCol
 }
 
-const selLegal = `SELECT id, tipo, version, titulo, contenido, hash, publicado_at, created_at, pedir_aceptacion,
+const selLegal = `SELECT id, tipo, version, titulo, contenido, hash, publicado_at, created_at, pedir_aceptacion, en,
 	CASE WHEN tipo = 'privacidad' THEN (SELECT count(*) FROM voluntarios v WHERE v.competition_id = legal.competition_id AND v.legal_version = legal.version)
 		+ (SELECT count(*) FROM clubs c WHERE c.competition_id = legal.competition_id AND c.legal_version = legal.version) ELSE 0 END::int AS aceptaciones FROM legal`
 
@@ -95,6 +96,7 @@ func (s *Svc) registerLegal() {
 		Version   string `json:"version" pattern:"^[a-z0-9.-]{1,20}$" doc:"p. ej. 2026-10"`
 		Titulo    string `json:"titulo" minLength:"3" maxLength:"140"`
 		Contenido string `json:"contenido" minLength:"20" maxLength:"100000" doc:"Markdown"`
+		enField
 	}
 	type createIn struct {
 		CID  uuid.UUID `path:"cid"`
@@ -113,6 +115,9 @@ func (s *Svc) registerLegal() {
 				if _, err := tx.Exec(ctx, `INSERT INTO legal (id, competition_id, tipo, version, titulo, contenido, hash) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
 					id, in.CID, in.Tipo, in.Body.Version, in.Body.Titulo, in.Body.Contenido, hashText(in.Body.Contenido)); err != nil {
 					return dupErr(err)
+				}
+				if err := saveEn(ctx, tx, "legal", in.CID, id, &in.Body); err != nil {
+					return err
 				}
 				var err error
 				r, err = oneLegal(ctx, tx, in.CID, id)
@@ -141,6 +146,9 @@ func (s *Svc) registerLegal() {
 				}
 				if tag.RowsAffected() == 0 {
 					return problem.Conflict("VERSION_PUBLICADA", "Una versión publicada no se puede editar: crea una nueva.")
+				}
+				if err := saveEn(ctx, tx, "legal", in.CID, in.ID, &in.Body); err != nil {
+					return err
 				}
 				r, err = oneLegal(ctx, tx, in.CID, in.ID)
 				return err

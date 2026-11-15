@@ -136,6 +136,9 @@ func register[R any, I any](s *Svc, c collection[R, I]) {
 					if err := c.insert(ctx, tx, in.CID, id, &in.Body); err != nil {
 						return dupErr(err)
 					}
+					if err := saveEn(ctx, tx, c.table, in.CID, id, &in.Body); err != nil {
+						return err
+					}
 					var err error
 					r, err = one(ctx, tx, in.CID, id)
 					return err
@@ -161,6 +164,9 @@ func register[R any, I any](s *Svc, c collection[R, I]) {
 				}
 				if err := c.update(ctx, tx, in.CID, in.ID, &in.Body); err != nil {
 					return dupErr(err)
+				}
+				if err := saveEn(ctx, tx, c.table, in.CID, in.ID, &in.Body); err != nil {
+					return err
 				}
 				var err error
 				r, err = one(ctx, tx, in.CID, in.ID)

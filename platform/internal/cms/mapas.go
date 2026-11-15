@@ -43,6 +43,7 @@ type mapaRow struct {
 	Descripcion string    `json:"descripcion" db:"descripcion"`
 	Orden       int       `json:"orden" db:"orden"`
 	UpdatedAt   time.Time `json:"updatedAt" db:"updated_at"`
+	enCol
 }
 
 type mapaIn struct {
@@ -50,6 +51,7 @@ type mapaIn struct {
 	Titulo      string `json:"titulo,omitempty" maxLength:"120"`
 	Subtitulo   string `json:"subtitulo,omitempty" maxLength:"160"`
 	Descripcion string `json:"descripcion,omitempty" maxLength:"1000"`
+	enField
 }
 
 type mapaPub struct {
@@ -138,7 +140,7 @@ func (s *Svc) registerMapas() {
 	// shortcut: replacing the image of a map leaves the old file in the CDN; delete it in update if storage cost matters.
 	register(s, collection[mapaRow, mapaIn]{
 		name: "mapas", path: "/web/mapas", table: "mapas_acceso", tag: "Web y contenidos", perm: "web.editar", order: "orden, created_at",
-		cols: "id, imagen_url, titulo, subtitulo, descripcion, orden, updated_at", public: evMapas, deleted: s.borrarMapa,
+		cols: "id, imagen_url, titulo, subtitulo, descripcion, orden, updated_at, en", public: evMapas, deleted: s.borrarMapa,
 		validate: func(in *mapaIn) error {
 			trimAll(&in.ImagenURL, &in.Titulo, &in.Subtitulo, &in.Descripcion)
 			if in.ImagenURL == "" || !validURL(in.ImagenURL, false) {
@@ -225,8 +227,8 @@ func (s *Svc) registerMapas() {
 			if err != nil {
 				return nil, err
 			}
-			list, err := cached(ctx, s, cid, "mapas", ttlContent, func() ([]mapaPub, error) {
-				rows, err := s.a.DB.Query(ctx, `SELECT imagen_url, titulo, subtitulo, descripcion FROM mapas_acceso WHERE competition_id = $1 ORDER BY orden, created_at`, cid)
+			list, err := cached(ctx, s, cid, in.key("mapas"), ttlContent, func() ([]mapaPub, error) {
+				rows, err := s.a.DB.Query(ctx, `SELECT imagen_url, `+tr(in.en(), "titulo", "subtitulo", "descripcion")+` FROM mapas_acceso WHERE competition_id = $1 ORDER BY orden, created_at`, cid)
 				if err != nil {
 					return nil, err
 				}
