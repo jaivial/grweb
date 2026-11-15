@@ -9,6 +9,7 @@ import { AltchaConfig } from '../core/altcha';
 import { Cms } from '../core/cms';
 import { Competition, COMPETITION_SLUG } from '../core/competition';
 import { Seo } from '../core/seo';
+import { I18n, LocPipe } from '../core/i18n';
 import { Page } from '../layout/page';
 import { Community, Related, type RelatedLink } from './landings';
 import { GrAltcha } from './alta-atleta-altcha';
@@ -65,18 +66,18 @@ const MAX_MARCA = 600;
  */
 @Component({
   selector: 'gr-alta-atleta-page',
-  imports: [Page, FormsModule, GrButton, GrIcon, GrSkeleton, Related, Community, GrAltcha, AltaFoto, AltaExito, AltaAviso, AltaFaq],
+  imports: [Page, FormsModule, GrButton, GrIcon, GrSkeleton, Related, Community, GrAltcha, AltaFoto, AltaExito, AltaAviso, AltaFaq, LocPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page
-      [title]="exito() ? 'Solicitud recibida' : 'Alta de atleta de'"
-      [accent]="exito() ? '' : 'powerlifting'"
-      [suffix]="exito() ? '' : 'para la GRS Cup'"
-      [eyebrow]="exito() ? 'Solicitud enviada' : 'Atletas · GRS Cup 2026'"
-      section="Atletas"
-      crumb="Alta de atleta"
-      [subtitle]="exito() ? introExitoPrivada : cerrada() ? introCerrada : intro"
-      [subtitleHtml]="exito() || cerrada() ? '' : introHtml"
+      [title]="exito() ? t().tituloExito : t().titulo"
+      [accent]="exito() ? '' : t().acento"
+      [suffix]="exito() ? '' : t().sufijo"
+      [eyebrow]="exito() ? t().eyebrowExito : t().eyebrow"
+      [section]="t().seccion"
+      [crumb]="t().miga"
+      [subtitle]="exito() ? t().introExito : cerrada() ? t().introCerrada : t().intro"
+      [subtitleHtml]="exito() || cerrada() ? '' : introHtml()"
       [tituloMovilGrande]="!exito()">
       @if (vista() === 'cargando') {
         <gr-skeleton class="h-[560px] rounded-[18px]" />
@@ -84,7 +85,7 @@ const MAX_MARCA = 600;
         <!-- Figma 75 «Éxito»: qué pasa ahora, en tres pasos -->
         <gr-alta-exito [contacto]="contacto()" [foto]="fotoExito()" [menor]="menorExito()" />
         <div class="mt-18 flex flex-col gap-18 md:gap-24">
-          <gr-related nivel="h3" [items]="relacionados" />
+          <gr-related nivel="h3" [items]="t().relacionados" />
           <gr-community nivel="h3" />
         </div>
       } @else {
@@ -103,14 +104,14 @@ const MAX_MARCA = 600;
                 } @else {
                   <form class="relative flex min-w-0 flex-col gap-6 rounded-[18px] border border-line-subtle bg-bg-card p-4 md:p-7" method="post" (ngSubmit)="enviar()" novalidate>
                     <div>
-                      <h2 class="text-display-xs italic md:text-display-s md:text-[32px]">Solicitud de alta</h2>
-                      <p class="mt-1.5 text-[12px] leading-4 text-text-tertiary">Los campos marcados con * son obligatorios, el resto opcional.</p>
+                      <h2 class="text-display-xs italic md:text-display-s md:text-[32px]">{{ t().solicitud }}</h2>
+                      <p class="mt-1.5 text-[12px] leading-4 text-text-tertiary">{{ t().obligatorios }}</p>
                     </div>
 
                     @if (resumen().length) {
                       <!-- Resumen de errores: lleva a cada campo -->
                       <div #resumenErr tabindex="-1" class="scroll-mt-28 rounded-md border border-accent bg-accent/8 p-4 outline-none" role="alert">
-                        <p class="flex items-center gap-2 text-label-s"><gr-icon name="circle-alert" [size]="18" class="text-accent-text" />Revisa {{ resumen().length === 1 ? 'un campo' : resumen().length + ' campos' }} antes de enviar</p>
+                        <p class="flex items-center gap-2 text-label-s"><gr-icon name="circle-alert" [size]="18" class="text-accent-text" />{{ t().revisa(resumen().length) }}</p>
                         <ul class="mt-2 flex flex-col gap-1 pl-1 text-body-s text-text-secondary">
                           @for (e of resumen(); track e.campo) { <li>• <a [href]="'#c-' + idCampo(e.campo)" (click)="$event.preventDefault(); enfocar('#c-' + idCampo(e.campo))" class="hover:text-text-primary hover:underline">{{ e.label }}: {{ e.msg }}</a></li> }
                         </ul>
@@ -119,11 +120,11 @@ const MAX_MARCA = 600;
 
                     <!-- Tus datos -->
                     <fieldset class="flex min-w-0 flex-col gap-4">
-                      <legend class="mb-5 text-display-2xs italic">Tus datos</legend>
+                      <legend class="mb-5 text-display-2xs italic">{{ t().tusDatos }}</legend>
                       <div class="grid gap-4 sm:grid-cols-2">
                         <div class="flex min-w-0 flex-col gap-2">
-                          <label class="text-label-s" for="c-nombre">Nombre *</label>
-                          <input id="c-nombre" name="nombre" type="text" autocomplete="given-name" maxlength="60" placeholder="Tu nombre"
+                          <label class="text-label-s" for="c-nombre">{{ t().nombre }}</label>
+                          <input id="c-nombre" name="nombre" type="text" autocomplete="given-name" maxlength="60" [placeholder]="t().nombrePh"
                             class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                             [class]="err()['nombre'] ? 'border-accent-text' : 'border-line-strong'"
                             [(ngModel)]="d.nombre" (ngModelChange)="revalidar()"
@@ -131,8 +132,8 @@ const MAX_MARCA = 600;
                           @if (err()['nombre']; as e) { <p id="e-nombre" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                         </div>
                         <div class="flex min-w-0 flex-col gap-2">
-                          <label class="text-label-s" for="c-apellidos">Apellidos *</label>
-                          <input id="c-apellidos" name="apellidos" type="text" autocomplete="family-name" maxlength="60" placeholder="Tus apellidos"
+                          <label class="text-label-s" for="c-apellidos">{{ t().apellidos }}</label>
+                          <input id="c-apellidos" name="apellidos" type="text" autocomplete="family-name" maxlength="60" [placeholder]="t().apellidosPh"
                             class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                             [class]="err()['apellidos'] ? 'border-accent-text' : 'border-line-strong'"
                             [(ngModel)]="d.apellidos" (ngModelChange)="revalidar()"
@@ -141,17 +142,17 @@ const MAX_MARCA = 600;
                         </div>
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
-                        <label class="text-label-s" for="c-email">Email de tu inscripción *</label>
+                        <label class="text-label-s" for="c-email">{{ t().email }}</label>
                         <input id="c-email" name="email" type="email" autocomplete="email" maxlength="254" placeholder="tu@email.com"
                           class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                           [class]="err()['email'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.email" (ngModelChange)="revalidar()"
                           [attr.aria-invalid]="!!err()['email']" [attr.aria-describedby]="err()['email'] ? 'e-email h-email' : 'h-email'" />
-                        <p id="h-email" class="text-body-s text-text-tertiary">El mismo con el que te inscribiste; así te reconocemos.</p>
+                        <p id="h-email" class="text-body-s text-text-tertiary">{{ t().emailAyuda }}</p>
                         @if (err()['email']; as e) { <p id="e-email" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
-                        <label class="text-label-s" for="c-telefono">Teléfono móvil</label>
+                        <label class="text-label-s" for="c-telefono">{{ t().telefono }}</label>
                         <span class="flex h-12 w-full items-center overflow-hidden rounded-[10px] border bg-bg-field focus-within:border-accent-text"
                           [class]="err()['telefono'] || telAviso() ? 'border-accent-text' : 'border-line-strong'">
                           <span class="flex h-full shrink-0 items-center border-r border-line-subtle px-3.5 text-body-m text-text-secondary">+34</span>
@@ -160,44 +161,44 @@ const MAX_MARCA = 600;
                             [value]="d.telefono" (input)="telCambia($any($event.target))" (blur)="telRevisar()"
                             [attr.aria-invalid]="!!(err()['telefono'] || telAviso())" [attr.aria-describedby]="err()['telefono'] || telAviso() ? 'e-telefono h-telefono' : 'h-telefono'" />
                         </span>
-                        <p id="h-telefono" class="text-body-s text-text-tertiary">Móvil español de 9 dígitos.{{ legal('whatsapp') ? ' Obligatorio solo si marcas los avisos por WhatsApp.' : '' }}</p>
+                        <p id="h-telefono" class="text-body-s text-text-tertiary">{{ t().telAyuda }}{{ legal('whatsapp') ? t().telWhatsapp : '' }}</p>
                         @if (err()['telefono'] || telAviso(); as e) { <p id="e-telefono" class="flex items-center gap-1.5 text-body-s text-accent-text" aria-live="polite"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
-                        <span class="text-label-s" id="l-sexo">Sexo *</span>
+                        <span class="text-label-s" id="l-sexo">{{ t().sexo }}</span>
                         <div id="c-sexo" tabindex="-1" class="flex gap-2 scroll-mt-28 outline-none" role="radiogroup" aria-labelledby="l-sexo" aria-required="true" [attr.aria-invalid]="err()['sexo'] ? true : null" [attr.aria-describedby]="err()['sexo'] ? 'e-sexo' : null">
                           <button type="button" role="radio" [attr.aria-checked]="d.sexo === 'F'" (click)="d.sexo = 'F'; revalidar()"
                             class="inline-flex h-12 flex-1 items-center justify-center rounded-[10px] border px-4 text-label-m transition-colors"
-                            [class]="d.sexo === 'F' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : (err()['sexo'] ? 'border-accent-text' : 'border-line-strong') + ' text-text-secondary hover:text-text-primary'">Mujer</button>
+                            [class]="d.sexo === 'F' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : (err()['sexo'] ? 'border-accent-text' : 'border-line-strong') + ' text-text-secondary hover:text-text-primary'">{{ t().mujer }}</button>
                           <button type="button" role="radio" [attr.aria-checked]="d.sexo === 'M'" (click)="d.sexo = 'M'; revalidar()"
                             class="inline-flex h-12 flex-1 items-center justify-center rounded-[10px] border px-4 text-label-m transition-colors"
-                            [class]="d.sexo === 'M' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : (err()['sexo'] ? 'border-accent-text' : 'border-line-strong') + ' text-text-secondary hover:text-text-primary'">Hombre</button>
+                            [class]="d.sexo === 'M' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : (err()['sexo'] ? 'border-accent-text' : 'border-line-strong') + ' text-text-secondary hover:text-text-primary'">{{ t().hombre }}</button>
                         </div>
                         @if (err()['sexo']; as e) { <p id="e-sexo" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
-                        <label class="text-label-s" for="c-nacimiento">Fecha de nacimiento *</label>
-                        <input id="c-nacimiento" name="fechaNacimiento" type="text" inputmode="numeric" autocomplete="bday" placeholder="dd/mm/aaaa"
+                        <label class="text-label-s" for="c-nacimiento">{{ t().nacimiento }}</label>
+                        <input id="c-nacimiento" name="fechaNacimiento" type="text" inputmode="numeric" autocomplete="bday" [placeholder]="t().fechaPh"
                           class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m focus:border-accent-text focus:outline-none"
                           [class]="err()['fechaNacimiento'] ? 'border-accent-text' : 'border-line-strong'"
                           [value]="fechaTexto" (input)="fechaCambia($any($event.target))"
                           [attr.aria-invalid]="!!err()['fechaNacimiento']" [attr.aria-describedby]="err()['fechaNacimiento'] ? 'e-nacimiento h-nacimiento' : 'h-nacimiento'" />
-                        <p id="h-nacimiento" class="text-body-s text-text-tertiary">Formato dd/mm/aaaa. De 14 a 90 años.</p>
+                        <p id="h-nacimiento" class="text-body-s text-text-tertiary">{{ t().fechaAyuda }}</p>
                         @if (err()['fechaNacimiento']; as e) { <p id="e-nacimiento" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       @if (esMenor()) {
                         <p class="flex items-start gap-3 rounded-md border border-warning/40 bg-warning/8 p-4 text-body-s text-text-secondary">
-                          <gr-icon name="clock" [size]="18" class="mt-0.5 shrink-0 text-warning" />Como has nacido antes de los 18, necesitaremos la autorización firmada de tu madre, padre o tutor. Te la pediremos por email antes de publicar tu ficha.
+                          <gr-icon name="clock" [size]="18" class="mt-0.5 shrink-0 text-warning" />{{ t().menor }}
                         </p>
                       }
                     </fieldset>
 
                     <!-- Competición -->
                     <fieldset class="flex min-w-0 flex-col gap-4">
-                      <legend class="mb-5 text-display-2xs italic">Competición</legend>
+                      <legend class="mb-5 text-display-2xs italic">{{ t().competicion }}</legend>
                       @if (cfg()?.pruebas?.length) {
                         <div id="c-prueba" class="flex min-w-0 flex-col gap-3" role="radiogroup" aria-labelledby="l-prueba" [attr.aria-describedby]="err()['prueba'] ? 'e-prueba' : null" (keydown)="teclaPrueba($event)">
-                          <span id="l-prueba" class="font-display text-base uppercase italic tracking-[0.02em]">¿En qué competición compites?</span>
+                          <span id="l-prueba" class="font-display text-base uppercase italic tracking-[0.02em]">{{ t().queCompeticion }}</span>
                           @for (o of opcionesPrueba(); track o.codigo) {
                             <button type="button" role="radio" [attr.aria-checked]="d.prueba === o.codigo" (click)="d.prueba = o.codigo; revalidar()"
                               [disabled]="o.completa" [attr.aria-disabled]="o.completa || null" [attr.data-prueba]="o.codigo"
@@ -220,7 +221,7 @@ const MAX_MARCA = 600;
                       <div class="grid gap-4 sm:grid-cols-2">
                         <div class="flex min-w-0 flex-col gap-2">
                           <label class="text-label-s" for="c-club">Club</label>
-                          <input id="c-club" name="club" type="text" maxlength="80" placeholder="Escribe tu club"
+                          <input id="c-club" name="club" type="text" maxlength="80" [placeholder]="t().clubPh"
                             class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                             [class]="err()['club'] ? 'border-accent-text' : 'border-line-strong'"
                             [(ngModel)]="d.club" (ngModelChange)="revalidar()"
@@ -228,7 +229,7 @@ const MAX_MARCA = 600;
                           @if (err()['club']; as e) { <p id="e-club" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                         </div>
                         <div class="flex min-w-0 flex-col gap-2">
-                          <label class="text-label-s" for="c-ciudad">Ciudad</label>
+                          <label class="text-label-s" for="c-ciudad">{{ t().ciudad }}</label>
                           <input id="c-ciudad" name="ciudad" type="text" maxlength="80" placeholder="Valencia"
                             class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                             [class]="err()['ciudad'] ? 'border-accent-text' : 'border-line-strong'"
@@ -238,8 +239,8 @@ const MAX_MARCA = 600;
                         </div>
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
-                        <label class="text-label-s" for="c-entrenador">Entrenador/a (opcional)</label>
-                        <input id="c-entrenador" name="entrenador" type="text" maxlength="80" placeholder="Tu entrenador/a"
+                        <label class="text-label-s" for="c-entrenador">{{ t().entrenador }}</label>
+                        <input id="c-entrenador" name="entrenador" type="text" maxlength="80" [placeholder]="t().entrenadorPh"
                           class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                           [class]="err()['entrenador'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.entrenador" (ngModelChange)="revalidar()"
@@ -250,19 +251,19 @@ const MAX_MARCA = 600;
 
                     <!-- Tu foto -->
                     <fieldset class="flex min-w-0 flex-col gap-4">
-                      <legend class="mb-5 text-display-2xs italic">Tu foto</legend>
+                      <legend class="mb-5 text-display-2xs italic">{{ t().tuFoto }}</legend>
                       <gr-alta-foto [subiendo]="subiendo()" [procesando]="procesando()" [progreso]="progreso()" (cambio)="fotoCambia($event)" />
                     </fieldset>
 
                     <!-- Tu perfil -->
                     <fieldset class="flex min-w-0 flex-col gap-4">
-                      <legend class="mb-5 text-display-2xs italic">Tu perfil</legend>
+                      <legend class="mb-5 text-display-2xs italic">{{ t().tuPerfil }}</legend>
                       <div class="flex min-w-0 flex-col gap-2">
                         <div class="flex items-baseline justify-between gap-3">
-                          <label class="text-label-s" for="c-frase">Frase de presentación (opcional)</label>
+                          <label class="text-label-s" for="c-frase">{{ t().frase }}</label>
                           <span class="text-body-s text-text-tertiary">{{ d.frase.length }} / {{ maxFrase }}</span>
                         </div>
-                        <input id="c-frase" name="frase" type="text" maxlength="80" placeholder="Una frase para tu ficha"
+                        <input id="c-frase" name="frase" type="text" maxlength="80" [placeholder]="t().frasePh"
                           class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                           [class]="err()['frase'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.frase" (ngModelChange)="revalidar()"
@@ -271,10 +272,10 @@ const MAX_MARCA = 600;
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <div class="flex items-baseline justify-between gap-3">
-                          <label class="text-label-s" for="c-bio">Sobre ti (opcional)</label>
+                          <label class="text-label-s" for="c-bio">{{ t().bio }}</label>
                           <span class="text-body-s text-text-tertiary">{{ d.bio.length }} / {{ maxBio }}</span>
                         </div>
-                        <textarea id="c-bio" name="bio" rows="4" maxlength="280" placeholder="Cuéntale a la gente quién eres en dos líneas"
+                        <textarea id="c-bio" name="bio" rows="4" maxlength="280" [placeholder]="t().bioPh"
                           class="w-full rounded-[10px] border bg-bg-field px-3.5 py-3 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                           [class]="err()['bio'] ? 'border-accent-text' : 'border-line-strong'"
                           [(ngModel)]="d.bio" (ngModelChange)="revalidar()"
@@ -283,8 +284,8 @@ const MAX_MARCA = 600;
                       </div>
                       @if (!esMenor()) {
                         <div class="flex min-w-0 flex-col gap-2">
-                          <label class="text-label-s" for="c-instagram">Instagram (opcional)</label>
-                          <input id="c-instagram" name="instagram" type="text" maxlength="31" placeholder="@tuusuario"
+                          <label class="text-label-s" for="c-instagram">{{ t().instagram }}</label>
+                          <input id="c-instagram" name="instagram" type="text" maxlength="31" [placeholder]="t().instagramPh"
                             class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                             [class]="err()['instagram'] ? 'border-accent-text' : 'border-line-strong'"
                             [(ngModel)]="d.instagram" (ngModelChange)="revalidar()"
@@ -292,18 +293,18 @@ const MAX_MARCA = 600;
                           @if (err()['instagram']; as e) { <p id="e-instagram" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                         </div>
                       } @else {
-                        <p class="text-body-s text-text-tertiary">A los menores de 18 no les pedimos Instagram: el campo se oculta y no se publica nunca.</p>
+                        <p class="text-body-s text-text-tertiary">{{ t().instagramMenor }}</p>
                       }
                     </fieldset>
 
                     <!-- Mejores marcas -->
                     <fieldset class="flex min-w-0 flex-col gap-4">
-                      <legend class="mb-5 text-display-2xs italic">Mejores marcas</legend>
-                      <p class="-mt-2 text-body-s text-text-tertiary">Opcionales.</p>
+                      <legend class="mb-5 text-display-2xs italic">{{ t().marcas }}</legend>
+                      <p class="-mt-2 text-body-s text-text-tertiary">{{ t().opcionales }}</p>
                       <div class="grid gap-4 sm:grid-cols-3">
                         @for (m of marcasCampos; track m.k) {
                           <div class="flex min-w-0 flex-col gap-2">
-                            <label class="text-label-s" [for]="'c-' + m.k">{{ m.t }}</label>
+                            <label class="text-label-s" [for]="'c-' + m.k">{{ t()[m.k] }}</label>
                             <input [id]="'c-' + m.k" [name]="m.k" type="number" inputmode="decimal" step="0.5" min="0" [max]="maxMarca" placeholder="kg"
                               class="h-12 w-full rounded-[10px] border bg-bg-field px-3.5 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none"
                               [class]="err()[m.k] ? 'border-accent-text' : 'border-line-strong'"
@@ -321,7 +322,7 @@ const MAX_MARCA = 600;
 
                     <!-- Consentimientos -->
                     <fieldset id="c-consentimiento" tabindex="-1" class="flex min-w-0 scroll-mt-28 flex-col gap-3 outline-none">
-                      <legend class="mb-5 text-display-2xs italic">Consentimientos</legend>
+                      <legend class="mb-5 text-display-2xs italic">{{ t().consentimientos }}</legend>
                       @for (c of casillas(); track c.k) {
                         <label class="flex min-h-11 items-start gap-2.5 py-1 text-body-s" [class]="c.req ? 'text-text-primary' : 'text-text-secondary'">
                           <span class="relative -mt-px flex size-6 shrink-0 items-center justify-center">
@@ -332,25 +333,25 @@ const MAX_MARCA = 600;
                           </span>
                           <span>
                             @switch (c.k) {
-                              @case ('terminos') { Acepto los <a href="/terminos" target="_blank" rel="noopener" class="text-accent-text hover:underline">términos de uso</a> y el <a href="/reglamento" target="_blank" rel="noopener" class="text-accent-text hover:underline">reglamento</a>. * }
-                              @case ('privacidad') { He leído la <a href="/privacidad" target="_blank" rel="noopener" class="text-accent-text hover:underline">política de privacidad</a> y acepto el tratamiento de mis datos para gestionar mi alta. * }
-                              @case ('imagen') { Autorizo publicar mi nombre, datos deportivos y foto en la web, la pantalla y el directo de la GRS Cup (ver <a href="/consentimiento-datos" target="_blank" rel="noopener" class="text-accent-text hover:underline">consentimiento de imagen</a>). }
+                              @case ('terminos') { {{ t().acepto }}<a [href]="'/terminos' | loc" target="_blank" rel="noopener" class="text-accent-text hover:underline">{{ t().terminosUso }}</a>{{ t().yEl }}<a [href]="'/reglamento' | loc" target="_blank" rel="noopener" class="text-accent-text hover:underline">{{ t().reglamento }}</a>. * }
+                              @case ('privacidad') { {{ t().heLeido }}<a [href]="'/privacidad' | loc" target="_blank" rel="noopener" class="text-accent-text hover:underline">{{ t().politica }}</a>{{ t().tratamiento }} * }
+                              @case ('imagen') { {{ t().autorizo }}<a [href]="'/consentimiento-datos' | loc" target="_blank" rel="noopener" class="text-accent-text hover:underline">{{ t().consImagen }}</a>). }
                               @case ('novedades') { {{ cfg()?.textoNovedades }} }
-                              @case ('whatsapp') { Quiero recibir avisos de mi alta y de la competición por WhatsApp (ver <a href="/texto-whatsapp" target="_blank" rel="noopener" class="text-accent-text hover:underline">texto de WhatsApp</a>). }
+                              @case ('whatsapp') { {{ t().quieroWa }}<a [href]="'/texto-whatsapp' | loc" target="_blank" rel="noopener" class="text-accent-text hover:underline">{{ t().textoWa }}</a>). }
                             }
                           </span>
                         </label>
                       }
                       @if (err()['consentimiento']; as e) { <p class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
-                      <p class="text-body-s text-text-tertiary">Responsable: GRStrength · Finalidad: gestionar tu alta de atleta y, solo si lo marcas, enviarte novedades y avisos · Legitimación: tu consentimiento · Derechos: acceso, rectificación, supresión y baja desde el área de atleta o cualquier email.</p>
+                      <p class="text-body-s text-text-tertiary">{{ t().rgpd }}</p>
                     </fieldset>
 
                     <!-- Envío -->
                     <fieldset class="flex min-w-0 flex-col gap-4">
-                      <legend class="mb-5 text-display-2xs italic">Envío</legend>
+                      <legend class="mb-5 text-display-2xs italic">{{ t().envio }}</legend>
                       <!-- Trampa para robots: fuera de la vista y del recorrido del teclado. -->
                       <span class="absolute h-px w-px overflow-hidden opacity-0" aria-hidden="true">
-                        <label for="c-web">No rellenes este campo</label>
+                        <label for="c-web">{{ t().trampa }}</label>
                         <input id="c-web" name="web" type="text" tabindex="-1" autocomplete="off" [(ngModel)]="d.web" />
                       </span>
                       <gr-altcha [cfg]="cfg()?.altcha ?? null" [reiniciar]="reinicioAltcha()" (verificado)="altchaPago.set($event)" (pedirReto)="pedirReto()" />
@@ -360,16 +361,16 @@ const MAX_MARCA = 600;
                       @if (aviso() === 'limite' || aviso() === 'red') {
                         <div id="aviso-envio" tabindex="-1" class="flex flex-col gap-3 rounded-md border border-warning/40 bg-warning/8 p-4 text-body-s text-text-secondary outline-none" role="alert">
                           <p class="flex items-start gap-2"><gr-icon [name]="aviso() === 'limite' ? 'clock' : 'circle-alert'" [size]="18" class="mt-0.5 shrink-0 text-warning" />
-                            @if (aviso() === 'limite') { {{ limiteTexto() || 'Se han enviado muchas solicitudes desde esta conexión.' }} Tus datos{{ foto ? ' y tu foto' : '' }} siguen aquí: {{ bloqueado() ? 'podrás reintentarlo en ' + espera() + '.' : 'ya puedes reintentarlo.' }} }
-                            @else { No hemos podido enviar tu solicitud (conexión o servicio ocupado). Tus datos{{ foto ? ' y tu foto' : '' }} siguen aquí: pulsa «Reintentar». }
+                            @if (aviso() === 'limite') { {{ limiteTexto() || t().limite }} {{ t().siguen(!!foto) }} {{ bloqueado() ? t().reintentaEn(espera()) : t().yaPuedes }} }
+                            @else { {{ t().red }} {{ t().siguen(!!foto) }} {{ t().pulsa }} }
                           </p>
-                          <div><button grButton variant="secondary" size="m" type="button" (click)="enviar()" [disabled]="enviando() || bloqueado()">Reintentar</button></div>
+                          <div><button grButton variant="secondary" size="m" type="button" (click)="enviar()" [disabled]="enviando() || bloqueado()">{{ t().reintentar }}</button></div>
                         </div>
                       }
                     </fieldset>
                     <!-- UX2-R1-4: en móvil, CTA fijo abajo (zona del pulgar) mientras el formulario está en vista -->
-                    <div class="max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-4 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-4 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]"><button grButton variant="primary" size="l" type="submit" class="max-md:w-full" [loading]="enviando()" [disabled]="!hidratado() || enviando() || bloqueado()">Enviar mi alta</button></div>
-                    <p class="-mt-3 text-body-s text-text-muted">Al enviar, aceptas los términos de uso y la política de privacidad. Te escribimos para confirmar que hemos recibido tu solicitud.</p>
+                    <div class="max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-4 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-4 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]"><button grButton variant="primary" size="l" type="submit" class="max-md:w-full" [loading]="enviando()" [disabled]="!hidratado() || enviando() || bloqueado()">{{ t().enviar }}</button></div>
+                    <p class="-mt-3 text-body-s text-text-muted">{{ t().alEnviar }}</p>
                   </form>
                 }
               }
@@ -380,7 +381,7 @@ const MAX_MARCA = 600;
         <!-- Preguntas frecuentes -->
         <gr-alta-faq />
         <div class="mt-18 flex flex-col gap-18 md:mt-24 md:gap-24">
-          <gr-related nivel="h3" [items]="relacionados" />
+          <gr-related nivel="h3" [items]="t().relacionados" />
           <gr-community nivel="h3" />
         </div>
       }
@@ -393,6 +394,8 @@ export class AltaAtletaPage {
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly comp = inject(Competition);
   private readonly seo = inject(Seo);
+  private readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(T);
 
   /** Configuración del alta (módulo, legales, reto y token de tiempo). */
   protected readonly cfg = signal<ConfigAlta | null>(null);
@@ -432,14 +435,14 @@ export class AltaAtletaPage {
   /** Las tarjetas de «¿En qué competición compites?» (Figma 219:169366: sin chips ni contador; completa = deshabilitada). */
   protected opcionesPrueba(): { codigo: string; titulo: string; detalle: string; completa: boolean }[] {
     const c = this.cfg();
-    const dia = (iso?: string) => iso ? new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(iso + 'T00:00:00Z')).replace(',', '').replace('.', '') : '';
+    const dia = (iso?: string) => iso ? new Intl.DateTimeFormat(this.i18n.locale(), { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(iso + 'T00:00:00Z')).replace(',', '').replace('.', '') : '';
     return (c?.pruebas ?? []).map((p) => {
       const completa = p.plazas > 0 && p.plazas - p.ocupadas <= 0;
       const fecha = dia(p.fecha);
       const nivel = p.nivel ? p.nivel.charAt(0).toUpperCase() + p.nivel.slice(1) : '';
       return {
         codigo: p.codigo, titulo: fecha ? `${p.nombre} · ${fecha}` : p.nombre, completa,
-        detalle: completa ? 'Completa · sin plazas' : nivel,
+        detalle: completa ? this.t().completa : nivel,
       };
     });
   }
@@ -480,27 +483,15 @@ export class AltaAtletaPage {
   protected readonly maxFrase = MAX_FRASE;
   protected readonly maxBio = MAX_BIO;
   protected readonly maxMarca = MAX_MARCA;
-  protected readonly relacionados: RelatedLink[] = [
-    { titulo: 'Atletas', texto: 'La plantilla de la GRS Cup', ruta: '/atletas' },
-    { titulo: 'Área de atleta', texto: 'Edita tu ficha y tus marcas', ruta: '/area-atleta' },
-    { titulo: 'Reglamento', texto: 'Las normas de la competición', ruta: '/reglamento' },
-  ];
   protected readonly marcasCampos = [
-    { k: 'marcaSQ' as const, t: 'Sentadilla (SQ)', c: 'SQ', n: 'sentadilla' },
-    { k: 'marcaBP' as const, t: 'Press de banca (BP)', c: 'BP', n: 'press de banca' },
-    { k: 'marcaDL' as const, t: 'Peso muerto (DL)', c: 'DL', n: 'peso muerto' },
+    { k: 'marcaSQ' as const, c: 'SQ', n: 'sentadilla' },
+    { k: 'marcaBP' as const, c: 'BP', n: 'press de banca' },
+    { k: 'marcaDL' as const, c: 'DL', n: 'peso muerto' },
   ];
 
-  /** Intro corta (≤3 líneas en móvil): el formulario debe verse al entrar (UX2-R1-2). */
-  protected readonly intro = 'Si compites en esta edición, crea tu perfil de atleta: foto, datos de competidor y tus mejores marcas en menos de cinco minutos. No es una inscripción y queda privado hasta que lo publiques.';
-  /** The intro when the alta is closed: it never invites to fill in the form. */
-  protected readonly introCerrada =
-    'El alta de atletas de la GRS Cup está cerrada ahora mismo: no se pueden enviar solicitudes nuevas. Puedes consultar las fichas publicadas en la lista de atletas y, si ya tienes tu cuenta, entrar en el área de atleta.';
   protected readonly cerrada = computed(() => this.vista() === 'cerrada' || this.vista() === 'legal');
-  /** La entradilla con «dar de alta tu atleta» en negrita (Figma 75). */
-  protected readonly introHtml = this.intro.replace('crea tu perfil de atleta', '<strong class="font-semibold text-text-primary">crea tu perfil de atleta</strong>');
-  protected readonly introExitoPrivada =
-    'Tu solicitud de alta está ya en revisión: el equipo la repasa a mano y te avisamos por email con el resultado. Al aprobarla tu ficha quedará privada: podrás activar su publicación desde el área de atleta.';
+  /** La entradilla con «crea tu perfil de atleta» en negrita (Figma 75). */
+  protected readonly introHtml = computed(() => this.t().intro.replace(this.t().negrita, '<strong class="font-semibold text-text-primary">' + this.t().negrita + '</strong>'));
 
   /** Casillas de consentimiento: las opcionales solo si su texto legal está publicado. */
   protected readonly casillas = computed(() => {
@@ -569,8 +560,10 @@ export class AltaAtletaPage {
     // The summary repeats the real reason of the field (lower case, without the final full stop).
     const add = (campo: string, label: string) => {
       const m = e[campo];
+      label = l[campo as keyof typeof l] ?? label;
       if (m) out.push({ campo, label, msg: m.charAt(0).toLowerCase() + m.slice(1).replace(/\.$/, '') });
     };
+    const l = this.t().campos;
     add('nombre', 'Nombre');
     add('apellidos', 'Apellidos');
     add('email', 'Email');
@@ -603,12 +596,13 @@ export class AltaAtletaPage {
       this.cfg.set(c);
       const abierta = c?.abierta ?? false;
       this.vista.set(!c ? 'error' : !abierta ? (c.motivoCierre === 'legal' ? 'legal' : 'cerrada') : 'formulario');
-      const o = mapa?.paginas.find((p) => p.ruta === '/alta-atleta');
+      // the CMS overrides are Spanish: only in ES
+      const o = this.i18n.lang() === 'es' ? mapa?.paginas.find((p) => p.ruta === '/alta-atleta') : undefined;
       this.seo.set({
-        title: o?.title || 'Alta de atleta de powerlifting | GRS Cup',
-        description: o?.description || 'Date de alta como atleta de la GRS Cup: crea tu perfil, sube tu foto y tus mejores marcas y compite con tu ficha lista para el pesaje.',
+        title: o?.title || this.t().seoTitulo,
+        description: o?.description || this.t().seoDesc,
         path: '/alta-atleta',
-        jsonLd: this.jsonLd(o?.title || 'Alta de atleta de powerlifting | GRS Cup', o?.description || 'Date de alta como atleta de la GRS Cup: crea tu perfil, sube tu foto y tus mejores marcas y compite con tu ficha lista para el pesaje.'),
+        jsonLd: this.jsonLd(o?.title || this.t().seoTitulo, o?.description || this.t().seoDesc),
       });
     });
     if (this.browser) this.restaurarBorrador();
@@ -626,7 +620,7 @@ export class AltaAtletaPage {
           url: o + '/alta-atleta',
           name: titulo,
           description: descripcion,
-          inLanguage: 'es',
+          inLanguage: this.i18n.lang(),
           isPartOf: { '@id': o + '/#website' },
           about: { '@type': 'SportsEvent', name: competicionNombre(this.comp.data()) },
         },
@@ -634,15 +628,15 @@ export class AltaAtletaPage {
           '@type': 'BreadcrumbList',
           '@id': o + '/alta-atleta#breadcrumbs',
           itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Inicio', item: o + '/' },
-            { '@type': 'ListItem', position: 2, name: 'Atletas', item: o + '/atletas' },
-            { '@type': 'ListItem', position: 3, name: 'Alta de atleta', item: o + '/alta-atleta' },
+            { '@type': 'ListItem', position: 1, name: this.t().inicio, item: o + '/' },
+            { '@type': 'ListItem', position: 2, name: this.t().seccion, item: o + '/atletas' },
+            { '@type': 'ListItem', position: 3, name: this.t().miga, item: o + '/alta-atleta' },
           ],
         },
         {
           '@type': 'FAQPage',
           '@id': o + '/alta-atleta#faq',
-          mainEntity: FAQS.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+          mainEntity: FAQS[this.i18n.lang()].map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
         },
       ],
     };
@@ -671,7 +665,7 @@ export class AltaAtletaPage {
       this.cfg.set(c);
       this.reinicioAltcha.update((n) => n + 1);
     } catch {
-      this.error.set('No hemos podido pedir una verificación nueva. Vuelve a intentarlo en unos segundos.');
+      this.error.set(this.t().v.reto);
       // Even without a new challenge the widget must leave «Verificado» so the user can retry.
       this.reinicioAltcha.update((n) => n + 1);
     }
@@ -695,7 +689,7 @@ export class AltaAtletaPage {
   protected telRevisar(): void {
     clearTimeout(this.telTimer);
     const n = this.d.telefono.length;
-    this.telAviso.set(n > 0 && n < 9 ? TEL_CORTO : '');
+    this.telAviso.set(n > 0 && n < 9 ? this.t().v.telCorto : '');
   }
 
   /** Revalida los campos (solo después del primer envío). */
@@ -708,45 +702,45 @@ export class AltaAtletaPage {
   private validar(): Record<string, string> {
     const d = this.d;
     const e: Record<string, string> = {};
-    if (!d.nombre.trim()) e['nombre'] = 'Es obligatorio.';
-    else if (!tieneLetra(d.nombre)) e['nombre'] = 'El nombre debe contener letras.';
-    else if (d.nombre.trim().length > MAX_NOMBRE) e['nombre'] = 'Es demasiado largo (60 caracteres como máximo).';
-    if (!d.apellidos.trim()) e['apellidos'] = 'Son obligatorios.';
-    else if (!tieneLetra(d.apellidos)) e['apellidos'] = 'Los apellidos deben contener letras.';
-    else if (d.apellidos.trim().length > MAX_APELLIDOS) e['apellidos'] = 'Son demasiado largos (60 caracteres como máximo).';
+    if (!d.nombre.trim()) e['nombre'] = this.t().v.oblig;
+    else if (!tieneLetra(d.nombre)) e['nombre'] = this.t().v.nombreLetras;
+    else if (d.nombre.trim().length > MAX_NOMBRE) e['nombre'] = this.t().v.largo60;
+    if (!d.apellidos.trim()) e['apellidos'] = this.t().v.obligPl;
+    else if (!tieneLetra(d.apellidos)) e['apellidos'] = this.t().v.apellidosLetras;
+    else if (d.apellidos.trim().length > MAX_APELLIDOS) e['apellidos'] = this.t().v.largos60;
     const mail = d.email.trim();
-    if (!mail) e['email'] = 'Es obligatorio.';
-    else if (mail.length > 254 || !EMAIL.test(mail)) e['email'] = 'Introduce un email válido.';
-    if (this.acepta.whatsapp && !d.telefono.trim()) e['telefono'] = 'Si pides avisos por WhatsApp, necesitas tu teléfono.';
-    else if (d.telefono.trim() && !/^\d{9}$/.test(d.telefono.trim())) e['telefono'] = TEL_CORTO;
-    if (!d.sexo) e['sexo'] = 'Elige una opción.';
-    if (!d.fechaNacimiento) e['fechaNacimiento'] = /^\d{2}\/\d{2}\/\d{1,3}$/.test(this.fechaTexto) ? 'Escribe el año con 4 cifras (dd/mm/aaaa).' : 'Elige una fecha válida.';
+    if (!mail) e['email'] = this.t().v.oblig;
+    else if (mail.length > 254 || !EMAIL.test(mail)) e['email'] = this.t().v.email;
+    if (this.acepta.whatsapp && !d.telefono.trim()) e['telefono'] = this.t().v.waTel;
+    else if (d.telefono.trim() && !/^\d{9}$/.test(d.telefono.trim())) e['telefono'] = this.t().v.telCorto;
+    if (!d.sexo) e['sexo'] = this.t().v.opcion;
+    if (!d.fechaNacimiento) e['fechaNacimiento'] = /^\d{2}\/\d{2}\/\d{1,3}$/.test(this.fechaTexto) ? this.t().v.anio : this.t().v.fecha;
     else {
       const n = new Date(d.fechaNacimiento + 'T00:00:00');
-      if (isNaN(n.getTime())) e['fechaNacimiento'] = 'Elige una fecha válida.';
+      if (isNaN(n.getTime())) e['fechaNacimiento'] = this.t().v.fecha;
       else {
         const h = new Date();
         let edad = h.getFullYear() - n.getFullYear();
         const m = h.getMonth() - n.getMonth();
         if (m < 0 || (m === 0 && h.getDate() < n.getDate())) edad--;
-        if (edad < 14 || edad > 90) e['fechaNacimiento'] = 'Esa fecha no parece correcta (debe estar entre los 14 y los 90 años).';
+        if (edad < 14 || edad > 90) e['fechaNacimiento'] = this.t().v.edad;
       }
     }
-    if (d.club.trim().length > MAX_CAMPO) e['club'] = 'Es demasiado largo.';
-    if (d.ciudad.trim().length > MAX_CAMPO) e['ciudad'] = 'Es demasiado larga.';
-    if (d.entrenador.trim().length > MAX_CAMPO) e['entrenador'] = 'Es demasiado largo.';
-    if (d.frase.length > MAX_FRASE) e['frase'] = 'Es demasiado larga (80 caracteres como máximo).';
-    if (d.bio.length > MAX_BIO) e['bio'] = 'Es demasiado largo (280 caracteres como máximo).';
-    if (!this.esMenor() && d.instagram.trim() && !RE_INSTAGRAM.test(d.instagram.trim())) e['instagram'] = 'Solo letras, números, puntos y guiones bajos (30 como máximo).';
-    if (this.cfg()?.pruebas?.length && !d.prueba) e['prueba'] = 'Elige una competición.';
+    if (d.club.trim().length > MAX_CAMPO) e['club'] = this.t().v.largo;
+    if (d.ciudad.trim().length > MAX_CAMPO) e['ciudad'] = this.t().v.larga;
+    if (d.entrenador.trim().length > MAX_CAMPO) e['entrenador'] = this.t().v.largo;
+    if (d.frase.length > MAX_FRASE) e['frase'] = this.t().v.larga80;
+    if (d.bio.length > MAX_BIO) e['bio'] = this.t().v.largo280;
+    if (!this.esMenor() && d.instagram.trim() && !RE_INSTAGRAM.test(d.instagram.trim())) e['instagram'] = this.t().v.ig;
+    if (this.cfg()?.pruebas?.length && !d.prueba) e['prueba'] = this.t().v.prueba;
     for (const m of this.marcasCampos) {
       const v = this.texto(m.k);
       if (!v) continue;
       const n = Number(v);
-      if (isNaN(n) || n < 0 || n > MAX_MARCA) e[m.k] = 'La marca debe estar entre 0 y 600 kg.';
-      else if (!Number.isInteger(n * 2)) e[m.k] = 'Las marcas van en pasos de 0,5 kg.';
+      if (isNaN(n) || n < 0 || n > MAX_MARCA) e[m.k] = this.t().v.marca;
+      else if (!Number.isInteger(n * 2)) e[m.k] = this.t().v.paso;
     }
-    if (!this.acepta.terminos || !this.acepta.privacidad) e['consentimiento'] = 'Acepta los términos de uso y la política de privacidad.';
+    if (!this.acepta.terminos || !this.acepta.privacidad) e['consentimiento'] = this.t().v.acepta;
     return e;
   }
 
@@ -763,7 +757,7 @@ export class AltaAtletaPage {
       return;
     }
     if (!this.altchaPago()) {
-      this.error.set('Marca la casilla «No soy un robot» antes de enviar.');
+      this.error.set(this.t().v.robot);
       return;
     }
     // El token de tiempo prueba que el formulario lleva al menos 3 s abierto.
@@ -894,7 +888,7 @@ export class AltaAtletaPage {
       return;
     }
     if (xhr.status === 400 && codigo === 'ANTIBOT') {
-      this.error.set(cuerpo.detail || 'No hemos podido verificar que eres una persona.');
+      this.error.set(cuerpo.detail || this.t().v.persona);
       this.altchaPago.set('');
       void this.pedirReto(); // el reto anterior ya se usó: se pide uno nuevo
       return;
@@ -903,7 +897,7 @@ export class AltaAtletaPage {
       const e: Record<string, string> = {};
       for (const det of cuerpo.errors) {
         const campo = (det.location ?? '').replace(/^body\./, '');
-        if (campo) e[campo] = det.message ?? 'Revisa este campo.';
+        if (campo) e[campo] = det.message ?? this.t().v.campo;
       }
       this.err.set(e);
       this.error.set('');
@@ -911,19 +905,19 @@ export class AltaAtletaPage {
       return;
     }
     if (xhr.status === 422 && (codigo === 'CONSENTIMIENTO_OBLIGATORIO' || codigo === 'TELEFONO_OBLIGATORIO')) {
-      if (codigo === 'TELEFONO_OBLIGATORIO') this.err.set({ telefono: 'Si pides avisos por WhatsApp, necesitas tu teléfono.' });
-      this.error.set(cuerpo.detail || 'Revisa los campos marcados.');
+      if (codigo === 'TELEFONO_OBLIGATORIO') this.err.set({ telefono: this.t().v.waTel });
+      this.error.set(cuerpo.detail || this.t().v.marcados);
       return;
     }
     // Event full: retrying the same data never works, so only the message (no «Reintentar»).
     if (codigo === 'INSCRIPCION_COMPLETA') {
-      this.error.set(cuerpo.detail || 'La competición está completa.');
+      this.error.set(cuerpo.detail || this.t().v.completa);
       this.aviso.set('ninguno');
       this.enfocar('#formulario');
       return;
     }
     // Cualquier otro error: se puede reintentar sin perder los datos.
-    this.error.set(cuerpo.detail || 'No hemos podido enviar tu solicitud.');
+    this.error.set(cuerpo.detail || this.t().v.envio);
     this.aviso.set('red');
     this.enfocar('#aviso-envio');
   }
@@ -967,9 +961,7 @@ export class AltaAtletaPage {
 
   /** Tiempo de espera en texto (segundos por debajo del minuto). */
   private tiempo(s: number): string {
-    if (s < 60) return s === 1 ? '1 segundo' : s + ' segundos';
-    const m = Math.ceil(s / 60);
-    return m === 1 ? '1 minuto' : m + ' minutos';
+    return this.t().tiempo(s);
   }
 
   /** Teléfono con el prefijo +34 (el campo solo admite 9 dígitos). */
@@ -1027,8 +1019,6 @@ export class AltaAtletaPage {
 }
 
 /** Nombre de la competición (para el JSON-LD). */
-/** Aviso de longitud del móvil (+34: 9 dígitos). */
-const TEL_CORTO = 'Introduce al menos 9 dígitos.';
 
 /** Hay al menos una letra visible tras quitar los invisibles (control, Cf, relleno Hangul, U+2800). */
 function tieneLetra(v: string): boolean {
@@ -1038,3 +1028,110 @@ function tieneLetra(v: string): boolean {
 function competicionNombre(c: { nombre?: string } | null): string {
   return c?.nombre || 'GRS Cup 2026';
 }
+
+const T_ES = {
+  titulo: 'Alta de atleta de', acento: 'powerlifting', sufijo: 'para la GRS Cup', tituloExito: 'Solicitud recibida',
+  eyebrow: 'Atletas · GRS Cup 2026', eyebrowExito: 'Solicitud enviada', seccion: 'Atletas', miga: 'Alta de atleta', inicio: 'Inicio',
+  intro: 'Si compites en esta edición, crea tu perfil de atleta: foto, datos de competidor y tus mejores marcas en menos de cinco minutos. No es una inscripción y queda privado hasta que lo publiques.',
+  negrita: 'crea tu perfil de atleta',
+  introCerrada: 'El alta de atletas de la GRS Cup está cerrada ahora mismo: no se pueden enviar solicitudes nuevas. Puedes consultar las fichas publicadas en la lista de atletas y, si ya tienes tu cuenta, entrar en el área de atleta.',
+  introExito: 'Tu solicitud de alta está ya en revisión: el equipo la repasa a mano y te avisamos por email con el resultado. Al aprobarla tu ficha quedará privada: podrás activar su publicación desde el área de atleta.',
+  relacionados: [
+    { titulo: 'Atletas', texto: 'La plantilla de la GRS Cup', ruta: '/atletas' },
+    { titulo: 'Área de atleta', texto: 'Edita tu ficha y tus marcas', ruta: '/area-atleta' },
+    { titulo: 'Reglamento', texto: 'Las normas de la competición', ruta: '/reglamento' },
+  ] as RelatedLink[],
+  seoTitulo: 'Alta de atleta de powerlifting | GRS Cup',
+  seoDesc: 'Date de alta como atleta de la GRS Cup: crea tu perfil, sube tu foto y tus mejores marcas y compite con tu ficha lista para el pesaje.',
+  solicitud: 'Solicitud de alta', obligatorios: 'Los campos marcados con * son obligatorios, el resto opcional.',
+  revisa: (n: number) => 'Revisa ' + (n === 1 ? 'un campo' : n + ' campos') + ' antes de enviar',
+  tusDatos: 'Tus datos', nombre: 'Nombre *', nombrePh: 'Tu nombre', apellidos: 'Apellidos *', apellidosPh: 'Tus apellidos',
+  email: 'Email de tu inscripción *', emailAyuda: 'El mismo con el que te inscribiste; así te reconocemos.',
+  telefono: 'Teléfono móvil', telAyuda: 'Móvil español de 9 dígitos.', telWhatsapp: ' Obligatorio solo si marcas los avisos por WhatsApp.',
+  sexo: 'Sexo *', mujer: 'Mujer', hombre: 'Hombre', nacimiento: 'Fecha de nacimiento *', fechaPh: 'dd/mm/aaaa', fechaAyuda: 'Formato dd/mm/aaaa. De 14 a 90 años.',
+  menor: 'Como has nacido antes de los 18, necesitaremos la autorización firmada de tu madre, padre o tutor. Te la pediremos por email antes de publicar tu ficha.',
+  competicion: 'Competición', queCompeticion: '¿En qué competición compites?', completa: 'Completa · sin plazas',
+  clubPh: 'Escribe tu club', ciudad: 'Ciudad', entrenador: 'Entrenador/a (opcional)', entrenadorPh: 'Tu entrenador/a',
+  tuFoto: 'Tu foto', tuPerfil: 'Tu perfil', frase: 'Frase de presentación (opcional)', frasePh: 'Una frase para tu ficha',
+  bio: 'Sobre ti (opcional)', bioPh: 'Cuéntale a la gente quién eres en dos líneas', instagram: 'Instagram (opcional)', instagramPh: '@tuusuario',
+  instagramMenor: 'A los menores de 18 no les pedimos Instagram: el campo se oculta y no se publica nunca.',
+  marcas: 'Mejores marcas', opcionales: 'Opcionales.', marcaSQ: 'Sentadilla (SQ)', marcaBP: 'Press de banca (BP)', marcaDL: 'Peso muerto (DL)',
+  consentimientos: 'Consentimientos', acepto: 'Acepto los ', terminosUso: 'términos de uso', yEl: ' y el ', reglamento: 'reglamento',
+  heLeido: 'He leído la ', politica: 'política de privacidad', tratamiento: ' y acepto el tratamiento de mis datos para gestionar mi alta.',
+  autorizo: 'Autorizo publicar mi nombre, datos deportivos y foto en la web, la pantalla y el directo de la GRS Cup (ver ', consImagen: 'consentimiento de imagen',
+  quieroWa: 'Quiero recibir avisos de mi alta y de la competición por WhatsApp (ver ', textoWa: 'texto de WhatsApp',
+  rgpd: 'Responsable: GRStrength · Finalidad: gestionar tu alta de atleta y, solo si lo marcas, enviarte novedades y avisos · Legitimación: tu consentimiento · Derechos: acceso, rectificación, supresión y baja desde el área de atleta o cualquier email.',
+  envio: 'Envío', trampa: 'No rellenes este campo', limite: 'Se han enviado muchas solicitudes desde esta conexión.',
+  siguen: (foto: boolean) => 'Tus datos' + (foto ? ' y tu foto' : '') + ' siguen aquí:',
+  reintentaEn: (t: string) => 'podrás reintentarlo en ' + t + '.', yaPuedes: 'ya puedes reintentarlo.',
+  red: 'No hemos podido enviar tu solicitud (conexión o servicio ocupado).', pulsa: 'pulsa «Reintentar».', reintentar: 'Reintentar', enviar: 'Enviar mi alta',
+  alEnviar: 'Al enviar, aceptas los términos de uso y la política de privacidad. Te escribimos para confirmar que hemos recibido tu solicitud.',
+  tiempo: (s: number) => s < 60 ? (s === 1 ? '1 segundo' : s + ' segundos') : Math.ceil(s / 60) === 1 ? '1 minuto' : Math.ceil(s / 60) + ' minutos',
+  campos: { nombre: 'Nombre', apellidos: 'Apellidos', email: 'Email', telefono: 'Teléfono', sexo: 'Sexo', fechaNacimiento: 'Fecha de nacimiento', prueba: 'Competición', frase: 'Frase', bio: 'Sobre ti', instagram: 'Instagram', club: 'Club', ciudad: 'Ciudad', entrenador: 'Entrenador', marcaSQ: 'Sentadilla', marcaBP: 'Press de banca', marcaDL: 'Peso muerto', consentimiento: 'Consentimientos' },
+  v: {
+    oblig: 'Es obligatorio.', nombreLetras: 'El nombre debe contener letras.', largo60: 'Es demasiado largo (60 caracteres como máximo).', obligPl: 'Son obligatorios.',
+    apellidosLetras: 'Los apellidos deben contener letras.', largos60: 'Son demasiado largos (60 caracteres como máximo).', email: 'Introduce un email válido.',
+    waTel: 'Si pides avisos por WhatsApp, necesitas tu teléfono.', opcion: 'Elige una opción.', anio: 'Escribe el año con 4 cifras (dd/mm/aaaa).', fecha: 'Elige una fecha válida.',
+    edad: 'Esa fecha no parece correcta (debe estar entre los 14 y los 90 años).', largo: 'Es demasiado largo.', larga: 'Es demasiado larga.',
+    larga80: 'Es demasiado larga (80 caracteres como máximo).', largo280: 'Es demasiado largo (280 caracteres como máximo).',
+    ig: 'Solo letras, números, puntos y guiones bajos (30 como máximo).', prueba: 'Elige una competición.', marca: 'La marca debe estar entre 0 y 600 kg.',
+    paso: 'Las marcas van en pasos de 0,5 kg.', acepta: 'Acepta los términos de uso y la política de privacidad.', telCorto: 'Introduce al menos 9 dígitos.',
+    reto: 'No hemos podido pedir una verificación nueva. Vuelve a intentarlo en unos segundos.', robot: 'Marca la casilla «No soy un robot» antes de enviar.',
+    persona: 'No hemos podido verificar que eres una persona.', campo: 'Revisa este campo.', marcados: 'Revisa los campos marcados.', completa: 'La competición está completa.', envio: 'No hemos podido enviar tu solicitud.',
+  },
+};
+
+const T = {
+  es: T_ES,
+  en: {
+    titulo: 'Athlete sign-up for', acento: 'powerlifting', sufijo: 'at the GRS Cup', tituloExito: 'Request received',
+    eyebrow: 'Athletes · GRS Cup 2026', eyebrowExito: 'Request sent', seccion: 'Athletes', miga: 'Athlete sign-up', inicio: 'Home',
+    intro: "If you're competing in this edition, create your athlete profile: photo, competitor details and your best lifts in under five minutes. It isn't a registration and it stays private until you publish it.",
+    negrita: 'create your athlete profile',
+    introCerrada: 'GRS Cup athlete sign-up is closed right now: new requests cannot be sent. You can browse the published profiles in the athlete list and, if you already have an account, go to the athlete area.',
+    introExito: "Your sign-up request is now under review: the team checks it by hand and we'll email you the outcome. Once approved your profile will stay private: you can publish it from the athlete area.",
+    relacionados: [
+      { titulo: 'Athletes', texto: 'The GRS Cup line-up', ruta: '/en/atletas' },
+      { titulo: 'Athlete area', texto: 'Edit your profile and lifts', ruta: '/en/area-atleta' },
+      { titulo: 'Rulebook', texto: 'The competition rules', ruta: '/en/reglamento' },
+    ] as RelatedLink[],
+    seoTitulo: 'Powerlifting athlete sign-up | GRS Cup',
+    seoDesc: 'Sign up as a GRS Cup athlete: create your profile, upload your photo and your best lifts and compete with your profile ready for weigh-in.',
+    solicitud: 'Sign-up request', obligatorios: 'Fields marked with * are required; the rest are optional.',
+    revisa: (n: number) => 'Check ' + (n === 1 ? 'one field' : n + ' fields') + ' before sending',
+    tusDatos: 'Your details', nombre: 'First name *', nombrePh: 'Your first name', apellidos: 'Surname *', apellidosPh: 'Your surname',
+    email: 'Email used for your registration *', emailAyuda: 'The same one you registered with, so we can recognise you.',
+    telefono: 'Mobile phone', telAyuda: 'Spanish mobile, 9 digits.', telWhatsapp: ' Only required if you tick WhatsApp notifications.',
+    sexo: 'Sex *', mujer: 'Female', hombre: 'Male', nacimiento: 'Date of birth *', fechaPh: 'dd/mm/yyyy', fechaAyuda: 'Format dd/mm/yyyy. Aged 14 to 90.',
+    menor: "As you're under 18, we'll need a consent form signed by your mother, father or guardian. We'll ask for it by email before publishing your profile.",
+    competicion: 'Competition', queCompeticion: 'Which competition are you entering?', completa: 'Full · no places left',
+    clubPh: 'Enter your club', ciudad: 'City', entrenador: 'Coach (optional)', entrenadorPh: 'Your coach',
+    tuFoto: 'Your photo', tuPerfil: 'Your profile', frase: 'Tagline (optional)', frasePh: 'A line for your profile',
+    bio: 'About you (optional)', bioPh: 'Tell people who you are in two lines', instagram: 'Instagram (optional)', instagramPh: '@yourusername',
+    instagramMenor: "We don't ask under-18s for Instagram: the field is hidden and never published.",
+    marcas: 'Best lifts', opcionales: 'Optional.', marcaSQ: 'Squat (SQ)', marcaBP: 'Bench press (BP)', marcaDL: 'Deadlift (DL)',
+    consentimientos: 'Consents', acepto: 'I accept the ', terminosUso: 'terms of use', yEl: ' and the ', reglamento: 'rulebook',
+    heLeido: "I've read the ", politica: 'privacy policy', tratamiento: ' and accept the processing of my data to manage my sign-up.',
+    autorizo: 'I authorise publishing my name, sporting details and photo on the website, the screen and the GRS Cup live stream (see ', consImagen: 'image consent',
+    quieroWa: 'I want to receive notifications about my sign-up and the competition by WhatsApp (see ', textoWa: 'WhatsApp text',
+    rgpd: 'Controller: GRStrength · Purpose: managing your athlete sign-up and, only if you tick it, sending you news and notifications · Legal basis: your consent · Rights: access, rectification, erasure and unsubscribing from the athlete area or any email.',
+    envio: 'Submit', trampa: 'Do not fill in this field', limite: 'Too many requests have been sent from this connection.',
+    siguen: (foto: boolean) => 'Your details' + (foto ? ' and photo are' : ' are') + ' still here:',
+    reintentaEn: (t: string) => 'you can try again in ' + t + '.', yaPuedes: 'you can try again now.',
+    red: "We couldn't send your request (connection problem or service busy).", pulsa: 'press “Retry”.', reintentar: 'Retry', enviar: 'Send my sign-up',
+    alEnviar: "By sending, you accept the terms of use and the privacy policy. We'll email you to confirm we've received your request.",
+    tiempo: (s: number) => s < 60 ? (s === 1 ? '1 second' : s + ' seconds') : Math.ceil(s / 60) === 1 ? '1 minute' : Math.ceil(s / 60) + ' minutes',
+    campos: { nombre: 'First name', apellidos: 'Surname', email: 'Email', telefono: 'Phone', sexo: 'Sex', fechaNacimiento: 'Date of birth', prueba: 'Competition', frase: 'Tagline', bio: 'About you', instagram: 'Instagram', club: 'Club', ciudad: 'City', entrenador: 'Coach', marcaSQ: 'Squat', marcaBP: 'Bench press', marcaDL: 'Deadlift', consentimiento: 'Consents' },
+    v: {
+      oblig: 'This is required.', nombreLetras: 'Your first name must contain letters.', largo60: 'It is too long (60 characters max).', obligPl: 'This is required.',
+      apellidosLetras: 'Your surname must contain letters.', largos60: 'It is too long (60 characters max).', email: 'Enter a valid email.',
+      waTel: 'If you ask for WhatsApp notifications, we need your phone number.', opcion: 'Choose an option.', anio: 'Write the year with 4 digits (dd/mm/yyyy).', fecha: 'Choose a valid date.',
+      edad: "That date doesn't look right (you must be between 14 and 90).", largo: 'It is too long.', larga: 'It is too long.',
+      larga80: 'It is too long (80 characters max).', largo280: 'It is too long (280 characters max).',
+      ig: 'Only letters, numbers, full stops and underscores (30 max).', prueba: 'Choose a competition.', marca: 'The lift must be between 0 and 600 kg.',
+      paso: 'Lifts go in steps of 0.5 kg.', acepta: 'Accept the terms of use and the privacy policy.', telCorto: 'Enter at least 9 digits.',
+      reto: "We couldn't request a new verification. Try again in a few seconds.", robot: 'Tick the “I am not a robot” box before sending.',
+      persona: "We couldn't verify that you are a person.", campo: 'Check this field.', marcados: 'Check the highlighted fields.', completa: 'The competition is full.', envio: "We couldn't send your request.",
+    },
+  },
+};
