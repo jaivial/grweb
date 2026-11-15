@@ -32,7 +32,7 @@ const T = {
       { titulo: 'Overall winner - GL points', label: 'Men', alt: 'Trophy of the overall men’s winner' },
       { titulo: 'Overall winner - GL points', label: 'Women', alt: 'Trophy of the overall women’s winner' },
     ],
-    generos: [{ k: 'M', l: 'Men' }, { k: 'F', l: 'Women' }],
+    generos: [{ k: 'M' as const, l: 'Men' }, { k: 'F' as const, l: 'Women' }] as { k: 'M' | 'F'; l: string }[],
   },
 };
 

@@ -7,7 +7,7 @@ import { GrButton, GrIcon, LOGO, cdn, CdnPipe } from '@grcup/ui';
 import { VideoScrub } from '../core/video-scrub';
 import { I18n, LocPipe } from '../core/i18n';
 
-const T = {
+const TXT = {
   es: { titulo: 'Los ganadores nunca se rinden', desliza: 'Desliza', saltar: 'Saltar intro', cargando: 'Cargando la animación' },
   en: { titulo: 'Winners never give up', desliza: 'Scroll', saltar: 'Skip intro', cargando: 'Loading the animation' },
 };
@@ -160,7 +160,7 @@ const PUFFS = [
   `],
 })
 export class HeroTrophy {
-  protected readonly t = inject(I18n).dict(T);
+  protected readonly t = inject(I18n).dict(TXT);
   /** Title from the CMS (section «hero»). */
   readonly titulo = input('');
   /** U30 · Figma 54 «Web · editar hero»: antetítulo, fecha visible, CTA (texto/destino) and background image with focal point. */
