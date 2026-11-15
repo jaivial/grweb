@@ -703,7 +703,7 @@ export class InscripcionPage {
     } catch { /* private mode: the link still comes back here */ }
     const q = new URLSearchParams();
     if (this.referido) q.set('ref', this.referido);
-    this.fan.abrirAcceso('inscripcion', '/inscripcion' + (q.size ? '?' + q : ''));
+    this.fan.abrirAcceso('inscripcion', this.i18n.path('/inscripcion') + (q.size ? '?' + q : ''));
   }
 
   private restaurar(): void {

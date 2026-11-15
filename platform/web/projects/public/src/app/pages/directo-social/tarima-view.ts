@@ -2,7 +2,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { GrIcon, GrLiveStatus, type GrLiveEstado } from '@grcup/ui';
-import { MOV, gl, kg, ordenTarima, type Categoria, type Celda, type Directo, type EnPlataforma, type Fila, type Mov } from '../../core/directo';
+import { MOV, MOV_EN, gl, kg, ordenTarima, type Categoria, type Celda, type Directo, type EnPlataforma, type Fila, type Mov } from '../../core/directo';
 import { hora } from '../../core/entradas';
 import { HorariosPublic, type Horarios } from '../../core/horarios';
 import { I18n, LocPipe } from '../../core/i18n';
@@ -26,7 +26,7 @@ const T = {
     antes: 'La tarima se activa cuando empiece el directo.', despues: 'La competición ha terminado: consulta los resultados oficiales.',
   },
   en: {
-    mov: { sq: 'Squat', bp: 'Bench press', dl: 'Deadlift' } as Record<Mov, string>,
+    mov: MOV_EN,
     atleta: 'Athlete', cat: 'Cat.', peso: 'Weight', sentadilla: 'Squat', banca: 'Bench', muerto: 'Deadlift', total: 'Total',
     privado: 'Private profile', independiente: 'Unattached', sinTotal: 'No total', subtotal: 'Provisional subtotal', kgTotal: 'kg total', parcial: 'partial',
     pesoCorporal: 'Bodyweight', puntosGl: 'GL points',

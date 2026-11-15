@@ -8,7 +8,7 @@ import { firstValueFrom } from 'rxjs';
 import { GrAlert, GrButton, GrIcon, GrLogo, GrSkeleton, GrSelect, type GrLiveEstado, cdn, CdnPipe } from '@grcup/ui';
 import { Cms, type Album, type Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, FalloApi, type CompeticionPublica } from '../core/competition';
-import { DirectoPublic, MOV, ORD, catCorta, catLarga, embed, gl, kg, type Categoria, type Directo, type Edicion, type EnPlataforma, type Fila, type Pantalla, type ResultadosPublicos } from '../core/directo';
+import { DirectoPublic, MOV, MOV_EN, ORD, ORD_EN, catCorta, catLarga, embed, gl, kg, type Categoria, type Directo, type Edicion, type EnPlataforma, type Fila, type Pantalla, type ResultadosPublicos } from '../core/directo';
 import { ICS_URL } from '../core/horarios';
 import { I18n, LocPipe } from '../core/i18n';
 import { Seo } from '../core/seo';
@@ -60,7 +60,7 @@ const T = {
     seoOtro: 'Retransmisión y resultados en directo de la GRS Cup 2: quién compite, los siguientes atletas y la clasificación al momento.',
   },
   en: {
-    mov: { sq: 'Squat', bp: 'Bench press', dl: 'Deadlift' } as typeof MOV, ord: ['', '1st', '2nd', '3rd'], intento: 'attempt', seccion: 'The event', enDirecto: 'live', crumb: 'Live', h1: 'GRS Cup 2 live',
+    mov: MOV_EN, ord: ORD_EN, intento: 'attempt', seccion: 'The event', enDirecto: 'live', crumb: 'Live', h1: 'GRS Cup 2 live',
     falloT: 'We couldn’t load the live feed', falloD: 'Please try again in a few seconds.', pausaT: 'Technical break', pausaD: 'We’ll be right back.', retraso: (n: number) => 'We’re running ' + n + ' min late.',
     retransmision: 'Broadcast', iframe: 'GRS Cup 2 broadcast', empiezaEn: 'The broadcast starts in', empezara: 'The broadcast will start with the first block', recordar: 'Remind me',
     verRep: 'Watch the replay', repCompleta: 'Full replay', repBreve: 'The replay will be available shortly', breve: 'The video starts shortly · follow the attempts here', vivo: 'Live',
@@ -423,7 +423,7 @@ const TE = {
     <!-- Figma 17 «404»: an edition that does not exist -->
     @if (noExiste()) { <gr-navbar /><main><gr-no-encontrada /></main><gr-footer /> } @else {
     <gr-page [title]="t().titulo" [accent]="r?.competicion?.nombre ?? 'GRStrength Cup ' + anio()" [section]="t().titulo" [crumb]="anio()" [eyebrow]="r ? ((comp()?.sede?.ciudad || r.competicion.sede) + ' · ' + fechas(r.competicion.fechaInicio, r.competicion.fechaFin)) : ''"
-      [subtitle]="r?.publicado ? (comp()?.evento?.nivel ? comp()!.evento.nivel.replace(/^(AEP-\d Regional) (?!de )/, '$1 de ') + '. ' : '') + ((r.mejores['F'] || r.mejores['M']) ? t().subGl : t().sub) : ''">
+      [subtitle]="r?.publicado ? (comp()?.evento?.nivel ? (i18n.lang() === 'es' ? comp()!.evento.nivel.replace(/^(AEP-\d Regional) (?!de )/, '$1 de ') : comp()!.evento.nivel) + '. ' : '') + ((r.mejores['F'] || r.mejores['M']) ? t().subGl : t().sub) : ''">
       @if (r?.publicado) {
         <div pageStamps class="flex flex-wrap gap-2">
           <!-- Figma 25: «Fuente: acta oficial AEP (PDF)» + «Datos de ejemplo» -->
@@ -523,7 +523,7 @@ const TE = {
 })
 export class ResultadosEdicionPage {
   protected readonly noExiste = signal(false);
-  private readonly i18n = inject(I18n);
+  protected readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(TE);
   private noEncontrada(seo: Seo): void {
     this.noExiste.set(true);

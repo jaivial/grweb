@@ -235,7 +235,8 @@ const T = {
 })
 export class AccesoModal {
   protected readonly fan = inject(FanSession);
-  protected readonly t = inject(I18n).dict(T);
+  private readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(T);
 
   private readonly router = inject(Router);
   protected readonly estado = signal<Estado>('formulario');
@@ -352,7 +353,8 @@ export class AccesoModal {
     try {
       if (this.modo() === 'entrar') {
         await this.fan.entrar(this.email().trim(), this.clave());
-        const volverA = this.fan.volverA();
+        const v = this.fan.volverA();
+        const volverA = v ? this.i18n.path(v) : null;
         this.cerrar();
         // Porra, fantasy and «mis apuestas» load their data once: re-enter the page so they load it with the session.
         if (volverA && volverA !== this.router.url) await this.router.navigateByUrl(volverA);
