@@ -5,7 +5,7 @@ import { RouterLink } from '@angular/router';
 import { GrAlert, GrAvatar, GrButton, GrIcon, GrSkeleton, GrToasts } from '@grcup/ui';
 import { Competitions } from '../../core/competitions';
 import { TituloMovil, errText } from '../../shared/ui';
-import { AtletasApi, cat, categoriaPorPeso, kg, type Atleta, type ItemLista } from './api';
+import { AtletasApi, cat, categoriaPorPeso, diaFecha, horaMadrid, kg, type Atleta, type ItemLista } from './api';
 
 /** Weigh-in desk (Figma page 55 · «Móvil · pesaje»): search, body weight with a live class check, rack heights. */
 @Component({
@@ -16,7 +16,7 @@ import { AtletasApi, cat, categoriaPorPeso, kg, type Atleta, type ItemLista } fr
     @let a = atleta();
     <div class="mx-auto flex max-w-xl flex-col gap-5">
       <header class="flex items-center justify-between gap-3">
-        <h1 class="flex items-center gap-2 text-ui-h3"><a routerLink=".." class="flex size-11 items-center justify-center text-text-tertiary hover:text-text-primary" aria-label="Volver a atletas"><gr-icon name="chevron-left" [size]="20" /></a>Pesaje{{ a?.flight ? ' · Flight ' + a?.flight : '' }}</h1>
+        <h1 class="flex items-center gap-2 text-ui-h3"><a routerLink=".." class="flex size-11 items-center justify-center text-text-tertiary hover:text-text-primary" aria-label="Volver a atletas"><gr-icon name="chevron-left" [size]="20" /></a>Pesaje{{ a?.jornada ? ' · ' + diaFecha(a!.jornada) + (a?.horaInicio ? ' ' + hora(a!.horaInicio) : '') : '' }}</h1>
       </header>
 
       <label class="relative block">
@@ -32,7 +32,7 @@ import { AtletasApi, cat, categoriaPorPeso, kg, type Atleta, type ItemLista } fr
           @for (r of resultados(); track r.id) {
             <li><button type="button" class="flex min-h-16 w-full items-center gap-3 rounded-lg border border-line-subtle bg-bg-card px-4 text-left" (click)="elegir(r.id)">
               <gr-avatar [name]="r.nombreCompleto" />
-              <span class="min-w-0 flex-1"><span class="block truncate text-label-l">{{ r.nombreCompleto }}</span><span class="block text-body-s text-text-tertiary">{{ r.sexo }} {{ cat(r.categoria) }}{{ r.flight ? ' · Flight ' + r.flight : '' }}</span></span>
+              <span class="min-w-0 flex-1"><span class="block truncate text-label-l">{{ r.nombreCompleto }}</span><span class="block text-body-s text-text-tertiary">{{ r.sexo }} {{ cat(r.categoria) }}{{ r.jornada ? ' · ' + diaFecha(r.jornada) : '' }}</span></span>
               <span class="text-mono-xs" [class]="r.pesaje === 'ok' ? 'text-success' : r.pesaje === 'fuera' ? 'text-warning' : 'text-text-tertiary'">{{ estadoTxt[r.pesaje] }}</span>
             </button></li>
           } @empty {
@@ -47,7 +47,7 @@ import { AtletasApi, cat, categoriaPorPeso, kg, type Atleta, type ItemLista } fr
             <gr-avatar [name]="a.nombreCompleto" class="size-16 text-[22px]" />
             <div class="min-w-0 flex-1">
               <p class="line-clamp-2 text-ui-h4 break-words">{{ a.nombreCompleto }}</p>
-              <p class="text-body-m text-text-tertiary">{{ a.sexo }} {{ cat(a.categoria) }}{{ a.flight ? ' · Flight ' + a.flight : '' }}</p>
+              <p class="text-body-m text-text-tertiary">{{ a.sexo }} {{ cat(a.categoria) }}{{ a.jornada ? ' · ' + diaFecha(a.jornada) + (a.horaInicio ? ' ' + hora(a.horaInicio) : '') : '' }}</p>
             </div>
             <span class="rounded-sm px-2.5 py-1 text-label-s" [class]="a.pesaje.estado === 'ok' ? 'bg-success/15 text-success' : a.pesaje.estado === 'fuera' ? 'bg-warning/15 text-warning' : 'bg-warning/10 text-warning'">{{ estadoTxt[a.pesaje.estado] | uppercase }}</span>
           </div>
@@ -71,6 +71,8 @@ import { AtletasApi, cat, categoriaPorPeso, kg, type Atleta, type ItemLista } fr
   `,
 })
 export class PesajePage {
+  protected readonly diaFecha = diaFecha;
+  protected readonly hora = horaMadrid;
   /** Optional ?atleta=<id> (from the record). */
   readonly atletaId = input<string | undefined>(undefined, { alias: 'atleta' });
   protected readonly comps = inject(Competitions);
@@ -85,8 +87,8 @@ export class PesajePage {
   protected readonly atleta = signal<Atleta | null>(null);
   private readonly titulo = inject(TituloMovil);
   private readonly tituloSync = effect(() => {
-    const f = this.atleta()?.flight;
-    this.titulo.texto.set(f ? 'Pesaje · Flight ' + f : 'Pesaje');
+    const a = this.atleta();
+    this.titulo.texto.set(a?.jornada ? 'Pesaje · ' + diaFecha(a.jornada) + (a.horaInicio ? ' ' + horaMadrid(a.horaInicio) : '') : 'Pesaje');
   });
   ngOnDestroy(): void { this.titulo.texto.set(''); }
   protected readonly peso = signal('');

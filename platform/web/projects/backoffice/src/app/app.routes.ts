@@ -122,7 +122,7 @@ export const routes: Routes = [
       { path: 'atletas/solicitudes', loadComponent: () => import('./pages/atletas/solicitudes').then((m) => m.SolicitudesPage), title: 'Solicitudes de atleta · Backoffice GR Cup' },
       { path: 'atletas/solicitudes/:id', loadComponent: () => import('./pages/atletas/solicitudes').then((m) => m.SolicitudesPage), title: 'Solicitud de atleta · Backoffice GR Cup' },
       { path: 'atletas/:id', component: AtletaFichaPage, title: 'Atleta · Backoffice GR Cup' },
-      { path: 'horarios', loadComponent: () => import('./pages/horarios/horarios').then((m) => m.HorariosPage), title: 'Horarios y flights · Backoffice GR Cup' },
+      { path: 'horarios', loadComponent: () => import('./pages/horarios/horarios').then((m) => m.HorariosPage), title: 'Horarios · Backoffice GR Cup' },
       { path: 'contactos', loadComponent: () => import('./pages/contactos/contactos').then((m) => m.ContactosPage), data: { tab: 'contactos' }, title: 'Contactos · Backoffice GR Cup' },
       { path: 'contactos/segmentos', loadComponent: () => import('./pages/contactos/contactos').then((m) => m.ContactosPage), data: { tab: 'segmentos' }, title: 'Segmentos · Backoffice GR Cup' },
       { path: 'contactos/bajas', loadComponent: () => import('./pages/contactos/contactos').then((m) => m.ContactosPage), data: { tab: 'bajas' }, title: 'Bajas y supresiones · Backoffice GR Cup' },

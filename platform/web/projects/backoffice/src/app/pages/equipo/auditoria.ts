@@ -57,7 +57,7 @@ const ENTIDADES: Record<string, string> = {
   atleta: 'Atleta',
   entrada: 'Entrada',
   sesion: 'Sesión de entradas',
-  flight: 'Flight',
+  flight: 'Flight (histórico)',
   intento: 'Intento',
   competicion: 'Competición',
   pagina: 'Página web',

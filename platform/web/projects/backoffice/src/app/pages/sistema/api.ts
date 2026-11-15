@@ -72,7 +72,7 @@ export const MODULOS: { k: string; l: string; d: string }[] = [
   { k: 'entradas', l: 'Entradas', d: 'Reserva de entradas gratuitas por sesión con QR' },
   { k: 'atletas', l: 'Atletas', d: 'Listado y perfiles públicos de atletas' },
   { k: 'alta-atleta', l: 'Alta de atleta', d: 'Formulario público de alta (con revisión)' },
-  { k: 'horarios', l: 'Horarios', d: 'Flights y horarios publicados' },
+  { k: 'horarios', l: 'Horarios', d: 'Sesiones y horarios publicados' },
   { k: 'directo', l: 'Directo', d: 'Resultados en vivo y pantalla del pabellón' },
   { k: 'resultados', l: 'Resultados', d: 'Clasificaciones y acta' },
   { k: 'sorteo', l: 'Sorteo', d: 'Rifa de premios' },

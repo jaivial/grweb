@@ -20,7 +20,7 @@ export interface AtletaPub {
   categoria: string;
   division: string;
   divisionNombre: string;
-  flight: string;
+  jornada: string;
   plataforma?: number;
   horaInicio?: string;
   fotoUrl: string;
@@ -29,7 +29,7 @@ export interface AtletaPub {
   destacado: boolean;
 }
 export interface ListaPub {
-  resumen: { total: number; mujeres: number; hombres: number; clubs: number; flights: number; plataformas: number };
+  resumen: { total: number; mujeres: number; hombres: number; clubs: number; jornadas: number };
   atletas: AtletaPub[];
   actualizado: string;
 }
@@ -56,7 +56,7 @@ export interface Participantes {
   hombres: number;
   reserva: number;
   estado: string;
-  grupos: { titulo: string; subtitulo: string; filas: { slug: string; nombre: string; club: string; sexo: 'F' | 'M'; categoria: string; flight: string; pesajeInicio?: string; pesajeFin?: string; horaInicio?: string }[] }[];
+  grupos: { titulo: string; subtitulo: string; filas: { slug: string; nombre: string; club: string; sexo: 'F' | 'M'; categoria: string; jornada: string; lote?: number; pesajeInicio?: string; pesajeFin?: string; horaInicio?: string }[] }[];
 }
 
 const base = `/api/competiciones/${COMPETITION_SLUG}`;

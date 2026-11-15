@@ -6,7 +6,7 @@ export type Mov = 'sq' | 'bp' | 'dl';
 export type ResultadoIntento = 'pendiente' | 'valido' | 'nulo' | 'renuncia';
 export interface Pantalla { siguientes: boolean; carrusel: boolean; qr: boolean; ver?: number }
 export interface Estado {
-  version: number; fase: 'antes' | 'en_directo' | 'finalizado'; flightId?: string; movimiento: Mov; pausa: boolean; retrasoMin: number; streamUrl: string; replayUrl: string; streamVisible: boolean; streamHome: boolean;
+  version: number; fase: 'antes' | 'en_directo' | 'finalizado'; sesionId?: string; movimiento: Mov; pausa: boolean; retrasoMin: number; streamUrl: string; replayUrl: string; streamVisible: boolean; streamHome: boolean;
   pantalla: Pantalla; publicarAuto: boolean; turnoAt?: string; updatedAt: string;
 }
 export interface IntentoMesa { id: string; peso: number; votos: string; resultado: ResultadoIntento; corregido: boolean }
@@ -17,13 +17,13 @@ export interface FilaMesa {
 export interface Turno {
   atletaId: string; nombre: string; club: string; sexo: 'F' | 'M'; categoria: string; lote: number; intentoId?: string; numero: number; peso: number; rackSq?: number; rackBp?: string; frase?: string;
 }
-export interface FlightMesa { id: string; codigo: string; titulo: string; plataforma: number; dia: string; inicio: string; atletas: number; hechos: number; estado: 'programado' | 'en_curso' | 'finalizado' }
+export interface SesionMesa { id: string; hora: string; titulo: string; dia: string; inicio: string; atletas: number; hechos: number; estado: 'programado' | 'en_curso' | 'finalizado' }
 export interface Mesa {
-  estado: Estado; horariosPublicados: boolean; espectadores: number; pantallaPing?: string; flights: FlightMesa[]; flight?: FlightMesa; ronda: number; atletas: FilaMesa[];
-  actual?: Turno; siguientes: Turno[]; movimientoCompleto: boolean; siguienteMovimiento?: Mov; flightCompleto: boolean;
+  estado: Estado; horariosPublicados: boolean; espectadores: number; pantallaPing?: string; sesiones: SesionMesa[]; sesion?: SesionMesa; ronda: number; atletas: FilaMesa[];
+  actual?: Turno; siguientes: Turno[]; movimientoCompleto: boolean; siguienteMovimiento?: Mov; sesionCompleta: boolean;
 }
 export interface EstadoIn {
-  fase: Estado['fase']; flightId?: string; movimiento: Mov; pausa: boolean; retrasoMin: number; streamUrl: string; replayUrl: string; pantalla: Pantalla; publicarAuto: boolean;
+  fase: Estado['fase']; sesionId?: string; movimiento: Mov; pausa: boolean; retrasoMin: number; streamUrl: string; replayUrl: string; pantalla: Pantalla; publicarAuto: boolean;
 }
 export interface Celda { peso: number; resultado: ResultadoIntento; votos?: string }
 export interface Fila {
@@ -32,7 +32,7 @@ export interface Fila {
 }
 export interface Categoria { clave: string; sexo: 'F' | 'M'; categoria: string; titulo: string; corto: string; atletas: number; completos: number; filas: Fila[] }
 export interface CategoriaResumen { clave: string; titulo: string; corto: string; atletas: number; completos: number; publicado?: { version: number; at: string; por: string }; cambios: boolean }
-export interface ResultadosAdmin { categorias: CategoriaResumen[]; categoria?: Categoria; absoluta: Record<'F' | 'M', Fila[]>; publicarAuto: boolean; programado?: string; flights: number; cerrados: number; archivo?: boolean }
+export interface ResultadosAdmin { categorias: CategoriaResumen[]; categoria?: Categoria; absoluta: Record<'F' | 'M', Fila[]>; publicarAuto: boolean; programado?: string; sesiones: number; cerrados: number; archivo?: boolean }
 
 export const MOV: Record<Mov, string> = { sq: 'Sentadilla', bp: 'Press banca', dl: 'Peso muerto' };
 export const MOV_CORTO: Record<Mov, string> = { sq: 'SQ', bp: 'BP', dl: 'DL' };

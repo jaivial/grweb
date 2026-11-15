@@ -122,7 +122,7 @@ export interface AtletaMercado {
   protegidoHasta?: string;
   libre: boolean;
   esMio: boolean;
-  flightEnCurso: boolean;
+  sesionEnCurso: boolean;
   nota: Nota;
 }
 

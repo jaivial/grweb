@@ -193,7 +193,7 @@ export class SecFantasy {
   protected readonly ancho = ANCHO;
   protected readonly titulares = computed<AtletaPista[]>(() =>
     (this.resumen()?.alineacionDestacada?.atletas ?? []).map((a) => ({
-      atletaId: a.atletaId, nombre: a.nombre, sexo: a.categoria.startsWith('M') ? 'M' : 'F', categoria: a.categoria, clausula: 0, titular: true, protegido: false, libre: false, esMio: false, flightEnCurso: a.compitiendo, nota: a.nota,
+      atletaId: a.atletaId, nombre: a.nombre, sexo: a.categoria.startsWith('M') ? 'M' : 'F', categoria: a.categoria, clausula: 0, titular: true, protegido: false, libre: false, esMio: false, sesionEnCurso: a.compitiendo, nota: a.nota,
     }) as AtletaMercado),
   );
 

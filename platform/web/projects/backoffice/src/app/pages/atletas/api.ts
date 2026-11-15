@@ -19,7 +19,7 @@ export interface ItemLista {
   sexo: 'F' | 'M';
   categoria: string;
   divisionNombre: string;
-  flight: string;
+  jornada: string;
   prueba: '' | 'aep2' | 'aep3';
   estado: 'confirmado' | 'reserva' | 'baja';
   ordenReserva?: number;
@@ -40,7 +40,7 @@ export interface Lista {
   pestanas: Record<'todos' | 'confirmados' | 'reserva' | 'bajas' | 'incidencias', number>;
   kpis: { perfilesCompletos: number; pctCompletos: number; sinFoto: number; conImagen: number; imagenPendiente: number; menoresPendientes: number; seguimientos: number; seguimientosSemana: number };
   categorias: string[];
-  flights: string[];
+  jornadas: string[];
   pruebas?: { aep2: number; aep3: number; sin: number };
   importado?: string;
 }
@@ -83,8 +83,8 @@ export interface Atleta {
   prueba: string;
   ordenReserva?: number;
   origen: string;
-  flight: string;
-  plataforma?: number;
+  jornada: string;
+  lote?: number;
   horaInicio?: string;
   pesajeInicio?: string;
   pesajeFin?: string;
@@ -206,3 +206,8 @@ export class AtletasApi {
   exportar(cid: string, ids: string[] = []): Promise<void> { return this.descargar(`${this.base(cid)}/exportar.csv` + (ids.length ? '?ids=' + ids.join(',') : ''), 'atletas.csv'); }
   plantilla(cid: string): Promise<void> { return this.descargar(`${this.base(cid)}/importaciones/plantilla.xlsx`, 'plantilla-acta-aep.xlsx'); }
 }
+
+/** «sáb 19/12» from «2026-12-19» (date the athlete competes in). */
+export const diaFecha = (f: string) => (/^\d{4}-\d{2}-\d{2}$/.test(f) ? new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', month: 'numeric', timeZone: 'UTC' }).format(new Date(f + 'T12:00:00Z')).replace(',', '') : '');
+/** «09:30» in the competition time zone. */
+export const horaMadrid = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso)) : '');

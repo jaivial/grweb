@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import type { BoPaletteGroup, BoPaletteItem } from '../shared/kit';
 import { Auth } from '../core/auth';
-import { AtletasApi } from '../pages/atletas/api';
+import { AtletasApi, diaFecha as diaFechaCorta } from '../pages/atletas/api';
 import { EntradasApi } from '../pages/entradas/api';
 import { ContactosApi } from '../pages/contactos/api';
 import { ALL_ITEMS } from './nav';
@@ -65,7 +65,7 @@ export class PaletteSearch {
       items: put(total > hits.length && lista ? [...hits, { id: 'ver:' + lista, icon: 'arrow-right', title: `Ver los ${total.toLocaleString('es-ES')} resultados`, sub: label, url: base + lista + '?q=' + encodeURIComponent(q) }] : hits),
     });
     const tot = (r: PromiseSettledResult<{ total: number }>) => (r.status === 'fulfilled' ? r.value.total : 0);
-    const at: Hit[] = a.status === 'fulfilled' ? a.value.items.slice(0, 3).map((x) => ({ id: 'atl:' + x.id, icon: 'user', title: x.nombreCompleto, sub: [x.categoria, x.club, x.flight && 'Flight ' + x.flight].filter(Boolean).join(' · '), url: base + 'atletas/' + x.id })) : [];
+    const at: Hit[] = a.status === 'fulfilled' ? a.value.items.slice(0, 3).map((x) => ({ id: 'atl:' + x.id, icon: 'user', title: x.nombreCompleto, sub: [x.categoria, x.club, x.jornada && diaFechaCorta(x.jornada)].filter(Boolean).join(' · '), url: base + 'atletas/' + x.id })) : [];
     const en: Hit[] = e.status === 'fulfilled' ? e.value.items.slice(0, 3).map((x) => ({ id: 'ent:' + x.id, icon: 'ticket', title: `${x.codigo} · ${x.nombre} ${x.apellidos}`.trim(), sub: `${x.sesion} · ${x.personas} ${x.personas === 1 ? 'persona' : 'personas'}`, url: base + 'entradas/reservas?q=' + encodeURIComponent(x.codigo) })) : [];
     const co: Hit[] = c.status === 'fulfilled' ? c.value.items.slice(0, 3).map((x) => ({ id: 'con:' + x.id, icon: 'users', title: x.email || x.nombre, sub: [x.nombre, x.origen && 'origen ' + x.origen].filter(Boolean).join(' · '), url: base + 'contactos/' + x.id })) : [];
     this.groups.set([g('Páginas', paginas), g('Atletas', at, tot(a), 'atletas'), g('Entradas', en, tot(e), 'entradas/reservas'), g('Contactos', co, tot(c), 'contactos')].filter((x) => x.items.length));

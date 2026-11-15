@@ -51,11 +51,11 @@ const TAM = { l: 'size-20', m: 'size-16', s: 'size-14' } as const;
     <button type="button" class="group flex w-[6.5rem] flex-col items-center gap-2.5 rounded-lg p-1 outline-offset-4 lg:w-[7.5rem]" (click)="abrir.emit($event)" [attr.aria-label]="etiqueta()" aria-haspopup="dialog">
       <span class="relative block shrink-0" [class]="tam()">
         <span class="flex size-full items-center justify-center overflow-hidden rounded-full border-2 font-display text-white italic shadow-[0_6px_16px_rgb(0_0_0/0.5)] transition-transform duration-200 group-hover:scale-105 group-active:scale-95 motion-reduce:transform-none"
-          [class]="(atleta().flightEnCurso ? 'border-warning ' : 'border-white/25 ') + (foto() ? 'bg-bg-raised' : color()) + (tamano() === 'l' ? ' text-[27px]' : tamano() === 'm' ? ' text-[22px]' : ' text-[19px]')">
+          [class]="(atleta().sesionEnCurso ? 'border-warning ' : 'border-white/25 ') + (foto() ? 'bg-bg-raised' : color()) + (tamano() === 'l' ? ' text-[27px]' : tamano() === 'm' ? ' text-[22px]' : ' text-[19px]')">
           @if (foto(); as f) { <img [src]="f" alt="" class="size-full object-cover" loading="lazy" decoding="async" (error)="sinFoto.set(true)" /> } @else { {{ ini() }} }
         </span>
         <gr-nota class="absolute -right-2 -bottom-0.5" tamano="s" [nota]="atleta().nota" aria-hidden="true" />
-        @if (atleta().flightEnCurso) {
+        @if (atleta().sesionEnCurso) {
           <span class="absolute -top-1 -right-1 flex size-[22px] items-center justify-center rounded-full bg-warning text-bg-deep" aria-hidden="true"><gr-icon name="lock" [size]="12" [stroke]="2.5" /></span>
         }
       </span>
@@ -78,7 +78,7 @@ export class JugadorPista {
   protected readonly corto = computed(() => nombreCorto(this.atleta().nombre));
   protected readonly etiqueta = computed(() => {
     const a = this.atleta();
-    return `${a.nombre}, nota ${nota1(a.nota?.valor ?? 0)}${a.flightEnCurso ? ', compitiendo ahora' : ''}. Ver detalles`;
+    return `${a.nombre}, nota ${nota1(a.nota?.valor ?? 0)}${a.sesionEnCurso ? ', compitiendo ahora' : ''}. Ver detalles`;
   });
 }
 
@@ -180,13 +180,13 @@ export class PistaFutsal {
         <div class="flex flex-col gap-4 px-5 pt-2 pb-6">
           <header class="flex items-start gap-4" (pointerdown)="empieza($event)" (pointermove)="mueve($event)" (pointerup)="suelta()" (pointercancel)="suelta()">
             <span class="flex size-[88px] shrink-0 items-center justify-center overflow-hidden rounded-full border-2 font-display text-[32px] text-white italic"
-              [class]="(atleta().flightEnCurso ? 'border-warning ' : 'border-white/25 ') + (foto() ? 'bg-bg-raised' : color())">
+              [class]="(atleta().sesionEnCurso ? 'border-warning ' : 'border-white/25 ') + (foto() ? 'bg-bg-raised' : color())">
               @if (foto(); as f) { <img [src]="f" [alt]="'Foto de ' + atleta().nombre" class="size-full object-cover" (error)="sinFoto.set(true)" /> } @else { {{ ini() }} }
             </span>
             <span class="min-w-0 flex-1 pt-1">
               <h2 id="hoja-jugador-nombre" class="text-ui-h4 text-text-primary">{{ atleta().nombre }}</h2>
               <span class="mt-0.5 block text-body-s text-text-tertiary">{{ meta() }}</span>
-              @if (atleta().flightEnCurso) {
+              @if (atleta().sesionEnCurso) {
                 <span class="mt-2 inline-flex items-center gap-1.5 rounded-pill border border-warning/40 bg-warning/12 px-2.5 py-1 text-label-xs text-warning"><gr-icon name="lock" [size]="13" />Compitiendo ahora</span>
               } @else {
                 <span class="mt-2 inline-flex items-center gap-1.5 rounded-pill border border-success/35 bg-success/10 px-2.5 py-1 text-label-xs text-success"><span class="size-1.5 rounded-full bg-success"></span>Libre para moverse</span>
@@ -220,7 +220,7 @@ export class PistaFutsal {
 
           <div class="flex flex-col gap-3 pt-1">
             <button type="button" class="h-12 w-full rounded-sm bg-accent-grain px-6 text-label-m text-white transition-shadow hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-45" [disabled]="bloqueado()" (click)="vender.emit()">Vender · {{ monedas(atleta().clausula) }}</button>
-            @if (atleta().flightEnCurso) {
+            @if (atleta().sesionEnCurso) {
               <p class="text-body-s text-warning">Mientras compite no se puede vender ni cambiar de sitio.</p>
             }
             @if (cargando()) { <p class="text-body-s text-text-tertiary" role="status">Guardando…</p> }
@@ -256,7 +256,7 @@ export class HojaJugador {
   protected readonly foto = computed(() => (this.sinFoto() ? '' : this.atleta().fotoUrl || ''));
   protected readonly ini = computed(() => iniciales(this.atleta().nombre));
   protected readonly color = computed(() => colorAvatar(this.atleta().nombre));
-  protected readonly bloqueado = computed(() => this.atleta().flightEnCurso || this.cargando());
+  protected readonly bloqueado = computed(() => this.atleta().sesionEnCurso || this.cargando());
   protected readonly meta = computed(() => {
     const a = this.atleta();
     return `${a.sexo === 'F' ? 'Femenino' : 'Masculino'} · ${(a.categoria ?? '').replace('-', '−')} kg`;

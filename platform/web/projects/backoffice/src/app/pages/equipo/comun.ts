@@ -80,7 +80,7 @@ export const PERMISOS: { g: string; items: { k: string; d: string }[] }[] = [
     g: 'Competición',
     items: [
       { k: 'atletas.editar', d: 'Fichas, importar acta' },
-      { k: 'horarios.publicar', d: 'Publicar flights' },
+      { k: 'horarios.publicar', d: 'Publicar horarios' },
       { k: 'directo.operar', d: 'Mesa de control' },
       { k: 'resultados.publicar', d: 'Publicar resultados' },
     ],

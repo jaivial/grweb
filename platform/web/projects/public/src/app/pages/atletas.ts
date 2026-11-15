@@ -284,7 +284,7 @@ export class AtletasPage {
     this.lista.set(undefined);
     const l = await this.api.lista();
     this.error.set(!l && this.api.failed());
-    this.lista.set(l ?? { resumen: { total: 0, mujeres: 0, hombres: 0, clubs: 0, flights: 0, plataformas: 0 }, atletas: [], actualizado: '' });
+    this.lista.set(l ?? { resumen: { total: 0, mujeres: 0, hombres: 0, clubs: 0, jornadas: 0 }, atletas: [], actualizado: '' });
     return l;
   }
 
@@ -639,11 +639,11 @@ export class AtletaPage {
                 <span class="flex items-center gap-1.5 text-body-s text-text-secondary"><gr-icon name="clock" [size]="14" class="text-accent-text" />{{ g.subtitulo }}</span></h2>
               <div class="mt-3 hidden overflow-hidden rounded-2xl border border-line-subtle bg-bg-card md:block">
                 <table class="w-full table-fixed text-left">
-                  <thead class="border-b border-line-subtle text-label-xs text-text-muted uppercase"><tr><th class="px-4 py-3 font-medium">Atleta</th><th class="px-4 py-3 font-medium">Club</th><th class="w-28 px-4 py-3 font-medium">Categoría</th><th class="w-20 px-4 py-3 font-medium">Flight</th><th class="w-36 px-4 py-3 font-medium">Pesaje</th></tr></thead>
+                  <thead class="border-b border-line-subtle text-label-xs text-text-muted uppercase"><tr><th class="px-4 py-3 font-medium">Atleta</th><th class="px-4 py-3 font-medium">Club</th><th class="w-28 px-4 py-3 font-medium">Categoría</th><th class="w-20 px-4 py-3 font-medium">Inicio</th><th class="w-36 px-4 py-3 font-medium">Pesaje</th></tr></thead>
                   <tbody>
                     @for (f of g.filas; track f.slug) {
                       <tr class="border-b border-line-subtle last:border-0"><td class="px-4 py-3.5"><a [routerLink]="'/atletas/' + f.slug" class="text-label-m hover:text-accent-text">{{ f.nombre }}</a></td><td class="truncate px-4 py-3 text-body-s text-text-secondary">{{ f.club || 'Independiente' }}</td>
-                        <td class="px-4 py-3 text-label-s text-accent-text">{{ cat(f.categoria) }} kg</td><td class="px-4 py-3 text-mono-s">{{ f.flight || '–' }}</td><td class="px-4 py-3 text-mono-s">{{ f.pesajeInicio ? hora(f.pesajeInicio) + ' – ' + hora(f.pesajeFin) : 'Por publicar' }}</td></tr>
+                        <td class="px-4 py-3 text-label-s text-accent-text">{{ cat(f.categoria) }} kg</td><td class="px-4 py-3 text-mono-s">{{ f.horaInicio ? hora(f.horaInicio) : '–' }}</td><td class="px-4 py-3 text-mono-s">{{ f.pesajeInicio ? hora(f.pesajeInicio) + ' – ' + hora(f.pesajeFin) : 'Por publicar' }}</td></tr>
                     }
                   </tbody>
                 </table>

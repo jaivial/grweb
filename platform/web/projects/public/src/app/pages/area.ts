@@ -19,7 +19,7 @@ interface Panel {
   competicion: { slug: string; nombre: string };
   atleta: {
     id: string; nombre: string; apellidos: string; nombreCompleto: string; sexo: 'F' | 'M'; categoria: string; divisionNombre: string; club: string; ciudad: string; menor: boolean; licencia: string;
-    estado: 'confirmado' | 'reserva' | 'baja'; origen: string; flight: string; plataforma?: number; horaInicio?: string; pesajeInicio?: string; pesajeFin?: string; completo: number;
+    estado: 'confirmado' | 'reserva' | 'baja'; origen: string; jornada: string; lote?: number; horaInicio?: string; pesajeInicio?: string; pesajeFin?: string; completo: number;
     pesaje: { rackSq?: number; rackBp: string; segurosBp?: number; intentos: Marcas; estado: string; at?: string };
     perfil: { slug: string; fotoUrl: string; focalX: number; focalY: number; frase: string; bio: string; instagram: string; marcas: Marcas; visible: boolean; imagen?: { at: string; version: string } };
   };
@@ -237,7 +237,7 @@ const api = '/api/area-atleta';
             @if (p) {
               <div class="mx-auto max-w-xl">
                 <h1 class="text-display-xs outline-none md:text-display-m" tabindex="-1">Previa del pesaje</h1>
-                <p class="mt-1 text-body-m text-text-tertiary">{{ p.atleta.flight ? 'Flight ' + p.atleta.flight + (p.atleta.pesajeInicio ? ' · pesaje ' + hora(p.atleta.pesajeInicio) + '–' + hora(p.atleta.pesajeFin) : '') : 'Horario por publicar' }}</p>
+                <p class="mt-1 text-body-m text-text-tertiary">{{ p.atleta.jornada ? 'Tu sesión: ' + hora(p.atleta.horaInicio) + (p.atleta.pesajeInicio ? ' · pesaje ' + hora(p.atleta.pesajeInicio) + '–' + hora(p.atleta.pesajeFin) : '') : 'Horario por publicar' }}</p>
                 <section class="mt-5 flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6"><ng-container *ngTemplateOutlet="previa" /></section>
                 <button type="button" class="mt-3 inline-flex h-11 items-center gap-1 text-label-s text-text-tertiary" (click)="ir('panel')"><gr-icon name="chevron-left" [size]="16" />Volver al panel</button>
               </div>
@@ -282,7 +282,7 @@ const api = '/api/area-atleta';
                   <button type="button" role="radio" [attr.aria-checked]="sel" [disabled]="pr.cerrada || llena || guardandoPrueba()" (click)="eleccion.set(o.codigo)"
                     class="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border-2 p-4 text-left focus-visible:outline-2 focus-visible:outline-accent" [class]="sel ? 'border-accent bg-accent/8' : 'border-line-subtle bg-white/2 hover:border-line-strong'" [class.opacity-50]="llena">
                     <span class="flex size-5 shrink-0 items-center justify-center rounded-full border-2" [class]="sel ? 'border-accent' : 'border-line-strong'">@if (sel) { <span class="size-2.5 rounded-full bg-accent"></span> }</span>
-                    <span class="flex min-w-0 flex-1 flex-col gap-1 max-sm:basis-[calc(100%-36px)]"><span class="text-[16px] font-semibold">{{ o.nombre }}@if (o.fecha) { · <span class="whitespace-nowrap">{{ dia(o.fecha) }}</span> }</span><span class="text-body-xs text-text-tertiary">{{ sel && p?.atleta?.flight ? 'Flight ' + p!.atleta.flight + (p!.atleta.pesajeInicio ? ' · pesaje ' + hora(p!.atleta.pesajeInicio) : '') + (p!.atleta.horaInicio ? ' · salida ' + hora(p!.atleta.horaInicio) : '') : (o.plazas > 0 ? (o.ocupadas > o.plazas ? o.plazas : o.ocupadas) + ' de ' + o.plazas + ' plazas' : 'Sin límite de plazas') + (sede() ? ' · ' + sede() : '') }}</span></span>
+                    <span class="flex min-w-0 flex-1 flex-col gap-1 max-sm:basis-[calc(100%-36px)]"><span class="text-[16px] font-semibold">{{ o.nombre }}@if (o.fecha) { · <span class="whitespace-nowrap">{{ dia(o.fecha) }}</span> }</span><span class="text-body-xs text-text-tertiary">{{ sel && p?.atleta?.jornada ? 'Sesión de las ' + hora(p!.atleta.horaInicio) + (p!.atleta.pesajeInicio ? ' · pesaje ' + hora(p!.atleta.pesajeInicio) : '') : (o.plazas > 0 ? (o.ocupadas > o.plazas ? o.plazas : o.ocupadas) + ' de ' + o.plazas + ' plazas' : 'Sin límite de plazas') + (sede() ? ' · ' + sede() : '') }}</span></span>
                     <span class="inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-pill border px-2 text-[11px] font-medium uppercase tracking-wide max-sm:ml-9 md:px-2.5 md:text-[12px]" [class]="llena ? 'border-line-strong text-text-tertiary' : !sel && ultimas ? 'border-accent/40 bg-accent/10 text-accent-text' : 'border-success/40 bg-success/12 text-success'">{{ pr.cerrada ? 'Cerrada' : llena ? 'Completa' : pr.elegida === o.codigo ? 'Tu competición' : ultimas ? 'Últimas plazas' : 'Disponible' }}</span>
                   </button>
                 }
@@ -340,7 +340,7 @@ export class AreaAtletaPage {
     return [
       { k: 'Competición', v: this.textoPrueba() },
       { k: 'Categoría', v: a.categoria ? `${a.sexo} ${cat(a.categoria)} kg` : 'Por publicar' }, { k: 'División', v: a.divisionNombre },
-      { k: 'Flight', v: sinPrueba || (a.flight ? a.flight + (a.plataforma ? ' · Plataforma ' + a.plataforma : '') : 'Por publicar') },
+      { k: 'Orden de salida', v: sinPrueba || (a.lote ? 'Lote ' + a.lote : 'Por publicar') },
       { k: 'Pesaje', v: sinPrueba || (a.pesajeInicio ? `${hora(a.pesajeInicio)}–${hora(a.pesajeFin)}` : 'Por publicar') },
       { k: 'Inicio', v: sinPrueba || (a.horaInicio ? hora(a.horaInicio) : 'Por publicar') },
       { k: 'Licencia', v: a.licencia || '–' },
