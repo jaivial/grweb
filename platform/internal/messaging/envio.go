@@ -38,6 +38,7 @@ type envioCamp struct {
 	nombre, asunto  string
 	html, waTexto   string
 	waImagen        string
+	waBotones       []Enlace
 	diseno          []Bloque
 	emailMin, waMin int
 	preheader       string
@@ -90,14 +91,14 @@ func (s *Svc) campanasTick(ctx context.Context) error {
 		}
 	}
 
-	rows, err = s.a.DB.Query(ctx, `SELECT id, competition_id, nombre, asunto, preheader, email_html, wa_texto, wa_imagen, diseno, email_por_min, wa_por_min FROM campanas WHERE estado = 'enviando'`)
+	rows, err = s.a.DB.Query(ctx, `SELECT id, competition_id, nombre, asunto, preheader, email_html, wa_texto, wa_imagen, wa_botones, diseno, email_por_min, wa_por_min FROM campanas WHERE estado = 'enviando'`)
 	if err != nil {
 		return err
 	}
 	var cs []envioCamp
 	for rows.Next() {
 		var c envioCamp
-		if err := rows.Scan(&c.id, &c.cid, &c.nombre, &c.asunto, &c.preheader, &c.html, &c.waTexto, &c.waImagen, &c.diseno, &c.emailMin, &c.waMin); err != nil {
+		if err := rows.Scan(&c.id, &c.cid, &c.nombre, &c.asunto, &c.preheader, &c.html, &c.waTexto, &c.waImagen, &c.waBotones, &c.diseno, &c.emailMin, &c.waMin); err != nil {
 			rows.Close()
 			return err
 		}
@@ -188,7 +189,7 @@ func (s *Svc) enviarLote(ctx context.Context, c envioCamp, canal string, porMin 
 			}
 			id, err = enviarSMTP(ctx, smtpc, p.destino, r, cab)
 		} else {
-			id, err = s.enviarWA(ctx, wa, p.destino, WhatsApp{Texto: personalizar(c.waTexto, pila, baja, false), Imagen: c.waImagen})
+			id, err = s.enviarWA(ctx, wa, p.destino, WhatsApp{Texto: personalizar(c.waTexto, pila, baja, false), Imagen: c.waImagen, Enlaces: c.waBotones})
 		}
 		var ee *errEnvio
 		var ew *errWA

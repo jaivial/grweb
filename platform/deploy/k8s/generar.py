@@ -71,7 +71,7 @@ LLAMADAS = {
     "athletes": ["crm", "fans", "live", "openlifter", "schedule"],
     "cms": ["athletes", "crm", "ticketing"],
     "crm": ["messaging"],
-    "messaging": ["crm", "evo-weai"],
+    "messaging": ["ai", "crm", "evo-weai"],
     "raffle": ["crm"],
     "schedule": ["live", "messaging"],
     "ticketing": ["crm"],

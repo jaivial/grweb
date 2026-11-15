@@ -29,6 +29,7 @@ const T = {
   es: {
     links: [
       { label: 'Competición', href: '/#campeonato' },
+      { label: 'Entradas', href: '/entradas' },
       { label: 'Atletas', href: '/atletas' },
       { label: 'Horarios', href: '/horarios' },
       { label: 'Sorteo', href: '/sorteo' },
@@ -73,6 +74,7 @@ const T = {
   en: {
     links: [
       { label: 'Competition', href: '/#campeonato' },
+      { label: 'Tickets', href: '/entradas' },
       { label: 'Athletes', href: '/atletas' },
       { label: 'Schedule', href: '/horarios' },
       { label: 'Raffle', href: '/sorteo' },

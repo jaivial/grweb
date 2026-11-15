@@ -163,7 +163,7 @@ const POSICIONES = [
     }
   `,
   template: `
-    <div class="pista relative isolate aspect-[358/500] w-full overflow-hidden rounded-2xl border border-accent/35 shadow-[0_24px_60px_rgb(0_0_0/0.45)] lg:aspect-[680/760]">
+    <div class="pista relative isolate aspect-[358/500] w-full overflow-hidden rounded-2xl shadow-[0_24px_60px_rgb(0_0_0/0.45)] lg:aspect-[680/760]">
       <!-- Líneas (área, medio campo y círculo central), decorativas -->
       <span class="pointer-events-none absolute inset-3 rounded-[10px] border-[1.5px] border-white/10 lg:inset-[18px] lg:rounded-[14px]" aria-hidden="true"></span>
       <span class="pointer-events-none absolute inset-x-3 top-1/2 h-0 border-t-[1.5px] border-white/10 lg:inset-x-[18px]" aria-hidden="true"></span>
