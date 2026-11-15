@@ -14,6 +14,7 @@ type Common struct {
 	Env           string // dev | qa | prod
 	HTTPAddr      string
 	HealthAddr    string // own listener for the k8s probes, outside the connection cap of HTTPAddr ("" = off)
+	PprofAddr     string // net/http/pprof listener for local profiling ("" = off; never set it on a public port)
 	DatabaseURL   string
 	AutoMigrate   bool
 	RedisAddr     string
@@ -35,6 +36,7 @@ func Load(service string) Common {
 		Env:           env,
 		HTTPAddr:      Str("HTTP_ADDR", ":8080"),
 		HealthAddr:    Str("HEALTH_ADDR", ""),
+		PprofAddr:     Str("PPROF_ADDR", ""),
 		DatabaseURL:   Str("DATABASE_URL", ""),
 		AutoMigrate:   Bool("AUTO_MIGRATE", false),
 		RedisAddr:     Str("REDIS_ADDR", ""),

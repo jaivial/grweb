@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"slices"
@@ -286,6 +287,15 @@ func (a *App) serve(ctx context.Context, s Service) error {
 	// Probes on their own listener: under a flood the main one sits at its LimitListener cap and the kubelet's
 	// 1 s probes timed out (crm restarted by liveness, 0/1 Ready).
 	var hsrv *http.Server
+	if a.Cfg.PprofAddr != "" {
+		// Local profiling only (PPROF_ADDR unset in qa/prod): own mux, never on the proxied port.
+		pm := http.NewServeMux()
+		pm.HandleFunc("/debug/pprof/", pprof.Index)
+		pm.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		pm.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		pm.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		go func() { _ = http.ListenAndServe(a.Cfg.PprofAddr, pm) }()
+	}
 	if a.Cfg.HealthAddr != "" {
 		hm := http.NewServeMux()
 		hm.HandleFunc("GET /healthz", healthz)
