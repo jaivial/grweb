@@ -252,6 +252,22 @@ func (s *Svc) oneIntegracion(ctx context.Context, cid uuid.UUID, tipo string) (*
 	return nil, problem.NotFound("Integración no encontrada.")
 }
 
+// bunnyPlataforma is the platform's Bunny zone (env BUNNY_GRCUP_*) for competitions without their own «bunny»
+// integration: files go under BUNNY_GRCUP_PREFIX (default «grcup») and are served by the pull zone.
+func bunnyPlataforma() (map[string]string, string, error) {
+	zona, clave, pull := config.Str("BUNNY_GRCUP_STORAGE_ZONE", ""), config.Str("BUNNY_GRCUP_STORAGE_KEY", ""), config.Str("BUNNY_GRCUP_PULL_URL", "")
+	if zona == "" || clave == "" || pull == "" {
+		return nil, "", problem.NotFound("La integración no está configurada.")
+	}
+	pre := strings.Trim(config.Str("BUNNY_GRCUP_PREFIX", "grcup"), "/")
+	cfg := map[string]string{"zona": strings.Trim(zona, "/") + "/" + pre, "cdnUrl": strings.TrimRight(pull, "/") + "/" + pre, "plataforma": "true"}
+	// storage.Bunny takes the region prefix («uk», «ny»…) from the host of the storage endpoint.
+	if h := strings.TrimPrefix(strings.TrimPrefix(config.Str("BUNNY_GRCUP_STORAGE_ENDPOINT", ""), "https://"), "http://"); strings.Contains(h, ".storage.bunnycdn.com") {
+		cfg["region"] = strings.SplitN(h, ".storage.bunnycdn.com", 2)[0]
+	}
+	return cfg, clave, nil
+}
+
 // integrationSecret returns the config and the decrypted secret (internal use only).
 func (s *Svc) integrationSecret(ctx context.Context, cid uuid.UUID, tipo string) (map[string]string, string, error) {
 	var cfgRaw, sealed []byte
@@ -381,6 +397,9 @@ func (s *Svc) registerInternal() {
 				return nil, err
 			}
 			cfg, secret, err := s.integrationSecret(ctx, in.CID, in.Tipo)
+			if err != nil && in.Tipo == "bunny" {
+				cfg, secret, err = bunnyPlataforma()
+			}
 			if err != nil {
 				return nil, err
 			}
