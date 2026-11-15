@@ -2,7 +2,7 @@ import { RouterLink } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, SecurityContext, computed, inject, input, signal } from '@angular/core';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
-import { GrSkeleton, fmtLongDate } from '@grcup/ui';
+import { GrSkeleton, fmtLongDate, CdnPipe } from '@grcup/ui';
 import { Cms, renderMarkdown, type Heading, type Pagina } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { Seo, type SeoData } from '../core/seo';
@@ -120,7 +120,7 @@ const location0 = (tipo: string) => LEGAL_PATHS[tipo] ?? '/';
 /** Generic CMS page (reglamento, categorías de peso, marcas mínimas…) and blog post. */
 @Component({
   selector: 'gr-content-page',
-  imports: [Page, GrSkeleton, NoEncontrada, Navbar, Footer],
+  imports: [CdnPipe, Page, GrSkeleton, NoEncontrada, Navbar, Footer],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <!-- Figma 17 «404»: the same page as an unknown route (no SEO header, glow or page padding) -->
@@ -129,7 +129,7 @@ const location0 = (tipo: string) => LEGAL_PATHS[tipo] ?? '/';
       [stamp]="tipo() === 'blog' && p()?.publicadoAt ? fecha(p()!.publicadoAt!) : ''" [cabecera]="p() !== null || cms.failed()">
       @if (p() === undefined) { <gr-skeleton class="h-96 rounded-lg" /> }
       @else if (p() !== null) {
-        @if (p()!.portadaUrl) { <img [src]="p()!.portadaUrl" alt="" class="mb-10 aspect-[16/7] w-full max-w-4xl rounded-lg object-cover" /> }
+        @if (p()!.portadaUrl) { <img [src]="p()!.portadaUrl | cdn" alt="" class="mb-10 aspect-[16/7] w-full max-w-4xl rounded-lg object-cover" /> }
         <article class="prose-gr max-w-3xl text-body-m" [innerHTML]="html()"></article>
       }
     </gr-page>

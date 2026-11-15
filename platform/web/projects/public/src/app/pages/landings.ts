@@ -1,6 +1,6 @@
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, input, signal } from '@angular/core';
-import { GrButton, GrIcon, GrSelect, GrSkeleton, type GrIconName } from '@grcup/ui';
+import { GrButton, GrIcon, GrSelect, GrSkeleton, type GrIconName, CdnPipe } from '@grcup/ui';
 import { Cms, type Landing, type Seccion } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { HOME_ALTERNATES, Seo } from '../core/seo';
@@ -104,7 +104,7 @@ export class Community {
 /** /publico (Figma page 29): what spectators will see, how an attempt is judged and the stand rules. All sections come from the CMS. */
 @Component({
   selector: 'gr-publico-page',
-  imports: [Page, GrIcon, GrSkeleton, GrCabecera, GrSelect, Related, Community],
+  imports: [CdnPipe, Page, GrIcon, GrSkeleton, GrCabecera, GrSelect, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     .gr-vista { animation: gr-vista-in 180ms ease-out; }
@@ -148,7 +148,7 @@ export class Community {
                 <ul #fila class="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:max-w-[932px] md:grid-cols-3 md:gap-4 md:overflow-visible md:px-0" (scroll)="alDeslizar(fila)">
                   @for (m of items(s, 'items'); track m['titulo']; let i = $index) {
                     <li class="relative w-[258px] shrink-0 snap-start overflow-hidden rounded-lg border border-line-subtle shadow-card md:w-auto">
-                      <img [src]="m['imagen']" [alt]="m['alt'] || m['titulo']" class="aspect-[300/420] w-full object-cover" loading="lazy" />
+                      <img [src]="m['imagen'] | cdn" [alt]="m['alt'] || m['titulo']" class="aspect-[300/420] w-full object-cover" loading="lazy" />
                       <div class="absolute inset-x-0 bottom-0 flex flex-col items-start gap-2 bg-[linear-gradient(transparent,rgb(14_12_13/0.95))] p-5">
                         <span class="inline-flex h-6 items-center rounded-full bg-accent px-2.5 text-label-xs text-white uppercase">Movimiento · {{ (i + 1).toString().padStart(2, '0') }}</span>
                         <p class="text-display-xs">{{ m['titulo'] }}</p>
@@ -265,7 +265,7 @@ function eventLd(c: CompeticionPublica, lang: Lang): Record<string, unknown> {
 /** /en (Figma page 35): English landing for international lifters and visitors (hreflang es/en + x-default). */
 @Component({
   selector: 'gr-en-page',
-  imports: [RouterLink, Navbar, Footer, GrButton, GrIcon, GrSkeleton, GrCabecera, Community],
+  imports: [CdnPipe, RouterLink, Navbar, Footer, GrButton, GrIcon, GrSkeleton, GrCabecera, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = land();
@@ -330,7 +330,7 @@ function eventLd(c: CompeticionPublica, lang: Lang): Record<string, unknown> {
                   <gr-cabecera [eyebrow]="str(s, 'eyebrow')" [titulo]="tit(s)" [centro]="false" tam="m" />
                   <!-- Figma «Panel» (24 px): the 360 × 230 belt photo, the title in Display, the display-style button -->
                   <div class="grid items-center gap-6 rounded-2xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-4 shadow-glow-deep md:grid-cols-[360px_minmax(0,1fr)] md:gap-8 md:p-5">
-                    @if (str(s, 'imagen')) { <img [src]="str(s, 'imagen')" alt="SBD belt" class="aspect-[360/230] w-full rounded-lg object-cover" loading="lazy" /> }
+                    @if (str(s, 'imagen')) { <img [src]="str(s, 'imagen') | cdn" alt="SBD belt" class="aspect-[360/230] w-full rounded-lg object-cover" loading="lazy" /> }
                     <div class="flex flex-col gap-3">
                       <p class="text-display-xs md:text-display-s">{{ str(s, 'subtitulo') }}</p>
                       <p class="text-body-m text-text-secondary">{{ str(s, 'texto') }}</p>

@@ -1,6 +1,6 @@
 import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PendingTasks, inject } from '@angular/core';
-import { GrButton, GrIcon, type GrIconName } from '@grcup/ui';
+import { GrButton, GrIcon, type GrIconName, CdnPipe } from '@grcup/ui';
 import { Cms } from '../core/cms';
 import { Seo } from '../core/seo';
 import { GrCabecera } from '../home/bloques';
@@ -40,7 +40,7 @@ export function mapaDe(s: Sitio): string {
  */
 @Component({
   selector: 'gr-donde-dormir-page',
-  imports: [RouterLink, Page, GrIcon, GrButton, GrCabecera, Related],
+  imports: [CdnPipe, RouterLink, Page, GrIcon, GrButton, GrCabecera, Related],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Alojamientos cerca" accent="del pabellón" eyebrow="Visita" section="Cómo llegar" crumb="Alojamientos cerca">
@@ -53,7 +53,7 @@ export function mapaDe(s: Sitio): string {
                 <li class="flex flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
                   @if (s.imagen) {
                   <div class="aspect-video bg-bg-elevated">
-                    <img [src]="s.imagen" [alt]="s.nombre" class="size-full object-cover" loading="lazy" />
+                    <img [src]="s.imagen | cdn" [alt]="s.nombre" class="size-full object-cover" loading="lazy" />
                   </div>
                   }
                   <div class="flex flex-1 flex-col gap-2 p-5">

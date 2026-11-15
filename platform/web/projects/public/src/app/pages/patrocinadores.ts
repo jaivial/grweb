@@ -1,6 +1,6 @@
 import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, signal } from '@angular/core';
-import { GrButton, GrSkeleton, LOGO } from '@grcup/ui';
+import { GrButton, GrSkeleton, LOGO, CdnPipe } from '@grcup/ui';
 import { Cms, type Patrocinador } from '../core/cms';
 import { Competition } from '../core/competition';
 import { Seo } from '../core/seo';
@@ -31,7 +31,7 @@ const mismo = (a: string, b: string) => a.toLowerCase().replace(/[^a-z0-9]/g, ''
  */
 @Component({
   selector: 'gr-patrocinadores-page',
-  imports: [RouterLink, Page, GrButton, GrSkeleton, GrCabecera, Related],
+  imports: [CdnPipe, RouterLink, Page, GrButton, GrSkeleton, GrCabecera, Related],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page separacion="mt-[152px] block md:mt-[180px]" title="Patrocinadores" accent="y colaboradores" eyebrow="Comunidad" section="Comunidad" crumb="Patrocinadores" subtitle="Las marcas, clubs y entidades que hacen posible la GRStrength Cup.">
@@ -45,7 +45,7 @@ const mismo = (a: string, b: string) => a.toLowerCase().replace(/[^a-z0-9]/g, ''
               @for (t of federacion(); track t.nombre) {
                 <li>
                   <a [attr.href]="t.url || null" [attr.target]="t.url ? '_blank' : null" rel="noopener" class="flex h-full flex-col gap-3 rounded-lg border border-accent/30 bg-[linear-gradient(160deg,rgb(110_20_32/0.16),transparent_60%)] bg-bg-card p-6 transition-colors" [class.hover:border-accent]="!!t.url">
-                    <span class="flex h-[120px] items-center justify-center rounded-md bg-white/4 p-4"><img [src]="t.logo" [alt]="t.nombre" class="max-h-full max-w-[70%] object-contain" loading="lazy" /></span>
+                    <span class="flex h-[120px] items-center justify-center rounded-md bg-white/4 p-4"><img [src]="t.logo | cdn" [alt]="t.nombre" class="max-h-full max-w-[70%] object-contain" loading="lazy" /></span>
                     <span class="flex items-center justify-between gap-3"><span class="text-label-m">{{ t.nombre }}</span><span class="text-label-xs text-accent-text uppercase">{{ t.insignia }}</span></span>
                     @if (t.texto) { <span class="text-body-s text-text-tertiary">{{ t.texto }}</span> }
                   </a>
@@ -61,7 +61,7 @@ const mismo = (a: string, b: string) => a.toLowerCase().replace(/[^a-z0-9]/g, ''
                 @for (t of marcas(); track t.nombre) {
                   <li [class]="tier(t.nivel).li">
                     <a [attr.href]="t.url || null" target="_blank" rel="noopener sponsored" [class]="'flex h-full flex-col gap-3 rounded-lg border bg-bg-card p-6 transition-colors ' + tier(t.nivel).a" [class.hover:border-line-strong]="!!t.url">
-                      <span [class]="'flex items-center justify-center rounded-md bg-white/4 p-3 md:p-4 ' + tier(t.nivel).logo"><img [src]="t.logo" [alt]="t.nombre" class="max-h-full max-w-[80%] object-contain" loading="lazy" /></span>
+                      <span [class]="'flex items-center justify-center rounded-md bg-white/4 p-3 md:p-4 ' + tier(t.nivel).logo"><img [src]="t.logo | cdn" [alt]="t.nombre" class="max-h-full max-w-[80%] object-contain" loading="lazy" /></span>
                       <span class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                         <span class="text-label-m">{{ t.nombre }}</span>
                         <span class="hidden h-6 items-center rounded-full bg-white/6 px-2.5 text-label-xs text-text-tertiary uppercase md:inline-flex">{{ t.insignia }}</span>
