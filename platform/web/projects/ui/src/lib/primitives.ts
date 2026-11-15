@@ -159,12 +159,12 @@ export class GrEmpty {
   readonly text = input<string | null>(null);
 }
 
-/** GR Strength Cup logo (CDN, Figma «Logo» 588 × 366). `width` gives the Figma frame: the image is fitted and centred in it (FIT). */
+/** GRS Cup 2 logo (CDN, Figma «Logo» 588 × 366). `width` gives the Figma frame: the image is fitted and centred in it (FIT). */
 @Component({
   selector: 'gr-logo',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'inline-flex' },
-  template: `<img [src]="src" alt="GR Strength Cup" [style.height.px]="height()" [style.width.px]="width()" class="object-contain select-none" [class.w-auto]="!width()" draggable="false" fetchpriority="high" />`,
+  template: `<img [src]="src" alt="GRS Cup 2" [style.height.px]="height()" [style.width.px]="width()" class="object-contain select-none" [class.w-auto]="!width()" draggable="false" fetchpriority="high" />`,
 })
 export class GrLogo {
   readonly height = input(40);

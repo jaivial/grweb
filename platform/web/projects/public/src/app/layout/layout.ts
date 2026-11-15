@@ -73,8 +73,8 @@ const GRUPOS_MOVIL: { titulo: string; items: NavLink[] }[] = [
 ];
 
 const UI = {
-  es: { cta: 'Entrada gratis', ctaMenu: 'Reserva tu entrada gratis', open: 'Abrir menú', close: 'Cerrar menú', otherLang: 'EN', otherHref: '/en', otherLabel: 'English version', home: 'GR Strength Cup · inicio' },
-  en: { cta: 'Free ticket', ctaMenu: 'Book your free ticket', open: 'Open menu', close: 'Close menu', otherLang: 'ES', otherHref: '/', otherLabel: 'Versión en español', home: 'GR Strength Cup · home' },
+  es: { cta: 'Entrada gratis', ctaMenu: 'Reserva tu entrada gratis', open: 'Abrir menú', close: 'Cerrar menú', otherLang: 'EN', otherHref: '/en', otherLabel: 'English version', home: 'GRS Cup 2 · inicio' },
+  en: { cta: 'Free ticket', ctaMenu: 'Book your free ticket', open: 'Open menu', close: 'Close menu', otherLang: 'ES', otherHref: '/', otherLabel: 'Versión en español', home: 'GRS Cup 2 · home' },
 };
 
 /**
@@ -91,7 +91,7 @@ const UI = {
     <nav class="@container relative mx-auto flex min-h-16 max-w-[1200px] items-center gap-2 overflow-hidden md:gap-4 lg:gap-6 rounded-md border border-accent-deep/35 bg-bg-deep/72 px-3 max-[239px]:px-1.5 backdrop-blur-[10px] md:min-h-[72px] md:px-6" aria-label="Principal">
       <span class="pointer-events-none absolute -top-20 -left-10 size-40 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]" aria-hidden="true"></span>
       <span class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(90deg,transparent,rgb(196_43_62/0.6),transparent)]" aria-hidden="true"></span>
-      <a [routerLink]="lang() === 'en' ? '/en' : '/'" class="relative shrink-0" [attr.aria-label]="ui().home"><img [src]="logo" alt="GR Strength Cup" class="h-[36px] w-24 object-contain max-[239px]:w-20 md:h-[40px] md:w-[116px]" /></a>
+      <a [routerLink]="lang() === 'en' ? '/en' : '/'" class="relative shrink-0" [attr.aria-label]="ui().home"><img [src]="logo" alt="GRS Cup 2" class="h-[36px] w-24 object-contain max-[239px]:w-20 md:h-[40px] md:w-[116px]" /></a>
       <!-- Figma «Navbar»: tablet keeps the first three links (the rest is in «Competición ▾»), desktop all five -->
       <ul class="relative -mr-2 ml-auto hidden items-center md:flex lg:gap-2">
         @for (l of links(); track l.href; let i = $index) {
@@ -140,7 +140,7 @@ const UI = {
            open); the edition line and the booking button at the bottom -->
       <div id="menu-movil" animate.enter="gr-hoja-in" animate.leave="gr-hoja-out" class="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bg-base pt-[max(12px,env(safe-area-inset-top))] pr-[max(20px,env(safe-area-inset-right))] pl-[max(20px,env(safe-area-inset-left))] md:hidden" role="dialog" aria-modal="true" (keydown.tab)="atrapar($event)" (keydown.shift.tab)="atrapar($event)" [attr.aria-label]="lang() === 'en' ? 'Menu' : 'Menú'">
         <div class="flex shrink-0 items-center justify-between pt-2 pb-4">
-          <a [routerLink]="lang() === 'en' ? '/en' : '/'" (click)="open.set(false)" [attr.aria-label]="ui().home" class="flex h-11 items-center"><img [src]="logo" alt="GR Strength Cup" class="h-[34px] w-[92px] object-contain" /></a>
+          <a [routerLink]="lang() === 'en' ? '/en' : '/'" (click)="open.set(false)" [attr.aria-label]="ui().home" class="flex h-11 items-center"><img [src]="logo" alt="GRS Cup 2" class="h-[34px] w-[92px] object-contain" /></a>
           <div class="flex items-center gap-2">
             <a [routerLink]="ui().otherHref" [attr.hreflang]="ui().otherLang.toLowerCase()" [attr.aria-label]="ui().otherLabel" class="flex h-11 items-center gap-1 rounded-xl border border-white/10 px-3 text-label-s">
               <span>{{ lang() === 'en' ? 'EN' : 'ES' }}</span><span class="text-text-muted">/ {{ ui().otherLang }}</span></a>
