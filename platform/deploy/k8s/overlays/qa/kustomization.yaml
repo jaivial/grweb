@@ -8,6 +8,31 @@ resources:
   - chat-ws.yaml # perf-20261115 §8: fixed ClusterIP for the direct chat WebSocket (host nginx)
 # Fixed ClusterIPs that the host nginx proxies to (no NodePorts: kraken has no firewall).
 patches:
+  # prod-20261115: QA quota and floors leave room for production on the same node (deploy/k8s/presupuesto.py).
+  - path: recursos.yaml
+  - path: chat-memoria.yaml
+  - target: { kind: HorizontalPodAutoscaler, name: gateway }
+    patch: |-
+      - { op: replace, path: /spec/minReplicas, value: 2 }
+      - { op: replace, path: /spec/maxReplicas, value: 4 }
+  - target: { kind: HorizontalPodAutoscaler, name: juegos }
+    patch: |-
+      - { op: replace, path: /spec/minReplicas, value: 3 }
+      - { op: replace, path: /spec/maxReplicas, value: 4 }
+  - target: { kind: HorizontalPodAutoscaler, name: realtime }
+    patch: |-
+      - { op: replace, path: /spec/minReplicas, value: 2 }
+      - { op: replace, path: /spec/maxReplicas, value: 3 }
+  - target: { kind: HorizontalPodAutoscaler, name: chat }
+    patch: |-
+      - { op: replace, path: /spec/maxReplicas, value: 4 }
+  # chat: ~130 MiB per 1.000 WS measured (perf §7); 512Mi holds ~3.500 WS per pod
+  - target: { kind: Deployment, name: chat }
+    patch: |-
+      - { op: replace, path: /spec/template/spec/containers/0/resources/limits/memory, value: 512Mi }
+  - target: { kind: StatefulSet, name: postgres }
+    patch: |-
+      - { op: replace, path: /spec/template/spec/containers/0/resources/limits/cpu, value: "2" }
   # ST1-R1-2: authorised load tests send X-GrCup-Carga: <LOADTEST_SECRET> and skip the per-IP bucket (QA only;
   # create it with: kubectl -n grcup-qa create secret generic grcup-carga --from-literal=LOADTEST_SECRET=$(openssl rand -hex 32)).
   - target: { kind: Deployment, name: gateway }

@@ -1,7 +1,7 @@
 # Production on kraken (k3s): namespace grcup, next to QA (grcup-qa) and the previous web, which keeps serving FER.
 # Differences from QA, all here (the base stays the QA-tested manifests):
 #   · configuration: SERVICE_ENV=prod, no simulated payments or WhatsApp, its own Redis user and key prefix, the
-#     public domains of config.yaml, real SMTP (credentials in the Secret grcup-smtp);
+#     public domains of config.yaml, mail through Google OAuth (Secret grcup-google);
 #   · data on the node under /var/lib/grcup (not grcup-qa), its own Redis bridge port (16380) and ClusterIPs;
 #   · no Mailpit and no «Datos de ejemplo»: only the Root bootstrap runs on deploy. Editions come from the ETL of the
 #     previous web (or «Nueva competición»); initial web content: deploy/scripts/tarea.sh cms seed-grcup.
@@ -13,7 +13,41 @@ namespace: grcup
 resources:
   - namespace.yaml
   - ../../base
+  - prioridad.yaml # prod-20261115: PriorityClass grcup-prod (above grcup-qa-low)
 patches:
+  # prod-20261115: production budget and priority (deploy/k8s/presupuesto.py, informe perf §9).
+  - path: recursos.yaml
+  - path: chat-memoria.yaml
+  - target: { kind: Deployment }
+    patch: |-
+      - { op: replace, path: /spec/template/spec/priorityClassName, value: grcup-prod }
+  - target: { kind: StatefulSet, name: postgres }
+    patch: |-
+      - { op: add, path: /spec/template/spec/priorityClassName, value: grcup-prod }
+  - target: { kind: DaemonSet, name: redis-puente }
+    patch: |-
+      - { op: add, path: /spec/template/spec/priorityClassName, value: grcup-prod }
+  - target: { kind: HorizontalPodAutoscaler, name: web }
+    patch: |-
+      - { op: replace, path: /spec/maxReplicas, value: 4 }
+  - target: { kind: HorizontalPodAutoscaler, name: gateway }
+    patch: |-
+      - { op: replace, path: /spec/minReplicas, value: 2 }
+      - { op: replace, path: /spec/maxReplicas, value: 4 }
+  - target: { kind: HorizontalPodAutoscaler, name: juegos }
+    patch: |-
+      - { op: replace, path: /spec/minReplicas, value: 2 }
+      - { op: replace, path: /spec/maxReplicas, value: 4 }
+  - target: { kind: HorizontalPodAutoscaler, name: realtime }
+    patch: |-
+      - { op: replace, path: /spec/minReplicas, value: 2 }
+      - { op: replace, path: /spec/maxReplicas, value: 3 }
+  - target: { kind: HorizontalPodAutoscaler, name: chat }
+    patch: |-
+      - { op: replace, path: /spec/maxReplicas, value: 4 }
+  - target: { kind: Deployment, name: chat }
+    patch: |-
+      - { op: replace, path: /spec/template/spec/containers/0/resources/limits/memory, value: 512Mi }
   - path: config.yaml
   - path: sin-ejemplos.yaml
   # The chat accepts the WebSocket handshakes of the public web only (the Origin whitelist of QA is patched here).
@@ -74,12 +108,13 @@ patches:
       - op: replace
         path: /ports/0/port
         value: 16380
-  # Real SMTP credentials for every service that sends (optional: without it, mail fails loudly in «Salud»).
-  - target: { kind: Deployment, labelSelector: "grcup.dev/tier=service" }
+  # Google OAuth client of production (Gmail of the competitions): competition runs the OAuth flow, messaging refreshes
+  # the tokens to send. Optional: without the Secret the backoffice says «Google OAuth sin configurar».
+  - target: { kind: Deployment, name: "(competition|messaging)" }
     patch: |-
       - op: add
         path: /spec/template/spec/containers/0/envFrom/-
-        value: { secretRef: { name: grcup-smtp, optional: true } }
+        value: { secretRef: { name: grcup-google, optional: true } }
   # Fixed ClusterIPs for the host nginx (QA uses 10.43.240.x).
   - target: { kind: Service, name: gateway }
     patch: |-

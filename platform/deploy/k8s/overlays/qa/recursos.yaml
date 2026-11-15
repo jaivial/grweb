@@ -1,0 +1,13 @@
+# prod-20261115 (§9 del informe perf-20261115): QA cede sitio a producción en el mismo nodo (12 CPU / 62 GiB).
+# Cuenta: deploy/k8s/presupuesto.py. QA sigue con prioridad grcup-qa-low; aquí baja su suelo y su techo.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: grcup-quota
+spec:
+  hard:
+    requests.cpu: "4"        # antes 7: los requests garantizan CPU; prod + QA + resto del nodo ≤ 12
+    requests.memory: 5Gi
+    limits.cpu: "16"         # antes 28 (el techo de CPU es comprimible: throttling, no caída)
+    limits.memory: 15Gi      # antes 32Gi: la memoria NO es comprimible, es lo que congela un nodo
+    pods: "60"

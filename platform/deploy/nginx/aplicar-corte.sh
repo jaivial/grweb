@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Runs ON kraken as root, sent by deploy/scripts/nginx-prod.sh: aplicar-corte.sh <dir with plataforma.conf,
 # anterior.tpl, grcup-proxy.conf, mantenimiento.html, rellenar-anterior.py>.
-# Env: MODO (instalar|mantenimiento|redirigir|anterior), WEB_HOST, BO_HOST, API_HOST, ANTERIOR (previous domain).
+# Env: MODO (instalar|mantenimiento|redirigir|anterior), WEB_HOST, WWW_HOST, BO_HOST, ANTERIOR (previous domain).
 # Paths can be overridden for a dry test in a container: NGINX_DIR, LE_DIR, CF_INI.
 set -euo pipefail
 src="$1"
-NGINX_DIR="${NGINX_DIR:-/etc/nginx}"; LE_DIR="${LE_DIR:-/etc/letsencrypt/live}"; CF_INI="${CF_INI:-/etc/letsencrypt/cloudflare.ini}"
+NGINX_DIR="${NGINX_DIR:-/etc/nginx}"; LE_DIR="${LE_DIR:-/etc/letsencrypt/live}"; WEBROOT="${WEBROOT:-/var/www/certbot}"
 d="$NGINX_DIR/grcup-corte"
 mkdir -p "$d" "$NGINX_DIR/snippets"
 install -m 0644 "$src/grcup-proxy.conf" "$NGINX_DIR/snippets/grcup-proxy.conf"
@@ -26,22 +26,36 @@ aplicar() {
 
 case "$MODO" in
   instalar)
-    # one certificate for the three hosts (DNS-01: works before their DNS records exist); an existing one is
-    # re-issued (--expand) when it does not cover all of them
+    sitio="$NGINX_DIR/sites-available/$WEB_HOST.conf"
+    enlace="$NGINX_DIR/sites-enabled/$WEB_HOST.conf"
+    # one certificate for the three names by HTTP-01 (webroot; DNS is in Bunny). An existing one is re-issued
+    # (--expand) when it does not cover all of them. Port 80 must already answer the challenge: the full site does
+    # (its :80 block), and before the first certificate a minimal :80-only site is installed for it.
     falta=""
     if [ -f "$LE_DIR/$WEB_HOST/fullchain.pem" ]; then
       sans=$(openssl x509 -in "$LE_DIR/$WEB_HOST/fullchain.pem" -noout -ext subjectAltName 2>/dev/null | tr ',' '\n' | sed -n 's/.*DNS://p')
-      for h in "$WEB_HOST" "$BO_HOST" "$API_HOST"; do printf '%s\n' "$sans" | grep -qx "$h" || falta="$falta $h"; done
+      for h in "$WEB_HOST" "$WWW_HOST" "$BO_HOST"; do printf '%s\n' "$sans" | grep -qx "$h" || falta="$falta $h"; done
     else
       falta=" (sin certificado)"
     fi
     if [ -n "$falta" ]; then
       echo "certificado para$falta"
-      certbot certonly --non-interactive --agree-tos --expand --dns-cloudflare --dns-cloudflare-credentials "$CF_INI" \
-        --dns-cloudflare-propagation-seconds 30 --cert-name "$WEB_HOST" -d "$WEB_HOST" -d "$BO_HOST" -d "$API_HOST"
+      mkdir -p "$WEBROOT"
+      if [ ! -f "$sitio" ]; then
+        printf 'server {\n    listen 80;\n    listen [::]:80;\n    server_name %s %s %s;\n    location /.well-known/acme-challenge/ { root %s; }\n    location / { return 503; }\n}\n' \
+          "$WEB_HOST" "$WWW_HOST" "$BO_HOST" "$WEBROOT" > "$sitio"
+        ln -sf "$sitio" "$enlace"
+        nginx -t 2>"$d/nginx-t.log" || { rm -f "$enlace" "$sitio"; cat "$d/nginx-t.log"; echo "nginx -t falló con el sitio mínimo de :80" >&2; exit 1; }
+        systemctl reload nginx
+        primero=1
+      fi
+      if ! certbot certonly --non-interactive --agree-tos --expand --webroot -w "$WEBROOT" --cert-name "$WEB_HOST" \
+          -d "$WEB_HOST" -d "$WWW_HOST" -d "$BO_HOST"; then
+        [ -n "${primero:-}" ] && { rm -f "$enlace" "$sitio"; nginx -t 2>/dev/null && systemctl reload nginx; }
+        echo "certbot falló (¿DNS o puerto 80?): nada instalado" >&2; exit 1
+      fi
+      [ -n "${primero:-}" ] && rm -f "$sitio" # the minimal site is replaced below (no backup of it)
     fi
-    sitio="$NGINX_DIR/sites-available/$WEB_HOST.conf"
-    enlace="$NGINX_DIR/sites-enabled/$WEB_HOST.conf"
     [ -f "$sitio" ] && cp -p "$sitio" "$d/plataforma-previo.conf"
     install -m 0644 "$src/plataforma.conf" "$sitio"
     ln -sf "$sitio" "$enlace"

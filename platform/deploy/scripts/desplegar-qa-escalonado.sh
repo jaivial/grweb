@@ -50,6 +50,8 @@ for d in yaml.safe_load_all(sys.stdin):
     if not d: continue
     if d["kind"] == "Deployment":
         open(out + "/deploy-" + d["metadata"]["name"] + ".yaml", "w").write(yaml.safe_dump(d, sort_keys=False))
+    elif d["kind"] == "ResourceQuota":
+        open(out + "/quota.yaml", "w").write(yaml.safe_dump(d, sort_keys=False))
     else:
         resto.append(d)
 open(out + "/resto.yaml", "w").write(yaml.safe_dump_all(resto, sort_keys=False))
@@ -82,6 +84,9 @@ aplicar_tag() { # $1 = tag, $2 = árbol deploy/k8s opcional
     vigilar; echo "→ $n (nuevo)"; ssh "$KRAKEN" "$K apply -f -" < "$f"; ssh "$KRAKEN" "$K rollout status deploy/$n --timeout=300s"
   done
   ssh "$KRAKEN" "$K wait --for=condition=complete job -l app.kubernetes.io/part-of=grcup --timeout=300s" >/dev/null || echo "⚠ algún Job del deploy no terminó: revisar $K get jobs"
+  # The quota goes LAST: a lower quota applied before the rollouts (prod-20261115 lowers QA's) would block the surge
+  # pods of every rolling update while the old, bigger floor is still running.
+  if [ -f "$w/quota.yaml" ]; then echo "→ ResourceQuota"; ssh "$KRAKEN" "$K apply -f -" < "$w/quota.yaml"; fi
   rm -rf "$w"; echo "✓ grcup-qa en $tag"
 }
 

@@ -1,7 +1,13 @@
 import { DOCUMENT } from '@angular/common';
-import { Injectable, RESPONSE_INIT, inject, signal } from '@angular/core';
+import { Injectable, InjectionToken, RESPONSE_INIT, inject, signal } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
 import { I18n, sinPrefijo } from './i18n';
+
+/** Public origin of the web. The server provides PUBLIC_ORIGIN (app.config.server.ts); the browser uses its own. */
+export const ORIGEN_PUBLICO = new InjectionToken<string>('ORIGEN_PUBLICO', {
+  providedIn: 'root',
+  factory: () => (typeof location !== 'undefined' ? location.origin : 'https://grcup-qa.menustudioai.com'),
+});
 
 export interface SeoData {
   title: string;
@@ -27,7 +33,8 @@ export class Seo {
   private readonly meta = inject(Meta);
   private readonly doc = inject(DOCUMENT);
   private readonly res = inject(RESPONSE_INIT, { optional: true });
-  readonly origin = 'https://grcup-qa.menustudioai.com';
+  /** Public origin of the web (canonical, hreflang, JSON-LD): PUBLIC_ORIGIN on the server, location.origin in the browser. */
+  readonly origin = inject(ORIGEN_PUBLICO);
   readonly defaultImage = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
   /** Ruta de la página que se está renderizando (la fija `set`). */
   readonly path = signal('');

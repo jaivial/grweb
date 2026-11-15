@@ -4,7 +4,8 @@
 #   deploy/scripts/desplegar.sh qa                         (deploy/scripts/desplegar-qa.sh does the same)
 #   deploy/scripts/desplegar.sh prod --confirmo-produccion
 # Production refuses to deploy while overlays/prod/config.yaml says DOMINIOS_CONFIRMADOS: "no", or a Secret it needs
-# is missing in the namespace (deploy/scripts/secretos.sh prod), or without the explicit flag.
+# is missing in the namespace (deploy/scripts/secretos.sh prod), or without the explicit flag. QA and production are
+# never deployed by the same run (separate namespaces, overlays and Secrets).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 KRAKEN="${KRAKEN:-kraken}"
@@ -19,8 +20,9 @@ OVERLAY=deploy/k8s/overlays/$ENTORNO
 if [ "$ENTORNO" = prod ]; then
   [ "${2:-}" = "--confirmo-produccion" ] || { echo "✗ producción necesita --confirmo-produccion (y la aprobación del organizador)" >&2; exit 1; }
   grep -qE '^\s*DOMINIOS_CONFIRMADOS: "si"' "$OVERLAY/config.yaml" || { echo "✗ los dominios de $OVERLAY/config.yaml no están confirmados (DOMINIOS_CONFIRMADOS)" >&2; exit 1; }
-  grep -qE '^\s*SMTP_HOST: .*\.invalid' "$OVERLAY/config.yaml" && { echo "✗ falta el SMTP real en $OVERLAY/config.yaml" >&2; exit 1; }
-  faltan=$(ssh "$KRAKEN" "for s in grcup-db grcup-redis grcup-internal grcup-crypto grcup-root grcup-jwt grcup-smtp; do sudo k3s kubectl -n $NS get secret \$s >/dev/null 2>&1 || echo \$s; done")
+  # Mail goes through Google OAuth (Secret grcup-google, optional until the client exists): the legacy SMTP is not
+  # required (Jaime 15/11 20:46).
+  faltan=$(ssh "$KRAKEN" "for s in grcup-db grcup-redis grcup-internal grcup-crypto grcup-root grcup-jwt grcup-weai grcup-ssr; do sudo k3s kubectl -n $NS get secret \$s >/dev/null 2>&1 || echo \$s; done")
   [ -z "$faltan" ] || { echo "✗ faltan Secrets en $NS: $faltan (deploy/scripts/secretos.sh prod)" >&2; exit 1; }
 fi
 

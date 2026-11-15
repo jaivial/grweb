@@ -1,0 +1,12 @@
+# prod-20261115 (§9 del informe perf-20261115): presupuesto de producción. Cuenta: deploy/k8s/presupuesto.py.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: grcup-quota
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 5Gi
+    limits.cpu: "18"
+    limits.memory: 15Gi
+    pods: "60"

@@ -295,18 +295,18 @@ export class PublicoPage {
       this.land.set(l);
       if (!l) cms.notFound();
       await applySeo(cms, seo, '/publico', this.tp().seoT, this.tp().seoD, undefined,
-        { jsonLd: c ? eventLd(c, this.i18n.lang()) : undefined });
+        { jsonLd: c ? eventLd(c, this.i18n.lang(), seo.origin) : undefined });
     });
   }
 }
 
 /** SportsEvent structured data (free entry). */
-function eventLd(c: CompeticionPublica, lang: Lang): Record<string, unknown> {
+function eventLd(c: CompeticionPublica, lang: Lang, origin: string): Record<string, unknown> {
   return {
     '@context': 'https://schema.org', '@type': 'SportsEvent', name: c.nombre, sport: 'Powerlifting', inLanguage: lang,
     startDate: c.fechaInicio, endDate: c.fechaFin, eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode', isAccessibleForFree: true,
     location: { '@type': 'Place', name: c.sede.nombre, address: { '@type': 'PostalAddress', streetAddress: c.sede.direccion, postalCode: c.sede.cp, addressLocality: c.sede.ciudad, addressRegion: c.sede.provincia, addressCountry: 'ES' } },
     organizer: { '@type': 'Organization', name: c.evento.organizador || 'GR Strength' },
-    offers: { '@type': 'Offer', price: 0, priceCurrency: 'EUR', availability: 'https://schema.org/InStock', url: 'https://grcup-qa.menustudioai.com/entradas' },
+    offers: { '@type': 'Offer', price: 0, priceCurrency: 'EUR', availability: 'https://schema.org/InStock', url: origin + '/entradas' },
   };
 }
