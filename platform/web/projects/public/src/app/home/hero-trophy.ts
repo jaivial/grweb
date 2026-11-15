@@ -19,7 +19,10 @@ const frameUrl = (i: number) => `https://jaimedigitalstudio.b-cdn.net/grcup/fram
 // 40 % idle hold. Now (300vh / 500vh): the trophy turns until 90 %, the clouds cover in its last part.
 // Jaime 15-nov 11:40: the clouds rose too fast at 85-90 % (10vh phone, 20vh md): 82.5-90 % = 15vh / 30vh, still shorter
 // than the original 48-60 % (12vh within a 100vh hero on phones, 48vh md) relative to the trophy turn.
-const T = { textoFuera: [0.01, 0.08], humo: [0.01, 0.08], frames: [0.03, 0.9], nubes: [0.825, 0.9] } as const;
+const T = { frames: [0.03, 0.9], finNubes: 0.9 } as const;
+// Fades in scroll pixels (not fractions), so they are equally gradual on phones (300vh) and desktop (500vh):
+// the intro text + smoke clear over the first 600 px and the closing clouds rise over the 700 px before 90 %.
+const PX = { introIni: 10, intro: 600, nubes: 700 } as const;
 /** Frame fallback (video failed or stalled): every 3rd WebP, loaded progressively, shown as the nearest loaded frame. */
 const PASO_FRAMES = 3;
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -49,7 +52,8 @@ const PUFFS = [
   imports: [CdnPipe, GrIcon, GrButton, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   // UX1-R1-1/6: 200vh on phones (500vh from md), one screen with reduced motion - in CSS, so it holds from the SSR paint
-  host: { class: 'relative block' },
+  // iOS Safari: own stacking context at z-0 so its sticky composited layers never paint over «Campeonato» (z-10)
+  host: { class: 'relative isolate z-0 block' },
   template: `
     <!-- contain:paint: WebKit does not clip blurred, transformed puffs with overflow alone -->
     <div class="sticky top-0 h-dvh overflow-hidden bg-bg-base [contain:paint]">
@@ -173,17 +177,21 @@ export class HeroTrophy {
   protected readonly precarga = signal(true);
   protected readonly precargaFuera = signal(false);
   private readonly p = signal(0);
+  /** Scroll span of the hero in px (host height - viewport). */
+  private readonly spanPx = signal(1);
+  private readonly tramoIntro = computed<[number, number]>(() => { const s = this.spanPx(); return [PX.introIni / s, Math.min(0.5, (PX.introIni + PX.intro) / s)]; });
+  private readonly tramoNubes = computed<[number, number]>(() => [Math.max(0.5, T.finNubes - PX.nubes / this.spanPx()), T.finNubes]);
   /** The intro text is visible from the first paint (server HTML too: it is the page's h1). */
   private readonly aparecido = signal(true);
   // values of the timeline for the current (smoothed) progress
-  protected readonly texto = computed(() => (this.aparecido() ? 1 - ease(tramo(this.p(), T.textoFuera)) : 0));
+  protected readonly texto = computed(() => (this.aparecido() ? 1 - ease(tramo(this.p(), this.tramoIntro())) : 0));
   protected readonly pista = computed(() => (this.aparecido() && this.p() < 0.05 ? 1 : 0));
-  protected readonly humo = computed(() => (this.reduced() ? 1 : 1 - ease(tramo(this.p(), T.humo)) * 0.85));
-  protected readonly desvio = computed(() => ease(tramo(this.p(), T.humo)));
+  protected readonly humo = computed(() => (this.reduced() ? 1 : 1 - ease(tramo(this.p(), this.tramoIntro())) * 0.85));
+  protected readonly desvio = computed(() => ease(tramo(this.p(), this.tramoIntro())));
   // The trophy takes over while the intro text leaves (Figma 04: clean background behind the text at scroll 0)
-  protected readonly nubes = computed(() => ease(tramo(this.p(), T.nubes)));
+  protected readonly nubes = computed(() => ease(tramo(this.p(), this.tramoNubes())));
   // ...and the clouds cover it completely at the end
-  protected readonly trofeo = computed(() => (this.reduced() ? 0 : ease(tramo(this.p(), T.textoFuera)) * (1 - this.nubes())));
+  protected readonly trofeo = computed(() => (this.reduced() ? 0 : ease(tramo(this.p(), this.tramoIntro())) * (1 - this.nubes())));
 
   private progress = 0;
   private shown = 0;
@@ -276,6 +284,7 @@ export class HeroTrophy {
     if (window.innerWidth !== this.anchoVista) { this.anchoVista = window.innerWidth; this.altoVista = 0; }
     this.altoVista = Math.max(this.altoVista, window.innerHeight);
     const span = r.height - this.altoVista;
+    if (span > 0) this.spanPx.set(span);
     this.progress = span > 0 ? Math.min(1, Math.max(0, -r.top / span)) : 0;
     const isDone = this.progress > 0.97 || r.bottom < window.innerHeight * 0.5;
     if (isDone !== this.wasDone) {

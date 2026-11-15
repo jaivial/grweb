@@ -104,7 +104,7 @@ export class Community {
 /** /publico (Figma page 29): what spectators will see, how an attempt is judged and the stand rules. All sections come from the CMS. */
 @Component({
   selector: 'gr-publico-page',
-  imports: [CdnPipe, Page, GrIcon, GrSkeleton, GrCabecera, GrSelect, Related, Community],
+  imports: [CdnPipe, RouterLink, Page, GrIcon, GrSkeleton, GrCabecera, GrSelect, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     .gr-vista { animation: gr-vista-in 180ms ease-out; }
@@ -114,6 +114,21 @@ export class Community {
   template: `
     @let l = land();
     <gr-page [title]="t('intro', 'titulo') || 'Ven a ver'" [accent]="t('intro', 'tituloAcento') || 'la competición'" [eyebrow]="t('intro', 'eyebrow')" [subtitle]="txt(t('intro', 'texto'))" section="Visita" crumb="Público">
+      <!-- Jaime 15-nov: quick accesses first — square cards with only an icon and a title -->
+      <nav class="mb-12 md:mb-20" aria-labelledby="publico-accesos">
+        <h2 id="publico-accesos" class="mb-4 text-label-s text-text-secondary uppercase md:mb-6">Accesos rápidos</h2>
+        <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-5">
+          @for (a of accesos; track a.ruta) {
+            <li>
+              <a [routerLink]="a.ruta" class="group relative flex aspect-square flex-col items-center justify-center gap-3 overflow-hidden rounded-xl border border-white/8 bg-white/3 p-4 text-center transition-[background-color,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-accent/50 hover:bg-white/6 focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transition-none motion-reduce:hover:translate-y-0 md:gap-4">
+                <span class="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgb(196_43_62/0.18),transparent)] opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true"></span>
+                <span class="flex size-12 items-center justify-center rounded-lg bg-accent/16 text-accent-text md:size-14"><gr-icon [name]="a.icono" [size]="24" /></span>
+                <span class="text-[15px] leading-tight font-semibold md:text-[17px]">{{ a.texto }}</span>
+              </a>
+            </li>
+          }
+        </ul>
+      </nav>
       <!-- Figma 46:23: the page tabs are one dropdown (not sticky); each view has its own ?vista= -->
       <div class="mb-8 flex flex-col gap-2 md:mb-12 md:max-w-80">
         <label class="text-label-s text-text-secondary" for="publico-vista">Sección</label>
@@ -205,6 +220,18 @@ export class Community {
   `,
 })
 export class PublicoPage {
+  protected readonly accesos: { texto: string; ruta: string; icono: GrIconName }[] = [
+    { texto: 'Directo', ruta: '/en-directo', icono: 'radio' },
+    { texto: 'Horarios', ruta: '/horarios', icono: 'calendar' },
+    { texto: 'Porra', ruta: '/porra', icono: 'trophy' },
+    { texto: 'GRS Fantasy', ruta: '/fantasy', icono: 'star' },
+    { texto: 'Rifa', ruta: '/sorteo', icono: 'gift' },
+    { texto: 'Entradas', ruta: '/entradas', icono: 'ticket' },
+    { texto: 'Dónde dormir y comer', ruta: '/donde-dormir-y-comer', icono: 'building' },
+    { texto: 'Cómo llegar', ruta: '/como-llegar', icono: 'map-pin' },
+    { texto: 'Atletas', ruta: '/atletas', icono: 'users' },
+    { texto: 'FAQ', ruta: '/preguntas-frecuentes', icono: 'help' },
+  ];
   protected readonly land = signal<Landing | null | undefined>(undefined);
   protected readonly anchors = [{ id: 'info', t: 'Info práctica' }, { id: 'que-veras', t: 'Qué verás' }, { id: 'como-se-juzga', t: 'Cómo se juzga' }, { id: 'normas', t: 'Normas en la grada' }];
   /** CMS section shown by each ?vista= («Te puede interesar» goes with all of them). */
