@@ -32,10 +32,10 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
     <div class="pointer-events-none absolute top-10 left-1/2 size-[640px] -translate-x-1/2 bg-[radial-gradient(closest-side,rgb(196_43_62/0.2),transparent)] lg:top-[120px]" aria-hidden="true"></div>
 
     <!-- A · hanging gold medals (z over the cards) -->
-    <div class="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-center lg:space-x-[140px]" aria-hidden="true">
+    <div class="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-center max-lg:-space-x-[41px] lg:space-x-[140px]" aria-hidden="true">
       @for (m of colgantesA; track m.src) {
-        <!-- tablet/phone: the long ribbons are 474 px in Figma (the render is 392 at 150 px): push them down so the discs hang over the cards -->
-        <img grMedalla [amp]="m.amp" [periodo]="m.per" [fase]="m.fase" [src]="m.src" alt="" width="300" [attr.height]="m.h" class="colgante h-auto w-[150px] lg:w-[300px]" [class.max-lg:hidden]="m.h > 500" [style.--t]="m.t" [style.--d]="m.d" loading="lazy" decoding="async" />
+        <!-- Jaime 11:13 (Figma 204:125152): on phone/tablet the three ribbons start at the same height (top of the section, not inside the slider); the side ones are longer (474 px in Figma, the render is 392 at 150 px): pushed 54 px down so their discs hang ~25 % over the first cards, above the cards and below the title -->
+        <img grMedalla [amp]="m.amp" [periodo]="m.per" [fase]="m.fase" [src]="m.src" alt="" width="300" [attr.height]="m.h" class="colgante h-auto w-[150px] lg:w-[300px]" [class.max-lg:translate-y-[54px]]="m.h > 500" [style.--t]="m.t" [style.--d]="m.d" loading="lazy" decoding="async" />
       }
     </div>
     <div class="pointer-events-none absolute inset-x-0 top-0 z-30 h-28 bg-[linear-gradient(180deg,#141112_0%,#141112_40%,rgb(20_17_18/0.55)_72%,transparent)] lg:h-[180px]" aria-hidden="true"></div>
@@ -43,16 +43,10 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
     <div [class]="ancho + ' flex flex-col items-center pt-[220px] lg:pt-[420px]'">
       <div class="flex w-full flex-col items-center gap-7 lg:gap-12">
         @if (t('eyebrow')) { <p class="sr-only">{{ t('eyebrow') }}</p> }
-        <gr-cabecera class="relative z-10 max-w-[350px] lg:max-w-[720px] max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [titulo]="t('titulo')" [acento]="t('tituloAcento')" />
+        <gr-cabecera class="relative z-[25] max-w-[350px] lg:max-w-[720px] max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [titulo]="t('titulo')" [acento]="t('tituloAcento')" />
         <ul #pista class="relative z-10 -mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] md:-mx-8 md:w-[calc(100%+64px)] md:scroll-px-[calc(50vw-175px)] md:px-[calc(50vw-175px)] lg:mx-0 lg:w-full lg:justify-center lg:gap-10 lg:overflow-visible lg:px-0" (scroll)="alDesplazar($event)">
           @for (p of items(); track p.titulo; let i = $index) {
-            <li class="relative w-[300px] shrink-0 snap-start max-lg:pt-[100px] lg:flex lg:h-[480px] lg:w-[340px] lg:items-center lg:justify-center">
-              @if (i < 2) {
-                <!-- tablet/phone (Figma): the side medals hang from the first two cards, below the title -->
-                <div class="pointer-events-none absolute top-0 left-1/2 z-10 h-[160px] w-[120px] -translate-x-1/2 overflow-hidden [mask-image:linear-gradient(transparent,#000_35%)] lg:hidden" aria-hidden="true">
-                  <img grMedalla [amp]="colgantesA[0].amp" [periodo]="colgantesA[0].per" [fase]="colgantesA[0].fase + i * 0.33" src="/img/home/medalla-oro-larga.webp" alt="" width="120" height="300" class="colgante absolute bottom-0 left-0 h-auto w-[120px]" loading="lazy" decoding="async" />
-                </div>
-              }
+            <li class="relative w-[300px] shrink-0 snap-start lg:flex lg:h-[480px] lg:w-[340px] lg:items-center lg:justify-center">
               <div class="relative aspect-[300/360] w-full overflow-hidden rounded-lg border shadow-card lg:aspect-[300/420] lg:w-[300px]"
                 [class]="(i === 1 ? 'border-accent shadow-glow-deep' : 'border-white/8') + ' ' + giro[i % 3]">
                 <img [src]="p.imagen" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" />
@@ -73,7 +67,7 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
       <div class="mt-20 flex w-full flex-col items-center lg:mt-[120px]">
         <!-- Figma home R2: title and text first, then the podium medals and the weight classes (eyebrow only for SEO) -->
         <p class="sr-only">{{ t('catEyebrow') || 'Categorías de peso' }}</p>
-        <gr-cabecera class="relative z-10 max-w-[350px] lg:max-w-[720px] max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [titulo]="t('catTitulo') || 'Premio por|*categoría de peso*'"
+        <gr-cabecera class="relative z-[25] max-w-[350px] lg:max-w-[720px] max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [titulo]="t('catTitulo') || 'Premio por|*categoría de peso*'"
           [texto]="t('catTexto') || 'El podio de cada categoría se lleva su medalla: oro, plata y bronce para los tres mejores totales.'" />
         <div class="relative mt-8 h-[334px] w-full max-w-[350px] lg:h-[700px] lg:max-w-none" aria-hidden="true">
           <div class="absolute top-4 left-1/2 flex h-[660px] w-max origin-top -translate-x-1/2 scale-50 items-start justify-center gap-[13px] lg:top-10 lg:scale-100 lg:gap-[67px]">
