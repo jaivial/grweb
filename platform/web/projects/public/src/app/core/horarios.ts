@@ -30,7 +30,7 @@ export const ICS_URL = `/api/competiciones/${COMPETITION_SLUG}/horarios.ics`;
 type DiaApi = Partial<PubDia> & { fecha: string };
 
 /** The schedule API is moving from `flights` to `horarios` (no flights, no platform numbers): accept both shapes. */
-function normalizar(h: Horarios & { dias: DiaApi[] }): Horarios {
+export function normalizar(h: Horarios & { dias: DiaApi[] }): Horarios {
   return {
     ...h,
     dias: (h.dias ?? []).map((d) => {
