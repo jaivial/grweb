@@ -1,5 +1,5 @@
 import { RouterLink } from '@angular/router';
-import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, afterNextRender, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, afterNextRender, computed, inject, input, signal, viewChild } from '@angular/core';
 import { StoryMovil } from '../pages/area-compartir-ui';
 import { isPlatformBrowser } from '@angular/common';
 import { GrButton, GrIcon, type GrIconName } from '@grcup/ui';
@@ -34,12 +34,13 @@ const FOTO = 'border border-white/8';
     <div class="mx-auto flex max-w-[1200px] flex-col items-center gap-8 md:gap-12">
       <h2 class="text-center font-display text-[36px] leading-[1.25] tracking-[0.06em] uppercase [text-shadow:0_0_24px_rgb(196_43_62/0.6)] md:text-[56px]">{{ s()?.['titulo'] || 'Crea tu perfil de atleta' }}</h2>
       <div class="flex w-full flex-col items-center gap-8 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
-        <!-- Jaime 14-nov: the iPhone of «Compartir» with four screens rotating every 1.5 s (story, public profile, schedule, Fantasy) -->
-        <div class="flex shrink-0 flex-col items-center gap-4" aria-hidden="true">
-          <gr-story-movil [src]="slides[slide()]" usuario="grscup" />
-          <span class="flex items-center gap-2">
-            @for (x of slides; track x; let i = $index) { <span class="h-2 rounded-pill transition-all motion-reduce:transition-none" [class]="i === slide() ? 'w-6 bg-accent' : 'w-2 bg-white/25'"></span> }
-          </span>
+        <!-- Jaime 14-nov / 15-nov 01:35: the iPhone of «Compartir» with four real screens changing by themselves every 1.5 s
+             (crossfade); it pauses on touch, hover or focus, off screen and in a hidden tab; no rotation with reduced motion -->
+        <div #movil class="flex shrink-0 flex-col items-center" role="region" aria-roledescription="carrusel" aria-label="Lo que tendrás como atleta" tabindex="0"
+          (pointerenter)="pausa.set(true)" (pointerleave)="pausa.set(false)" (focusin)="pausa.set(true)" (focusout)="pausa.set(false)"
+          (touchstart)="pausa.set(true)" (touchend)="pausa.set(false)">
+          <gr-story-movil [capas]="slides" [activa]="slide()" [intervalo]="intervalo" [pausado]="parado()" usuario="grscup" />
+          <p class="sr-only">{{ textos.join(' · ') }}</p>
         </div>
         <a grButton variant="primary" size="l" routerLink="/alta-atleta" class="w-full lg:hidden">{{ s()?.['cta'] || 'Dar de alta mi atleta' }}</a>
         <div class="flex w-full flex-col items-center gap-6 lg:w-[760px] lg:gap-10">
@@ -61,14 +62,33 @@ const FOTO = 'border border-white/8';
 export class SecAlta {
   readonly s = input<Seccion | undefined>();
   protected readonly slides = ['/img/home/alta-story.webp', '/img/home/alta-slide-perfil.webp', '/img/home/alta-slide-horarios.webp', '/img/home/alta-slide-fantasy.webp'];
+  protected readonly textos = ['Tu story de competición para Instagram', 'Tu perfil público de atleta', 'Tu horario de competición', 'Tu equipo en la GRS Fantasy'];
+  protected readonly intervalo = 1500;
   protected readonly slide = signal(0);
+  /** Hover / focus / touch on the phone. */
+  protected readonly pausa = signal(false);
+  private readonly fuera = signal(true);
+  private readonly oculta = signal(false);
+  private readonly reducido = signal(false);
+  protected readonly parado = computed(() => this.pausa() || this.fuera() || this.oculta() || this.reducido());
+  private readonly movil = viewChild<ElementRef<HTMLElement>>('movil');
   constructor() {
     const destroy = inject(DestroyRef);
     afterNextRender(() => {
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      this.slides.slice(1).forEach((u) => { new Image().src = u; });
-      const t = setInterval(() => this.slide.set((this.slide() + 1) % this.slides.length), 1500);
-      destroy.onDestroy(() => clearInterval(t));
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { this.reducido.set(true); return; }
+      const el = this.movil()?.nativeElement;
+      const io = new IntersectionObserver(([e]) => this.fuera.set(!e.isIntersecting), { threshold: 0.3 });
+      if (el) io.observe(el);
+      const vis = () => this.oculta.set(document.hidden);
+      document.addEventListener('visibilitychange', vis);
+      // 100 ms ticks: the time only runs while the carousel is visible and not paused, so the bar and the change stay in step
+      let t = 0;
+      const tick = setInterval(() => {
+        if (this.parado()) return;
+        t += 100;
+        if (t >= this.intervalo) { t = 0; this.slide.set((this.slide() + 1) % this.slides.length); }
+      }, 100);
+      destroy.onDestroy(() => { clearInterval(tick); io.disconnect(); document.removeEventListener('visibilitychange', vis); });
     });
   }
   protected readonly beneficios: { i: GrIconName; t: string }[] = [
