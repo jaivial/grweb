@@ -51,7 +51,7 @@ SERVICES = {
     "fans": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi")),
     # memory, not CPU, bounds the chat: ~200 KiB per connection (load test 08/11/2026, docs/carga) → 1 GiB holds
     # ~4.000 connections per pod; GOMEMLIMIT keeps the GC ahead of the limit.
-    "chat": dict(cpu="500m", db=True, hpa=(2, 8), mem=("128Mi", "1Gi"), env={"CHAT_MAX_CONEXIONES": "4000", "GOMEMLIMIT": "800MiB", "CHAT_ORIGENES": "grcup-qa.menustudioai.com,grcup-qa.menustudioai.com:*"}),
+    "chat": dict(cpu="500m", db=True, hpa=(2, 6), mem=("128Mi", "1Gi"), env={"CHAT_MAX_CONEXIONES": "4000", "GOMEMLIMIT": "800MiB", "CHAT_ORIGENES": "grcup-qa.menustudioai.com,grcup-qa.menustudioai.com:*"}),
     "donaciones": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi")),
     "patrocinio": dict(db=True, hpa=(1, 2), mem=("64Mi", "256Mi")),
     "juegos": dict(cpu="500m", db=True, hpa=(2, 4), mem=("64Mi", "256Mi")),

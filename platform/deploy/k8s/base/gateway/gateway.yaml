@@ -87,7 +87,7 @@ metadata:
 spec:
   scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: gateway }
   minReplicas: 4 # ST2-R5-2: 500 SSE right after a deploy overran 2 pods before the HPA reacted
-  maxReplicas: 10 # 1317m ÷ (250m × 70 %) ≈ 8 → headroom of 2
+  maxReplicas: 6 # perf-20261115 §8: WS buffers of 4 KB (#389), chat WS direct (nginx) and batched frames: the old 1317m peak is gone; 6 × 700m keeps the quota
   metrics:
     - type: Resource
       resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
