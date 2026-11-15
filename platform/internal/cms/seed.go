@@ -67,16 +67,16 @@ var seedSecciones = map[string]any{
 }
 
 var seedFAQ = []faqIn{
-	{"Llegar", "¿Dónde se celebra la competición?", "En el Pabellón Municipal de Almussafes (Pavelló Poliesportiu, Avda. Laura Méndez s/n, 46440 Almussafes, Valencia). En la sección Localización tienes el mapa y el enlace a Google Maps.", true, true},
-	{"Atletas", "¿Cómo completo mi ficha de atleta?", "Rellena el [formulario de alta de atleta](/alta-atleta) con tu nombre, el email con el que te inscribiste en la AEP, tu club y tus mejores marcas. Añade una foto si quieres: se publica en blanco y negro y recortada. El equipo revisa cada solicitud a mano y, cuando la aprueba, tu ficha aparece en la [lista de atletas](/atletas).", true, true},
-	{"Competición", "¿Cómo participo en la GR Cup?", "La inscripción y la lista de espera las gestiona la **AEP** y la plantilla está completa. Si compites en esta edición, lo que te falta es la ficha: [da de alta tu atleta](/alta-atleta) y te la revisamos a mano.", true, true},
-	{"Competición", "¿Qué categorías de peso hay?", "Las categorías oficiales de la AEP para hombres y mujeres. Consulta la página de [categorías de peso](/categorias-de-peso).", true, true},
-	{"Competición", "¿Necesito una marca mínima?", "Para esta competición no hace falta marca mínima. Las [marcas mínimas](/marcas-minimas) sirven para clasificar a otras competiciones AEP.", true, true},
-	{"Entradas", "¿Puede venir público? ¿Cuánto cuesta?", "Sí. La entrada es **gratuita**, pero hay que reservarla para controlar el aforo: te llega un QR por email para ti y hasta 3 acompañantes.", true, true},
-	{"Sorteo", "¿Cómo funciona la rifa?", "La rifa es presencial: los boletos se compran en efectivo en el stand de la rifa durante el evento. No hay venta online. Consulta los objetos en la [página de la rifa](/sorteo).", true, true},
-	{"Entradas", "¿Cuántas personas puedo incluir en una reserva?", "Hasta 4 personas por reserva (tú y 3 acompañantes). Los menores entran con la reserva de un adulto.", false, true},
-	{"Entradas", "¿Puedo entrar y salir del pabellón?", "Sí, conserva tu QR en el móvil: se puede volver a mostrar en la puerta.", false, true},
-	{"Llegar", "¿Hay aparcamiento?", "Sí, hay aparcamiento junto al pabellón.", false, true},
+	{"Llegar", "¿Dónde se celebra la competición?", "En el Pabellón Municipal de Almussafes (Pavelló Poliesportiu, Avda. Laura Méndez s/n, 46440 Almussafes, Valencia). En la sección Localización tienes el mapa y el enlace a Google Maps.", true, true, enField{}},
+	{"Atletas", "¿Cómo completo mi ficha de atleta?", "Rellena el [formulario de alta de atleta](/alta-atleta) con tu nombre, el email con el que te inscribiste en la AEP, tu club y tus mejores marcas. Añade una foto si quieres: se publica en blanco y negro y recortada. El equipo revisa cada solicitud a mano y, cuando la aprueba, tu ficha aparece en la [lista de atletas](/atletas).", true, true, enField{}},
+	{"Competición", "¿Cómo participo en la GR Cup?", "La inscripción y la lista de espera las gestiona la **AEP** y la plantilla está completa. Si compites en esta edición, lo que te falta es la ficha: [da de alta tu atleta](/alta-atleta) y te la revisamos a mano.", true, true, enField{}},
+	{"Competición", "¿Qué categorías de peso hay?", "Las categorías oficiales de la AEP para hombres y mujeres. Consulta la página de [categorías de peso](/categorias-de-peso).", true, true, enField{}},
+	{"Competición", "¿Necesito una marca mínima?", "Para esta competición no hace falta marca mínima. Las [marcas mínimas](/marcas-minimas) sirven para clasificar a otras competiciones AEP.", true, true, enField{}},
+	{"Entradas", "¿Puede venir público? ¿Cuánto cuesta?", "Sí. La entrada es **gratuita**, pero hay que reservarla para controlar el aforo: te llega un QR por email para ti y hasta 3 acompañantes.", true, true, enField{}},
+	{"Sorteo", "¿Cómo funciona la rifa?", "La rifa es presencial: los boletos se compran en efectivo en el stand de la rifa durante el evento. No hay venta online. Consulta los objetos en la [página de la rifa](/sorteo).", true, true, enField{}},
+	{"Entradas", "¿Cuántas personas puedo incluir en una reserva?", "Hasta 4 personas por reserva (tú y 3 acompañantes). Los menores entran con la reserva de un adulto.", false, true, enField{}},
+	{"Entradas", "¿Puedo entrar y salir del pabellón?", "Sí, conserva tu QR en el móvil: se puede volver a mostrar en la puerta.", false, true, enField{}},
+	{"Llegar", "¿Hay aparcamiento?", "Sí, hay aparcamiento junto al pabellón.", false, true, enField{}},
 }
 
 var yes = true
