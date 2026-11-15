@@ -89,28 +89,17 @@ type provEntry struct {
 
 var provCache sync.Map
 
-// proveedor: Stripe with the competition's keys, else the simulated gateway where enabled (PAGOS_SIMULADOS, never
-// in production), else nil.
+// proveedor: the competition's Stripe Connect account, else its legacy Stripe keys, else the simulated gateway where
+// enabled (PAGOS_SIMULADOS, never in production), else nil (pagos.DeCompeticion).
 func (s *Svc) proveedor(ctx context.Context, cid uuid.UUID) pagos.Provider {
 	if e, ok := provCache.Load(cid); ok && time.Now().Before(e.(provEntry).exp) {
 		return e.(provEntry).p
 	}
-	var p pagos.Provider
+	var sim pagos.Provider
 	if s.sim != nil {
-		p = s.sim
+		sim = s.sim
 	}
-	var out struct {
-		Secreto string `json:"secreto"`
-	}
-	if err := s.comp.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/integraciones/stripe", nil, &out); err == nil && out.Secreto != "" {
-		var sec struct {
-			Clave   string `json:"clave"`
-			Webhook string `json:"webhook"`
-		}
-		if json.Unmarshal([]byte(out.Secreto), &sec) == nil && sec.Clave != "" && sec.Webhook != "" {
-			p = pagos.NewStripe(sec.Clave, sec.Webhook)
-		}
-	}
+	p := pagos.DeCompeticion(ctx, s.comp, cid.String(), sim)
 	provCache.Store(cid, provEntry{p: p, exp: time.Now().Add(time.Minute)})
 	return p
 }

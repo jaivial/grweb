@@ -12,12 +12,16 @@ import (
 	"time"
 )
 
-// Stripe is the real gateway (Checkout Sessions + refunds + signed webhooks) over the REST API.
+// Stripe is the real gateway (Checkout Sessions + refunds + signed webhooks) over the REST API. With Account set it
+// works as a Stripe Connect platform: every request runs on that connected account (direct charges, the organiser
+// is the merchant of record) and checkouts keep FeePercent as application fee.
 type Stripe struct {
-	Key           string // sk_test_… / sk_live_…
-	WebhookSecret string // whsec_…
+	Key           string // sk_test_… / sk_live_… (Connect: the platform key)
+	WebhookSecret string // whsec_… (several comma-separated: any one verifying is enough)
 	HTTP          *http.Client
 	Base          string
+	Account       string  // acct_… of the competition (Connect); empty = the key's own account
+	FeePercent    float64 // Connect: platform commission on each charge
 }
 
 // NewStripe returns a Stripe client.
@@ -33,14 +37,27 @@ func (s *Stripe) Test() bool {
 }
 
 func (s *Stripe) post(ctx context.Context, path string, form url.Values, idem string, out any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.Base+path, strings.NewReader(form.Encode()))
+	return s.do(ctx, http.MethodPost, path, form, idem, out)
+}
+
+func (s *Stripe) do(ctx context.Context, method, path string, form url.Values, idem string, out any) error {
+	var reqBody io.Reader
+	if form != nil {
+		reqBody = strings.NewReader(form.Encode())
+	}
+	req, err := http.NewRequestWithContext(ctx, method, s.Base+path, reqBody)
 	if err != nil {
 		return err
 	}
 	req.SetBasicAuth(s.Key, "")
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if form != nil {
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
 	if idem != "" {
 		req.Header.Set("Idempotency-Key", idem)
+	}
+	if s.Account != "" {
+		req.Header.Set("Stripe-Account", s.Account)
 	}
 	resp, err := s.HTTP.Do(req)
 	if err != nil {
@@ -75,6 +92,9 @@ func (s *Stripe) CreateCheckout(ctx context.Context, in CheckoutIn) (CheckoutOut
 	f.Set("line_items[0][price_data][currency]", "eur")
 	f.Set("line_items[0][price_data][unit_amount]", strconv.Itoa(in.Amount))
 	f.Set("line_items[0][price_data][product_data][name]", in.Description)
+	if fee := s.applicationFee(in.Amount); fee > 0 {
+		f.Set("payment_intent_data[application_fee_amount]", strconv.Itoa(fee))
+	}
 	for k, v := range in.Metadata {
 		f.Set("metadata["+k+"]", v)
 		f.Set("payment_intent_data[metadata]["+k+"]", v)
@@ -100,6 +120,9 @@ func (s *Stripe) RefundConClave(ctx context.Context, paymentID string, amount in
 	f.Set("payment_intent", paymentID)
 	f.Set("amount", strconv.Itoa(amount))
 	f.Set("metadata[motivo]", reason)
+	if s.Account != "" {
+		f.Set("refund_application_fee", "true") // the platform gives back its commission on what is refunded
+	}
 	var out struct {
 		ID string `json:"id"`
 	}
@@ -111,6 +134,7 @@ func (s *Stripe) RefundConClave(ctx context.Context, paymentID string, amount in
 type stripeEvent struct {
 	ID      string `json:"id"`
 	Type    string `json:"type"`
+	Account string `json:"account"` // Connect: the connected account the event happened on
 	Created int64  `json:"created"`
 	Data    struct {
 		Object struct {
@@ -130,13 +154,25 @@ func parseEvent(payload []byte) (Event, error) {
 		return Event{}, fmt.Errorf("evento no válido: %w", err)
 	}
 	o := e.Data.Object
-	return Event{ID: e.ID, Type: e.Type, SessionID: o.ID, PaymentID: o.PaymentIntent, Paid: o.PaymentStatus == "paid", Amount: o.AmountTotal,
+	return Event{ID: e.ID, Type: e.Type, Account: e.Account, SessionID: o.ID, PaymentID: o.PaymentIntent, Paid: o.PaymentStatus == "paid", Amount: o.AmountTotal,
 		Card: o.Card, Metadata: o.Metadata, CreatedAt: time.Unix(e.Created, 0)}, nil
 }
 
 func (s *Stripe) VerifyWebhook(payload []byte, h http.Header) (Event, error) {
-	if err := verify(s.WebhookSecret, payload, h.Get("Stripe-Signature"), time.Now()); err != nil {
+	err := ErrSignature
+	for _, sec := range strings.Split(s.WebhookSecret, ",") {
+		if sec = strings.TrimSpace(sec); sec != "" {
+			if err = verify(sec, payload, h.Get("Stripe-Signature"), time.Now()); err == nil {
+				break
+			}
+		}
+	}
+	if err != nil {
 		return Event{}, err
 	}
-	return parseEvent(payload)
+	ev, err := parseEvent(payload)
+	if err == nil && s.Account != "" && ev.Account != s.Account {
+		return Event{}, fmt.Errorf("%w (otra cuenta conectada)", ErrSignature)
+	}
+	return ev, err
 }
