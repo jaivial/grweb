@@ -268,7 +268,13 @@ func (s *Svc) aplicarWebhook(ctx context.Context, payload []byte, h http.Header)
 	if json.Unmarshal(payload, &peek) != nil {
 		return pagos.ErrSignature
 	}
-	cid, err := uuid.Parse(peek.Data.Object.Metadata["competicion"])
+	// Connect endpoints receive every connected account of the platform (other Menustudioai businesses too):
+	// an event without our metadata is acknowledged untouched, or Stripe keeps retrying and disables the endpoint.
+	raw, ok := peek.Data.Object.Metadata["competicion"]
+	if !ok {
+		return nil
+	}
+	cid, err := uuid.Parse(raw)
 	if err != nil {
 		return pagos.ErrSignature
 	}

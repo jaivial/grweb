@@ -86,7 +86,7 @@ func (s *Svc) refrescarConnect(ctx context.Context, cid uuid.UUID, c *cuentaConn
 }
 
 func (s *Svc) estadoConnect(ctx context.Context, cid uuid.UUID, c *cuentaConnect, a *pagos.ConnectAccount) ConnectEstado {
-	out := ConnectEstado{Plataforma: pagos.PlatformKey() != "", Pruebas: true, Estado: "sin_conectar", Comision: pagos.FeePercent(), Pendiente: []string{}}
+	out := ConnectEstado{Plataforma: pagos.PlatformKey() != "", Pruebas: !pagos.Live(), Estado: "sin_conectar", Comision: pagos.FeePercent(), Pendiente: []string{}}
 	var legacy int
 	_ = s.a.DB.QueryRow(ctx, `SELECT coalesce(length(secreto), 0) FROM integraciones WHERE competition_id = $1 AND tipo = 'stripe'`, cid).Scan(&legacy)
 	out.ClavesAntiguas = legacy > 0

@@ -29,6 +29,7 @@ spec:
           args: ["migrate"]
           envFrom:
             - configMapRef: { name: grcup-config }
+            - secretRef: { name: grcup-stripe, optional: true } # Stripe Connect platform key + webhook secrets (deploy/scripts/secretos.sh)
           env:
             - name: DB_PASSWORD
               valueFrom: { secretKeyRef: { name: grcup-db, key: PW_ATHLETES } }
@@ -67,6 +68,7 @@ spec:
             - { name: salud, containerPort: 8081 }
           envFrom:
             - configMapRef: { name: grcup-config }
+            - secretRef: { name: grcup-stripe, optional: true } # Stripe Connect platform key + webhook secrets (deploy/scripts/secretos.sh)
           env:
             - name: DB_PASSWORD
               valueFrom: { secretKeyRef: { name: grcup-db, key: PW_ATHLETES } }
@@ -167,6 +169,7 @@ spec:
           args: ["seed-grcup"]
           envFrom:
             - configMapRef: { name: grcup-config }
+            - secretRef: { name: grcup-stripe, optional: true } # Stripe Connect platform key + webhook secrets (deploy/scripts/secretos.sh)
           env:
             - name: DB_PASSWORD
               valueFrom: { secretKeyRef: { name: grcup-db, key: PW_ATHLETES } }
