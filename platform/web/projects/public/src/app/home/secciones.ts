@@ -35,7 +35,7 @@ const FOTO = 'border border-white/8';
       <h2 class="text-center font-display text-[36px] leading-[1.25] tracking-[0.06em] uppercase [text-shadow:0_0_24px_rgb(196_43_62/0.6)] md:text-[56px]">{{ s()?.['titulo'] || 'Crea tu perfil de atleta' }}</h2>
       <div class="flex w-full flex-col items-center gap-8 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
         <!-- Jaime 15-nov 11:11: a bigger iPhone with real, sharp screens (no Instagram template). Screen 1 is a story made with
-             the athlete page's own generator (compartir-story · componer, 1080 × 1920) in the browser; the others are @3x
+             the athlete page's own generator (all in black and white, logos too; Jaime 11:37) and screen 4 the Fantasy pitch; (compartir-story · componer, 1080 × 1920) in the browser; the others are @3x
              captures of the site. They change by themselves every 1.5 s (crossfade); paused on touch, hover or focus, off
              screen and in a hidden tab; no rotation with reduced motion. Fixed 9:19.5 box: no layout shift. -->
         <div #movil class="flex w-full shrink-0 flex-col items-center gap-4 lg:w-auto" role="region" aria-roledescription="carrusel" aria-label="Lo que tendrás como atleta" tabindex="0"
@@ -85,7 +85,7 @@ export class SecAlta {
   protected readonly pantallas = signal<{ src: string; alt: string; story?: boolean }[]>([
     { src: '/img/home/alta-pantalla-perfil.webp', alt: 'Perfil público de un atleta en el móvil' },
     { src: '/img/home/alta-pantalla-horarios.webp', alt: 'Horarios de competición en el móvil' },
-    { src: '/img/home/alta-pantalla-fantasy.webp', alt: 'Tu equipo de la GRS Fantasy en el móvil' },
+    { src: '/img/home/alta-pantalla-fantasy-campo.webp', alt: 'Campo de fútbol sala de la GRS Fantasy con una alineación de cinco atletas' },
   ]);
   protected readonly slide = signal(0);
   /** Hover / focus / touch on the phone. */
@@ -127,6 +127,12 @@ export class SecAlta {
       const ini = this.comp.data()?.fechaInicio ?? '2026-12-19';
       const foto = await cargarImagen('/img/home/atletas-2-l.webp');
       const c = await componer({ modo: 'cuenta_atras', formato: 'story', alin: 'izq', dias: Math.max(0, diasHasta(ini)), fecha: '', detalleFecha: '', nombre: 'Laura Gómez', prueba: 'AEP-2', peso: '−63 KG', sexo: 'FEMENINO', foto, focalX: 50, focalY: 30, zoom: 1 });
+      // Jaime 15-nov 11:37: the whole post in black and white, logos included (canvas `filter` is not in Safari)
+      const g = c.getContext('2d')!;
+      const img = g.getImageData(0, 0, c.width, c.height);
+      const px = img.data;
+      for (let i = 0; i < px.length; i += 4) px[i] = px[i + 1] = px[i + 2] = Math.round(px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114);
+      g.putImageData(img, 0, 0);
       const blob = await new Promise<Blob | null>((ok) => c.toBlob(ok, 'image/webp', 0.9));
       if (!blob) return;
       const url = URL.createObjectURL(blob);
