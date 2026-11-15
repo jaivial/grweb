@@ -164,6 +164,28 @@ func (s *Svc) enviarWA(ctx context.Context, c waCfg, numero string, w WhatsApp) 
 			ID string `json:"id"`
 		} `json:"key"`
 	}
+	// Buttons: ONE interactive message (image, text and up to 3 URL buttons, the rest as lines). A gateway that
+	// refuses it gets the classic path (image + text with every link as a line).
+	if len(w.Enlaces) > 0 {
+		botones := make([]map[string]any, 0, maxBotonesWA)
+		for _, e := range w.Enlaces[:min(len(w.Enlaces), maxBotonesWA)] {
+			botones = append(botones, map[string]any{"type": "url", "displayText": e.Texto, "url": e.URL})
+		}
+		titulo, desc := tituloWA(conLineas(w.Texto, w.Enlaces[min(len(w.Enlaces), maxBotonesWA):]))
+		body := map[string]any{"number": numero, "title": titulo, "description": desc, "buttons": botones}
+		if w.Imagen != "" {
+			body["thumbnailUrl"] = w.Imagen
+		}
+		err := s.evo(ctx, c, http.MethodPost, "/message/sendButtons/"+c.Instancia, body, &r)
+		if err == nil {
+			return r.Key.ID, nil
+		}
+		var ew *errWA
+		if errors.As(err, &ew) && ew.servidor {
+			return "", err
+		}
+		w.Texto = conLineas(w.Texto, w.Enlaces)
+	}
 	if w.Imagen != "" {
 		caption := w.Texto
 		if len(caption) > 1000 {
@@ -180,6 +202,17 @@ func (s *Svc) enviarWA(ctx context.Context, c waCfg, numero string, w WhatsApp) 
 		return "", err
 	}
 	return r.Key.ID, nil
+}
+
+// tituloWA splits a message for sendButtons: the first line is the title (evo-weai wraps it in *…*) and the rest the
+// body.
+func tituloWA(t string) (string, string) {
+	t = strings.TrimSpace(t)
+	titulo, resto, ok := strings.Cut(t, "\n")
+	if !ok || len([]rune(titulo)) > 60 {
+		return "", t
+	}
+	return strings.ReplaceAll(strings.TrimSpace(titulo), "*", ""), strings.TrimSpace(resto)
 }
 
 // webhookToken signs the webhook URL of a competition.

@@ -20,12 +20,6 @@ export interface Salida { items: Mensaje[]; total: number; pagina: number; por: 
 export interface AutoItem {
   clave: string; nombre: string; cuando: string; publico: string; canales: string[]; esencial: boolean; activa: boolean; estado: 'activa' | 'pausada' | 'error'; plantillas: string[]; enviados7d: number; ultimo?: string;
 }
-export interface WABoton { tipo: 'url' | 'respuesta'; texto: string; url?: string }
-export type EstadoWA = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAUSED';
-export interface WAPlantilla {
-  nombre: string; categoria: 'utilidad' | 'marketing'; idioma: string; cuerpo: string; variables: string[]; botones: WABoton[]; uso: string; estado: EstadoWA; calidad: string; motivo?: string; metaId?: string; usos30d: number; version: number; aprobadaAt?: string; updatedAt: string;
-}
-export interface WARevision { categoria: 'utilidad' | 'marketing'; cuerpo: string; variables: string[]; botones: WABoton[]; uso: string }
 export interface Integracion { tipo: string; estado: string; error?: string; probadoAt?: string }
 export interface Autos { pausarEnEvento: boolean; ritmo: number; items: AutoItem[] }
 
@@ -72,15 +66,6 @@ export class EmailsApi {
   }
   bulk(cid: string, ids: string[], accion: 'reintentar' | 'cancelar'): Promise<{ afectados: number }> {
     return firstValueFrom(this.http.post<{ afectados: number }>(`${this.b(cid)}/salida/bulk`, { ids, accion }));
-  }
-  wa(cid: string): Promise<WAPlantilla[]> {
-    return firstValueFrom(this.http.get<WAPlantilla[]>(`/api/admin/competiciones/${cid}/whatsapp/plantillas`));
-  }
-  waSincronizar(cid: string): Promise<WAPlantilla[]> {
-    return firstValueFrom(this.http.post<WAPlantilla[]>(`/api/admin/competiciones/${cid}/whatsapp/plantillas/sincronizar`, {}));
-  }
-  waRevision(cid: string, nombre: string, r: WARevision): Promise<WAPlantilla> {
-    return firstValueFrom(this.http.post<WAPlantilla>(`/api/admin/competiciones/${cid}/whatsapp/plantillas/${nombre}/revision`, r));
   }
   probarSMTP(cid: string): Promise<Integracion> {
     return firstValueFrom(this.http.post<Integracion>(`/api/admin/competiciones/${cid}/integraciones/smtp/probar`, {}));

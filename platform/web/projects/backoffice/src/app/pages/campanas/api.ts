@@ -11,7 +11,7 @@ export interface Bloque {
 export type EstadoCampana = 'borrador' | 'programada' | 'enviando' | 'pausada' | 'enviada' | 'cancelada';
 export interface Canal { total: number; pendientes: number; enviados: number; entregados: number; leidos: number; fallidos: number }
 export interface Campana {
-  id: string; nombre: string; asunto: string; preheader: string; canales: ('email' | 'whatsapp')[]; estado: EstadoCampana; diseno: Bloque[]; segmentoId?: string; segmento: string;
+  id: string; nombre: string; asunto: string; preheader: string; canales: ('email' | 'whatsapp')[]; estado: EstadoCampana; diseno: Bloque[]; whatsapp?: WhatsApp | null; segmentoId?: string; segmento: string;
   emailPorMin: number; waPorMin: number; programadaAt?: string; iniciadaAt?: string; terminadaAt?: string; version: number; creadaPor: string; updatedPor: string; createdAt: string; updatedAt: string;
   progreso: Partial<Record<'email' | 'whatsapp', Canal>>;
 }
@@ -20,8 +20,10 @@ export interface CampanaItem {
   progreso: Partial<Record<'email' | 'whatsapp', Canal>>;
 }
 export interface Lista { items: CampanaItem[]; total: number; enCurso: number; whatsapp: 'evo-weai' | 'simulado' | 'ninguno' }
+/** WhatsApp message: text (WhatsApp formatting), photo and buttons (the first 3 travel as URL buttons). */
 export interface WhatsApp { texto: string; imagen?: string; enlaces: { texto: string; url: string }[] }
-export interface Previa { emailHtml: string; texto: string; whatsapp: WhatsApp; error?: string }
+/** whatsapp: what the contact receives (full text with the opt-out line); whatsappAuto: derived from the design, raw. */
+export interface Previa { emailHtml: string; texto: string; whatsapp: WhatsApp; whatsappAuto: WhatsApp; error?: string }
 export interface WAEstado { modo: 'evo-weai' | 'simulado' | 'ninguno'; numero?: string; conexion: 'open' | 'connecting' | 'close' | 'simulado' | 'ninguno'; detalle?: string }
 export interface Audiencia { segmento: string; total: number; email: number; whatsapp: number; excluidos: number; whatsappEstado: WAEstado }
 export interface Destinatario { destino: string; nombre: string; canal: 'email' | 'whatsapp'; estado: string; detalle: string; enviadoAt?: string; leidoAt?: string }
@@ -32,7 +34,7 @@ export interface Modelo { id: string; nombre: string; recomendado: boolean }
 export interface MensajeIA { rol: 'usuario' | 'asistente'; texto: string }
 export interface RespuestaIA { respuesta: string; campana: CampanaIn; cambios: string[]; modelo: string; ms: number }
 export interface CampanaIn {
-  nombre: string; asunto: string; preheader?: string; canales: ('email' | 'whatsapp')[]; diseno: Bloque[]; segmentoId?: string; emailPorMin: number; waPorMin: number; autor?: 'usuario' | 'ia'; modelo?: string; nota?: string;
+  nombre: string; asunto: string; preheader?: string; canales: ('email' | 'whatsapp')[]; diseno: Bloque[]; whatsapp?: WhatsApp; segmentoId?: string; emailPorMin: number; waPorMin: number; autor?: 'usuario' | 'ia'; modelo?: string; nota?: string;
 }
 
 export const ESTADO: Record<EstadoCampana, { l: string; tone: 'neutral' | 'info' | 'success' | 'warning' | 'danger' | 'accent' }> = {
@@ -67,7 +69,9 @@ export class CampanasApi {
   borrar(cid: string, id: string): Promise<void> { return firstValueFrom(this.http.delete<void>(`${this.b(cid)}/${id}`)); }
   duplicar(cid: string, id: string): Promise<Campana> { return firstValueFrom(this.http.post<Campana>(`${this.b(cid)}/${id}/duplicar`, {})); }
   revisiones(cid: string, id: string): Promise<Revision[]> { return firstValueFrom(this.http.get<Revision[]>(`${this.b(cid)}/${id}/revisiones`)); }
-  previsualizar(cid: string, b: { nombre: string; asunto: string; preheader?: string; diseno: Bloque[] }): Promise<Previa> { return firstValueFrom(this.http.post<Previa>(`${this.b(cid)}/previsualizar`, b)); }
+  previsualizar(cid: string, b: { nombre: string; asunto: string; preheader?: string; diseno: Bloque[]; whatsapp?: WhatsApp }): Promise<Previa> { return firstValueFrom(this.http.post<Previa>(`${this.b(cid)}/previsualizar`, b)); }
+  /** A pasted email (or any HTML) as a WhatsApp message, to review and edit. */
+  whatsappDesdeHtml(cid: string, html: string): Promise<WhatsApp> { return firstValueFrom(this.http.post<WhatsApp>(`${this.b(cid)}/whatsapp/desde-html`, { html })); }
   audiencia(cid: string, id: string): Promise<Audiencia> { return firstValueFrom(this.http.get<Audiencia>(`${this.b(cid)}/${id}/audiencia`)); }
   prueba(cid: string, id: string, destino: string): Promise<{ canal: string; detalle: string }> { return firstValueFrom(this.http.post<{ canal: string; detalle: string }>(`${this.b(cid)}/${id}/prueba`, { destino })); }
   enviar(cid: string, id: string, version: number, b: { programadaAt?: string; soloEmail?: boolean }): Promise<{ estado: string; encolados: number }> {

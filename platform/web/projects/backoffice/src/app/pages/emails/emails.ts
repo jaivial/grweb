@@ -7,12 +7,11 @@ import { GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrPopover, GrSelect, GrSkele
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoDrawer, BoPageHeader, BoToggle, errText, BoTabsMovil, BoTablaMovil } from '../../shared/ui';
-import { ESTADO_MSG, EmailsApi, hace, hora, type AutoItem, type Autos, type Mensaje, type PlantillaItem, type Resumen, type Salida, type WAPlantilla } from './api';
-import { WhatsAppMeta } from './whatsapp-meta';
+import { ESTADO_MSG, EmailsApi, hace, hora, type AutoItem, type Autos, type Mensaje, type PlantillaItem, type Resumen, type Salida } from './api';
 import { CampanasPage } from '../campanas/campanas';
 import { ContactosPage } from '../contactos/contactos';
 
-type Tab = 'plantillas' | 'whatsapp' | 'salida' | 'automatizaciones' | 'campanas' | 'contactos';
+type Tab = 'plantillas' | 'salida' | 'automatizaciones' | 'campanas' | 'contactos';
 /** Tabs kept in ?tab= (the others are routes of their own). */
 const EN_QUERY: Tab[] = ['campanas', 'contactos'];
 const FILTROS: { v: string; label: string }[] = [
@@ -20,23 +19,16 @@ const FILTROS: { v: string; label: string }[] = [
 ];
 const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los canales' }, { v: 'email', label: 'Email' }, { v: 'whatsapp', label: 'WhatsApp' }];
 
-/** «Emails y avisos» (Figma page 62): templates, WhatsApp templates, outbox with retries and the SMTP state, automations. */
+/** «Emails y avisos» (Figma page 62): templates, outbox with retries and the SMTP state, automations. */
 @Component({
   selector: 'bo-emails',
-  imports: [CampanasPage, ContactosPage, BoTablaMovil, BoTabsMovil, FormsModule, RouterLink, BoPageHeader, BoDrawer, BoToggle, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrPopover, GrSelect, GrSkeleton, WhatsAppMeta],
+  imports: [CampanasPage, ContactosPage, BoTablaMovil, BoTabsMovil, FormsModule, RouterLink, BoPageHeader, BoDrawer, BoToggle, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrPopover, GrSelect, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = resumen();
     @let caido = !!r && r.smtp.conocido && !r.smtp.ok;
     <div class="mx-auto flex max-w-[1280px] flex-col gap-6 pb-24">
-      <bo-page-header title="Emails y avisos" [crumbs]="[comps.current()?.nombreCorto || '', 'Público', 'Emails y avisos']">
-        @if (tab() === 'whatsapp' && waOk()) {
-          <ng-container actions>
-            <button grButton class="max-md:hidden" [loading]="sincronizando()" (click)="sincronizar()">Sincronizar con Meta</button>
-            <button grButton variant="primary" icon="plus" (click)="waMeta()?.nueva()">Nueva plantilla</button>
-          </ng-container>
-        }
-      </bo-page-header>
+      <bo-page-header title="Emails y avisos" [crumbs]="[comps.current()?.nombreCorto || '', 'Público', 'Emails y avisos']" />
       <bo-tabs-movil label="Sección">
       <nav #tabsNav class="-mt-1 flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Emails y avisos">
         @for (t of tabs; track t.v) {
@@ -93,7 +85,6 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
           } @else { <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-64 rounded-lg" /> }</div> }
         }
 
-        @case ('whatsapp') { <bo-whatsapp-meta [items]="wa()" (cambio)="wa.set($event)" (recargar)="cargarWA()" /> }
 
         @case ('salida') {
           @if (r && !caido) {
@@ -286,7 +277,7 @@ export class EmailsPage {
   protected readonly hora = hora;
   protected readonly hace = hace;
   protected readonly tabs: { v: Tab; label: string }[] = [
-    { v: 'plantillas', label: 'Plantillas' }, { v: 'whatsapp', label: 'WhatsApp (Meta)' }, { v: 'salida', label: 'Bandeja de salida' }, { v: 'automatizaciones', label: 'Automatizaciones' },
+    { v: 'plantillas', label: 'Plantillas' }, { v: 'salida', label: 'Bandeja de salida' }, { v: 'automatizaciones', label: 'Automatizaciones' },
     { v: 'campanas', label: 'Campañas' }, { v: 'contactos', label: 'Contactos' },
   ];
   protected readonly tab = signal<Tab>(this.tabDeUrl());
@@ -300,8 +291,6 @@ export class EmailsPage {
   }
   protected readonly resumen = signal<Resumen | null>(null);
   protected readonly plantillas = signal<PlantillaItem[] | null | undefined>(undefined);
-  protected readonly wa = signal<WAPlantilla[] | null | undefined>(undefined);
-  protected readonly waOk = computed(() => Array.isArray(this.wa()));
   protected readonly salida = signal<Salida | null | undefined>(undefined);
   protected readonly autos = signal<Autos | null | undefined>(undefined);
   protected readonly estado = signal('');
@@ -314,8 +303,6 @@ export class EmailsPage {
   protected readonly msg = signal<Mensaje | null>(null);
   protected readonly msgHtml = signal<SafeHtml | null>(null);
   protected readonly probando = signal(false);
-  protected readonly sincronizando = signal(false);
-  protected readonly waMeta = viewChild(WhatsAppMeta);
   private readonly tabsNav = viewChild<ElementRef<HTMLElement>>('tabsNav');
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
   private readonly fechas = computed(() => this.comps.current() as { fechaInicio?: string; fechaFin?: string } | null);
@@ -350,7 +337,6 @@ export class EmailsPage {
       }
       if (e.tipo === 'messaging.plantilla_guardada') void this.api.plantillas(this.cid()).then((p) => this.plantillas.set(p), () => undefined);
       if (e.tipo === 'messaging.automatizacion') void this.api.autos(this.cid()).then((a) => this.autos.set(a), () => undefined);
-      if (e.tipo === 'whatsapp.plantilla_estado') void this.cargarWA();
     });
     inject(DestroyRef).onDestroy(() => sub.unsubscribe());
   }
@@ -360,7 +346,6 @@ export class EmailsPage {
   protected cuenta(t: Tab): number | null {
     switch (t) {
       case 'plantillas': return this.plantillas()?.length ?? null;
-      case 'whatsapp': return this.wa()?.length ?? null;
       case 'salida': return this.resumen()?.enCola || null;
       case 'automatizaciones': return this.autos()?.items.length ?? null;
       default: return null;
@@ -370,15 +355,7 @@ export class EmailsPage {
     void this.cargarResumen();
     void this.api.plantillas(this.cid()).then((p) => this.plantillas.set(p), () => this.plantillas.set(null));
     void this.api.autos(this.cid()).then((a) => this.autos.set(a), () => this.autos.set(null));
-    void this.cargarWA();
     if (this.tab() === 'salida') void this.cargarSalida();
-  }
-  protected async cargarWA(): Promise<void> {
-    try {
-      this.wa.set(await this.api.wa(this.cid()));
-    } catch {
-      this.wa.set(null);
-    }
   }
   private async cargarResumen(): Promise<void> {
     try {
@@ -507,17 +484,6 @@ export class EmailsPage {
     } finally {
       this.probando.set(false);
       void this.cargarResumen();
-    }
-  }
-  protected async sincronizar(): Promise<void> {
-    this.sincronizando.set(true);
-    try {
-      this.wa.set(await this.api.waSincronizar(this.cid()));
-      this.toasts.success('Plantillas sincronizadas');
-    } catch (e) {
-      this.toasts.error('No se pudo sincronizar', errText(e));
-    } finally {
-      this.sincronizando.set(false);
     }
   }
   protected async auto(clave: string, activa: boolean): Promise<void> {
