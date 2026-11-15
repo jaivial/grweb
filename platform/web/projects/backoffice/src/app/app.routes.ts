@@ -54,6 +54,20 @@ const homeRedirect: CanActivateFn = async () => {
   return list.length ? router.createUrlTree(['/', list[0].slug, 'inicio']) : router.createUrlTree(['/403'], { queryParams: { motivo: 'sin-competicion' } });
 };
 
+/** `/oauth/google?gmail=…[&c=slug]`: landing of the Google OAuth callback when it cannot name the competition (expired
+ * or tampered link). Sends to Integraciones of that competition, or of the first one, keeping the result for the notice. */
+const oauthGoogle: CanActivateFn = async (route) => {
+  const router = inject(Router);
+  const auth = inject(Auth);
+  const comps = inject(Competitions);
+  await auth.bootstrap();
+  if (!auth.isLoggedIn()) return router.createUrlTree(['/login']);
+  const list = await comps.load();
+  const c = list.find((x) => x.slug === route.queryParamMap.get('c')) ?? list[0];
+  if (!c) return router.createUrlTree(['/403'], { queryParams: { motivo: 'sin-competicion' } });
+  return router.createUrlTree(['/', c.slug, 'sistema', 'integraciones'], { queryParams: { gmail: route.queryParamMap.get('gmail') || 'caducado' } });
+};
+
 /** Resolves /:comp against the user's competitions and checks the section permission. */
 const compGuard: CanActivateChildFn = async (child) => {
   const router = inject(Router);
@@ -93,6 +107,7 @@ export const routes: Routes = [
   { path: '404', component: ErrorPage, data: { code: 404 }, title: 'No encontrado' },
   { path: '500', component: ErrorPage, data: { code: 500 }, title: 'Error' },
   { path: '_componentes', canActivate: [rootGuard], loadComponent: () => import('./pages/componentes').then((m) => m.ComponentesPage), title: 'Componentes base · Backoffice GR Cup' },
+  { path: 'oauth/google', canActivate: [oauthGoogle], children: [] },
   { path: '', pathMatch: 'full', canActivate: [homeRedirect], children: [] },
   {
     path: ':comp',
