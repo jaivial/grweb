@@ -227,8 +227,8 @@ func (s *Svc) registerMapas() {
 			if err != nil {
 				return nil, err
 			}
-			list, err := cached(ctx, s, cid, "mapas", ttlContent, func() ([]mapaPub, error) {
-				rows, err := s.a.DB.Query(ctx, `SELECT imagen_url, titulo, subtitulo, descripcion FROM mapas_acceso WHERE competition_id = $1 ORDER BY orden, created_at`, cid)
+			list, err := cached(ctx, s, cid, in.key("mapas"), ttlContent, func() ([]mapaPub, error) {
+				rows, err := s.a.DB.Query(ctx, `SELECT imagen_url, `+tr(in.en(), "titulo", "subtitulo", "descripcion")+` FROM mapas_acceso WHERE competition_id = $1 ORDER BY orden, created_at`, cid)
 				if err != nil {
 					return nil, err
 				}
