@@ -50,7 +50,7 @@ let abiertoAhora: BoDatePicker | null = null;
           <div class="flex flex-col md:flex-row">
             @if (tipo() !== 'time') {
               <div class="flex flex-col gap-2 p-4 md:w-[300px]">
-                <div class="flex items-center justify-between text-label-s capitalize">
+                <div class="flex items-center justify-between text-label-s">
                   <button type="button" class="flex size-10 items-center justify-center rounded-sm text-text-tertiary hover:bg-bg-hover md:size-8" aria-label="Mes anterior" (click)="mes(-1)"><gr-icon name="chevron-left" [size]="16" /></button>
                   {{ tituloMes() }}
                   <button type="button" class="flex size-10 items-center justify-center rounded-sm text-text-tertiary hover:bg-bg-hover md:size-8" aria-label="Mes siguiente" (click)="mes(1)"><gr-icon name="chevron-right" [size]="16" /></button>
@@ -151,7 +151,7 @@ export class BoDatePicker implements ControlValueAccessor {
     const f = fmtDia.format(parse(d)).replace(/\./g, '');
     return this.tipo() === 'datetime' && v.length >= 16 ? `${f} · ${v.slice(11, 16)}` : f;
   });
-  protected readonly tituloMes = computed(() => fmtMes.format(this.vista()));
+  protected readonly tituloMes = computed(() => { const t = fmtMes.format(this.vista()); return t.charAt(0).toUpperCase() + t.slice(1); });
   protected readonly celdas = computed(() => {
     const v = this.vista();
     const n = new Date(v.getFullYear(), v.getMonth() + 1, 0).getDate();
