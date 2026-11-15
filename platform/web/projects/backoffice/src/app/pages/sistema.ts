@@ -6,13 +6,17 @@ import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
 import { BoDrawer, BoPageHeader, BoTabs, Confirm, errText, type BoTab, BoTablaMovil } from '../shared/ui';
 import { WhatsAppApi, type EstadoWaInfo } from './sistema/whatsapp-api';
-import { ESTADO_COMP, ESTADO_INT, INTEG, MODULOS, SistemaApi, fecha, fechaDMA, hace, type CompSistema, type Exportacion, type Integracion, type Salud, type Webhooks } from './sistema/api';
+import { ESTADO_COMP, ESTADO_INT, INTEG, MODULOS, SistemaApi, fecha, fechaDMA, hace, type CompSistema, type Exportacion, type Integracion, type Salud, type StripeConnect, type Webhooks } from './sistema/api';
 
 type Vista = 'competiciones' | 'integraciones' | 'salud' | 'peligro';
 const ORDEN: Integracion['tipo'][] = ['gmail', 'stripe', 'whatsapp', 'aep', 'bunny'];
 const WA: Record<string, { l: string; tone: GrTone }> = {
   conectado: { l: 'Conectado', tone: 'success' }, conectando: { l: 'Conectando', tone: 'warning' }, desconectado: { l: 'Desconectado', tone: 'danger' },
   error: { l: 'Error', tone: 'danger' }, sin_instancia: { l: 'Por confirmar', tone: 'warning' },
+};
+const STRIPE: Record<StripeConnect['estado'], { l: string; punto: string }> = {
+  sin_conectar: { l: 'Sin conectar', punto: 'bg-text-muted' }, pendiente: { l: 'Alta pendiente', punto: 'bg-warning' }, verificando: { l: 'Stripe está verificando', punto: 'bg-warning' },
+  restringida: { l: 'Stripe pide más datos', punto: 'bg-accent' }, activa: { l: 'Activa', punto: 'bg-success' },
 };
 
 /** «Sistema e integraciones» (Figma 64): competitions, integrations, health and the danger zone (email and new edition are sub-pages). */
@@ -65,14 +69,19 @@ const WA: Record<string, { l: string; tone: GrTone }> = {
                 <section class="flex flex-col gap-5 rounded-lg border border-line-subtle bg-bg-card p-6" [attr.data-integ]="x.tipo">
                   <div class="flex items-start gap-3">
                     <div class="min-w-0 flex-1"><h2 class="text-[20px] leading-6 font-semibold">{{ titulo(x) }}</h2><p class="mt-1 truncate text-body-xs text-text-tertiary">{{ resumen(x) }}</p></div>
-                    <gr-badge [tone]="badge(x).tone">{{ badge(x).l }}</gr-badge>
+                    @if (x.tipo !== 'stripe') { <gr-badge [tone]="badge(x).tone">{{ badge(x).l }}</gr-badge> }
                   </div>
                   <div class="flex flex-wrap items-center gap-3">
                     <p class="flex min-w-0 basis-full items-center gap-2 text-body-xs sm:basis-0 sm:flex-1" [class]="x.estado === 'error' ? 'text-accent-text' : 'text-text-tertiary'">
-                      <gr-icon [name]="info(x.tipo).i" [size]="16" /><span class="truncate" [title]="ultimo(x)">{{ ultimo(x) }}</span></p>
+                      @if (x.tipo === 'stripe') { <span class="size-2 shrink-0 rounded-full" [class]="puntoStripe()" aria-hidden="true"></span> } @else { <gr-icon [name]="info(x.tipo).i" [size]="16" /> }<span class="truncate" [title]="ultimo(x)">{{ ultimo(x) }}</span></p>
                     @if (puede() && x.tipo === 'gmail') {
                       @if (x.estado !== 'sin_configurar') { <button grButton variant="ghost" [loading]="probando() === 'gmail'" (click)="desconectarGmail()">Desconectar</button> }
                       <button grButton [variant]="x.estado === 'sin_configurar' ? 'primary' : 'secondary'" [loading]="conectandoGmail()" (click)="conectarGmail()">{{ x.estado === 'sin_configurar' ? 'Conectar con Google' : 'Reconectar' }}</button>
+                    } @else if (puede() && x.tipo === 'stripe') {
+                      @if (stripe(); as st) {
+                        @if (st.datosEnviados) { <button grButton variant="ghost" [loading]="abriendoStripe() === 'panel'" (click)="panelStripe()">Panel de Stripe</button> }
+                        @if (st.estado !== 'activa' && st.estado !== 'verificando') { <button grButton variant="primary" [disabled]="!st.plataforma" [loading]="abriendoStripe() === 'alta'" (click)="conectarStripe()">{{ st.estado === 'sin_conectar' ? 'Conectar con Stripe' : 'Continuar alta' }}</button> }
+                      }
                     } @else if (puede()) {
                       <button grButton variant="ghost" [loading]="probando() === x.tipo" [disabled]="x.estado === 'sin_configurar' && x.tipo !== 'whatsapp'" (click)="probar(x)">Probar</button>
                       <button grButton (click)="configurar(x)">Configurar</button>
@@ -81,10 +90,12 @@ const WA: Record<string, { l: string; tone: GrTone }> = {
                 </section>
               }
             </div>
-            <gr-alert tone="warning" icon="triangle-alert" title="Webhooks de Stripe por servicio">
-              <p>Cada cobro tiene su endpoint: <span class="font-mono text-mono-s">/api/webhooks/pagos/inscripciones</span> y <span class="font-mono text-mono-s">/api/webhooks/pagos/donaciones</span>. Al pasar a modo live, da de alta los dos en Stripe y guarda su secreto whsec_ en «Configurar».</p>
-              <a routerLink="../salud" class="mt-1 inline-flex items-center gap-1 text-label-s text-warning hover:underline">Ver webhooks recibidos <gr-icon name="arrow-right" [size]="14" /></a>
-            </gr-alert>
+            @if (root()) {
+              <gr-alert tone="info" icon="info" title="Webhooks de Stripe Connect (plataforma)">
+                <p>Stripe envía los eventos de todas las cuentas conectadas a <span class="font-mono text-mono-s">/api/webhooks/pagos/inscripciones</span> y <span class="font-mono text-mono-s">/api/webhooks/pagos/donaciones</span> (checkout.session.*) y a <span class="font-mono text-mono-s">/api/webhooks/stripe-connect</span> (account.updated). Su secreto whsec_ va en el servidor, no aquí.</p>
+                <a routerLink="../salud" class="mt-1 inline-flex items-center gap-1 text-label-s text-info hover:underline">Ver webhooks recibidos <gr-icon name="arrow-right" [size]="14" /></a>
+              </gr-alert>
+            }
           }
         }
         @case ('salud') {
@@ -243,6 +254,9 @@ export class SistemaPage {
   protected readonly integs = signal<Integracion[] | null>(null);
   protected readonly waInfo = signal<EstadoWaInfo | null>(null);
   protected readonly stripeUltimo = signal<Webhooks['items'][number] | null>(null);
+  protected readonly stripe = signal<StripeConnect | null>(null);
+  protected readonly abriendoStripe = signal<'' | 'alta' | 'panel'>('');
+  private stripeRefrescar = false;
   protected readonly salud = signal<Salud | null>(null);
   protected readonly webhooks = signal<Webhooks | null>(null);
   protected readonly serieP95 = signal<number[]>([]);
@@ -280,6 +294,13 @@ export class SistemaPage {
       else if (gmail === 'error') this.toasts.error('No se pudo conectar Gmail', 'Google no devolvió la autorización. Vuelve a intentarlo.');
       void this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
     }
+    // Back from Stripe's onboarding: «volver» (finished or left), «refrescar» (the link expired: open a new one).
+    const stripe = this.route.snapshot.queryParamMap.get('stripe');
+    if (stripe) {
+      if (stripe === 'volver') this.toasts.success('Has vuelto de Stripe', 'Comprobamos el estado de la cuenta de cobros.');
+      this.stripeRefrescar = stripe === 'refrescar';
+      void this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
+    }
     const legado = this.route.snapshot.queryParamMap.get('tab');
     if (legado) void this.router.navigate(['..', legado === 'peligro' ? 'zona-peligrosa' : legado], { relativeTo: this.route, replaceUrl: true });
     effect(() => {
@@ -315,8 +336,11 @@ export class SistemaPage {
   private async cargarInteg(): Promise<void> {
     try {
       const cid = this.cid();
-      const [list, wa, wh] = await Promise.all([this.api.integraciones(cid), this.wa.estado(cid).catch(() => null), this.api.webhooks(cid, { proveedor: 'stripe', por: 1 }).catch(() => null)]);
+      const [list, wa, wh, st] = await Promise.all([this.api.integraciones(cid), this.wa.estado(cid).catch(() => null), this.api.webhooks(cid, { proveedor: 'stripe', por: 1 }).catch(() => null),
+        this.api.stripeConnect(cid).catch(() => null)]);
       this.waInfo.set(wa);
+      this.stripe.set(st);
+      if (this.stripeRefrescar) { this.stripeRefrescar = false; void this.conectarStripe(); }
       this.stripeUltimo.set(wh?.items[0] ?? null);
       this.integs.set(ORDEN.map((t) => list.find((x) => x.tipo === t)!).filter(Boolean));
     } catch {
@@ -366,7 +390,7 @@ export class SistemaPage {
     switch (x.tipo) {
       case 'gmail': return c['remitente'] ? `Envío con la API de Gmail · ${c['remitente']}` : 'Conecta la cuenta de Gmail de la competición con Google';
       case 'smtp': return c['host'] ? `${c['host']}:${c['puerto'] || ''} · ${c['remitente'] || c['usuario'] || ''}` : 'Sin SMTP propio: se usa el del sistema';
-      case 'stripe': return c['clavePublica'] ? `Checkout + webhooks · ${c['clavePublica'].slice(0, 8)}…${c['clavePublica'].slice(-3)}` : 'Sin claves: pasarela simulada';
+      case 'stripe': { const st = this.stripe(); return !st || st.estado === 'sin_conectar' ? 'Cobros de inscripciones y donaciones con Stripe Connect' : `${STRIPE[st.estado].l} · ${st.pruebas ? 'modo test' : 'modo real'} · comisión de la plataforma ${this.n(st.comision)} %`; }
       case 'whatsapp': { const w = this.waInfo(); return w?.instancia ? `${w.instancia}${w.numero ? ' · ' + w.numero : ''}` : 'Número de la GR Cup · avisos y campañas'; }
       case 'bunny': return c['zona'] ? `${c['zona']} · ${c['cdnUrl'] || ''}` : 'Imágenes y frames del hero';
       case 'aep': return c['urlActa'] ? 'Acta oficial enlazada en Resultados' : 'Importación de .xlsx · sin API pública';
@@ -374,7 +398,6 @@ export class SistemaPage {
   }
   protected badge(x: Integracion): { l: string; tone: GrTone } {
     if (x.tipo === 'whatsapp') { const w = this.waInfo(); return w ? (w.modo === 'simulado' ? { l: 'Simulado', tone: 'info' } : w.servicio === 'caido' ? { l: 'Caído', tone: 'danger' } : (WA[w.estado] ?? WA['sin_instancia'])) : { l: 'Por confirmar', tone: 'warning' }; }
-    if (x.tipo === 'stripe' && x.estado !== 'error' && x.config['modo']) return { l: x.config['modo'] === 'live' ? 'Modo live' : 'Modo test', tone: x.config['modo'] === 'live' ? 'success' : 'info' };
     if (x.tipo === 'aep' && x.estado !== 'error') return { l: x.config['urlActa'] ? 'Enlazada' : 'Manual', tone: 'info' };
     return ESTADO_INT[x.estado];
   }
@@ -382,10 +405,23 @@ export class SistemaPage {
     this.ahora();
     if (x.estado === 'error' && x.error) return x.error;
     if (x.tipo === 'gmail') return x.estado === 'sin_configurar' ? 'Sin conectar: los emails salen por el servidor del sistema' : x.probadoAt ? `Conectado ${hace(x.probadoAt)}` : 'Conectado';
-    if (x.tipo === 'stripe') { const w = this.stripeUltimo(); if (w) return `${w.tipo || 'evento'} ${hace(w.recibidoAt)}`; }
+    if (x.tipo === 'stripe') return this.ultimoStripe();
     if (x.tipo === 'whatsapp') { const w = this.waInfo(); if (w?.estado === 'conectado' && w.conectadoDesde) return `Conectado desde ${fecha(w.conectadoDesde)}`; return w?.modo === 'simulado' ? 'Modo simulado (sin número real)' : 'Proveedor y número pendientes de vincular'; }
     return x.probadoAt ? `Última prueba ${hace(x.probadoAt)}` : 'Sin probar todavía';
   }
+  private ultimoStripe(): string {
+    const st = this.stripe();
+    if (!st) return 'No se pudo leer el estado de la cuenta de cobros';
+    if (!st.plataforma) return 'La plataforma todavía no tiene Stripe Connect configurado';
+    switch (st.estado) {
+      case 'sin_conectar': return st.clavesAntiguas ? 'Cobra con las claves de Stripe anteriores hasta que conectes la cuenta' : 'Crea la cuenta de cobros: Stripe te guía, no necesitas tener Stripe';
+      case 'pendiente': return 'Termina el alta en Stripe para empezar a cobrar';
+      case 'restringida': return st.pendiente.length ? `Stripe pide ${st.pendiente.length === 1 ? '1 dato más' : st.pendiente.length + ' datos más'}: pulsa «Continuar alta»` : 'Stripe ha limitado la cuenta: pulsa «Continuar alta»';
+      case 'verificando': return 'Stripe está revisando los datos del alta';
+      case 'activa': { const w = this.stripeUltimo(); return w ? `${w.tipo || 'evento'} ${hace(w.recibidoAt)}` : st.pagos ? 'Cobros y transferencias al banco activos' : 'Cobros activos · transferencias pendientes de Stripe'; }
+    }
+  }
+  protected puntoStripe(): string { return STRIPE[this.stripe()?.estado ?? 'sin_conectar'].punto; }
   /** p95 of the API: streams (SSE, chat) stay open until the last histogram bucket (5 s) and are not API latency. */
   protected p95(s: Salud): number { return Math.round(Math.max(0, ...s.servicios.filter((x) => x.p95 < 5).map((x) => x.p95)) * 1000); }
   protected ok(s: Salud): number { return s.servicios.filter((x) => x.ok).length; }
@@ -435,6 +471,29 @@ export class SistemaPage {
     } catch (e) {
       this.conectandoGmail.set(false);
       this.toasts.error('No se pudo iniciar la conexión con Google', errText(e));
+    }
+  }
+  protected async conectarStripe(): Promise<void> {
+    this.abriendoStripe.set('alta');
+    try {
+      const { url } = await this.api.stripeAlta(this.cid(), location.origin);
+      location.assign(url);
+    } catch (e) {
+      this.abriendoStripe.set('');
+      this.toasts.error('No se pudo abrir el alta de Stripe', errText(e));
+    }
+  }
+  protected async panelStripe(): Promise<void> {
+    const w = window.open('', '_blank'); // opened on the click: after the await the browser would block it
+    this.abriendoStripe.set('panel');
+    try {
+      const { url } = await this.api.stripePanel(this.cid());
+      if (w) { w.opener = null; w.location.href = url; } else location.assign(url);
+    } catch (e) {
+      w?.close();
+      this.toasts.error('No se pudo abrir el panel de Stripe', errText(e));
+    } finally {
+      this.abriendoStripe.set('');
     }
   }
   protected async desconectarGmail(): Promise<void> {

@@ -29,6 +29,19 @@ export interface Salud {
   generado: string;
 }
 export interface Webhook { id: string; proveedor: string; servicio: string; tipo: string; estado: 'procesado' | 'error'; respuesta: number; intentos: number; recibidoAt: string }
+/** Stripe Connect account of the competition (the platform creates it; the organiser finishes Stripe's onboarding). */
+export interface StripeConnect {
+  plataforma: boolean;
+  pruebas: boolean;
+  estado: 'sin_conectar' | 'pendiente' | 'verificando' | 'restringida' | 'activa';
+  cobros: boolean;
+  pagos: boolean;
+  datosEnviados: boolean;
+  pendiente: string[];
+  motivo?: string;
+  comision: number;
+  clavesAntiguas: boolean;
+}
 export interface Webhooks { items: Webhook[]; total: number; pagina: number; por: number }
 export interface Exportacion { id: string; estado: 'en_curso' | 'lista' | 'error'; bytes: number; error?: string; createdAt: string; terminadaAt?: string; expiraAt?: string; url?: string }
 export interface CompSistema extends Competicion {
@@ -42,7 +55,7 @@ export interface CompSistema extends Competicion {
 export const INTEG: Record<TipoInteg, { l: string; i: GrIconName; campos: { k: string; l: string; opciones?: string[] }[]; secreto?: string; ayudaSecreto?: string }> = {
   gmail: { l: 'Email (Gmail)', i: 'mail', campos: [] },
   smtp: { l: 'Email (SMTP)', i: 'mail', secreto: 'Contraseña de aplicación', campos: [] },
-  stripe: { l: 'Stripe', i: 'credit-card', secreto: 'Secreto', ayudaSecreto: 'JSON {"clave":"sk_…","webhook":"whsec_…"}', campos: [{ k: 'modo', l: 'Modo', opciones: ['test', 'live'] }, { k: 'clavePublica', l: 'Clave pública' }] },
+  stripe: { l: 'Stripe', i: 'credit-card', campos: [] },
   whatsapp: { l: 'WhatsApp', i: 'message', campos: [] },
   bunny: { l: 'Bunny CDN', i: 'globe', secreto: 'Access key', campos: [{ k: 'zona', l: 'Storage zone' }, { k: 'cdnUrl', l: 'URL del CDN' }] },
   aep: { l: 'AEP (acta)', i: 'upload', campos: [{ k: 'urlActa', l: 'URL del acta oficial (PDF)' }] },
@@ -103,6 +116,12 @@ export class SistemaApi {
     return firstValueFrom(this.http.get<{ url: string }>(`${this.b(cid)}/integraciones/gmail/autorizar`, { params: { origen } }));
   }
   gmailDesconectar(cid: string): Promise<void> { return firstValueFrom(this.http.delete<void>(`${this.b(cid)}/integraciones/gmail`)); }
+  stripeConnect(cid: string): Promise<StripeConnect> { return firstValueFrom(this.http.get<StripeConnect>(`${this.b(cid)}/integraciones/stripe/connect`)); }
+  /** Creates the connected account (once) and returns Stripe's onboarding URL (it comes back to /sistema/integraciones?stripe=…). */
+  stripeAlta(cid: string, origen: string): Promise<{ url: string }> {
+    return firstValueFrom(this.http.post<{ url: string }>(`${this.b(cid)}/integraciones/stripe/connect`, { origen }));
+  }
+  stripePanel(cid: string): Promise<{ url: string }> { return firstValueFrom(this.http.post<{ url: string }>(`${this.b(cid)}/integraciones/stripe/connect/panel`, {})); }
   probar(cid: string, tipo: TipoInteg, borrador?: { config: Record<string, string>; secreto?: string }): Promise<Integracion> {
     return firstValueFrom(this.http.post<Integracion>(`${this.b(cid)}/integraciones/${tipo}/probar`, borrador ? { config: borrador.config, ...(borrador.secreto ? { secreto: borrador.secreto } : {}) } : {}));
   }
