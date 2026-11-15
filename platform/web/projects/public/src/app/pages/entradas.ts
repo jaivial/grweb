@@ -207,7 +207,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                 <a grButton variant="outline" size="l" routerLink="/en-directo" iconRight="arrow-right">Seguirlo en directo</a>
               } @else {
                 <a grButton variant="primary" size="l" routerLink="." fragment="reservar">Reservar mi entrada</a>
-                <a grButton variant="outline" size="l" routerLink="." fragment="como-funciona" iconRight="arrow-right">Cómo funciona</a>
+                <a grButton variant="secondary" size="l" routerLink="." fragment="como-funciona" iconRight="arrow-right">Cómo funciona</a>
               }
             </div>
             @if (d?.personas) {
