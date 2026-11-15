@@ -3,6 +3,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG, FalloApi } from './competition';
+import type { Lang } from './i18n';
 
 export type Mov = 'sq' | 'bp' | 'dl';
 export interface EnPlataforma {
@@ -31,13 +32,15 @@ export interface Pantalla { directo: Directo; pantalla: { siguientes: boolean; c
 export interface Edicion { slug: string; nombre: string; estado: string; fechaInicio?: string; ciudad: string; anio: number }
 
 export const MOV: Record<Mov, string> = { sq: 'Sentadilla', bp: 'Press banca', dl: 'Peso muerto' };
+export const MOV_EN: Record<Mov, string> = { sq: 'Squat', bp: 'Bench press', dl: 'Deadlift' };
 export const ORD = ['', '1.º', '2.º', '3.º'];
-const nf1 = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1 });
-const nf2 = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-export const kg = (v?: number | null) => (v === undefined || v === null ? '—' : nf1.format(v));
-export const gl = (v?: number | null) => (v === undefined || v === null ? '—' : nf2.format(v));
+export const ORD_EN = ['', '1st', '2nd', '3rd'];
+const nf1 = { es: new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1 }), en: new Intl.NumberFormat('en-GB', { maximumFractionDigits: 1 }) };
+const nf2 = { es: new Intl.NumberFormat('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }), en: new Intl.NumberFormat('en-GB', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) };
+export const kg = (v?: number | null, lang: Lang = 'es') => (v === undefined || v === null ? '—' : nf1[lang].format(v));
+export const gl = (v?: number | null, lang: Lang = 'es') => (v === undefined || v === null ? '—' : nf2[lang].format(v));
 export const catCorta = (sexo: string, c: string) => `${sexo} ${c.replace('-', '−')}`;
-export const catLarga = (sexo: string, c: string) => `${sexo === 'F' ? 'Femenino' : 'Masculino'} ${c.replace('-', '−')} kg`;
+export const catLarga = (sexo: string, c: string, lang: Lang = 'es') => `${lang === 'en' ? (sexo === 'F' ? 'Women' : 'Men') : sexo === 'F' ? 'Femenino' : 'Masculino'} ${c.replace('-', '−')} kg`;
 
 /** An athlete waiting for the active attempt of the current lift (input of the «Siguientes» list). */
 export interface Turno { fila: Fila; sexo: 'F' | 'M'; categoria: string; numero: number; peso: number }
