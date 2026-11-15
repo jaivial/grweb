@@ -601,7 +601,7 @@ export class AtletaPage {
     <gr-page title="Participantes" accent="y flights" eyebrow="La plantilla" section="El evento" crumb="Participantes"
       subtitle="Lista de atletas por bloque de competición. Busca tu nombre para ver tu hora de pesaje y tu flight.">
       <p pageStamps class="flex flex-wrap gap-2">
-        <span class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Actualizado automáticamente desde la lista de la AEP</span>
+        <span class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Atletas dados de alta en esta web</span>
         <span class="inline-flex h-7 items-center rounded-full border border-info bg-info/12 px-3 text-label-xs text-info uppercase">Datos de ejemplo</span>
       </p>
       @if (p === undefined) { <gr-skeleton class="h-40 rounded-lg" /> }

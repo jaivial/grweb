@@ -43,7 +43,7 @@ export class AltaExito {
   readonly menor = input(false);
   protected readonly pasos = computed(() => {
     const p: { t: string; d: string }[] = [
-      { t: 'Revisión a mano', d: 'El equipo comprueba tu email contra la lista de inscritos de la AEP y revisa tus datos' + (this.foto() ? ' y tu foto.' : '.') },
+      { t: 'Revisión a mano', d: 'El equipo revisa a mano los datos de tu alta' + (this.foto() ? ' y tu foto.' : '.') },
     ];
     if (this.menor()) {
       p.push({ t: 'Autorización del tutor', d: 'Eres menor de edad: necesitamos la autorización firmada de tu madre, padre o tutor. Te la pediremos por email; también puedes enviarla a ' + this.contacto() + '. Sin ella no podemos aprobar tu alta.' });
