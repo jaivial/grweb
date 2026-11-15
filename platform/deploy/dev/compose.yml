@@ -299,6 +299,7 @@ services:
   gateway:
     <<: *svc
     cpus: 2.0
+    mem_limit: 512m  # = k8s limit; ~60-120 KiB per proxied WS
     build: { context: ../.., args: { SVC: gateway, VERSION: "${VERSION:-dev}" } }
     environment:
       <<: *env
