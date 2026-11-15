@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, PLATFORM_ID, PendingTasks, DestroyRef, computed, effect, inject, input, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, PLATFORM_ID, PendingTasks, DestroyRef, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -338,21 +338,17 @@ function catSort(a: string, b: string): number {
               <!-- Without photo, mobile keeps the Figma ≈300 px card instead of a 4:5 block of initials (U10-R2-4). -->
               <div class="relative bg-[linear-gradient(160deg,#3a0f17,#171213)]" [class]="a.fotoUrl ? 'aspect-[4/5]' : 'min-h-[184px] lg:aspect-[4/5]'">
                 @if (a.fotoUrl) { <img [src]="a.fotoUrl" [alt]="a.nombre + ' ' + a.apellidos" class="size-full object-cover" [style.object-position]="a.focalX + '% ' + a.focalY + '%'" fetchpriority="high" /> }
-                @else { <span class="absolute top-5 left-5 flex size-[72px] items-center justify-center rounded-full border border-white/15 bg-white/5 font-display text-[32px] text-white/85 italic lg:inset-0 lg:size-auto lg:rounded-none lg:border-0 lg:bg-transparent lg:text-[96px]" aria-hidden="true">{{ ini(a) }}</span> }
+                @else { <span class="absolute top-5 left-5 flex size-[72px] items-center justify-center rounded-full border border-white/15 bg-white/5 font-display text-[32px] leading-none text-white/85 not-italic [text-box:trim-both_cap_alphabetic] lg:inset-0 lg:size-auto lg:rounded-none lg:border-0 lg:bg-transparent lg:text-[96px]" aria-hidden="true">{{ ini(a) }}</span> }
                 <div class="absolute inset-x-0 bottom-0 bg-[linear-gradient(transparent,rgb(14_12_13/0.95))] p-5" [class]="a.fotoUrl ? 'pt-16' : 'pt-[108px] max-lg:relative lg:pt-16'"><p class="font-display leading-[0.95] uppercase italic" [class]="a.fotoUrl ? 'text-[40px]' : 'text-[32px] lg:text-[40px]'">{{ a.nombre }} {{ a.apellidos }}</p></div>
               </div>
               <div class="p-5">
-                <p class="flex flex-wrap gap-1.5">
-                  @if (a.categoria) { <span class="inline-flex h-7 items-center rounded-pill border border-accent/50 bg-accent-deep/30 px-2.5 text-mono-xs text-accent-text uppercase">{{ a.sexo }} {{ cat(a.categoria) }} kg</span> }
-                  @if (a.divisionNombre) { <span class="inline-flex h-7 items-center rounded-pill border border-line-strong px-2.5 text-mono-xs uppercase">{{ a.divisionNombre }}</span> }
-                  <span class="inline-flex h-7 items-center gap-1 rounded-pill border border-line-strong px-2.5 text-mono-xs uppercase"><gr-icon name="clock" [size]="12" />{{ a.horaInicio ? 'Compite a las ' + hora(a.horaInicio) : 'Horario por publicar' }}</span>
-                </p>
-                <p class="mt-3 flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="users" [size]="16" />{{ a.club || 'Independiente' }}{{ a.ciudad ? ' · ' + a.ciudad : '' }}</p>
-                @if (a.horaInicio) {
-                  <p class="mt-4 flex items-center gap-2 rounded-md border border-accent/40 bg-accent-deep/30 px-3 py-2.5 text-label-m"><gr-icon name="clock" [size]="16" class="shrink-0 text-accent-text" />Compite {{ diaTxt() ? diaTxt() + ' ' : '' }}{{ hora(a.horaInicio) }}</p>
-                }
-                <div class="mt-4 flex gap-2">
-                  <button type="button" (click)="fav.seguir(a.slug)" [attr.aria-pressed]="fav.slugs().includes(a.slug)" class="flex h-11 flex-1 items-center gap-2 rounded-pill border bg-bg-raised px-4 text-label-m hover:border-text-tertiary focus-visible:outline-2 focus-visible:outline-accent-text"
+                @if (a.categoria || a.divisionNombre) { <p class="text-label-m text-text-secondary">{{ a.categoria ? a.sexo + ' ' + cat(a.categoria) + ' kg' : '' }}{{ a.categoria && a.divisionNombre ? ' · ' : '' }}{{ a.divisionNombre }}</p> }
+                <ul class="mt-3 flex flex-col gap-2 text-body-s text-text-secondary">
+                  <li class="flex items-center gap-2"><gr-icon name="users" [size]="16" class="shrink-0 text-text-tertiary" />{{ a.club || 'Independiente' }}{{ a.ciudad ? ' · ' + a.ciudad : '' }}</li>
+                  <li class="flex items-center gap-2"><gr-icon name="clock" [size]="16" class="shrink-0 text-text-tertiary" />@if (a.horaInicio) { Compite {{ diaTxt() ? diaTxt() + ' ' : '' }}a las {{ hora(a.horaInicio) }} } @else { Horario por publicar }</li>
+                </ul>
+                <div class="mt-4 flex items-center gap-2">
+                  <button type="button" (click)="fav.seguir(a.slug)" [attr.aria-pressed]="fav.slugs().includes(a.slug)" class="flex h-11 w-fit items-center gap-2 rounded-pill border bg-bg-raised px-4 text-label-m hover:border-text-tertiary focus-visible:outline-2 focus-visible:outline-accent-text"
                     [class]="fav.slugs().includes(a.slug) ? 'border-accent bg-accent-deep/40 text-accent-text' : 'border-line-strong'">
                     <svg viewBox="0 0 24 24" width="16" height="16" [attr.fill]="fav.slugs().includes(a.slug) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" /></svg>
                     {{ fav.slugs().includes(a.slug) ? 'Siguiendo' : 'Seguir' }}
@@ -362,29 +358,6 @@ function catSort(a: string, b: string): number {
                 @if (copiado()) { <p class="mt-2 text-body-xs text-success" aria-live="polite">Enlace copiado</p> }
               </div>
             </section>
-            @if (a.permiteSeguir) {
-              <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-                <div class="flex gap-3"><span class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-accent-deep/40 text-accent-text"><gr-icon name="bell" [size]="18" /></span>
-                  <div><h2 class="text-ui-h5">Avísame cuando compita</h2><p class="text-body-xs text-text-tertiary">Un email 30 min antes de que salga a competir.</p></div></div>
-                @if (avisoEnviado()) {
-                  <gr-alert tone="success" class="mt-4" title="Revisa tu email">Te hemos enviado un enlace para confirmar el aviso.</gr-alert>
-                } @else {
-                  <form class="mt-4 flex flex-col gap-3" (ngSubmit)="avisar(a)" novalidate>
-                    <div class="flex gap-2">
-                      <label class="relative min-w-0 flex-1"><span class="sr-only">Tu email</span><gr-icon name="mail" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
-                        <input type="email" name="email" autocomplete="email" placeholder="tu@email.com" [(ngModel)]="email" #avisoEmail
-                          [attr.aria-invalid]="avisoCampo() === 'email' || null" [attr.aria-describedby]="avisoCampo() === 'email' ? 'aviso-error' : null"
-                          class="h-11 w-full rounded-md border bg-bg-field pr-3 pl-9 text-body-m focus:border-accent-text focus:outline-none md:text-body-s" [class]="avisoCampo() === 'email' ? 'border-error' : 'border-line-strong'" /></label>
-                      <button grButton variant="primary" type="submit" [loading]="enviando()">Avisarme</button>
-                    </div>
-                    @if (avisoError() && avisoCampo() === 'email') { <p id="aviso-error" class="-mt-1 text-body-xs text-error" role="alert">{{ avisoError() }}</p> }
-                    <label class="flex min-h-11 items-start gap-3 text-body-xs text-text-secondary"><input type="checkbox" name="acepta" [(ngModel)]="acepta" #avisoAcepta
-                      [attr.aria-invalid]="avisoCampo() === 'acepta' || null" [attr.aria-describedby]="avisoCampo() === 'acepta' ? 'aviso-error' : null" class="size-6 shrink-0 accent-[#C42B3E]" />Acepto recibir este aviso. <a routerLink="/privacidad" class="text-accent-text underline">Privacidad</a></label>
-                    @if (avisoError() && avisoCampo() !== 'email') { <p id="aviso-error" class="text-body-xs text-error" role="alert">{{ avisoError() }}</p> }
-                  </form>
-                }
-              </section>
-            }
           </div>
 
           <div class="flex min-w-0 flex-col gap-6">
@@ -419,11 +392,34 @@ function catSort(a: string, b: string): number {
             </section>
             @if (a.marcas) {
               <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-                <div class="flex flex-wrap items-center justify-between gap-2"><h2 class="text-ui-h5">Mejores marcas</h2><span class="rounded-pill border border-line-strong px-2.5 py-1 text-mono-xs text-text-tertiary">Declaradas por el atleta</span></div>
+                <div class="flex flex-wrap items-center justify-between gap-2"><h2 class="text-ui-h5">Mejores marcas</h2><span class="text-body-xs text-text-tertiary">Declaradas por el atleta</span></div>
                 <ul class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                   @for (m of lifts; track m.k) { <li class="rounded-md bg-bg-raised p-3"><p class="text-mono-xs text-text-tertiary">{{ m.short }}</p><p class="text-ui-h3">{{ kg(a.marcas[m.k]) }}</p></li> }
                   <li class="rounded-md bg-bg-raised p-3"><p class="text-mono-xs text-text-tertiary">Total</p><p class="text-ui-h3 text-accent-text">{{ kg(a.totalPrevisto) }}</p></li>
                 </ul>
+              </section>
+            }
+            @if (a.permiteSeguir) {
+              <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                <div class="flex gap-3"><span class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-accent-deep/40 text-accent-text"><gr-icon name="bell" [size]="18" /></span>
+                  <div><h2 class="text-ui-h5">Avísame cuando compita</h2><p class="text-body-xs text-text-tertiary">Un email 30 min antes de que le toque competir.</p></div></div>
+                @if (avisoEnviado()) {
+                  <gr-alert tone="success" class="mt-4" title="Revisa tu email">Te hemos enviado un enlace para confirmar el aviso.</gr-alert>
+                } @else {
+                  <form class="mt-4 flex flex-col gap-3" (ngSubmit)="avisar(a)" novalidate>
+                    <div class="flex gap-2">
+                      <label class="relative min-w-0 flex-1"><span class="sr-only">Tu email</span><gr-icon name="mail" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
+                        <input type="email" name="email" autocomplete="email" placeholder="tu@email.com" [(ngModel)]="email" #avisoEmail
+                          [attr.aria-invalid]="avisoCampo() === 'email' || null" [attr.aria-describedby]="avisoCampo() === 'email' ? 'aviso-error' : null"
+                          class="h-11 w-full rounded-md border bg-bg-field pr-3 pl-9 text-body-m focus:border-accent-text focus:outline-none md:text-body-s" [class]="avisoCampo() === 'email' ? 'border-error' : 'border-line-strong'" /></label>
+                      <button grButton variant="primary" type="submit" [loading]="enviando()">Avisarme</button>
+                    </div>
+                    @if (avisoError() && avisoCampo() === 'email') { <p id="aviso-error" class="-mt-1 text-body-xs text-error" role="alert">{{ avisoError() }}</p> }
+                    <label class="flex min-h-11 items-start gap-3 text-body-xs text-text-secondary"><input type="checkbox" name="acepta" [(ngModel)]="acepta" #avisoAcepta
+                      [attr.aria-invalid]="avisoCampo() === 'acepta' || null" [attr.aria-describedby]="avisoCampo() === 'acepta' ? 'aviso-error' : null" class="size-6 shrink-0 accent-[#C42B3E]" />Acepto recibir este aviso. <a routerLink="/privacidad" class="text-accent-text underline">Privacidad</a></label>
+                    @if (avisoError() && avisoCampo() !== 'email') { <p id="aviso-error" class="text-body-xs text-error" role="alert">{{ avisoError() }}</p> }
+                  </form>
+                }
               </section>
             }
             @if (a.bio || a.frase || a.entrenador || a.instagram || a.historial.length) {
@@ -445,7 +441,7 @@ function catSort(a: string, b: string): number {
                     <li class="flex items-center gap-3 border-b border-line-subtle py-2 last:border-0">
                       <a [routerLink]="'/atletas/' + o.slug" class="flex min-w-0 flex-1 items-center gap-3">
                         @if (o.fotoUrl) { <img [src]="o.fotoUrl" alt="" class="size-11 rounded-full object-cover" [style.object-position]="o.focalX + '% ' + o.focalY + '%'" loading="lazy" /> }
-                        @else { <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-deep/50 text-label-s">{{ ini(o) }}</span> }
+                        @else { <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-deep/50 text-label-s leading-none [text-box:trim-both_cap_alphabetic]">{{ ini(o) }}</span> }
                         <span class="min-w-0 break-words"><span class="block text-label-m">{{ o.nombre }} {{ o.apellidos }}</span><span class="block text-body-xs text-text-tertiary">{{ o.club || 'Independiente' }} · {{ o.divisionNombre }}</span></span>
                       </a>
                       @if (o.horaInicio) { <span class="text-mono-s">{{ hora(o.horaInicio) }}</span> }
@@ -494,15 +490,35 @@ export class AtletaPage {
     const seo = inject(Seo);
     const competition = inject(Competition);
     const route = inject(ActivatedRoute);
-    void inject(PendingTasks).run(async () => {
-      await Promise.resolve(); // route inputs are set after construction
-      const [f, c] = await Promise.all([this.api.ficha(this.slug()), competition.load()]);
+    const tasks = inject(PendingTasks);
+    // The component is reused between /atletas/A → /atletas/B («También en…»): reload whenever the slug changes.
+    let primera = true;
+    effect(() => {
+      const slug = this.slug();
+      untracked(() => {
+        if (!primera) {
+          this.ficha.set(undefined);
+          this.copiado.set(false);
+          this.avisoEnviado.set(false);
+          this.avisoError.set('');
+          this.avisoCampo.set('');
+          if (this.browser) window.scrollTo({ top: 0 });
+        }
+        primera = false;
+        void tasks.run(() => this.cargar(slug, seo, competition, route));
+      });
+    });
+  }
+
+  private async cargar(slug: string, seo: Seo, competition: Competition, route: ActivatedRoute): Promise<void> {
+      const [f, c] = await Promise.all([this.api.ficha(slug), competition.load()]);
+      if (slug !== this.slug()) return; // a newer profile was opened meanwhile
       this.ficha.set(f);
       if (!f) {
         this.api.notFound();
         seo.set(this.api.failed()
-          ? { title: 'GR Strength Cup', description: 'Contenido no disponible ahora mismo.', path: '/atletas/' + this.slug() }
-          : { title: 'Atleta no encontrado · GR Strength Cup', description: 'Este atleta no existe o ya no está inscrito.', path: '/atletas/' + this.slug(), robots: 'noindex' });
+          ? { title: 'GRS Cup', description: 'Contenido no disponible ahora mismo.', path: '/atletas/' + slug }
+          : { title: 'Atleta no encontrado · GRS Cup', description: 'Este atleta no existe o ya no está inscrito.', path: '/atletas/' + slug, robots: 'noindex' });
         return;
       }
       if (c?.fechaInicio) this.diaTxt.set(new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(c.fechaInicio)));
@@ -510,10 +526,10 @@ export class AtletaPage {
       // Sin categoría (atleta recién creado desde una solicitud) no se pinta «M  kg».
       const catTxt = f.categoria ? `${f.sexo} ${cat(f.categoria)} kg` : '';
       const desc = catTxt
-        ? `${nombre} (${f.club || 'independiente'}) compite en ${f.sexo === 'F' ? 'femenino' : 'masculino'} ${cat(f.categoria)} kg ${f.divisionNombre} en la GR Strength Cup.`
-        : `${nombre} (${f.club || 'independiente'}) compite en la GR Strength Cup.`;
+        ? `${nombre} (${f.club || 'independiente'}) compite en ${f.sexo === 'F' ? 'femenino' : 'masculino'} ${cat(f.categoria)} kg ${f.divisionNombre} en la GRS Cup.`
+        : `${nombre} (${f.club || 'independiente'}) compite en la GRS Cup.`;
       seo.set({
-        title: catTxt ? `${nombre} · ${catTxt} · GR Strength Cup` : `${nombre} · GR Strength Cup`,
+        title: catTxt ? `${nombre} · ${catTxt} · GRS Cup` : `${nombre} · GRS Cup`,
         description: `${desc}${f.totalPrevisto ? ' Total previsto: ' + kg(f.totalPrevisto) + ' kg.' : ''}`,
         path: '/atletas/' + f.slug, image: f.fotoUrl || undefined,
         jsonLd: { '@context': 'https://schema.org', '@type': 'Person', name: nombre, ...(f.club ? { memberOf: { '@type': 'SportsTeam', name: f.club } } : {}), knowsAbout: 'Powerlifting' },
@@ -536,7 +552,6 @@ export class AtletaPage {
         }
       }
       if (this.browser) void this.retomar(f);
-    });
   }
 
   /** Back from the email link: finishes the follow / alert started by an explicit click. Local stars are never sent (U10-R2-1). */
@@ -580,7 +595,7 @@ export class AtletaPage {
   protected async compartir(a: FichaPub): Promise<void> {
     const url = location.origin + '/atletas/' + a.slug;
     if (navigator.share) {
-      await navigator.share({ title: `${a.nombre} ${a.apellidos} · GR Strength Cup`, url }).catch(() => undefined);
+      await navigator.share({ title: `${a.nombre} ${a.apellidos} · GRS Cup`, url }).catch(() => undefined);
       return;
     }
     await navigator.clipboard?.writeText(url);
@@ -708,7 +723,7 @@ export class ParticipantesPage {
       const [p, c] = await Promise.all([this.api.participantes(), competition.load()]);
       this.data.set(p);
       this.contacto.set(c?.evento.emailContacto ?? '');
-      await applySeo(cms, seo, '/participantes', 'Participantes y flights · GR Strength Cup', 'Lista de atletas por bloque de competición: busca tu nombre para ver tu hora de pesaje y tu flight.');
+      await applySeo(cms, seo, '/participantes', 'Participantes y flights · GRS Cup', 'Lista de atletas por bloque de competición: busca tu nombre para ver tu hora de pesaje y tu flight.');
     });
   }
 }
