@@ -1,10 +1,9 @@
 import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, afterNextRender, computed, inject, input, signal, viewChild } from '@angular/core';
-import { StoryMovil } from '../pages/area-compartir-ui';
 import { isPlatformBrowser } from '@angular/common';
 import { GrButton, GrIcon, type GrIconName } from '@grcup/ui';
 import { renderMarkdown, type Faq, type Seccion } from '../core/cms';
-import type { CompeticionPublica } from '../core/competition';
+import { Competition, type CompeticionPublica } from '../core/competition';
 import { CATEGORIAS_IPF, Favoritos } from '../core/atletas';
 import { hora, qrDataURL, type Entradas, type SesionPub } from '../core/entradas';
 import { HorariosPublic, ICS_URL, normalizar, type Horarios, type PubAtleta, type PubDia, type PubFlight } from '../core/horarios';
@@ -27,20 +26,36 @@ const FOTO = 'border border-white/8';
  */
 @Component({
   selector: 'gr-sec-alta',
-  imports: [RouterLink, GrButton, GrIcon, StoryMovil],
+  imports: [RouterLink, GrButton, GrIcon],
+  styles: `.gr-progreso{width:0;animation:gr-progreso linear forwards} @keyframes gr-progreso{to{width:100%}} @media (prefers-reduced-motion:reduce){.gr-progreso{animation:none;width:100%}}`,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block bg-bg-base px-5 pt-10 pb-18 md:px-8 md:pt-16 md:pb-24 xl:px-20 xl:pb-32' },
   template: `
     <div class="mx-auto flex max-w-[1200px] flex-col items-center gap-8 md:gap-12">
       <h2 class="text-center font-display text-[36px] leading-[1.25] tracking-[0.06em] uppercase [text-shadow:0_0_24px_rgb(196_43_62/0.6)] md:text-[56px]">{{ s()?.['titulo'] || 'Crea tu perfil de atleta' }}</h2>
       <div class="flex w-full flex-col items-center gap-8 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
-        <!-- Jaime 14-nov / 15-nov 01:35: the iPhone of «Compartir» with four real screens changing by themselves every 1.5 s
-             (crossfade); it pauses on touch, hover or focus, off screen and in a hidden tab; no rotation with reduced motion -->
-        <div #movil class="flex shrink-0 flex-col items-center" role="region" aria-roledescription="carrusel" aria-label="Lo que tendrás como atleta" tabindex="0"
+        <!-- Jaime 15-nov 11:11: a bigger iPhone with real, sharp screens (no Instagram template). Screen 1 is a story made with
+             the athlete page's own generator (compartir-story · componer, 1080 × 1920) in the browser; the others are @3x
+             captures of the site. They change by themselves every 1.5 s (crossfade); paused on touch, hover or focus, off
+             screen and in a hidden tab; no rotation with reduced motion. Fixed 9:19.5 box: no layout shift. -->
+        <div #movil class="flex w-full shrink-0 flex-col items-center gap-4 lg:w-auto" role="region" aria-roledescription="carrusel" aria-label="Lo que tendrás como atleta" tabindex="0"
           (pointerenter)="pausa.set(true)" (pointerleave)="pausa.set(false)" (focusin)="pausa.set(true)" (focusout)="pausa.set(false)"
           (touchstart)="pausa.set(true)" (touchend)="pausa.set(false)">
-          <gr-story-movil [capas]="slides" [activa]="slide()" [intervalo]="intervalo" [pausado]="parado()" usuario="grscup" />
-          <p class="sr-only">{{ textos.join(' · ') }}</p>
+          <div class="relative aspect-[9/19.5] w-[min(86vw,360px)] rounded-[56px] border border-white/20 bg-[#0b0a0a] p-[12px] shadow-[0_30px_80px_rgb(0_0_0/0.6)] lg:w-[360px]">
+            <div class="relative size-full overflow-hidden rounded-[44px] bg-black">
+              @for (p of pantallas(); track p.src; let i = $index) {
+                <img [src]="p.src" [alt]="p.alt" class="absolute inset-0 size-full transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none" [class]="(p.story ? 'object-contain ' : 'object-cover object-top ') + (i === slide() ? 'opacity-100 scale-100' : 'opacity-0 scale-[1.03]')" [attr.aria-hidden]="i !== slide() || null" [attr.loading]="i ? 'lazy' : null" decoding="async" />
+              }
+              <span class="absolute top-2.5 left-1/2 h-7 w-[96px] -translate-x-1/2 rounded-pill bg-black" aria-hidden="true"></span>
+              <span class="absolute bottom-2 left-1/2 h-1 w-[110px] -translate-x-1/2 rounded-pill bg-white/80" aria-hidden="true"></span>
+            </div>
+          </div>
+          <!-- discreet indicator: thin bars, the current one fills in 1.5 s -->
+          <span class="flex w-[120px] gap-1.5" aria-hidden="true">
+            @for (p of pantallas(); track p.src; let i = $index) {
+              <span class="h-[3px] flex-1 overflow-hidden rounded-full bg-white/20"><span class="block h-full rounded-full bg-white/80" [class]="i < slide() ? 'w-full' : i === slide() ? 'gr-progreso' : 'w-0'" [style.animation-duration.ms]="intervalo" [style.animation-play-state]="parado() ? 'paused' : 'running'"></span></span>
+            }
+          </span>
         </div>
         <a grButton variant="primary" size="l" routerLink="/alta-atleta" class="w-full lg:hidden">{{ s()?.['cta'] || 'Dar de alta mi atleta' }}</a>
         <div class="flex w-full flex-col items-center gap-6 lg:w-[760px] lg:gap-10">
@@ -61,9 +76,13 @@ const FOTO = 'border border-white/8';
 })
 export class SecAlta {
   readonly s = input<Seccion | undefined>();
-  protected readonly slides = ['/img/home/alta-story.webp', '/img/home/alta-slide-perfil.webp', '/img/home/alta-slide-horarios.webp', '/img/home/alta-slide-fantasy.webp'];
-  protected readonly textos = ['Tu story de competición para Instagram', 'Tu perfil público de atleta', 'Tu horario de competición', 'Tu equipo en la GRS Fantasy'];
   protected readonly intervalo = 1500;
+  /** Real screens: @3x captures of the public profile, the schedule and the Fantasy; the story is prepended once composed. */
+  protected readonly pantallas = signal<{ src: string; alt: string; story?: boolean }[]>([
+    { src: '/img/home/alta-pantalla-perfil.webp', alt: 'Perfil público de un atleta en el móvil' },
+    { src: '/img/home/alta-pantalla-horarios.webp', alt: 'Horarios de competición en el móvil' },
+    { src: '/img/home/alta-pantalla-fantasy.webp', alt: 'Tu equipo de la GRS Fantasy en el móvil' },
+  ]);
   protected readonly slide = signal(0);
   /** Hover / focus / touch on the phone. */
   protected readonly pausa = signal(false);
@@ -72,24 +91,45 @@ export class SecAlta {
   private readonly reducido = signal(false);
   protected readonly parado = computed(() => this.pausa() || this.fuera() || this.oculta() || this.reducido());
   private readonly movil = viewChild<ElementRef<HTMLElement>>('movil');
+  private readonly comp = inject(Competition);
   constructor() {
     const destroy = inject(DestroyRef);
     afterNextRender(() => {
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { this.reducido.set(true); return; }
       const el = this.movil()?.nativeElement;
-      const io = new IntersectionObserver(([e]) => this.fuera.set(!e.isIntersecting), { threshold: 0.3 });
+      let compuesta = false;
+      const io = new IntersectionObserver(([e]) => {
+        this.fuera.set(!e.isIntersecting);
+        if (!compuesta && e.isIntersecting) { compuesta = true; void this.componerStory(destroy); }
+      }, { threshold: 0.01, rootMargin: '400px 0px' });
       if (el) io.observe(el);
+      destroy.onDestroy(() => io.disconnect());
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { this.reducido.set(true); return; }
       const vis = () => this.oculta.set(document.hidden);
       document.addEventListener('visibilitychange', vis);
-      // 100 ms ticks: the time only runs while the carousel is visible and not paused, so the bar and the change stay in step
+      // 100 ms ticks: time only runs while visible and not paused, so the bar and the change stay in step
       let t = 0;
       const tick = setInterval(() => {
         if (this.parado()) return;
         t += 100;
-        if (t >= this.intervalo) { t = 0; this.slide.set((this.slide() + 1) % this.slides.length); }
+        if (t >= this.intervalo) { t = 0; this.slide.set((this.slide() + 1) % this.pantallas().length); }
       }, 100);
-      destroy.onDestroy(() => { clearInterval(tick); io.disconnect(); document.removeEventListener('visibilitychange', vis); });
+      destroy.onDestroy(() => { clearInterval(tick); document.removeEventListener('visibilitychange', vis); });
     });
+  }
+  /** The real «cuenta atrás» story of the athlete page (same generator and size), with an example athlete. */
+  private async componerStory(destroy: DestroyRef): Promise<void> {
+    try {
+      const { componer, cargarImagen, diasHasta } = await import('../pages/compartir-story');
+      const ini = this.comp.data()?.fechaInicio ?? '2026-12-19';
+      const foto = await cargarImagen('/img/home/atletas-2-l.webp');
+      const c = await componer({ modo: 'cuenta_atras', formato: 'story', alin: 'izq', dias: Math.max(0, diasHasta(ini)), fecha: '', detalleFecha: '', nombre: 'Laura Gómez', prueba: 'AEP-2', peso: '−63 KG', sexo: 'FEMENINO', foto, focalX: 50, focalY: 30, zoom: 1 });
+      const blob = await new Promise<Blob | null>((ok) => c.toBlob(ok, 'image/webp', 0.9));
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      destroy.onDestroy(() => URL.revokeObjectURL(url));
+      this.pantallas.update((l) => [{ src: url, alt: 'Story de Instagram con la cuenta atrás de un atleta, creada en su área', story: true }, ...l]);
+      this.slide.set(0);
+    } catch { /* the three captures keep rotating */ }
   }
   protected readonly beneficios: { i: GrIconName; t: string }[] = [
     { i: 'user', t: 'Área de atleta personalizada' },
