@@ -69,11 +69,16 @@ const oauthGoogle: CanActivateFn = async (route) => {
   return router.createUrlTree(['/', c.slug, 'sistema', 'integraciones'], { queryParams: { gmail: route.queryParamMap.get('gmail') || 'caducado' } });
 };
 
+/** Old list URL → the tab that now holds it, keeping the competition (string redirects drop the query). */
+const aPestana = (seccion: string, queryParams: Record<string, string>): CanActivateFn => (route) =>
+  inject(Router).createUrlTree(['/', route.parent?.paramMap.get('comp') ?? '', seccion], { queryParams });
+
 /** Resolves /:comp against the user's competitions and checks the section permission. */
 const compGuard: CanActivateChildFn = async (child) => {
   const router = inject(Router);
   const auth = inject(Auth);
   const comps = inject(Competitions);
+  const toasts = inject(GrToasts); // injected before the first await (no injection context after it)
   const list = await comps.load();
   // Nested routes (e.g. /grcup/web/faq): walk up to the :comp route; the section is its direct child.
   let r: ActivatedRouteSnapshot | null = child;
@@ -91,7 +96,7 @@ const compGuard: CanActivateChildFn = async (child) => {
   if (path === ':seccion' && !item) return router.createUrlTree(['/404']);
   // a BO module switched off for this edition (Evento y módulos › Módulos): back to Inicio, saying why
   if (!moduloActivo(c.modulos, item?.modulo)) {
-    inject(GrToasts).info(`${item?.label} está desactivado en esta edición`, 'Se reactiva en Evento y módulos › Módulos.');
+    toasts.info(`${item?.label} está desactivado en esta edición`, 'Se reactiva en Evento y módulos › Módulos.');
     return router.createUrlTree(['/', c.slug, 'inicio']);
   }
   // a role that requires 2FA grants nothing until it is on: send to Inicio, where the shell explains it and offers to turn it on
@@ -149,9 +154,9 @@ export const routes: Routes = [
       { path: 'atletas/:id', component: AtletaFichaPage, title: 'Atleta · Backoffice GR Cup' },
       { path: 'horarios', loadComponent: () => import('./pages/horarios/horarios').then((m) => m.HorariosPage), title: 'Horarios · Backoffice GR Cup' },
       // Contactos and Campañas are tabs of Emails y avisos (orden 15-nov 13:05): the lists redirect, cards and editors stay
-      { path: 'contactos', pathMatch: 'full', redirectTo: 'emails?tab=contactos' },
-      { path: 'contactos/segmentos', pathMatch: 'full', redirectTo: 'emails?tab=contactos&vista=segmentos' },
-      { path: 'contactos/bajas', pathMatch: 'full', redirectTo: 'emails?tab=contactos&vista=bajas' },
+      { path: 'contactos', pathMatch: 'full', canActivate: [aPestana('emails', { tab: 'contactos' })], children: [] },
+      { path: 'contactos/segmentos', pathMatch: 'full', canActivate: [aPestana('emails', { tab: 'contactos', vista: 'segmentos' })], children: [] },
+      { path: 'contactos/bajas', pathMatch: 'full', canActivate: [aPestana('emails', { tab: 'contactos', vista: 'bajas' })], children: [] },
       { path: 'contactos/:id', loadComponent: () => import('./pages/contactos/contactos').then((m) => m.ContactoFichaPage), title: 'Contacto · Backoffice GR Cup' },
       { path: 'emails', loadComponent: () => import('./pages/emails/emails').then((m) => m.EmailsPage), data: { tab: 'plantillas' }, title: 'Emails y avisos · Backoffice GR Cup' },
       { path: 'emails/whatsapp', loadComponent: () => import('./pages/emails/emails').then((m) => m.EmailsPage), data: { tab: 'whatsapp' }, title: 'WhatsApp (Meta) · Backoffice GR Cup' },
@@ -170,7 +175,7 @@ export const routes: Routes = [
       { path: 'clubs', loadComponent: () => import('./pages/clubs').then((m) => m.ClubsPage), title: 'Clubs · Backoffice GR Cup' },
       { path: 'directo/retransmision', loadComponent: () => import('./pages/directo/retransmision').then((m) => m.RetransmisionPage), title: 'Retransmisión · Backoffice GR Cup' },
       { path: 'resultados', loadComponent: () => import('./pages/directo/resultados').then((m) => m.ResultadosPage), title: 'Resultados · Backoffice GR Cup' },
-      { path: 'campanas', pathMatch: 'full', redirectTo: 'emails?tab=campanas' },
+      { path: 'campanas', pathMatch: 'full', canActivate: [aPestana('emails', { tab: 'campanas' })], children: [] },
       { path: 'campanas/whatsapp', loadComponent: () => import('./pages/campanas/campanas').then((m) => m.WhatsAppPage), title: 'WhatsApp · Backoffice GR Cup' },
       { path: 'campanas/:id', loadComponent: () => import('./pages/campanas/editor').then((m) => m.CampanaEditorPage), title: 'Campaña · Backoffice GR Cup' },
       { path: 'sorteo', loadComponent: () => import('./pages/sorteo/sorteo').then((m) => m.SorteoPage), title: 'Sorteo · Backoffice GR Cup' },
@@ -183,7 +188,7 @@ export const routes: Routes = [
       { path: 'juegos', loadComponent: () => import('./pages/social/juegos/juegos').then((m) => m.JuegosPage), title: 'Juegos · Backoffice GR Cup' },
       { path: 'donaciones', loadComponent: () => import('./pages/social/donaciones/donaciones').then((m) => m.DonacionesPage), title: 'Donaciones · Backoffice GR Cup' },
       // Premios is a tab of Sorteo (orden 15-nov 13:05, #380)
-      { path: 'premios', pathMatch: 'full', redirectTo: 'sorteo?tab=premios' },
+      { path: 'premios', pathMatch: 'full', canActivate: [aPestana('sorteo', { tab: 'premios' })], children: [] },
       { path: 'fans', loadComponent: () => import('./pages/social/fans/fans').then((m) => m.FansPage), title: 'Fans · Backoffice GR Cup' },
       { path: 'evento', loadComponent: () => import('./pages/evento').then((m) => m.EventoPage), title: 'Evento y módulos · Backoffice GR Cup' },
       {
