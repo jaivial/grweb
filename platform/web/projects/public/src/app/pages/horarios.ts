@@ -7,6 +7,7 @@ import { Favoritos, cat } from '../core/atletas';
 import { Cms } from '../core/cms';
 import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
 import { HorariosPublic, ICS_URL, type Horarios, type PubAtleta, type PubDia, type PubHorario } from '../core/horarios';
+import { I18n, LocPipe } from '../core/i18n';
 import { Seo } from '../core/seo';
 import { Newsletter } from '../layout/newsletter';
 import { Page } from '../layout/page';
@@ -15,8 +16,8 @@ import { applySeo } from './content';
 import { Community, Related, type RelatedLink } from './landings';
 
 const TZ = 'Europe/Madrid';
-const hora = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: TZ }).format(new Date(iso)) : '');
-const diaTab = (f: string) => new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(f + 'T12:00:00Z')).replace(',', '').replace('.', '');
+const hora = (iso?: string, loc = 'es-ES') => (iso ? new Intl.DateTimeFormat(loc, { hour: '2-digit', minute: '2-digit', timeZone: TZ }).format(new Date(iso)) : '');
+const diaTab = (f: string, loc = 'es-ES') => new Intl.DateTimeFormat(loc, { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(f + 'T12:00:00Z')).replace(',', '').replace('.', '');
 const ini = (n: string) => n.split(' ').filter(Boolean).slice(0, 2).map((x) => x[0]).join('').toUpperCase();
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 const ICONOS: Record<string, GrIconName> = { door: 'door', trophy: 'trophy', gift: 'gift', clock: 'clock', ticket: 'ticket', users: 'users', info: 'info', camera: 'camera' };
@@ -25,12 +26,62 @@ const pesos = (h: PubHorario) => {
   const p = (h.titulo.match(/[−+-]\s?\d+/g) ?? []).map((x) => x.replace('-', '−').replace(/\s/g, ''));
   return p.length ? p.join(' / ') + ' kg' : h.titulo;
 };
-const sexo = (s: string) => (s === 'F' ? 'Femenino' : s === 'M' ? 'Masculino' : 'Mixto');
 const POR_PAGINA = 6;
 
 type Vista = 'todos' | 'detallado' | 'favs';
 interface Fila { t: string; h?: PubHorario; item?: { hora: string; titulo: string; icono: GrIconName } }
 interface Pagina { page: number; items: PubAtleta[]; total: number; cargando: boolean }
+
+const T = {
+  es: {
+    titulo: 'Horarios GRS Cup 2', crumb: 'Horarios', pronto: 'Próximamente',
+    prontoTxt: 'Publicaremos los horarios cuando cerremos el listado de atletas (unas 2 semanas antes). Mientras, puedes ver quién compite y seguir a tus atletas.',
+    verAtletas: 'Ver los atletas', nlTitulo: 'Te avisamos de lo importante', nlTexto: 'Horarios, sorteo y novedades de la GRS Cup 2. Como mucho un email al mes.',
+    falloT: 'No hemos podido cargar los horarios', falloD: 'Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.',
+    dias: 'Días', vista: 'Vista', vistas: { todos: 'Todos', detallado: 'Detallado', favs: 'Favs' } as Record<Vista, string>,
+    buscar: 'Buscar atleta', buscarPh: '¿Cuándo compite…?',
+    coinciden: (n: number, q: string) => n + (n === 1 ? ' atleta coincide' : ' atletas coinciden') + ' con «' + q + '»',
+    nadie: (q: string) => 'Nadie coincide con «' + q + '» (solo salen los perfiles públicos).',
+    puertas: 'Puertas ', favsNo: 'Tus favoritos no compiten este día', sinFavs: 'Aún no tienes favoritos',
+    marca: 'Marca atletas con la estrella y aquí verás a qué hora compiten.', buscarAtletas: 'Buscar atletas',
+    sexo: (s: string): string => (s === 'F' ? 'Femenino' : s === 'M' ? 'Masculino' : 'Mixto'),
+    atletas: (n: number) => n + ' ' + (n === 1 ? 'atleta' : 'atletas'), pesaje: 'Pesaje',
+    tusFavs: 'Tus favoritos', atletasT: 'Atletas', de: ' de ', independiente: 'Independiente',
+    ninguno: 'Ningún atleta de este horario tiene el perfil público.', paginasDe: (h: string) => 'Páginas de atletas de las ' + h,
+    anterior: 'Página anterior', siguiente: 'Página siguiente',
+    calFavs: 'Guarda los horarios de tus favoritos en tu calendario', calTodos: 'Guarda todos los horarios en tu calendario',
+    ics: (favs: boolean) => 'Archivo .ics con ' + (favs ? 'las horas de tus atletas' : 'todos los horarios del día') + ' y un aviso 30 min antes. Si la organización cambia algún horario, vuelve a descargarlo.',
+    anadir: 'Añadir al calendario (.ics)',
+    rel: [['Atletas', 'Busca y sigue a atletas'], ['En directo', 'Streaming y marcador'], ['Entradas', 'Gratis con reserva']],
+    seoTitulo: 'Horarios · GRS Cup 2',
+    seoPub: 'Horarios de la GRS Cup 2: a qué hora compite cada categoría de peso, femenina y masculina, y el pesaje de cada atleta. Añádelos a tu calendario.',
+    seoNo: 'Los horarios de la GRS Cup 2 se publican unas 2 semanas antes. Consulta los atletas inscritos y síguelos.',
+  },
+  en: {
+    titulo: 'GRS Cup 2 schedule', crumb: 'Schedule', pronto: 'Coming soon',
+    prontoTxt: 'We will publish the schedule once the athlete list is closed (about 2 weeks before). Meanwhile, you can see who is competing and follow your athletes.',
+    verAtletas: 'See the athletes', nlTitulo: 'We will tell you what matters', nlTexto: 'Schedule, raffle and GRS Cup 2 news. One email a month at most.',
+    falloT: 'We could not load the schedule', falloD: 'We are having a temporary problem. Please try again in a few minutes.',
+    dias: 'Days', vista: 'View', vistas: { todos: 'All', detallado: 'Detailed', favs: 'Favs' } as Record<Vista, string>,
+    buscar: 'Search athlete', buscarPh: 'When does … compete?',
+    coinciden: (n: number, q: string) => n + (n === 1 ? ' athlete matches' : ' athletes match') + ' «' + q + '»',
+    nadie: (q: string) => 'Nobody matches «' + q + '» (only public profiles are shown).',
+    puertas: 'Doors ', favsNo: 'Your favourites do not compete on this day', sinFavs: 'You have no favourites yet',
+    marca: 'Star athletes and you will see here what time they compete.', buscarAtletas: 'Search athletes',
+    sexo: (s: string): string => (s === 'F' ? 'Women' : s === 'M' ? 'Men' : 'Mixed'),
+    atletas: (n: number) => n + ' ' + (n === 1 ? 'athlete' : 'athletes'), pesaje: 'Weigh-in',
+    tusFavs: 'Your favourites', atletasT: 'Athletes', de: ' of ', independiente: 'Unattached',
+    ninguno: 'No athlete in this slot has a public profile.', paginasDe: (h: string) => 'Athlete pages for ' + h,
+    anterior: 'Previous page', siguiente: 'Next page',
+    calFavs: 'Save your favourites’ times to your calendar', calTodos: 'Save the whole schedule to your calendar',
+    ics: (favs: boolean) => '.ics file with ' + (favs ? 'your athletes’ times' : 'the whole schedule of the day') + ' and a reminder 30 min before. If the organisers change a time, download it again.',
+    anadir: 'Add to calendar (.ics)',
+    rel: [['Athletes', 'Search and follow athletes'], ['Live', 'Streaming and scoreboard'], ['Tickets', 'Free with booking']],
+    seoTitulo: 'Schedule · GRS Cup 2',
+    seoPub: 'GRS Cup 2 schedule: what time each women’s and men’s weight class competes, and each athlete’s weigh-in. Add it to your calendar.',
+    seoNo: 'The GRS Cup 2 schedule is published about 2 weeks before. See the registered athletes and follow them.',
+  },
+};
 
 /**
  * /horarios (Figma «Web · /horarios» 11:83, frames «/horarios · Mobile · Todos | Detallado | Favs»). One platform, no flights:
@@ -40,11 +91,11 @@ interface Pagina { page: number; items: PubAtleta[]; total: number; cargando: bo
  */
 @Component({
   selector: 'gr-horarios-page',
-  imports: [RouterLink, Page, FormsModule, GrAlert, GrIcon, GrSkeleton, Fav, Related, Community, Newsletter],
+  imports: [RouterLink, Page, FormsModule, GrAlert, GrIcon, GrSkeleton, Fav, Related, Community, Newsletter, LocPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let h = data();
-    <gr-page title="Horarios GRS Cup 2" [hideTitle]="true" crumb="Horarios" separacion="mt-6 block md:mt-10">
+    <gr-page [title]="t().titulo" [hideTitle]="true" [crumb]="t().crumb" separacion="mt-6 block md:mt-10">
       @if (h === undefined) {
         <div class="flex flex-col gap-3"><gr-skeleton class="h-12 rounded-md" />@for (i of [1, 2, 3]; track i) { <gr-skeleton class="h-24 rounded-lg" /> }</div>
       } @else if (!h?.publicado) {
@@ -52,61 +103,61 @@ interface Pagina { page: number; items: PubAtleta[]; total: number; cargando: bo
           <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
             <section class="flex flex-col items-center gap-3 rounded-lg border border-line-subtle bg-bg-card px-6 py-14 text-center">
               <span class="flex size-14 items-center justify-center rounded-full border border-accent/40 bg-accent-deep/30 text-accent-text"><gr-icon name="clock" [size]="24" /></span>
-              <h2 class="text-display-xs md:text-display-s">Próximamente</h2>
-              <p class="max-w-md text-body-m text-text-secondary">Publicaremos los horarios cuando cerremos el listado de atletas (unas 2 semanas antes). Mientras, puedes ver quién compite y seguir a tus atletas.</p>
-              <a routerLink="/atletas" class="mt-2 inline-flex h-11 items-center gap-2 rounded-sm bg-accent-grain px-5 text-label-s text-white">Ver los atletas<gr-icon name="arrow-right" [size]="16" /></a>
+              <h2 class="text-display-xs md:text-display-s">{{ t().pronto }}</h2>
+              <p class="max-w-md text-body-m text-text-secondary">{{ t().prontoTxt }}</p>
+              <a [routerLink]="'/atletas' | loc" class="mt-2 inline-flex h-11 items-center gap-2 rounded-sm bg-accent-grain px-5 text-label-s text-white">{{ t().verAtletas }}<gr-icon name="arrow-right" [size]="16" /></a>
             </section>
-            <gr-newsletter titulo="Te avisamos de lo importante" texto="Horarios, sorteo y novedades de la GRS Cup 2. Como mucho un email al mes." origen="/horarios" [compacta]="true" />
+            <gr-newsletter [titulo]="t().nlTitulo" [texto]="t().nlTexto" origen="/horarios" [compacta]="true" />
           </div>
         } @else if (!fallo.limitado()) {
           <!-- on a 429 the page header already shows «Demasiadas visitas desde tu red» -->
-          <gr-alert tone="warning" title="No hemos podido cargar los horarios">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.</gr-alert>
+          <gr-alert tone="warning" [title]="t().falloT">{{ t().falloD }}</gr-alert>
         }
       } @else {
         <div class="flex max-w-[880px] flex-col gap-3">
           @if (h.dias.length > 1) {
-            <nav class="-mx-5 flex gap-1 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:px-0" aria-label="Días">
+            <nav class="-mx-5 flex gap-1 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:px-0" [attr.aria-label]="t().dias">
               @for (d of h.dias; track d.fecha) {
                 <button type="button" (click)="dia.set(d.fecha)" [attr.aria-current]="diaSel()?.fecha === d.fecha ? 'date' : null"
                   class="relative h-11 shrink-0 px-3 font-display text-[18px] uppercase italic" [class]="diaSel()?.fecha === d.fecha ? 'text-text-primary' : 'text-text-muted hover:text-text-secondary'">
-                  {{ diaTab(d.fecha) }}@if (diaSel()?.fecha === d.fecha) { <span class="absolute inset-x-3 bottom-0 h-0.5 bg-accent"></span> }
+                  {{ diaTab(d.fecha, i18n.locale()) }}@if (diaSel()?.fecha === d.fecha) { <span class="absolute inset-x-3 bottom-0 h-0.5 bg-accent"></span> }
                 </button>
               }
             </nav>
           } @else if (diaSel(); as d) {
-            <p class="relative h-11 self-start px-3 font-display text-[18px] leading-[44px] uppercase italic">{{ diaTab(d.fecha) }}<span class="absolute inset-x-3 bottom-0 h-0.5 bg-accent"></span></p>
+            <p class="relative h-11 self-start px-3 font-display text-[18px] leading-[44px] uppercase italic">{{ diaTab(d.fecha, i18n.locale()) }}<span class="absolute inset-x-3 bottom-0 h-0.5 bg-accent"></span></p>
           }
           <!-- Figma «Vista · Todos / Detallado / Favs»: three ways to read the same schedule, no dropdowns -->
-          <div class="grid grid-cols-3 rounded-md border border-line-subtle bg-bg-surface p-1 md:max-w-md" role="radiogroup" aria-label="Vista">
+          <div class="grid grid-cols-3 rounded-md border border-line-subtle bg-bg-surface p-1 md:max-w-md" role="radiogroup" [attr.aria-label]="t().vista">
             @for (v of vistas; track v.id) {
               <button type="button" role="radio" [attr.aria-checked]="vista() === v.id" (click)="cambiarVista(v.id)" class="h-11 rounded-sm px-2 text-label-s transition-colors duration-150" [class]="vista() === v.id ? 'bg-accent text-white' : 'text-text-secondary hover:text-text-primary'">
-                {{ v.texto }}@if (v.id === 'favs' && fav.slugs().length) { <span class="ml-1 tabular-nums opacity-80">({{ fav.slugs().length }})</span> }
+                {{ t().vistas[v.id] }}@if (v.id === 'favs' && fav.slugs().length) { <span class="ml-1 tabular-nums opacity-80">({{ fav.slugs().length }})</span> }
               </button>
             }
           </div>
           @if (vista() !== 'favs') {
             <label class="relative min-w-0 md:max-w-md">
-              <span class="sr-only">Buscar atleta</span>
+              <span class="sr-only">{{ t().buscar }}</span>
               <gr-icon name="search" [size]="18" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
-              <input type="search" enterkeyhint="search" autocomplete="off" (keydown.enter)="$any($event.target).blur()" placeholder="¿Cuándo compite…?" [ngModel]="q()" (ngModelChange)="q.set($event)"
+              <input type="search" enterkeyhint="search" autocomplete="off" (keydown.enter)="$any($event.target).blur()" [placeholder]="t().buscarPh" [ngModel]="q()" (ngModelChange)="q.set($event)"
                 class="h-11 w-full rounded-md border border-line-strong bg-bg-field pr-3 pl-10 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
             </label>
-            @if (q().length > 1) { <p class="text-body-s text-text-tertiary" aria-live="polite">{{ coincidencias() ? coincidencias() + (coincidencias() === 1 ? ' atleta coincide' : ' atletas coinciden') + ' con «' + q() + '»' : 'Nadie coincide con «' + q() + '» (solo salen los perfiles públicos).' }}</p> }
+            @if (q().length > 1) { <p class="text-body-s text-text-tertiary" aria-live="polite">{{ coincidencias() ? t().coinciden(coincidencias(), q()) : t().nadie(q()) }}</p> }
           }
 
           <div class="mt-3 flex flex-col gap-3">
             @if (diaSel()?.puertas && q().length < 2 && vista() !== 'favs') {
               <p class="flex min-h-12 items-center gap-3 rounded-md border border-line-subtle bg-bg-surface px-4 text-body-s text-text-secondary">
-                <gr-icon name="door" [size]="16" class="text-text-tertiary" />Puertas {{ diaSel()!.puertas }}
+                <gr-icon name="door" [size]="16" class="text-text-tertiary" />{{ t().puertas }}{{ diaSel()!.puertas }}
               </p>
             }
             @if (vista() === 'favs' && !filas().length) {
               <!-- Figma «Favs vacío» -->
               <section class="flex flex-col items-center gap-3 rounded-lg border border-line-subtle bg-bg-card px-6 py-10 text-center">
                 <span class="flex size-12 items-center justify-center rounded-full border border-line-strong text-accent-text"><gr-icon name="star" [size]="20" /></span>
-                <h2 class="text-ui-h5">{{ fav.slugs().length ? 'Tus favoritos no compiten este día' : 'Aún no tienes favoritos' }}</h2>
-                <p class="max-w-sm text-body-s text-text-secondary">Marca atletas con la estrella y aquí verás a qué hora compiten.</p>
-                <a routerLink="/atletas" class="mt-1 flex h-11 items-center justify-center gap-2 rounded-sm border border-line-strong px-5 text-label-s hover:border-accent/60">Buscar atletas<gr-icon name="arrow-right" [size]="16" /></a>
+                <h2 class="text-ui-h5">{{ fav.slugs().length ? t().favsNo : t().sinFavs }}</h2>
+                <p class="max-w-sm text-body-s text-text-secondary">{{ t().marca }}</p>
+                <a [routerLink]="'/atletas' | loc" class="mt-1 flex h-11 items-center justify-center gap-2 rounded-sm border border-line-strong px-5 text-label-s hover:border-accent/60">{{ t().buscarAtletas }}<gr-icon name="arrow-right" [size]="16" /></a>
               </section>
             }
             @for (r of filas(); track r.h?.id ?? r.t + r.item?.titulo) {
@@ -115,9 +166,9 @@ interface Pagina { page: number; items: PubAtleta[]; total: number; cargando: bo
                   <!-- Figma «Horario · fila» (same block as the home): no accordion, the time big on the right -->
                   <article class="flex items-center gap-4 rounded-lg border border-line-subtle bg-bg-card p-4 md:px-5">
                     <div class="flex min-w-0 flex-1 flex-col gap-1.5">
-                      <p class="flex items-center gap-2"><span class="text-label-xs text-white uppercase">{{ sexo(f.sexo) }}</span>@if (f.ep) { <span class="inline-flex h-5 items-center rounded-sm border border-accent/50 px-1.5 text-mono-xs text-accent-text">{{ f.ep }}</span> }</p>
+                      <p class="flex items-center gap-2"><span class="text-label-xs text-white uppercase">{{ t().sexo(f.sexo) }}</span>@if (f.ep) { <span class="inline-flex h-5 items-center rounded-sm border border-accent/50 px-1.5 text-mono-xs text-accent-text">{{ f.ep }}</span> }</p>
                       <p class="text-display-2xs">{{ pesos(f) }}</p>
-                      <p class="text-body-xs text-text-tertiary">{{ f.total }} {{ f.total === 1 ? 'atleta' : 'atletas' }} · Pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }}</p>
+                      <p class="text-body-xs text-text-tertiary">{{ t().atletas(f.total) }} · {{ t().pesaje }} {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }}</p>
                     </div>
                     <p class="flex shrink-0 items-center gap-2 self-center text-ui-h3 tabular-nums"><gr-icon name="clock" [size]="22" class="text-text-tertiary" />{{ hora(f.inicio) }}</p>
                   </article>
@@ -126,9 +177,9 @@ interface Pagina { page: number; items: PubAtleta[]; total: number; cargando: bo
                   <article class="overflow-hidden rounded-lg border bg-bg-card" [class]="abierto && vista() === 'detallado' ? 'border-accent/50' : 'border-line-subtle'">
                     <button type="button" class="flex w-full items-center gap-3 p-4 text-left md:px-5" (click)="toggle(f.id)" [disabled]="vista() === 'favs'" [attr.aria-expanded]="abierto" [attr.aria-controls]="'panel-' + f.id">
                       <span class="flex min-w-0 flex-1 flex-col gap-1">
-                        <span class="flex items-center gap-2.5"><span class="text-ui-h3 leading-none tabular-nums">{{ hora(f.inicio) }}</span><span class="text-label-xs text-white uppercase">{{ sexo(f.sexo) }}</span></span>
+                        <span class="flex items-center gap-2.5"><span class="text-ui-h3 leading-none tabular-nums">{{ hora(f.inicio) }}</span><span class="text-label-xs text-white uppercase">{{ t().sexo(f.sexo) }}</span></span>
                         <span class="text-label-m">{{ pesos(f) }}</span>
-                        <span class="text-body-xs text-text-tertiary">{{ f.total }} {{ f.total === 1 ? 'atleta' : 'atletas' }} · Pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }}</span>
+                        <span class="text-body-xs text-text-tertiary">{{ t().atletas(f.total) }} · {{ t().pesaje }} {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }}</span>
                       </span>
                       @if (f.ep) { <span class="inline-flex h-5 shrink-0 items-center rounded-sm border border-accent/50 px-1.5 text-mono-xs text-accent-text">{{ f.ep }}</span> }
                       @if (vista() === 'detallado') { <gr-icon name="chevron-down" [size]="18" class="shrink-0 text-text-tertiary transition-transform duration-200" [class.rotate-180]="abierto" /> }
@@ -137,32 +188,32 @@ interface Pagina { page: number; items: PubAtleta[]; total: number; cargando: bo
                       @let pg = pagina(f);
                       <div [id]="'panel-' + f.id" class="border-t border-line-subtle px-4 md:px-5">
                         <p class="flex items-center justify-between pt-3 pb-1 text-label-s">
-                          {{ vista() === 'favs' ? 'Tus favoritos' : 'Atletas' }}
-                          @if (pg.total > pg.items.length) { <span class="text-body-xs text-text-tertiary tabular-nums">{{ (pg.page - 1) * porPagina + 1 }}–{{ (pg.page - 1) * porPagina + pg.items.length }} de {{ pg.total }}</span> }
+                          {{ vista() === 'favs' ? t().tusFavs : t().atletasT }}
+                          @if (pg.total > pg.items.length) { <span class="text-body-xs text-text-tertiary tabular-nums">{{ (pg.page - 1) * porPagina + 1 }}–{{ (pg.page - 1) * porPagina + pg.items.length }}{{ t().de }}{{ pg.total }}</span> }
                         </p>
                         <ul class="transition-opacity duration-150" [class.opacity-50]="pg.cargando" [attr.aria-busy]="pg.cargando">
                           @for (a of pg.items; track a.slug) {
                             <li class="flex min-h-[60px] items-center gap-3 border-b border-line-subtle last:border-0">
                               <span class="flex size-10 shrink-0 items-center justify-center rounded-full border border-line-strong text-label-s" aria-hidden="true">{{ ini(a.nombre) }}</span>
-                              <a [href]="'/atletas/' + a.slug" class="flex min-w-0 flex-1 flex-col gap-0.5 py-2">
+                              <a [href]="'/atletas/' + a.slug | loc" class="flex min-w-0 flex-1 flex-col gap-0.5 py-2">
                                 <span class="truncate text-label-m" [class.text-accent-text]="fav.slugs().includes(a.slug)">{{ a.nombre }}</span>
-                                <span class="truncate text-body-xs text-text-tertiary">{{ a.club || 'Independiente' }} · {{ a.divisionNombre }} · {{ cat(a.categoria) }} kg</span>
+                                <span class="truncate text-body-xs text-text-tertiary">{{ a.club || t().independiente }} · {{ a.divisionNombre }} · {{ cat(a.categoria) }} kg</span>
                               </a>
                               <gr-fav class="-mr-3" [slug]="a.slug" [nombre]="a.nombre" [plano]="true" />
                             </li>
                           } @empty {
                             @if (pg.cargando) { @for (i of [1, 2, 3]; track i) { <li class="py-2"><gr-skeleton class="h-11 rounded-md" /></li> } }
-                            @else { <li class="py-3 text-body-s text-text-tertiary">Ningún atleta de este horario tiene el perfil público.</li> }
+                            @else { <li class="py-3 text-body-s text-text-tertiary">{{ t().ninguno }}</li> }
                           }
                         </ul>
                         @if (pg.total > porPagina && vista() === 'detallado' && q().length < 2) {
                           @let n = paginas(pg.total);
-                          <nav class="flex items-center justify-center gap-1.5 py-3" [attr.aria-label]="'Páginas de atletas de las ' + hora(f.inicio)">
-                            <button type="button" class="flex size-11 items-center justify-center rounded-md border border-line-subtle disabled:opacity-40" [disabled]="pg.page <= 1" (click)="irA(f, pg.page - 1)" aria-label="Página anterior"><gr-icon name="chevron-left" [size]="16" /></button>
+                          <nav class="flex items-center justify-center gap-1.5 py-3" [attr.aria-label]="t().paginasDe(hora(f.inicio))">
+                            <button type="button" class="flex size-11 items-center justify-center rounded-md border border-line-subtle disabled:opacity-40" [disabled]="pg.page <= 1" (click)="irA(f, pg.page - 1)" [attr.aria-label]="t().anterior"><gr-icon name="chevron-left" [size]="16" /></button>
                             @for (p of n; track p) {
                               <button type="button" class="flex size-11 items-center justify-center rounded-md border text-label-s tabular-nums" [class]="p === pg.page ? 'border-accent bg-accent-grain text-white' : 'border-line-subtle text-text-secondary'" [attr.aria-current]="p === pg.page ? 'page' : null" (click)="irA(f, p)">{{ p }}</button>
                             }
-                            <button type="button" class="flex size-11 items-center justify-center rounded-md border border-line-subtle disabled:opacity-40" [disabled]="pg.page >= n.length" (click)="irA(f, pg.page + 1)" aria-label="Página siguiente"><gr-icon name="chevron-right" [size]="16" /></button>
+                            <button type="button" class="flex size-11 items-center justify-center rounded-md border border-line-subtle disabled:opacity-40" [disabled]="pg.page >= n.length" (click)="irA(f, pg.page + 1)" [attr.aria-label]="t().siguiente"><gr-icon name="chevron-right" [size]="16" /></button>
                           </nav>
                         }
                       </div>
@@ -179,15 +230,15 @@ interface Pagina { page: number; items: PubAtleta[]; total: number; cargando: bo
 
           <!-- Figma «Calendario»: the .ics follows changes of the schedule -->
           <section class="mt-3 flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-5">
-            <h2 class="text-ui-h5">{{ vista() === 'favs' && fav.slugs().length ? 'Guarda los horarios de tus favoritos en tu calendario' : 'Guarda todos los horarios en tu calendario' }}</h2>
-            <p class="text-body-s text-text-secondary">Archivo .ics con {{ vista() === 'favs' && fav.slugs().length ? 'las horas de tus atletas' : 'todos los horarios del día' }} y un aviso 30 min antes. Si la organización cambia algún horario, vuelve a descargarlo.</p>
-            <a [href]="vista() === 'favs' && fav.slugs().length ? icsFavs() : icsTodos" class="flex h-11 items-center justify-center gap-2 rounded-sm bg-accent-grain text-label-s text-white"><gr-icon name="calendar-plus" [size]="16" />Añadir al calendario (.ics)</a>
+            <h2 class="text-ui-h5">{{ vista() === 'favs' && fav.slugs().length ? t().calFavs : t().calTodos }}</h2>
+            <p class="text-body-s text-text-secondary">{{ t().ics(vista() === 'favs' && !!fav.slugs().length) }}</p>
+            <a [href]="vista() === 'favs' && fav.slugs().length ? icsFavs() : icsTodos" class="flex h-11 items-center justify-center gap-2 rounded-sm bg-accent-grain text-label-s text-white"><gr-icon name="calendar-plus" [size]="16" />{{ t().anadir }}</a>
           </section>
         </div>
       }
 
       <div class="mt-18 flex flex-col gap-18 md:mt-24 md:gap-24">
-        <gr-related [items]="relacionados" />
+        <gr-related [items]="relacionados()" />
         <gr-community />
       </div>
     </gr-page>
@@ -197,22 +248,19 @@ export class HorariosPage {
   protected readonly api = inject(HorariosPublic);
   protected readonly fallo = inject(FalloApi);
   protected readonly fav = inject(Favoritos);
+  protected readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(T);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
-  protected readonly hora = hora;
+  protected readonly hora = (iso?: string) => hora(iso, this.i18n.locale());
   protected readonly cat = cat;
   protected readonly ini = ini;
   protected readonly diaTab = diaTab;
   protected readonly pesos = pesos;
-  protected readonly sexo = sexo;
   protected readonly porPagina = POR_PAGINA;
   protected readonly icsTodos = ICS_URL;
-  protected readonly vistas: { id: Vista; texto: string }[] = [
-    { id: 'todos', texto: 'Todos' },
-    { id: 'detallado', texto: 'Detallado' },
-    { id: 'favs', texto: 'Favs' },
-  ];
+  protected readonly vistas: { id: Vista }[] = [{ id: 'todos' }, { id: 'detallado' }, { id: 'favs' }];
   protected readonly data = signal<Horarios | null | undefined>(undefined);
   protected readonly dia = signal('');
   protected readonly vista = signal<Vista>('todos');
@@ -222,11 +270,14 @@ export class HorariosPage {
   private readonly paginas$ = signal(new Map<string, Pagina>());
   private readonly completos = signal(new Map<string, PubAtleta[]>());
   private readonly pidiendo = new Set<string>();
-  protected readonly relacionados: RelatedLink[] = [
-    { titulo: 'Atletas', texto: 'Busca y sigue a atletas', ruta: '/atletas' },
-    { titulo: 'En directo', texto: 'Streaming y marcador', ruta: '/en-directo' },
-    { titulo: 'Entradas', texto: 'Gratis con reserva', ruta: '/entradas' },
-  ];
+  protected readonly relacionados = computed<RelatedLink[]>(() => {
+    const r = this.t().rel;
+    return [
+      { titulo: r[0][0], texto: r[0][1], ruta: this.i18n.path('/atletas') },
+      { titulo: r[1][0], texto: r[1][1], ruta: this.i18n.path('/en-directo') },
+      { titulo: r[2][0], texto: r[2][1], ruta: this.i18n.path('/entradas') },
+    ];
+  });
 
   protected readonly diaSel = computed<PubDia | undefined>(() => {
     const d = this.data()?.dias ?? [];
@@ -261,14 +312,14 @@ export class HorariosPage {
       const [h, c] = await Promise.all([this.api.get(), competition.load()]);
       this.aplicar(h);
       const hs = (h?.dias ?? []).flatMap((d) => d.horarios);
-      await applySeo(cms, seo, '/horarios', 'Horarios · GRS Cup 2',
-        h?.publicado ? `Horarios de la GRS Cup 2: a qué hora compite cada categoría de peso, femenina y masculina, y el pesaje de cada atleta. Añádelos a tu calendario.`
-          : 'Los horarios de la GRS Cup 2 se publican unas 2 semanas antes. Consulta los atletas inscritos y síguelos.', undefined,
+      const t = this.t();
+      await applySeo(cms, seo, '/horarios', t.seoTitulo,
+        h?.publicado ? t.seoPub : t.seoNo, undefined,
         h?.publicado && c ? {
           jsonLd: {
             '@context': 'https://schema.org', '@type': 'SportsEvent', name: c.nombre, sport: 'Powerlifting', startDate: c.fechaInicio, endDate: c.fechaFin,
             location: { '@type': 'Place', name: c.sede.nombre, address: `${c.sede.direccion}, ${c.sede.cp} ${c.sede.ciudad}` },
-            subEvent: hs.map((f) => ({ '@type': 'SportsEvent', name: `${sexo(f.sexo)} ${pesos(f)}`, startDate: f.inicio, endDate: f.fin, sport: 'Powerlifting' })),
+            subEvent: hs.map((f) => ({ '@type': 'SportsEvent', name: `${t.sexo(f.sexo)} ${pesos(f)}`, startDate: f.inicio, endDate: f.fin, sport: 'Powerlifting' })),
           },
         } : {});
     });
