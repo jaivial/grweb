@@ -39,7 +39,7 @@ const FOTO = 'border border-white/8';
             <div class="relative flex size-full flex-col overflow-hidden rounded-[38px] bg-black">
               <div class="flex h-[50px] shrink-0 items-center justify-between px-7 text-[13px] font-semibold text-white"><span>9:41</span><span class="h-[9px] w-[19px] rounded-[3px] bg-white"></span></div>
               <span class="absolute top-3 left-1/2 h-6 w-[83px] -translate-x-1/2 rounded-pill bg-black ring-1 ring-white/10"></span>
-              <img src="/img/home/alta-story.webp" alt="" width="278" height="514" class="min-h-0 w-full flex-1 scale-[1.08] object-cover" loading="lazy" decoding="async" />
+              <img src="/img/home/alta-story.webp" alt="" width="278" height="514" class="min-h-0 w-full flex-1 object-cover" loading="lazy" decoding="async" />
               <span class="absolute bottom-2 left-1/2 h-1 w-[95px] -translate-x-1/2 rounded-pill bg-white/80"></span>
             </div>
           </div>
