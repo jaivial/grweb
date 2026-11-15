@@ -18,6 +18,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/compref"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/events"
+	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
 // Avisos al público (Jaime 15-nov): bienvenida al crear la cuenta, dos anuncios 40 minutos después (juegos y chat),
@@ -52,15 +53,22 @@ func (s *Svc) varsDe(c compref.Comp, fan uuid.UUID, alias string) map[string]str
 	}
 }
 
-// avisar records the notice and asks messaging for the email in the same transaction: a second call with the same
-// key sends nothing.
-func (s *Svc) avisar(ctx context.Context, cid, fan uuid.UUID, para, clave, plantilla string, vars map[string]string) error {
+// avisar records the notice and asks messaging for the email (and the WhatsApp, when the account gave a phone) in the
+// same transaction: a second call with the same key sends nothing.
+func (s *Svc) avisar(ctx context.Context, cid, fan uuid.UUID, para, tel, clave, plantilla string, vars map[string]string) error {
 	return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 		tag, err := tx.Exec(ctx, `INSERT INTO fan_avisos (fan_id, clave) VALUES ($1, $2) ON CONFLICT DO NOTHING`, fan, clave)
 		if err != nil || tag.RowsAffected() == 0 {
 			return err
 		}
-		return emailSolicitado(ctx, tx, cid, para, plantilla, vars)
+		if err := emailSolicitado(ctx, tx, cid, para, plantilla, vars); err != nil {
+			return err
+		}
+		if tel == "" {
+			return nil
+		}
+		return events.Enqueue(ctx, tx, events.New(ctx, "fans.whatsapp_solicitado", map[string]any{"para": tel, "plantilla": plantilla, "vars": vars},
+			events.Competition(cid.String()), events.Audience(events.Internal)))
 	})
 }
 
@@ -69,12 +77,13 @@ type destinatario struct {
 	cid   uuid.UUID
 	email string
 	alias string
+	tel   string
 }
 
 // publicoSin lists público accounts (not unsubscribed, not banned) created before «hasta» that have not had the
 // notice yet; cid = uuid.Nil means every competition.
 func (s *Svc) publicoSin(ctx context.Context, cid uuid.UUID, clave string, hasta time.Time, limite int) ([]destinatario, error) {
-	rows, err := s.a.DB.Query(ctx, `SELECT f.id, f.competition_id, f.email::text, f.alias::text FROM fans f
+	rows, err := s.a.DB.Query(ctx, `SELECT f.id, f.competition_id, f.email::text, f.alias::text, f.telefono FROM fans f
 		WHERE ($1::uuid IS NULL OR f.competition_id = $1) AND f.tipo = 'publico' AND f.avisos_baja_at IS NULL
 		AND (f.baneado_hasta IS NULL OR f.baneado_hasta < now())
 		AND f.created_at <= $4 AND NOT EXISTS (SELECT 1 FROM fan_avisos a WHERE a.fan_id = f.id AND a.clave = $2) ORDER BY f.created_at LIMIT $3`, uuidOrNil(cid), clave, limite, hasta)
@@ -85,7 +94,7 @@ func (s *Svc) publicoSin(ctx context.Context, cid uuid.UUID, clave string, hasta
 	var out []destinatario
 	for rows.Next() {
 		var d destinatario
-		if err := rows.Scan(&d.id, &d.cid, &d.email, &d.alias); err != nil {
+		if err := rows.Scan(&d.id, &d.cid, &d.email, &d.alias, &d.tel); err != nil {
 			return nil, err
 		}
 		out = append(out, d)
@@ -116,7 +125,7 @@ func (s *Svc) enviarATodos(ctx context.Context, cid uuid.UUID, clave, plantilla 
 			for k, x := range extra {
 				v[k] = x
 			}
-			if err := s.avisar(ctx, cid, d.id, d.email, clave, plantilla, v); err != nil {
+			if err := s.avisar(ctx, cid, d.id, d.email, d.tel, clave, plantilla, v); err != nil {
 				return err
 			}
 		}
@@ -134,7 +143,7 @@ func (s *Svc) bienvenida(ctx context.Context, row fanRow) {
 	if row.Tipo == "atleta" {
 		plantilla = "atleta-cuenta-creada"
 	}
-	if err := s.avisar(ctx, row.CompetitionID, row.ID, row.Email, "bienvenida", plantilla, s.varsDe(c, row.ID, row.Alias)); err != nil {
+	if err := s.avisar(ctx, row.CompetitionID, row.ID, row.Email, row.Telefono, "bienvenida", plantilla, s.varsDe(c, row.ID, row.Alias)); err != nil {
 		s.a.Log.Warn("bienvenida no enviada", "err", err)
 	}
 }
@@ -173,7 +182,7 @@ func (s *Svc) anuncios(ctx context.Context) error {
 				}
 				comps[d.cid] = c
 			}
-			if err := s.avisar(ctx, d.cid, d.id, d.email, a.clave, a.plantilla, s.varsDe(c, d.id, d.alias)); err != nil {
+			if err := s.avisar(ctx, d.cid, d.id, d.email, d.tel, a.clave, a.plantilla, s.varsDe(c, d.id, d.alias)); err != nil {
 				return err
 			}
 		}
@@ -281,4 +290,63 @@ func (s *Svc) handleAviso(ctx context.Context, e events.Event) error {
 		return s.enviarATodos(ctx, cid, "directo-"+hoy.Format("2006-01-02"), "publico-directo-iniciado", map[string]string{"dia": diaLargo(hoy)})
 	}
 	return nil
+}
+
+// normTelefono keeps the digits of an optional phone with its country prefix (Spain by default for 9 digits):
+// «+34 600 123 456» → «34600123456». Empty is valid (no phone).
+func normTelefono(t string) (string, bool) {
+	t = strings.TrimSpace(t)
+	if t == "" {
+		return "", true
+	}
+	var b strings.Builder
+	for _, r := range t {
+		if r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		} else if !strings.ContainsRune(" +-.()", r) {
+			return "", false
+		}
+	}
+	d := strings.TrimPrefix(b.String(), "00")
+	if len(d) == 9 && (d[0] == '6' || d[0] == '7') {
+		d = "34" + d
+	}
+	if len(d) < 10 || len(d) > 15 {
+		return "", false
+	}
+	return d, true
+}
+
+// registerTelefono: PUT /fans/yo/telefono sets or removes (empty) the optional phone of the session.
+func (s *Svc) registerTelefono() {
+	type in struct {
+		SesionIn
+		SlugIn
+		Body struct {
+			Telefono string `json:"telefono" maxLength:"30" doc:"Móvil con prefijo; vacío = quitarlo"`
+		}
+	}
+	type out struct{ Body Yo }
+	huma.Register(s.a.API, huma.Operation{OperationID: "fans-yo-telefono", Method: http.MethodPut, Path: "/api/competiciones/{slug}/fans/yo/telefono",
+		Summary: "Guardar o quitar mi teléfono (avisos por WhatsApp, opcional)", Tags: tagFans},
+		func(ctx context.Context, i *in) (*out, error) {
+			cid, err := s.comps.ID(ctx, i.Slug)
+			if err != nil {
+				return nil, err
+			}
+			f, err := s.sesion(ctx, cid, i.Session, i.Header)
+			if err != nil {
+				return nil, err
+			}
+			tel, ok := normTelefono(i.Body.Telefono)
+			if !ok {
+				return nil, problem.Unprocessable("TELEFONO_NO_VALIDO", "El teléfono no es válido. Escríbelo con prefijo, p. ej. +34 600 123 456, o déjalo vacío.")
+			}
+			row, err := scanFan(s.a.DB.QueryRow(ctx, `UPDATE fans SET telefono = $3, updated_at = now() WHERE id = $1 AND competition_id = $2
+				RETURNING id, competition_id, email::text, tipo, alias::text, COALESCE(atleta_id, '00000000-0000-0000-0000-000000000000'::uuid), baneado_hasta, baneado_motivo, version, created_at, telefono`, f.ID, cid, tel))
+			if err != nil {
+				return nil, err
+			}
+			return &out{Body: s.yoDe(row)}, nil
+		})
 }

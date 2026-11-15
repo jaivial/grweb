@@ -9,6 +9,7 @@ import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoCount, BoToggle, Confirm, Media, errText, BoTabsMovil } from '../../shared/ui';
 import { AtletasApi, CATEGORIAS, DIVISIONES, cat, diaFecha, kg, type Atleta, type Historial, type Marcas } from './api';
+import { AccionNecesariaDialogo } from './accion-necesaria';
 import { BoDatePicker } from '../../shared/kit';
 import { ESTADO } from './list';
 import { tabEnUrl } from '../../shared/tab-url';
@@ -20,7 +21,7 @@ const PUBLIC_WEB = webPublica();
 /** Athlete record (Figma page 55 · «Atletas · ficha (perfil público)»). */
 @Component({
   selector: 'bo-atleta-ficha',
-  imports: [BoDatePicker, BoTabsMovil, GrSelect, FormsModule, RouterLink, BoCount, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [AccionNecesariaDialogo, BoDatePicker, BoTabsMovil, GrSelect, FormsModule, RouterLink, BoCount, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let a = atleta();
@@ -41,8 +42,12 @@ const PUBLIC_WEB = webPublica();
           <div class="flex flex-wrap gap-2">
             @if (a.estado === 'confirmado') { <a grButton icon="external-link" [href]="web + '/atletas/' + a.perfil.slug" target="_blank" rel="noopener">Ver en la web</a> }
             @if (canEdit() && a.estado !== 'baja') { <button grButton icon="send" [loading]="enviando()" (click)="enlace()">Enviar enlace al área</button> }
+            @if (canEdit() && a.estado !== 'baja') { <button grButton icon="circle-alert" (click)="accion.set(true)">Pedir una acción</button> }
           </div>
         </header>
+        @if (accion()) {
+          <bo-accion-necesaria [ids]="[a.id]" [nombre]="a.nombreCompleto" (cerrar)="accion.set(false)" (enviado)="accion.set(false); cargar(true)" />
+        }
 
         <bo-tabs-movil label="Ficha">
         <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Ficha">
@@ -293,6 +298,7 @@ export class AtletaFichaPage {
   private readonly tabUrl = tabEnUrl(this.tab, () => this.tabs.map((t) => t.key));
   protected readonly guardando = signal(false);
   protected readonly enviando = signal(false);
+  protected readonly accion = signal(false);
   protected readonly subiendo = signal(false);
   protected readonly conflicto = signal(false);
   /** 422 of the licence from the server, shown on its field (U06-R6-1). */

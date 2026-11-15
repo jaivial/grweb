@@ -28,6 +28,8 @@ export interface AccesoIn {
   aceptaNormas: boolean;
   /** Web path to return to after the email link (validated by the API). */
   next?: string;
+  /** Optional mobile for the WhatsApp notices. */
+  telefono?: string;
 }
 
 /** Error code of the API (problem+json `code`), e.g. ATLETA_NO_ENCONTRADO, ALIAS_OCUPADO, ALIAS_NO_VALIDO. */
