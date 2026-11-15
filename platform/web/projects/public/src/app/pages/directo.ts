@@ -10,6 +10,7 @@ import { Cms, type Album, type Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, FalloApi, type CompeticionPublica } from '../core/competition';
 import { DirectoPublic, MOV, ORD, catCorta, catLarga, embed, gl, kg, type Categoria, type Directo, type Edicion, type EnPlataforma, type Fila, type Pantalla, type ResultadosPublicos } from '../core/directo';
 import { ICS_URL } from '../core/horarios';
+import { I18n, LocPipe } from '../core/i18n';
 import { Seo } from '../core/seo';
 import { GrCabecera } from '../home/bloques';
 import { Lightbox } from '../layout/lightbox';
@@ -37,14 +38,40 @@ const FOTOS_2025: [string, string][] = [
   ['foto-7', 'Un compañero ajusta el cinturón de un atleta antes de salir'],
   ['foto-8', 'Atleta concentrado antes de salir a la plataforma'],
 ];
-const diaHora = (iso: string) => new Intl.DateTimeFormat('es-ES', { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: TZ }).format(new Date(iso)).replace(',', ' ·');
-const fechas = (a?: string, b?: string) => {
-  if (!a) return 'Fecha por confirmar';
-  const d = (s: string, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('es-ES', { ...o, timeZone: 'UTC' }).format(new Date(s + 'T12:00:00Z'));
+const diaHora = (iso: string, l = 'es-ES') => new Intl.DateTimeFormat(l, { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: TZ }).format(new Date(iso)).replace(',', ' ·');
+const fechas = (a?: string, b?: string, l = 'es-ES') => {
+  if (!a) return l === 'es-ES' ? 'Fecha por confirmar' : T.en.fechaPc;
+  const d = (s: string, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(l, { ...o, timeZone: 'UTC' }).format(new Date(s + 'T12:00:00Z'));
   return b && b !== a ? `${d(a, { day: 'numeric' })}–${d(b, { day: 'numeric', month: 'long', year: 'numeric' })}` : d(a, { day: 'numeric', month: 'long', year: 'numeric' });
 };
 /** Figma 25/28 short form: «1–2 marzo 2025». */
-const fechasCortas = (a?: string, b?: string) => fechas(a, b).replace(/ de /g, ' ');
+const fechasCortas = (a?: string, b?: string, l = 'es-ES') => fechas(a, b, l).replace(/ de /g, ' ');
+const T = {
+  es: {
+    mov: MOV, ord: ORD, intento: 'intento', seccion: 'El evento', enDirecto: 'en directo', crumb: 'En directo', h1: 'GRS Cup 2 en directo',
+    falloT: 'No hemos podido cargar el directo', falloD: 'Vuelve a intentarlo en unos segundos.', pausaT: 'Pausa técnica', pausaD: 'Volvemos enseguida.', retraso: (n: number) => 'Vamos con ' + n + ' min de retraso.',
+    retransmision: 'Retransmisión', iframe: 'Retransmisión de la GRS Cup 2', empiezaEn: 'La retransmisión empieza en', empezara: 'La retransmisión empezará con el primer bloque', recordar: 'Recordármelo',
+    verRep: 'Ver la repetición', repCompleta: 'Repetición completa', repBreve: 'La repetición estará disponible en breve', breve: 'El vídeo empieza en breve · sigue los intentos aquí', vivo: 'En directo',
+    faltan: 'Faltan ', primerBloque: 'Primer bloque', verHorarios: 'Ver horarios', horarios2: 'Los horarios se publican unas 2 semanas antes', terminadaT: 'La competición ha terminado',
+    terminadaD: 'Ya puedes consultar los resultados oficiales.', verResultados: 'Ver resultados →', celebrada: 'Celebrada', ed2025: '1–2 marzo 2025 · Llíria (Valencia) · AEP-2 Regional', verEdicion: 'Ver la edición →',
+    mientrasT: 'Mientras tanto', cuenta: ['días', 'horas', 'min', 'seg'], fechaPc: 'Fecha por confirmar',
+    mientras: [{ titulo: 'Participantes', texto: 'Busca tu bloque', ruta: '/participantes' }, { titulo: 'Horarios', texto: 'Bloques por categoría', ruta: '/horarios' }, { titulo: 'Reglamento', texto: 'Cómo se juzga un intento', ruta: '/reglamento' }] as RelatedLink[],
+    seoT: 'En directo · GRS Cup 2', seoVivo: 'Sigue en directo la GRS Cup 2: chat, quién está en la tarima, los siguientes y la clasificación provisional.',
+    seoOtro: 'Retransmisión y resultados en directo de la GRS Cup 2: quién compite, los siguientes atletas y la clasificación al momento.',
+  },
+  en: {
+    mov: { sq: 'Squat', bp: 'Bench press', dl: 'Deadlift' } as typeof MOV, ord: ['', '1st', '2nd', '3rd'], intento: 'attempt', seccion: 'The event', enDirecto: 'live', crumb: 'Live', h1: 'GRS Cup 2 live',
+    falloT: 'We couldn’t load the live feed', falloD: 'Please try again in a few seconds.', pausaT: 'Technical break', pausaD: 'We’ll be right back.', retraso: (n: number) => 'We’re running ' + n + ' min late.',
+    retransmision: 'Broadcast', iframe: 'GRS Cup 2 broadcast', empiezaEn: 'The broadcast starts in', empezara: 'The broadcast will start with the first block', recordar: 'Remind me',
+    verRep: 'Watch the replay', repCompleta: 'Full replay', repBreve: 'The replay will be available shortly', breve: 'The video starts shortly · follow the attempts here', vivo: 'Live',
+    faltan: '', primerBloque: 'First block', verHorarios: 'See schedule', horarios2: 'The schedule is published about 2 weeks before', terminadaT: 'The competition is over',
+    terminadaD: 'You can now check the official results.', verResultados: 'See results →', celebrada: 'Held', ed2025: '1–2 March 2025 · Llíria (Valencia) · AEP-2 Regional', verEdicion: 'See the edition →',
+    mientrasT: 'In the meantime', cuenta: ['days', 'hours', 'min', 'sec'], fechaPc: 'Date to be confirmed',
+    mientras: [{ titulo: 'Participants', texto: 'Find your block', ruta: '/participantes' }, { titulo: 'Schedule', texto: 'Blocks by class', ruta: '/horarios' }, { titulo: 'Rules', texto: 'How an attempt is judged', ruta: '/reglamento' }] as RelatedLink[],
+    seoT: 'Live · GRS Cup 2', seoVivo: 'Follow GRS Cup 2 live: chat, who’s on the platform, who’s next and the provisional standings.',
+    seoOtro: 'Live broadcast and results from GRS Cup 2: who’s competing, the next athletes and the standings as they happen.',
+  },
+};
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
 
@@ -76,47 +103,47 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
  *  provisional ranking) and finished (replay, results, previous edition). */
 @Component({
   selector: 'gr-en-directo',
-  imports: [RouterLink, Page, GrAlert, GrIcon, GrSkeleton, Related, Community, PanelSocial, TarimaView],
+  imports: [RouterLink, LocPipe, Page, GrAlert, GrIcon, GrSkeleton, Related, Community, PanelSocial, TarimaView],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="GRS Cup 2" accent="en directo" section="El evento" crumb="En directo" [cabecera]="false">
+    <gr-page title="GRS Cup 2" [accent]="t().enDirecto" [section]="t().seccion" [crumb]="t().crumb" [cabecera]="false">
       <!-- Figma 171:65287: no visible title (the video goes first); the H1 stays for SEO and screen readers -->
-      <h1 class="sr-only">GRS Cup 2 en directo</h1>
+      <h1 class="sr-only">{{ t().h1 }}</h1>
       @let d = dir();
       @if (d === undefined) { <gr-skeleton class="-mx-5 mt-1.5 block h-[218px] md:mx-0 md:mt-0 md:h-[480px] md:rounded-lg" /> }
-      @else if (d === null) { @if (!fallo.limitado()) { <gr-alert tone="warning" title="No hemos podido cargar el directo">Vuelve a intentarlo en unos segundos.</gr-alert> } }
+      @else if (d === null) { @if (!fallo.limitado()) { <gr-alert tone="warning" [title]="t().falloT">{{ t().falloD }}</gr-alert> } }
       @else {
-        @if (d.pausa && d.fase === 'en_directo') { <gr-alert class="mb-5" tone="warning" title="Pausa técnica">Volvemos enseguida.@if (d.retrasoMin) { Vamos con {{ d.retrasoMin }} min de retraso. }</gr-alert> }
+        @if (d.pausa && d.fase === 'en_directo') { <gr-alert class="mb-5" tone="warning" [title]="t().pausaT">{{ t().pausaD }}@if (d.retrasoMin) { {{ t().retraso(d.retrasoMin) }} }</gr-alert> }
         <div class="grid md:gap-5 lg:grid-cols-[minmax(0,1fr)_400px] lg:grid-rows-[auto_1fr]">
           <!-- Video -->
           <!-- Figma 27 mobile: the video full width right under the navbar, then the title -->
-          <section class="relative -mx-5 mt-1.5 h-[218px] overflow-hidden md:h-auto md:aspect-video border-y border-line-subtle bg-black md:mx-0 md:mt-0 md:rounded-xl md:border lg:col-start-1 lg:row-start-1" aria-label="Retransmisión">
+          <section class="relative -mx-5 mt-1.5 h-[218px] overflow-hidden md:h-auto md:aspect-video border-y border-line-subtle bg-black md:mx-0 md:mt-0 md:rounded-xl md:border lg:col-start-1 lg:row-start-1" [attr.aria-label]="t().retransmision">
             @if (video(); as v) {
-              <iframe [src]="v" class="absolute inset-0 size-full border-0" title="Retransmisión de la GRS Cup 2" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+              <iframe [src]="v" class="absolute inset-0 size-full border-0" [title]="t().iframe" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
             } @else {
               <!-- Figma «Video»: the full venue as the poster (bright while live, dimmed before and after) -->
               <img [src]="poster" [attr.srcset]="poster + ' 640w, ' + posterL + ' 1300w'" sizes="(min-width: 1024px) 800px, 100vw" alt="" class="absolute inset-0 size-full object-cover" [class.opacity-50]="d.fase !== 'en_directo'" />
               <div class="absolute inset-0" [class]="d.fase === 'en_directo' ? 'bg-[linear-gradient(180deg,transparent_55%,rgb(20_16_18/0.75))]' : 'bg-[linear-gradient(180deg,rgb(20_16_18/0.2),rgb(20_16_18/0.85))]'"></div>
               @if (d.fase === 'antes') {
                 <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
-                  <p class="text-mono-xs text-text-secondary">{{ futuro() ? 'La retransmisión empieza en' : 'La retransmisión empezará con el primer bloque' }}</p>
+                  <p class="text-mono-xs text-text-secondary">{{ futuro() ? t().empiezaEn : t().empezara }}</p>
                   @if (futuro()) { <p class="font-display text-[34px] leading-none uppercase italic md:text-[56px]">{{ cuentaTexto() }}</p> }
-                  <a [href]="ics" class="mt-2 inline-flex h-10 items-center gap-2 rounded-pill border border-line-strong bg-bg-base/60 px-4 text-label-s hover:border-white">Recordármelo <gr-icon name="arrow-right" [size]="14" /></a>
+                  <a [href]="ics" class="mt-2 inline-flex h-10 items-center gap-2 rounded-pill border border-line-strong bg-bg-base/60 px-4 text-label-s hover:border-white">{{ t().recordar }} <gr-icon name="arrow-right" [size]="14" /></a>
                 </div>
               } @else if (d.fase === 'finalizado') {
-                @if (d.replayUrl) { <a [href]="d.replayUrl" target="_blank" rel="noopener" class="absolute inset-0 flex items-center justify-center" aria-label="Ver la repetición"><span class="flex size-16 items-center justify-center rounded-pill bg-accent shadow-glow"><gr-icon name="play" [size]="28" /></span></a> }
-                <p class="absolute bottom-4 left-4 text-label-s">{{ d.replayUrl ? 'Repetición completa' : 'La repetición estará disponible en breve' }}</p>
+                @if (d.replayUrl) { <a [href]="d.replayUrl" target="_blank" rel="noopener" class="absolute inset-0 flex items-center justify-center" [attr.aria-label]="t().verRep"><span class="flex size-16 items-center justify-center rounded-pill bg-accent shadow-glow"><gr-icon name="play" [size]="28" /></span></a> }
+                <p class="absolute bottom-4 left-4 text-label-s">{{ d.replayUrl ? t().repCompleta : t().repBreve }}</p>
               } @else {
-                <p class="absolute top-3 right-3 left-36 hidden text-right text-body-xs text-text-secondary [text-shadow:0_1px_8px_rgb(0_0_0/0.9)] md:block">El vídeo empieza en breve · sigue los intentos aquí</p>
+                <p class="absolute top-3 right-3 left-36 hidden text-right text-body-xs text-text-secondary [text-shadow:0_1px_8px_rgb(0_0_0/0.9)] md:block">{{ t().breve }}</p>
               }
             }
             <!-- over the poster only: on top of the player they would hide YouTube's controls (volume, since it starts muted) -->
             @if (d.fase === 'en_directo' && !video()) {
-              <span class="absolute top-3 left-3 inline-flex h-6 items-center gap-1.5 rounded-full bg-accent px-2.5 text-label-xs text-white uppercase"><gr-icon name="radio" [size]="12" />En directo</span>
-              @if (d.espectadores) { <span class="absolute top-3 right-3 inline-flex h-6 items-center gap-1.5 rounded-full bg-black/60 px-2.5 text-label-xs"><gr-icon name="eye" [size]="12" />{{ d.espectadores.toLocaleString('es-ES') }}</span> }
+              <span class="absolute top-3 left-3 inline-flex h-6 items-center gap-1.5 rounded-full bg-accent px-2.5 text-label-xs text-white uppercase"><gr-icon name="radio" [size]="12" />{{ t().vivo }}</span>
+              @if (d.espectadores) { <span class="absolute top-3 right-3 inline-flex h-6 items-center gap-1.5 rounded-full bg-black/60 px-2.5 text-label-xs"><gr-icon name="eye" [size]="12" />{{ d.espectadores.toLocaleString(i18n.locale()) }}</span> }
               @if (d.actual; as a) {
                 <div class="absolute bottom-3 left-3 flex items-end gap-3 rounded-md bg-black/70 px-3 py-2">
-                  <div><p class="text-label-s">{{ a.nombre }} · {{ a.categoria.replace('-', '−') }} kg</p><p class="text-body-xs text-text-tertiary">{{ MOVN[a.movimiento] }} · {{ ORD[a.numero] }} intento</p></div>
+                  <div><p class="text-label-s">{{ a.nombre }} · {{ a.categoria.replace('-', '−') }} kg</p><p class="text-body-xs text-text-tertiary">{{ t().mov[a.movimiento] }} · {{ t().ord[a.numero] }} {{ t().intento }}</p></div>
                   <p class="font-display text-[22px] leading-none text-accent-text italic">{{ kg(a.peso) }} KG</p>
                 </div>
               }
@@ -135,36 +162,36 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
               @switch (d.fase) {
                 @case ('antes') {
                   @if (futuro()) {
-                    <div class="grid grid-cols-4 gap-2" role="timer" [attr.aria-label]="'Faltan ' + cuentaTexto()">
+                    <div class="grid grid-cols-4 gap-2" role="timer" [attr.aria-label]="t().faltan + cuentaTexto()">
                       @for (p of cuenta(); track p.l) { <div class="flex h-[76px] flex-col items-center justify-center rounded-md border border-line-subtle bg-bg-card"><span class="text-display-s tabular-nums">{{ p.v }}</span><span class="text-mono-xs text-text-tertiary">{{ p.l }}</span></div> }
                     </div>
                   }
                   @if (d.proximo; as p) {
                     <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-                      <p class="text-mono-xs text-text-tertiary">Primer bloque</p>
+                      <p class="text-mono-xs text-text-tertiary">{{ t().primerBloque }}</p>
                       <p class="mt-2 text-label-m first-letter:uppercase">{{ diaHora(p.inicio) }} · {{ p.titulo }}</p>
-                      <a routerLink="/horarios" class="mt-3 inline-flex h-9 items-center gap-2 rounded-pill border border-line-strong px-3 text-label-s hover:border-white">Ver horarios <gr-icon name="arrow-right" [size]="14" /></a>
+                      <a [routerLink]="'/horarios' | loc" class="mt-3 inline-flex h-9 items-center gap-2 rounded-pill border border-line-strong px-3 text-label-s hover:border-white">{{ t().verHorarios }} <gr-icon name="arrow-right" [size]="14" /></a>
                     </section>
                   } @else {
-                    <section class="rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">Los horarios se publican unas 2 semanas antes</p><a routerLink="/horarios" class="mt-3 inline-flex text-label-s text-accent-text">Ver horarios →</a></section>
+                    <section class="rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">{{ t().horarios2 }}</p><a [routerLink]="'/horarios' | loc" class="mt-3 inline-flex text-label-s text-accent-text">{{ t().verHorarios }} →</a></section>
                   }
-                  <a [href]="ics" class="flex h-12 items-center justify-center gap-2 rounded-md bg-accent text-label-m text-white shadow-glow hover:bg-accent-hover"><gr-icon name="calendar-plus" [size]="18" />Recordármelo</a>
+                  <a [href]="ics" class="flex h-12 items-center justify-center gap-2 rounded-md bg-accent text-label-m text-white shadow-glow hover:bg-accent-hover"><gr-icon name="calendar-plus" [size]="18" />{{ t().recordar }}</a>
                 }
                 @case ('finalizado') {
-                  <gr-alert tone="success" title="La competición ha terminado">Ya puedes consultar los resultados oficiales.
-                    <a [routerLink]="'/resultados/' + anio()" class="mt-2 block text-label-s text-accent-text hover:underline">Ver resultados →</a></gr-alert>
-                  <a routerLink="/ediciones/2025" class="group overflow-hidden rounded-lg border border-line-subtle bg-bg-card transition-colors hover:border-line-strong">
+                  <gr-alert tone="success" [title]="t().terminadaT">{{ t().terminadaD }}
+                    <a [routerLink]="'/resultados/' + anio() | loc" class="mt-2 block text-label-s text-accent-text hover:underline">{{ t().verResultados }}</a></gr-alert>
+                  <a [routerLink]="'/ediciones/2025' | loc" class="group overflow-hidden rounded-lg border border-line-subtle bg-bg-card transition-colors hover:border-line-strong">
                     <div class="relative h-40"><img [src]="foto2025" alt="" class="size-full object-cover object-top" /><p class="absolute bottom-3 left-4 font-display text-[44px] leading-none italic">2025</p></div>
-                    <div class="p-4"><span class="rounded-2xs border border-line-strong px-1.5 py-0.5 text-mono-xs text-text-tertiary">Celebrada</span>
+                    <div class="p-4"><span class="rounded-2xs border border-line-strong px-1.5 py-0.5 text-mono-xs text-text-tertiary">{{ t().celebrada }}</span>
                       <p class="mt-2 font-display text-[22px] uppercase italic">GRS Cup 2025</p>
-                      <p class="mt-1 text-body-xs text-text-tertiary">1–2 marzo 2025 · Llíria (Valencia) · AEP-2 Regional</p>
-                      <span class="mt-3 inline-flex text-label-s group-hover:text-accent-text">Ver la edición →</span></div>
+                      <p class="mt-1 text-body-xs text-text-tertiary">{{ t().ed2025 }}</p>
+                      <span class="mt-3 inline-flex text-label-s group-hover:text-accent-text">{{ t().verEdicion }}</span></div>
                   </a>
                 }
               }
             </aside>
           @if (d.fase !== 'en_directo') {
-            <gr-related class="mt-14 block" titulo="Mientras tanto" [items]="mientras" />
+            <gr-related class="mt-14 block" [titulo]="t().mientrasT" [items]="t().mientras" />
           }
           </div>
         </div>
@@ -180,16 +207,11 @@ export class EnDirectoPage {
   protected readonly dir = signal<Directo | null | undefined>(undefined);
   private readonly ahora = signal(Date.now());
   protected readonly escritorio = escritorio();
-  protected readonly mientras: RelatedLink[] = [
-    { titulo: 'Participantes', texto: 'Busca tu bloque', ruta: '/participantes' },
-    { titulo: 'Horarios', texto: 'Bloques por categoría', ruta: '/horarios' },
-    { titulo: 'Reglamento', texto: 'Cómo se juzga un intento', ruta: '/reglamento' },
-  ];
-  protected readonly MOVN = MOV;
-  protected readonly ORD = ORD;
+  protected readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(T);
   protected readonly kg = kg;
   protected readonly catLarga = catLarga;
-  protected readonly diaHora = diaHora;
+  protected readonly diaHora = (iso: string) => diaHora(iso, this.i18n.locale());
   protected readonly ics = ICS_URL;
   protected readonly pabellon = PABELLON;
   protected readonly poster = cdn('/img/home/org-publico-s.webp');
@@ -215,7 +237,7 @@ export class EnDirectoPage {
   protected readonly cuenta = computed(() => {
     const s = Math.max(0, Math.floor(this.ms() / 1000));
     const pad = (n: number) => String(n).padStart(2, '0');
-    return [{ v: pad(Math.floor(s / 86400)), l: 'días' }, { v: pad(Math.floor((s % 86400) / 3600)), l: 'horas' }, { v: pad(Math.floor((s % 3600) / 60)), l: 'min' }, { v: pad(s % 60), l: 'seg' }];
+    return [{ v: pad(Math.floor(s / 86400)), l: this.t().cuenta[0] }, { v: pad(Math.floor((s % 86400) / 3600)), l: this.t().cuenta[1] }, { v: pad(Math.floor((s % 3600) / 60)), l: this.t().cuenta[2] }, { v: pad(s % 60), l: this.t().cuenta[3] }];
   });
   protected readonly cuentaTexto = computed(() => {
     const [d, h, m] = this.cuenta();
@@ -235,9 +257,9 @@ export class EnDirectoPage {
     void inject(PendingTasks).run(async () => {
       this.dir.set(await this.api.directo());
       const d = this.dir();
-      await applySeo(cms, seo, '/en-directo', 'En directo · GRS Cup 2',
-        d?.fase === 'en_directo' ? 'Sigue en directo la GRS Cup 2: chat, quién está en la tarima, los siguientes y la clasificación provisional.'
-          : 'Retransmisión y resultados en directo de la GRS Cup 2: quién compite, los siguientes atletas y la clasificación al momento.');
+      await applySeo(cms, seo, '/en-directo', this.t().seoT,
+        d?.fase === 'en_directo' ? this.t().seoVivo
+          : this.t().seoOtro);
     });
     if (this.browser) {
       const tick = setInterval(() => this.ahora.set(Date.now()), 1000);
