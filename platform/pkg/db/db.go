@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"runtime"
 	"strings"
 	"time"
 
@@ -35,13 +36,23 @@ func ConnectMax(ctx context.Context, url string, max int32) (*pgxpool.Pool, erro
 	if err != nil {
 		return nil, fmt.Errorf("DATABASE_URL: %w", err)
 	}
+	if max <= 0 && !strings.Contains(url, "pool_max_conns") {
+		// perf-20261115: pgx defaults to max(4, NumCPU) — the host CPUs (16 here, 12 on the node) per pod, whatever
+		// its CPU limit. GOMAXPROCS follows the cgroup limit (Go ≥1.25); machine rule: ≤10 per service.
+		cfg.MaxConns = int32(min(10, 2*runtime.GOMAXPROCS(0)))
+		if cfg.MaxConns < 4 {
+			cfg.MaxConns = 4
+		}
+	}
 	if max > 0 {
 		cfg.MaxConns, cfg.MinConns = max, 0
 	} else if !strings.Contains(url, "pool_min_conns") {
 		// ST3-R3-1: keep part of the pool open from boot, so a burst does not pay the TCP + auth of new connections.
 		// ST3-R5-3: half the pool per replica pinned ~150 idle backends in Postgres once HPA scaled out, and every
 		// new pod opened its share at once mid-burst; a small warm floor is enough, the rest closes when idle.
-		cfg.MinConns = min((cfg.MaxConns+1)/2, 4)
+		// perf-20261115: with ~22 pods a floor of 4 (+1 relay) held 110 idle backends against max_connections 100
+		// and the 300-VU load failed with 53300; 2 per pod is the warm floor.
+		cfg.MinConns = min((cfg.MaxConns+1)/2, 2)
 	}
 	cfg.MaxConnLifetime = 30 * time.Minute
 	cfg.MaxConnIdleTime = time.Minute

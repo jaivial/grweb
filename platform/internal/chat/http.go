@@ -181,6 +181,7 @@ func (s *Svc) ws(w http.ResponseWriter, r *http.Request) {
 	// the client may reconnect with ?desde=<id>: the missed entries are replayed before the live ones and the
 	// writer skips the ones already sent (same contract as the SSE with Last-Event-ID).
 	visto := ""
+	enLote := r.URL.Query().Get("lote") == "1"
 	if from := lastID(r); from != "" {
 		nombre := s.streamDe(cid.String(), dia)
 		msgs, err := s.a.Redis.XRangeN(ctx, nombre, from, "+", maxReplay+1).Result()
@@ -214,10 +215,28 @@ func (s *Svc) ws(w http.ResponseWriter, r *http.Request) {
 	}
 	go func() {
 		defer close(done)
+		// perf-20261115: with ?lote=1 the frames of a window (CHAT_LOTE_MS, 100 ms) go out as ONE text frame
+		// {"t":"lote","items":[…]}: a write syscall per message and client was 55-64 % of the pod's CPU (and the
+		// gateway relays each frame again). Old clients (no ?lote) keep one frame per message.
+		var ventana <-chan time.Time
+		var lote [][]byte
+		soltar := func() bool {
+			ventana = nil
+			if len(lote) == 0 {
+				return true
+			}
+			b := lote[0]
+			if len(lote) > 1 {
+				b = unirLote(lote)
+			}
+			lote = lote[:0]
+			return escribir(b)
+		}
 		for {
 			select {
 			case fr, ok := <-ch:
 				if !ok {
+					_ = soltar()
 					_ = conn.Close(websocket.StatusPolicyViolation, "lento")
 					return
 				}
@@ -232,7 +251,21 @@ func (s *Svc) ws(w http.ResponseWriter, r *http.Request) {
 					}
 					visto = fr.it.ID
 				}
+				if enLote {
+					lote = append(lote, b)
+					if ventana == nil {
+						ventana = time.After(loteVentana)
+					}
+					if len(lote) >= loteMax && !soltar() {
+						return
+					}
+					continue
+				}
 				if !escribir(b) {
+					return
+				}
+			case <-ventana:
+				if !soltar() {
 					return
 				}
 			case <-ctx.Done():
@@ -337,7 +370,9 @@ func (s *Svc) sse(w http.ResponseWriter, r *http.Request) {
 		sl.unsub(ch)
 	}()
 
-	escribir := func(id string, fr frame) bool {
+	var escribirSinFlush func(id string, fr frame) bool
+	escribir := func(id string, fr frame) bool { return escribirSinFlush(id, fr) && rc.Flush() == nil }
+	escribirSinFlush = func(id string, fr frame) bool {
 		b := fr.json
 		if b == nil {
 			var err error
@@ -346,10 +381,8 @@ func (s *Svc) sse(w http.ResponseWriter, r *http.Request) {
 				return true
 			}
 		}
-		if _, err := fmt.Fprintf(w, "id: %s\nevent: %s\ndata: %s\n\n", id, fr.it.T, b); err != nil {
-			return false
-		}
-		return rc.Flush() == nil
+		_, err := fmt.Fprintf(w, "id: %s\nevent: %s\ndata: %s\n\n", id, fr.it.T, b)
+		return err == nil
 	}
 
 	// replay before subscribing live is not needed (the channel was created first), but order matters: replay
@@ -418,7 +451,11 @@ func (s *Svc) sse(w http.ResponseWriter, r *http.Request) {
 				}
 				visto = fr.it.ID
 			}
-			if !escribir(fr.it.ID, fr) {
+			if !escribirSinFlush(fr.it.ID, fr) {
+				return
+			}
+			// perf-20261115: drain what is already queued and flush once (one write per burst, not per event)
+			if !drenarSSE(ch, &visto, escribirSinFlush) || rc.Flush() != nil {
 				return
 			}
 		case <-ping.C:
@@ -823,4 +860,28 @@ func (s *Svc) estado(ctx context.Context, in *estadoIn) (*estadoOut, error) {
 		}
 	}
 	return &estadoOut{CacheControl: "no-cache", Body: estadoBody{Conectados: total, SalaActiva: cfg.Activo, ChatEnabled: cfg.Habilitado(), ModoLentoSeg: cfg.ModoLentoSeg, Dia: dia, FanKey: fanKey}}, nil
+}
+
+// drenarSSE writes (without flushing) the frames already queued on ch, skipping replayed ids. false = write error.
+func drenarSSE(ch chan frame, visto *string, escribir func(string, frame) bool) bool {
+	for i := 0; i < loteMax; i++ {
+		select {
+		case fr, ok := <-ch:
+			if !ok {
+				return true // the next receive sees the closed channel
+			}
+			if fr.it.ID != "" {
+				if *visto != "" && !after(fr.it.ID, *visto) {
+					continue
+				}
+				*visto = fr.it.ID
+			}
+			if !escribir(fr.it.ID, fr) {
+				return false
+			}
+		default:
+			return true
+		}
+	}
+	return true
 }
