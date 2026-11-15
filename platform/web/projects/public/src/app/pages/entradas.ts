@@ -125,7 +125,77 @@ const T = {
       pasos: ['Reserva en 1 minuto', 'Recibe tu QR', 'Enséñalo en la puerta'],
       seoT: 'Entradas gratis · GRS Cup 2',
       seoD: 'Reserva gratis tu entrada para la GRS Cup 2 en Almussafes: elige sesión, recibe tu QR por email y entra sin colas.',
-      //PGES
+    },
+    cf: {
+      tit: '¡Tienes entrada!',
+      crumb: 'Confirmación',
+      caducado: 'Este enlace ha caducado',
+      pide: 'Pide uno nuevo en',
+      mi: 'Mi entrada',
+      anulada: 'Entrada anulada',
+      noVale: 'Tu QR ya no vale. Si fue un error,',
+      otra: 'reserva otra',
+      plazas: 'mientras queden plazas.',
+      spam: 'Si no la ves en 2 minutos, mira en spam.',
+      cal: 'Al calendario',
+      pdf: 'Descargar PDF',
+      rifa: 'Rifa del evento',
+      rifaX: 'Los boletos se compran en el recinto el día del evento. Aquí no se paga nada: consulta los objetos que se rifan.',
+      prox: '¿Te avisamos de la próxima?',
+      hecho: 'Hecho: revisa tu correo para confirmarlo.',
+      vale: 'Vale, no te escribiremos.',
+      noMarc: 'No marcaste novedades. Un clic y te mandamos la confirmación.',
+      si: 'Sí, avisadme',
+      no: 'No, gracias',
+      invita: 'Invita a tu gente',
+      comparte: 'Comparte tu enlace: sabremos cuántas entradas trae tu invitación.',
+      wa: 'Vente a la GRStrength Cup, la entrada es gratis: ',
+      copiarEnl: 'Copiar enlace',
+      copiado: 'Copiado',
+      copiar: 'Copiar',
+      gestionar: 'Gestionar mi entrada',
+      seoT: 'Tu entrada · GR Strength Cup',
+      seoD: 'Tu entrada gratuita con su QR.',
+      enviada: (e: string) => `Te la hemos enviado a ${e}.`,
+    },
+    mi: {
+      tit: 'Mi entrada',
+      caducado: 'Este enlace ha caducado',
+      accede: 'Accede a tu entrada',
+      seguridad: 'Por seguridad, los enlaces duran 30 minutos. ',
+      nuevo: 'Te enviamos uno nuevo al email de tu reserva.',
+      pedido: 'Si ese email tiene entradas, te llegará un enlace en unos minutos.',
+      enviarme: 'Enviarme un enlace nuevo',
+      siempre: 'Siempre respondemos igual exista o no la reserva (no se filtran emails).',
+      cambia: '¿Cambia algo?',
+      menos: 'Menos',
+      mas: 'Más',
+      guardar: 'Guardar cambios',
+      reenviar: 'Reenviar la entrada por email',
+      rifa: 'Rifa presencial: ver objetos',
+      cal: 'Añadir al calendario (.ics)',
+      anular: 'Anular entrada y liberar la plaza',
+      anularQ: '¿Anular tu entrada?',
+      volver: 'Volver',
+      siAnular: 'Sí, anular',
+      guardado: 'Guardado. Tu QR sirve para todas las personas de la entrada.',
+      reenviada: 'Te la hemos reenviado. Llega en unos minutos.',
+      seoD: 'Gestiona tu entrada: QR, personas, calendario o anulación.',
+      liberaras: (n: number, s: string) => `Liberarás ${n} plaza${n > 1 ? 's' : ''} de la sesión del ${s} para la lista de espera.`,
+    },
+    of: {
+      tit: 'Hay plaza para ti',
+      crumb: 'Lista de espera',
+      noVale: 'Esta oferta ya no vale',
+      caducada: 'Ha caducado o ya la has usado. Si quedan plazas, puedes reservar en Entradas.',
+      ver: 'Ver entradas',
+      puertas: 'puertas',
+      confirmando: 'Confirmando…',
+      confirmar: 'Confirmar mi entrada',
+      seoT: 'Plaza de la lista de espera · GR Strength Cup',
+      seoD: 'Confirma la plaza que te hemos ofrecido.',
+      plazas: (n: number, s: string) => `${n} plaza${n > 1 ? 's' : ''} para ${s}`,
+      antes: (d: string, h: string) => `Confírmala antes del ${d} a las ${h}.`,
     },
   },
   en: {
@@ -234,7 +304,77 @@ const T = {
       pasos: ['Book in 1 minute', 'Get your QR', 'Show it at the gate'],
       seoT: 'Free tickets · GRS Cup 2',
       seoD: 'Book your free ticket for GRS Cup 2 in Almussafes: choose a session, get your QR by email and walk in without queuing.',
-      //PGEN
+    },
+    cf: {
+      tit: 'You have a ticket!',
+      crumb: 'Confirmation',
+      caducado: 'This link has expired',
+      pide: 'Request a new one in',
+      mi: 'My ticket',
+      anulada: 'Ticket cancelled',
+      noVale: 'Your QR is no longer valid. If it was a mistake,',
+      otra: 'book another',
+      plazas: 'while places last.',
+      spam: 'If you do not see it within 2 minutes, check your spam.',
+      cal: 'Add to calendar',
+      pdf: 'Download PDF',
+      rifa: 'Event raffle',
+      rifaX: 'Raffle tickets are bought at the venue on the day. Nothing is paid here: check out the items being raffled.',
+      prox: 'Shall we let you know about the next one?',
+      hecho: 'Done: check your email to confirm it.',
+      vale: 'OK, we will not write to you.',
+      noMarc: 'You did not opt in to news. One click and we will send you the confirmation.',
+      si: 'Yes, let me know',
+      no: 'No, thanks',
+      invita: 'Invite your people',
+      comparte: 'Share your link: we will know how many tickets your invitation brings in.',
+      wa: 'Come to the GRStrength Cup, entry is free: ',
+      copiarEnl: 'Copy link',
+      copiado: 'Copied',
+      copiar: 'Copy',
+      gestionar: 'Manage my ticket',
+      seoT: 'Your ticket · GR Strength Cup',
+      seoD: 'Your free ticket with its QR.',
+      enviada: (e: string) => `We have sent it to ${e}.`,
+    },
+    mi: {
+      tit: 'My ticket',
+      caducado: 'This link has expired',
+      accede: 'Access your ticket',
+      seguridad: 'For security, links last 30 minutes. ',
+      nuevo: 'We will send a new one to your booking email.',
+      pedido: 'If that email has tickets, you will get a link in a few minutes.',
+      enviarme: 'Send me a new link',
+      siempre: 'We always reply the same whether or not the booking exists (no emails are leaked).',
+      cambia: 'Anything changed?',
+      menos: 'Fewer',
+      mas: 'More',
+      guardar: 'Save changes',
+      reenviar: 'Resend the ticket by email',
+      rifa: 'In-person raffle: see items',
+      cal: 'Add to calendar (.ics)',
+      anular: 'Cancel ticket and release the place',
+      anularQ: 'Cancel your ticket?',
+      volver: 'Back',
+      siAnular: 'Yes, cancel',
+      guardado: 'Saved. Your QR is valid for everyone on the ticket.',
+      reenviada: 'We have resent it. It will arrive in a few minutes.',
+      seoD: 'Manage your ticket: QR, people, calendar or cancellation.',
+      liberaras: (n: number, s: string) => `You will release ${n} place${n > 1 ? 's' : ''} in the ${s} session for the waiting list.`,
+    },
+    of: {
+      tit: 'There is a place for you',
+      crumb: 'Waiting list',
+      noVale: 'This offer is no longer valid',
+      caducada: 'It has expired or you have already used it. If places remain, you can book in Tickets.',
+      ver: 'See tickets',
+      puertas: 'doors',
+      confirmando: 'Confirming…',
+      confirmar: 'Confirm my ticket',
+      seoT: 'Waiting-list place · GR Strength Cup',
+      seoD: 'Confirm the place we have offered you.',
+      plazas: (n: number, s: string) => `${n} place${n > 1 ? 's' : ''} for ${s}`,
+      antes: (d: string, h: string) => `Confirm it before ${d} at ${h}.`,
     },
   },
 };
@@ -369,8 +509,8 @@ const lineaTicket = (inicio: string, nombre: string, loc = 'es-ES') =>
   new Intl.DateTimeFormat(loc, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(inicio)).replace(/[,.]/g, '') +
   ' · ' + nombre.replace(/^(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\s+/i, '').replace(/^\p{L}/u, (c) => c.toUpperCase());
 
-const titular = (m: { nombre: string; apellidos: string; personas: number }) =>
-  `${m.nombre} ${m.apellidos}`.trim() + (m.personas > 1 ? ` + ${m.personas - 1} acompañante${m.personas > 2 ? 's' : ''}` : '');
+const titular = (m: { nombre: string; apellidos: string; personas: number }, lang = 'es') =>
+  `${m.nombre} ${m.apellidos}`.trim() + (m.personas > 1 ? (lang === 'en' ? ` + ${m.personas - 1} guest${m.personas > 2 ? 's' : ''}` : ` + ${m.personas - 1} acompañante${m.personas > 2 ? 's' : ''}`) : '');
 
 // ============================================================ /entradas ===
 
@@ -826,17 +966,17 @@ export class EntradasPage {
 /** /entradas/confirmacion (Figma 38): «¡Tienes entrada!», QR, calendar, raffle notice (in person only), news and «Invita a tu gente». */
 @Component({
   selector: 'gr-entrada-confirmacion',
-  imports: [RouterLink, Page, GrButton, GrIcon, GrSkeleton, GrRaffleNotice, TicketCard],
+  imports: [RouterLink, LocPipe, Page, GrButton, GrIcon, GrSkeleton, GrRaffleNotice, TicketCard],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="¡Tienes entrada!" crumb="Confirmación" [hideTitle]="true" [cabecera]="false">
+    <gr-page [title]="t().cf.tit" [crumb]="t().cf.crumb" [hideTitle]="true" [cabecera]="false">
       @let m = mia();
       @if (m === undefined) { <gr-skeleton class="mx-auto block h-[560px] max-w-[350px] rounded-xl" /> }
       @else if (m === null) {
         <section class="mx-auto flex max-w-[350px] flex-col items-center gap-3 pt-3 text-center">
           <span class="flex size-16 items-center justify-center rounded-full border border-line-strong bg-white/5 text-text-secondary"><gr-icon name="lock" [size]="26" /></span>
-          <h1 class="text-display-xs">Este enlace ha caducado</h1>
-          <p class="text-body-m text-text-secondary">Pide uno nuevo en <a routerLink="/mi-entrada" class="text-accent-text underline">Mi entrada</a>.</p>
+          <h1 class="text-display-xs">{{ t().cf.caducado }}</h1>
+          <p class="text-body-m text-text-secondary">{{ t().cf.pide }} <a [routerLink]="'/mi-entrada' | loc" class="text-accent-text underline">{{ t().cf.mi }}</a>.</p>
         </section>
       } @else {
         <div class="mx-auto flex max-w-[350px] flex-col gap-6 md:max-w-[480px] xl:grid xl:max-w-none xl:grid-cols-[542px_563px] xl:items-start xl:justify-center xl:gap-4">
@@ -844,47 +984,47 @@ export class EntradasPage {
             @if (m.estado === 'anulada') {
               <div class="flex flex-col items-center gap-3 text-center">
                 <span class="flex size-16 items-center justify-center rounded-full border border-line-strong bg-white/5 text-text-secondary"><gr-icon name="x" [size]="24" /></span>
-                <h1 class="text-display-s">Entrada anulada</h1>
-                <p class="text-body-m text-text-secondary">Tu QR ya no vale. Si fue un error, <a routerLink="/entradas" class="text-accent-text underline">reserva otra</a> mientras queden plazas.</p>
+                <h1 class="text-display-s">{{ t().cf.anulada }}</h1>
+                <p class="text-body-m text-text-secondary">{{ t().cf.noVale }} <a [routerLink]="'/entradas' | loc" class="text-accent-text underline">{{ t().cf.otra }}</a> {{ t().cf.plazas }}</p>
               </div>
             } @else {
             <div class="flex flex-col items-center gap-3 text-center">
               <span class="flex size-16 items-center justify-center rounded-full border border-success/50 bg-success/12 text-success"><gr-icon name="check" [size]="24" /></span>
-              <h1 class="text-display-s">¡Tienes entrada!</h1>
-              <p class="text-body-m text-text-secondary">Te la hemos enviado a {{ m.email }}. Si no la ves en 2 minutos, mira en spam.</p>
+              <h1 class="text-display-s">{{ t().cf.tit }}</h1>
+              <p class="text-body-m text-text-secondary">{{ t().cf.enviada(m.email) }} {{ t().cf.spam }}</p>
             </div>
             }
-            <gr-ticket class="w-full xl:w-[342px]" [linea1]="linea(m.sesion.inicio, m.sesion.nombre)" [puertaBtn]="true" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.qr" [estado]="m.estado" />
+            <gr-ticket class="w-full xl:w-[342px]" [linea1]="linea(m.sesion.inicio, m.sesion.nombre, i18n.locale())" [puertaBtn]="true" [linea2]="t().pg.puertas + ' ' + hora(m.sesion.puertas) + ' · ' + t().pg.hasta + ' ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m, i18n.lang())" [codigo]="m.codigo" [qr]="m.qr" [estado]="m.estado" />
             @if (m.estado !== 'anulada') {
             <div class="grid w-full grid-cols-2 gap-2 xl:w-[342px]">
-              <a [href]="ics()" class="flex h-12 items-center justify-center gap-2 rounded-md border border-line-strong text-label-s transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-accent"><gr-icon name="calendar" [size]="16" />Al calendario</a>
-              <button type="button" class="flex h-12 items-center justify-center gap-2 rounded-md border border-line-strong text-label-s transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-accent" (click)="imprimir()"><gr-icon name="download" [size]="16" />Descargar PDF</button>
+              <a [href]="ics()" class="flex h-12 items-center justify-center gap-2 rounded-md border border-line-strong text-label-s transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-accent"><gr-icon name="calendar" [size]="16" />{{ t().cf.cal }}</a>
+              <button type="button" class="flex h-12 items-center justify-center gap-2 rounded-md border border-line-strong text-label-s transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-accent" (click)="imprimir()"><gr-icon name="download" [size]="16" />{{ t().cf.pdf }}</button>
             </div>
             }
           </div>
           <div class="flex flex-col gap-6 xl:pt-10">
-            <section class="flex flex-col gap-3"><h2 class="text-ui-h5">Rifa del evento</h2>
-              <gr-raffle-notice>Los boletos se compran en el recinto el día del evento. Aquí no se paga nada: consulta los objetos que se rifan.</gr-raffle-notice></section>
+            <section class="flex flex-col gap-3"><h2 class="text-ui-h5">{{ t().cf.rifa }}</h2>
+              <gr-raffle-notice>{{ t().cf.rifaX }}</gr-raffle-notice></section>
             <section class="flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-6">
               <div class="flex gap-3"><span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent/15 text-accent-text"><gr-icon name="mail" [size]="18" /></span>
-                <div><h2 class="text-label-m">¿Te avisamos de la próxima?</h2><p class="mt-1 text-body-xs text-text-tertiary">{{ nov() === 'si' ? 'Hecho: revisa tu correo para confirmarlo.' : nov() === 'no' ? 'Vale, no te escribiremos.' : 'No marcaste novedades. Un clic y te mandamos la confirmación.' }}</p></div></div>
+                <div><h2 class="text-label-m">{{ t().cf.prox }}</h2><p class="mt-1 text-body-xs text-text-tertiary">{{ nov() === 'si' ? t().cf.hecho : nov() === 'no' ? t().cf.vale : t().cf.noMarc }}</p></div></div>
               @if (!nov()) {
-                <div class="flex gap-2"><button grButton variant="primary" size="m" type="button" [loading]="novEnviando()" [disabled]="novEnviando()" (click)="avisame(true)">Sí, avisadme</button>
-                  <button grButton variant="outline" size="m" type="button" [disabled]="novEnviando()" (click)="avisame(false)">No, gracias</button></div>
+                <div class="flex gap-2"><button grButton variant="primary" size="m" type="button" [loading]="novEnviando()" [disabled]="novEnviando()" (click)="avisame(true)">{{ t().cf.si }}</button>
+                  <button grButton variant="outline" size="m" type="button" [disabled]="novEnviando()" (click)="avisame(false)">{{ t().cf.no }}</button></div>
               }
             </section>
             @if (m.estado !== 'anulada') {
             <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
-              <h2 class="text-label-m">Invita a tu gente</h2><p class="text-body-xs text-text-tertiary">Comparte tu enlace: sabremos cuántas entradas trae tu invitación.</p>
-              <div class="flex items-center gap-2 rounded-md border border-line-strong bg-bg-field px-3"><gr-icon name="link" [size]="16" class="text-text-tertiary" /><span class="min-w-0 flex-1 py-3 text-body-s [overflow-wrap:anywhere]">{{ corto(m.compartir) }}</span><button type="button" class="-mr-3 inline-flex min-h-11 shrink-0 items-center px-3 text-label-s text-accent-text hover:underline" (click)="copiar(m.compartir)"><span aria-live="polite">{{ copiado() ? 'Copiado' : 'Copiar' }}</span></button></div>
+              <h2 class="text-label-m">{{ t().cf.invita }}</h2><p class="text-body-xs text-text-tertiary">{{ t().cf.comparte }}</p>
+              <div class="flex items-center gap-2 rounded-md border border-line-strong bg-bg-field px-3"><gr-icon name="link" [size]="16" class="text-text-tertiary" /><span class="min-w-0 flex-1 py-3 text-body-s [overflow-wrap:anywhere]">{{ corto(m.compartir) }}</span><button type="button" class="-mr-3 inline-flex min-h-11 shrink-0 items-center px-3 text-label-s text-accent-text hover:underline" (click)="copiar(m.compartir)"><span aria-live="polite">{{ copiado() ? t().cf.copiado : t().cf.copiar }}</span></button></div>
               <div class="flex flex-wrap gap-2 text-label-s">
                 <a [href]="'https://twitter.com/intent/tweet?url=' + enc(m.compartir)" target="_blank" rel="noopener" [class]="chip"><gr-icon name="share" [size]="16" />X</a>
                 <a [href]="'https://www.facebook.com/sharer/sharer.php?u=' + enc(m.compartir)" target="_blank" rel="noopener" [class]="chip"><gr-icon name="share" [size]="16" />Facebook</a>
-                <a [href]="'https://wa.me/?text=' + enc('Vente a la GRStrength Cup, la entrada es gratis: ' + m.compartir)" target="_blank" rel="noopener" [class]="chip"><gr-icon name="share" [size]="16" />WhatsApp</a>
-                <button type="button" [class]="chip" (click)="copiar(m.compartir)"><gr-icon name="external-link" [size]="16" />Copiar enlace</button>
+                <a [href]="'https://wa.me/?text=' + enc(t().cf.wa + m.compartir)" target="_blank" rel="noopener" [class]="chip"><gr-icon name="share" [size]="16" />WhatsApp</a>
+                <button type="button" [class]="chip" (click)="copiar(m.compartir)"><gr-icon name="external-link" [size]="16" />{{ t().cf.copiarEnl }}</button>
               </div>
             </section>
-            <a grButton variant="outline" size="l" [href]="'/mi-entrada?t=' + token" iconRight="arrow-right" class="w-full xl:hidden">Gestionar mi entrada</a>
+            <a grButton variant="outline" size="l" [href]="i18n.path('/mi-entrada') + '?t=' + token" iconRight="arrow-right" class="w-full xl:hidden">{{ t().cf.gestionar }}</a>
             }
           </div>
         </div>
@@ -893,6 +1033,8 @@ export class EntradasPage {
   `,
 })
 export class ConfirmacionPage {
+  protected readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(T);
   private readonly api = inject(EntradasPublic);
   protected readonly hora = hora;
   protected readonly dia = dia;
@@ -906,7 +1048,7 @@ export class ConfirmacionPage {
   protected readonly token: string;
   protected readonly ics = computed(() => this.api.ics(this.token));
   constructor() {
-    inject(Seo).set({ title: 'Tu entrada · GR Strength Cup', description: 'Tu entrada gratuita con su QR.', path: '/entradas/confirmacion', robots: 'noindex' });
+    inject(Seo).set({ title: this.t().cf.seoT, description: this.t().cf.seoD, path: '/entradas/confirmacion', robots: 'noindex' });
     this.token = inject(ActivatedRoute).snapshot.queryParamMap.get('t') ?? '';
     if (!isPlatformBrowser(inject(PLATFORM_ID))) return;
     void this.api.mia(this.token).then((m) => { this.mia.set(m); this.nov.set(m.novedades); }, () => this.mia.set(null));
@@ -942,22 +1084,22 @@ export class ConfirmacionPage {
 /** /entradas/oferta (waiting-list offer email): confirm the offered places before they pass to the next person. */
 @Component({
   selector: 'gr-entrada-oferta',
-  imports: [RouterLink, Page, GrIcon, GrSkeleton],
+  imports: [RouterLink, LocPipe, Page, GrIcon, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="Hay plaza para ti" crumb="Lista de espera">
+    <gr-page [title]="tr().of.tit" [crumb]="tr().of.crumb">
       <div class="mx-auto max-w-md">
         @let o = oferta();
         @if (o === undefined) { <gr-skeleton class="h-64 rounded-xl" /> }
         @else if (o === null || o.estado !== 'oferta') {
-          <section class="rounded-xl border border-line-subtle bg-bg-card p-6 text-center"><h2 class="text-display-2xs">Esta oferta ya no vale</h2><p class="mt-2 text-body-s text-text-secondary">{{ error() || 'Ha caducado o ya la has usado. Si quedan plazas, puedes reservar en Entradas.' }}</p><a routerLink="/entradas" class="mt-4 inline-flex h-11 items-center rounded-sm bg-accent-grain px-5 text-label-s text-white">Ver entradas</a></section>
+          <section class="rounded-xl border border-line-subtle bg-bg-card p-6 text-center"><h2 class="text-display-2xs">{{ tr().of.noVale }}</h2><p class="mt-2 text-body-s text-text-secondary">{{ error() || tr().of.caducada }}</p><a [routerLink]="'/entradas' | loc" class="mt-4 inline-flex h-11 items-center rounded-sm bg-accent-grain px-5 text-label-s text-white">{{ tr().of.ver }}</a></section>
         } @else {
           <section class="rounded-xl border border-accent/50 bg-bg-card p-6 text-center">
             <gr-icon name="ticket" [size]="28" class="text-accent-text" />
-            <h2 class="mt-2 text-ui-h3">{{ o.personas }} plaza{{ o.personas > 1 ? 's' : '' }} para {{ o.sesion.nombre }}</h2>
-            <p class="mt-1 text-body-s text-text-secondary">{{ dia(o.sesion.inicio) }} · puertas {{ hora(o.sesion.puertas) }}</p>
-            <p class="mt-3 text-body-s text-warning">Confírmala antes del {{ dia(o.expira) }} a las {{ hora(o.expira) }}.</p>
-            <button type="button" class="mt-4 h-12 w-full rounded-sm bg-accent-grain text-label-m text-white disabled:opacity-60" [disabled]="enviando()" (click)="aceptar()">{{ enviando() ? 'Confirmando…' : 'Confirmar mi entrada' }}</button>
+            <h2 class="mt-2 text-ui-h3">{{ tr().of.plazas(o.personas, o.sesion.nombre) }}</h2>
+            <p class="mt-1 text-body-s text-text-secondary">{{ dia(o.sesion.inicio, i18n.locale()) }} · {{ tr().of.puertas }} {{ hora(o.sesion.puertas) }}</p>
+            <p class="mt-3 text-body-s text-warning">{{ tr().of.antes(dia(o.expira, i18n.locale()), hora(o.expira)) }}</p>
+            <button type="button" class="mt-4 h-12 w-full rounded-sm bg-accent-grain text-label-m text-white disabled:opacity-60" [disabled]="enviando()" (click)="aceptar()">{{ enviando() ? tr().of.confirmando : tr().of.confirmar }}</button>
             @if (error()) { <p class="mt-2 text-body-s text-accent-text" role="alert">{{ error() }}</p> }
           </section>
         }
@@ -966,6 +1108,8 @@ export class ConfirmacionPage {
   `,
 })
 export class OfertaPage {
+  protected readonly i18n = inject(I18n);
+  protected readonly tr = this.i18n.dict(T);
   private readonly api = inject(EntradasPublic);
   private readonly router = inject(Router);
   protected readonly hora = hora;
@@ -975,7 +1119,7 @@ export class OfertaPage {
   protected readonly error = signal('');
   private readonly t: string;
   constructor() {
-    inject(Seo).set({ title: 'Plaza de la lista de espera · GR Strength Cup', description: 'Confirma la plaza que te hemos ofrecido.', path: '/entradas/oferta', robots: 'noindex' });
+    inject(Seo).set({ title: this.tr().of.seoT, description: this.tr().of.seoD, path: '/entradas/oferta', robots: 'noindex' });
     this.t = inject(ActivatedRoute).snapshot.queryParamMap.get('t') ?? '';
     if (!isPlatformBrowser(inject(PLATFORM_ID))) return;
     void this.api.oferta(this.t).then((o) => this.oferta.set(o), () => this.oferta.set(null));
@@ -984,7 +1128,7 @@ export class OfertaPage {
     this.enviando.set(true);
     try {
       const r = await this.api.aceptar(this.t);
-      void this.router.navigate(['/entradas/confirmacion'], { queryParams: { t: r.token } });
+      void this.router.navigate([this.i18n.path('/entradas/confirmacion')], { queryParams: { t: r.token } });
     } catch (e) {
       this.error.set(errorDe(e).detail);
       this.oferta.set(null);
@@ -999,46 +1143,46 @@ export class OfertaPage {
 /** /mi-entrada (Figma 38): the ticket by magic link — change people, resend, calendar, cancel; expired link → new one. */
 @Component({
   selector: 'gr-mi-entrada',
-  imports: [RouterLink, Page, FormsModule, GrButton, GrIcon, GrSkeleton, TicketCard],
+  imports: [RouterLink, LocPipe, Page, FormsModule, GrButton, GrIcon, GrSkeleton, TicketCard],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `.gr-sheet { animation: gr-sheet-in 280ms cubic-bezier(.32,.72,0,1); }
     @keyframes gr-sheet-in { from { transform: translateY(100%); } }
     @media (min-width: 40rem) { @keyframes gr-sheet-in { from { opacity: 0; transform: scale(.96); } } }`,
   template: `
-    <gr-page title="Mi entrada" crumb="Mi entrada" [migasMovil]="false" [subtitle]="mia()?.email ?? ''" [cabecera]="mia() !== null">
+    <gr-page [title]="t().mi.tit" [crumb]="t().mi.tit" [migasMovil]="false" [subtitle]="mia()?.email ?? ''" [cabecera]="mia() !== null">
       <div class="mx-auto flex max-w-[350px] flex-col gap-6 max-md:-mt-[27px] md:max-w-[480px]">
         @let m = mia();
         @if (m === undefined) { <gr-skeleton class="h-[560px] rounded-xl" /> }
         @else if (m === null) {
           <section class="flex flex-col items-center gap-4 pt-3 text-center">
             <span class="flex size-16 items-center justify-center rounded-full border border-line-strong bg-white/5 text-text-secondary"><gr-icon name="lock" [size]="26" /></span>
-            <h2 class="text-display-xs">{{ token ? 'Este enlace ha caducado' : 'Accede a tu entrada' }}</h2>
-            <p class="text-body-m text-text-secondary">{{ token ? 'Por seguridad, los enlaces duran 30 minutos. ' : '' }}Te enviamos uno nuevo al email de tu reserva.</p>
-            @if (pedido()) { <p class="w-full rounded-md border border-success/40 bg-success/10 p-3 text-body-s text-success" role="status">Si ese email tiene entradas, te llegará un enlace en unos minutos.</p> }
+            <h2 class="text-display-xs">{{ token ? t().mi.caducado : t().mi.accede }}</h2>
+            <p class="text-body-m text-text-secondary">{{ token ? t().mi.seguridad : '' }}{{ t().mi.nuevo }}</p>
+            @if (pedido()) { <p class="w-full rounded-md border border-success/40 bg-success/10 p-3 text-body-s text-success" role="status">{{ t().mi.pedido }}</p> }
             @else {
               <label class="flex h-12 w-full items-center gap-2 rounded-md border border-line-strong bg-bg-field px-3 focus-within:border-accent"><gr-icon name="mail" [size]="16" class="text-text-tertiary" />
-                <input type="email" class="h-full min-w-0 flex-1 bg-transparent text-body-m outline-none" placeholder="tu@email.com" [(ngModel)]="email" aria-label="Email" autocomplete="email" (keydown.enter)="pedir()" /></label>
-              <button grButton variant="primary" size="l" type="button" class="w-full" (click)="pedir()">Enviarme un enlace nuevo</button>
-              <p class="text-body-xs text-text-tertiary">Siempre respondemos igual exista o no la reserva (no se filtran emails).</p>
+                <input type="email" class="h-full min-w-0 flex-1 bg-transparent text-body-m outline-none" [placeholder]="t().pg.emailPh" [(ngModel)]="email" aria-label="Email" autocomplete="email" (keydown.enter)="pedir()" /></label>
+              <button grButton variant="primary" size="l" type="button" class="w-full" (click)="pedir()">{{ t().mi.enviarme }}</button>
+              <p class="text-body-xs text-text-tertiary">{{ t().mi.siempre }}</p>
             }
           </section>
         } @else {
-          <gr-ticket [linea1]="linea(m.sesion.inicio, m.sesion.nombre)" [puertaBtn]="true" [linea2]="'Puertas ' + hora(m.sesion.puertas) + ' · hasta las ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m)" [codigo]="m.codigo" [qr]="m.estado === 'anulada' ? '' : m.qr" [estado]="m.estado" [validadaEn]="validada(m.validadaAt)" />
+          <gr-ticket [linea1]="linea(m.sesion.inicio, m.sesion.nombre, i18n.locale())" [puertaBtn]="true" [linea2]="t().pg.puertas + ' ' + hora(m.sesion.puertas) + ' · ' + t().pg.hasta + ' ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m, i18n.lang())" [codigo]="m.codigo" [qr]="m.estado === 'anulada' ? '' : m.qr" [estado]="m.estado" [validadaEn]="validada(m.validadaAt, i18n.locale())" />
           @if (m.puedeCambiar) {
             <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
-              <h2 class="text-ui-h5">¿Cambia algo?</h2>
-              <div class="mt-4 flex items-center justify-between rounded-md border border-line-subtle bg-white/[0.02] p-4"><span class="text-label-m">Personas<span class="block text-body-xs text-text-tertiary">Tú + acompañantes</span></span>
-                <span class="flex items-center gap-3"><button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong bg-white/5 hover:bg-white/10 disabled:opacity-40" [disabled]="personas() <= 1" aria-label="Menos" (click)="personas.set(max(1, personas() - 1))">−</button><span class="w-8 text-center text-ui-h4" aria-live="polite">{{ personas() }}</span><button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong bg-white/5 hover:bg-white/10 disabled:opacity-40" [disabled]="personas() >= m.maxPersonas" aria-label="Más" (click)="personas.set(min(m.maxPersonas, personas() + 1))">+</button></span></div>
-              <button type="button" class="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-md border border-line-strong bg-white/5 text-label-s hover:bg-white/10 disabled:opacity-50" [disabled]="personas() === m.personas || ocupado()" (click)="guardar()">Guardar cambios <gr-icon name="arrow-right" [size]="14" /></button>
+              <h2 class="text-ui-h5">{{ t().mi.cambia }}</h2>
+              <div class="mt-4 flex items-center justify-between rounded-md border border-line-subtle bg-white/[0.02] p-4"><span class="text-label-m">{{ t().pg.personasL }}<span class="block text-body-xs text-text-tertiary">{{ t().pg.tuMas }}</span></span>
+                <span class="flex items-center gap-3"><button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong bg-white/5 hover:bg-white/10 disabled:opacity-40" [disabled]="personas() <= 1" [attr.aria-label]="t().mi.menos" (click)="personas.set(max(1, personas() - 1))">−</button><span class="w-8 text-center text-ui-h4" aria-live="polite">{{ personas() }}</span><button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong bg-white/5 hover:bg-white/10 disabled:opacity-40" [disabled]="personas() >= m.maxPersonas" [attr.aria-label]="t().mi.mas" (click)="personas.set(min(m.maxPersonas, personas() + 1))">+</button></span></div>
+              <button type="button" class="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-md border border-line-strong bg-white/5 text-label-s hover:bg-white/10 disabled:opacity-50" [disabled]="personas() === m.personas || ocupado()" (click)="guardar()">{{ t().mi.guardar }} <gr-icon name="arrow-right" [size]="14" /></button>
             </section>
           }
           @if (msg()) { <p class="rounded-md border border-success/40 bg-success/10 p-3 text-body-s text-success" role="status">{{ msg() }}</p> }
           @if (m.estado !== 'anulada') {
             <ul class="flex flex-col">
-              <li><button type="button" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m hover:text-white disabled:opacity-50" [disabled]="reenviando()" (click)="reenviar()"><gr-icon name="send" [size]="18" /><span class="flex-1">Reenviar la entrada por email</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></button></li>
-              <li><a routerLink="/rifa" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m hover:text-white"><gr-icon name="ticket" [size]="18" /><span class="flex-1">Rifa presencial: ver objetos</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></a></li>
-              <li><a [href]="ics()" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m hover:text-white"><gr-icon name="calendar" [size]="18" /><span class="flex-1">Añadir al calendario (.ics)</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></a></li>
-              @if (m.puedeCambiar) { <li><button type="button" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m text-accent-text" (click)="abrirAnular($event)"><gr-icon name="x" [size]="18" /><span class="flex-1">Anular entrada y liberar la plaza</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></button></li> }
+              <li><button type="button" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m hover:text-white disabled:opacity-50" [disabled]="reenviando()" (click)="reenviar()"><gr-icon name="send" [size]="18" /><span class="flex-1">{{ t().mi.reenviar }}</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></button></li>
+              <li><a [routerLink]="'/rifa' | loc" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m hover:text-white"><gr-icon name="ticket" [size]="18" /><span class="flex-1">{{ t().mi.rifa }}</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></a></li>
+              <li><a [href]="ics()" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m hover:text-white"><gr-icon name="calendar" [size]="18" /><span class="flex-1">{{ t().mi.cal }}</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></a></li>
+              @if (m.puedeCambiar) { <li><button type="button" class="flex h-14 w-full items-center gap-3 border-b border-line-subtle text-left text-body-m text-accent-text" (click)="abrirAnular($event)"><gr-icon name="x" [size]="18" /><span class="flex-1">{{ t().mi.anular }}</span><gr-icon name="chevron-right" [size]="16" class="text-text-tertiary" /></button></li> }
             </ul>
           }
         }
@@ -1048,16 +1192,18 @@ export class OfertaPage {
       <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 sm:items-center sm:px-4" (click)="cerrarAnular()" (keydown.escape)="cerrarAnular()" (keydown.tab)="atrapar($event)">
         <div #sheet class="gr-sheet w-full rounded-t-2xl border border-b-0 border-line-strong bg-bg-raised px-6 pt-2 pb-[max(24px,env(safe-area-inset-bottom))] shadow-card sm:max-w-[400px] sm:rounded-xl sm:border-b sm:p-7" role="alertdialog" aria-modal="true" aria-labelledby="anular-t" aria-describedby="anular-d" (click)="$event.stopPropagation()">
           <span class="mx-auto mb-3 block h-[5px] w-9 rounded-full bg-white/25 sm:hidden" aria-hidden="true"></span>
-          <div class="flex items-start justify-between gap-3"><h2 id="anular-t" class="text-ui-h3">¿Anular tu entrada?</h2><button type="button" class="-mt-1.5 -mr-3 flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-white/10" aria-label="Cerrar" (click)="cerrarAnular()"><gr-icon name="x" [size]="18" /></button></div>
-          <p id="anular-d" class="mt-3 text-body-m text-text-secondary">Liberarás {{ m.personas }} plaza{{ m.personas > 1 ? 's' : '' }} de la sesión del {{ sesionLarga(m.sesion.nombre) }} para la lista de espera.</p>
-          <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end sm:gap-2"><button #volverBtn grButton variant="outline" size="l" type="button" class="w-full sm:w-auto" (click)="cerrarAnular()">Volver</button>
-            <button grButton variant="primary" size="l" type="button" class="w-full sm:w-auto" (click)="anular()">Sí, anular</button></div>
+          <div class="flex items-start justify-between gap-3"><h2 id="anular-t" class="text-ui-h3">{{ t().mi.anularQ }}</h2><button type="button" class="-mt-1.5 -mr-3 flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-white/10" [attr.aria-label]="t().tk.cerrar" (click)="cerrarAnular()"><gr-icon name="x" [size]="18" /></button></div>
+          <p id="anular-d" class="mt-3 text-body-m text-text-secondary">{{ t().mi.liberaras(m.personas, sesionLarga(m.sesion.nombre)) }}</p>
+          <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end sm:gap-2"><button #volverBtn grButton variant="outline" size="l" type="button" class="w-full sm:w-auto" (click)="cerrarAnular()">{{ t().mi.volver }}</button>
+            <button grButton variant="primary" size="l" type="button" class="w-full sm:w-auto" (click)="anular()">{{ t().mi.siAnular }}</button></div>
         </div>
       </div>
     }
   `,
 })
 export class MiEntradaPage {
+  protected readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(T);
   private readonly api = inject(EntradasPublic);
   protected readonly hora = hora;
   protected readonly validada = validada;
@@ -1101,7 +1247,7 @@ export class MiEntradaPage {
   protected readonly ics = computed(() => this.api.ics(this.token));
   protected email = '';
   constructor() {
-    inject(Seo).set({ title: 'Mi entrada · GR Strength Cup', description: 'Gestiona tu entrada: QR, personas, calendario o anulación.', path: '/mi-entrada', robots: 'noindex' });
+    inject(Seo).set({ title: this.t().mi.tit + ' · GR Strength Cup', description: this.t().mi.seoD, path: '/mi-entrada', robots: 'noindex' });
     this.token = inject(ActivatedRoute).snapshot.queryParamMap.get('t') ?? '';
     if (!isPlatformBrowser(inject(PLATFORM_ID))) return;
     if (!this.token) {
@@ -1118,7 +1264,7 @@ export class MiEntradaPage {
     this.ocupado.set(true);
     try {
       this.set(await this.api.personas(this.token, this.personas()));
-      this.msg.set('Guardado. Tu QR sirve para todas las personas de la entrada.');
+      this.msg.set(this.t().mi.guardado);
     } catch (e) {
       this.msg.set(errorDe(e).detail);
     } finally {
@@ -1130,7 +1276,7 @@ export class MiEntradaPage {
     this.reenviando.set(true);
     try {
       await this.api.reenviar(this.token);
-      this.msg.set('Te la hemos reenviado. Llega en unos minutos.');
+      this.msg.set(this.t().mi.reenviada);
     } catch (e) {
       this.msg.set(errorDe(e).detail);
     }
