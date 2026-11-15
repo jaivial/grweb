@@ -1,6 +1,9 @@
 /** Composes the 1080×1920 «cuenta atrás» story (Figma 83) on a canvas: B/N photo, GRS Cup logo on top, data and
  * GRS Powerlifting Coaching | AEP | Ajuntament d'Almussafes at the bottom. `sticker` leaves the background transparent. */
+import type { Lang } from '../core/i18n';
+
 export interface StoryDatos {
+  lang?: Lang; // texts of the image and its alt (default 'es')
   modo: 'cuenta_atras' | 'fecha';
   formato: 'story' | 'sticker';
   alin: 'izq' | 'centro' | 'der';
@@ -19,6 +22,11 @@ export interface StoryDatos {
 
 export const W = 1080;
 export const H = 1920;
+/** Fixed texts drawn on the story. */
+const TXT = {
+  es: { faltan: 'FALTAN', es: 'ES', compito: 'COMPITO EL', hoy: 'HOY', dia: ' DÍA', dias: ' DÍAS', para: 'PARA LA GRS CUP 2 · 2026' },
+  en: { faltan: 'JUST', es: "IT'S", compito: 'I COMPETE ON', hoy: 'TODAY', dia: ' DAY', dias: ' DAYS', para: 'TO GO UNTIL GRS CUP 2 · 2026' },
+};
 const LOGOS = ['grscup', 'coaching', 'aep', 'almussafes'] as const;
 const cache = new Map<string, Promise<HTMLImageElement>>();
 
@@ -43,6 +51,7 @@ export async function componer(d: StoryDatos): Promise<HTMLCanvasElement> {
   c.width = W;
   c.height = H;
   const g = c.getContext('2d')!;
+  const t = TXT[d.lang ?? 'es'];
   if (d.formato === 'story') {
     g.fillStyle = '#0b0b0c';
     g.fillRect(0, 0, W, H);
@@ -72,12 +81,12 @@ export async function componer(d: StoryDatos): Promise<HTMLCanvasElement> {
   logo(grs, 120, y, alinX(ancho(grs, 120)));
   y += 200;
   g.font = '600 30px Inter, sans-serif';
-  g.fillText(d.modo === 'cuenta_atras' ? (d.dias > 0 ? 'FALTAN' : 'ES') : 'COMPITO EL', x, y);
+  g.fillText(d.modo === 'cuenta_atras' ? (d.dias > 0 ? t.faltan : t.es) : t.compito, x, y);
   y += 190;
   g.font = '200px "Contrail One", Impact, sans-serif';
-  const grande = d.modo === 'fecha' ? d.fecha : d.dias > 0 ? String(d.dias) : 'HOY';
+  const grande = d.modo === 'fecha' ? d.fecha : d.dias > 0 ? String(d.dias) : t.hoy;
   if (d.modo === 'cuenta_atras' && d.dias > 0) {
-    const sufijo = d.dias === 1 ? ' DÍA' : ' DÍAS';
+    const sufijo = d.dias === 1 ? t.dia : t.dias;
     g.font = '200px "Contrail One", Impact, sans-serif';
     const wn = g.measureText(grande).width;
     g.font = '64px "Contrail One", Impact, sans-serif';
@@ -95,7 +104,7 @@ export async function componer(d: StoryDatos): Promise<HTMLCanvasElement> {
   }
   y += 60;
   g.font = '600 26px Inter, sans-serif';
-  g.fillText(d.modo === 'fecha' ? d.detalleFecha : 'PARA LA GRS CUP 2 · 2026', x, y, W - 2 * m);
+  g.fillText(d.modo === 'fecha' ? d.detalleFecha : t.para, x, y, W - 2 * m);
   y += 100;
   // long names: smaller type first, then two lines (never outside the 96 px margins)
   const nombre = encajar(g, d.nombre.toUpperCase(), W - 2 * m);
@@ -152,6 +161,10 @@ function cortar(g: CanvasRenderingContext2D, t: string, maxW: number): string {
 
 /** The text of the story, for the alt of the preview. */
 export function textoStory(d: StoryDatos): string {
+  if (d.lang === 'en') {
+    const cab = d.modo === 'fecha' ? `I compete on ${d.fecha}, ${d.detalleFecha.toLowerCase()}` : d.dias > 0 ? `${d.dias} ${d.dias === 1 ? 'day' : 'days'} to go until GRS Cup 2` : "It's today: GRS Cup 2";
+    return `${d.formato === 'sticker' ? 'Sticker' : 'Story'}: ${cab}. ${d.nombre} · ${[d.prueba, d.peso, d.sexo].filter(Boolean).join(' · ')}. Almussafes · Valencia.`;
+  }
   const cab = d.modo === 'fecha' ? `Compito el ${d.fecha}, ${d.detalleFecha.toLowerCase()}` : d.dias > 0 ? `Faltan ${d.dias} ${d.dias === 1 ? 'día' : 'días'} para la GRS Cup 2` : 'Es hoy: GRS Cup 2';
   return `${d.formato === 'sticker' ? 'Sticker' : 'Story'}: ${cab}. ${d.nombre} · ${[d.prueba, d.peso, d.sexo].filter(Boolean).join(' · ')}. Almussafes · Valencia.`;
 }

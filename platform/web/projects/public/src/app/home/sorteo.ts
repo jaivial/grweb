@@ -9,7 +9,13 @@ import { GrButton, cdn } from '@grcup/ui';
 import type { Seccion } from '../core/cms';
 import { COMPETITION_SLUG } from '../core/competition';
 import { VideoScrub } from '../core/video-scrub';
+import { I18n, LocPipe } from '../core/i18n';
 import { GLOW, GrTitulo } from './bloques';
+
+const T = {
+  es: { titulo: '*Rifa de material*|en el recinto', texto: 'Durante la competición rifamos material y premios donados. Boletos en el stand de la rifa, solo en efectivo.', nota: 'Boletos solo en el recinto y en efectivo. No hay venta online.', ver: 'Ver la rifa', como: 'Cómo funciona' },
+  en: { titulo: '*Equipment raffle*|at the venue', texto: 'During the competition we raffle equipment and donated prizes. Tickets at the raffle stand, cash only.', nota: 'Tickets only at the venue and in cash. No online sales.', ver: 'See the raffle', como: 'How it works' },
+};
 
 const BELT_FRAMES = 169;
 const BELT_VIDEO = cdn('/media/cinturon-960x540.mp4');
@@ -80,7 +86,7 @@ interface ItemRifa { id: string; nombre: string; imagenUrl: string | null }
  */
 @Component({
   selector: 'gr-sec-sorteo',
-  imports: [RouterLink, GrButton, GrTitulo],
+  imports: [RouterLink, LocPipe, GrButton, GrTitulo],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'relative block overflow-hidden bg-bg-base px-5 py-18 md:px-8 md:py-24 xl:px-20' },
   template: `
@@ -101,20 +107,21 @@ interface ItemRifa { id: string; nombre: string; imagenUrl: string | null }
           }
         </ul>
       }
-      <p class="text-body-s text-text-tertiary">Boletos solo en el recinto y en efectivo. No hay venta online.</p>
+      <p class="text-body-s text-text-tertiary">{{ tr().nota }}</p>
       <div class="flex flex-wrap items-center justify-center gap-3">
-        <a grButton variant="primary" size="l" routerLink="/sorteo">Ver la rifa</a>
-        <a grButton variant="outline" size="l" routerLink="/sorteo" fragment="normas" iconRight="arrow-right">Cómo funciona</a>
+        <a grButton variant="primary" size="l" [routerLink]="'/sorteo' | loc">{{ tr().ver }}</a>
+        <a grButton variant="outline" size="l" [routerLink]="'/sorteo' | loc" fragment="normas" iconRight="arrow-right">{{ tr().como }}</a>
       </div>
     </div>
   `,
 })
 export class SecSorteo {
   readonly s = input<Seccion | undefined>();
+  protected readonly tr = inject(I18n).dict(T);
   protected readonly glow = GLOW;
   private t = (k: string) => ((this.s()?.[k] as string | undefined) ?? '');
-  protected readonly titulo = computed(() => this.t('titulo') || '*Rifa de material*|en el recinto');
-  protected readonly parrafo = computed(() => this.t('texto') || 'Durante la competición rifamos material y premios donados. Boletos en el stand de la rifa, solo en efectivo.');
+  protected readonly titulo = computed(() => this.t('titulo') || this.tr().titulo);
+  protected readonly parrafo = computed(() => this.t('texto') || this.tr().texto);
   protected readonly items = signal<ItemRifa[]>([]);
   constructor() {
     void inject(PendingTasks).run(() => firstValueFrom(inject(HttpClient).get<{ items: ItemRifa[] }>(`/api/competiciones/${COMPETITION_SLUG}/rifa/items`))

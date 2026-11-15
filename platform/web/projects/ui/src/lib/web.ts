@@ -5,6 +5,24 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, afterNextRender, computed, inject, input, model, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { GrIcon, type GrIconName } from './icon';
+import { grDict } from './lang';
+
+const T = {
+  es: {
+    live: { 'en-directo': 'En directo', reconectando: 'Reconectando…', 'sin-conexion': 'Sin conexión · reintentando' } as Record<string, string>,
+    hoy: 'Hoy se compite · en directo', finalizada: (y: string) => 'Edición ' + y + ' finalizada · ver resultados',
+    dias: 'días', horas: 'horas', min: 'min', seg: 'seg', faltan: (d: string, h: string) => 'Faltan ' + d + ' días y ' + h + ' horas',
+    unidad: 'unidad', unidades: 'unidades', valor: 'Valor aprox.', donado: 'Donado por', ganador: 'Ganador · boleto nº',
+    rifa: 'Rifa presencial · solo en efectivo', verRifa: 'Ver objetos de la rifa →',
+  },
+  en: {
+    live: { 'en-directo': 'Live', reconectando: 'Reconnecting…', 'sin-conexion': 'Offline · retrying' } as Record<string, string>,
+    hoy: 'Competing today · live', finalizada: (y: string) => y + ' edition finished · see results',
+    dias: 'days', horas: 'hours', min: 'min', seg: 'sec', faltan: (d: string, h: string) => d + ' days and ' + h + ' hours to go',
+    unidad: 'unit', unidades: 'units', valor: 'Approx. value', donado: 'Donated by', ganador: 'Winner · ticket no.',
+    rifa: 'In-person raffle · cash only', verRifa: 'See the raffle prizes →',
+  },
+};
 
 /** Pill shell of «Badge», «Chip / Status» and «Live status»: 28 high, tone fill 12 % + border 45 %, label XS. */
 const PILL = 'inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-pill border px-3 text-label-xs';
@@ -37,10 +55,10 @@ export class GrStatus {
 
 export type GrLiveEstado = 'en-directo' | 'reconectando' | 'sin-conexion';
 
-const LIVE: Record<GrLiveEstado, { tone: GrStatusTone; icon: GrIconName; label: string }> = {
-  'en-directo': { tone: 'directo', icon: 'radio', label: 'En directo' },
-  reconectando: { tone: 'proximamente', icon: 'refresh', label: 'Reconectando…' },
-  'sin-conexion': { tone: 'agotado', icon: 'circle-alert', label: 'Sin conexión · reintentando' },
+const LIVE: Record<GrLiveEstado, { tone: GrStatusTone; icon: GrIconName }> = {
+  'en-directo': { tone: 'directo', icon: 'radio' },
+  reconectando: { tone: 'proximamente', icon: 'refresh' },
+  'sin-conexion': { tone: 'agotado', icon: 'circle-alert' },
 };
 
 /** Figma «Live status»: state of the real-time stream (no dot, broadcast icon), announced politely when it changes. */
@@ -49,10 +67,11 @@ const LIVE: Record<GrLiveEstado, { tone: GrStatusTone; icon: GrIconName; label: 
   imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class]': 'cls()', role: 'status' },
-  template: `<gr-icon [name]="l().icon" [size]="14" [class.motion-safe:animate-spin]="estado() === 'reconectando'" />{{ l().label }}`,
+  template: `<gr-icon [name]="l().icon" [size]="14" [class.motion-safe:animate-spin]="estado() === 'reconectando'" />{{ t().live[estado()] }}`,
 })
 export class GrLiveStatus {
   readonly estado = input<GrLiveEstado>('en-directo');
+  protected readonly t = grDict(T);
   protected readonly l = computed(() => LIVE[this.estado()]);
   protected readonly cls = computed(() => `${PILL} ${STATUS[this.l().tone]}`);
 }
@@ -152,10 +171,10 @@ function instanteEn(fecha: string, hora: string, tz: string): number {
   template: `
     @switch (estado()) {
       @case ('hoy') {
-        <p class="grain-acento flex items-center justify-center rounded-pill bg-[linear-gradient(90deg,#c42b3e,#6e1420)] px-4 text-white" [class]="c().txt + ' ' + c().hoy">Hoy se compite · en directo</p>
+        <p class="grain-acento flex items-center justify-center rounded-pill bg-[linear-gradient(90deg,#c42b3e,#6e1420)] px-4 text-white" [class]="c().txt + ' ' + c().hoy">{{ t().hoy }}</p>
       }
       @case ('finalizado') {
-        <a [href]="resultados()" class="flex items-center justify-center rounded-pill border border-line-strong bg-bg-card px-4 text-white transition-colors hover:border-accent" [class]="c().txt + ' ' + c().fin">Edición {{ target().slice(0, 4) }} finalizada · ver resultados</a>
+        <a [href]="resultados()" class="flex items-center justify-center rounded-pill border border-line-strong bg-bg-card px-4 text-white transition-colors hover:border-accent" [class]="c().txt + ' ' + c().fin">{{ t().finalizada(target().slice(0, 4)) }}</a>
       }
       @default {
         <div class="grid grid-cols-4" [class]="c().grid" role="timer" [attr.aria-label]="aria()">
@@ -171,6 +190,7 @@ function instanteEn(fecha: string, hora: string, tz: string): number {
   `,
 })
 export class GrCountdown {
+  protected readonly t = grDict(T);
   /** First day of competition (ISO date). */
   readonly target = input.required<string>();
   /** Last day (ISO date); defaults to `target`. */
@@ -203,13 +223,13 @@ export class GrCountdown {
     const s = Math.floor(this.ms() / 1000);
     const pad = (n: number) => String(n).padStart(2, '0');
     return [
-      { value: pad(Math.floor(s / 86400)), label: 'días' },
-      { value: pad(Math.floor((s % 86400) / 3600)), label: 'horas' },
-      { value: pad(Math.floor((s % 3600) / 60)), label: 'min' },
-      { value: pad(s % 60), label: 'seg' },
+      { value: pad(Math.floor(s / 86400)), label: this.t().dias },
+      { value: pad(Math.floor((s % 86400) / 3600)), label: this.t().horas },
+      { value: pad(Math.floor((s % 3600) / 60)), label: this.t().min },
+      { value: pad(s % 60), label: this.t().seg },
     ];
   });
-  protected readonly aria = computed(() => `Faltan ${this.parts()[0].value} días y ${this.parts()[1].value} horas`);
+  protected readonly aria = computed(() => this.t().faltan(this.parts()[0].value, this.parts()[1].value));
   constructor() {
     const browser = isPlatformBrowser(inject(PLATFORM_ID));
     const destroy = inject(DestroyRef);
@@ -240,15 +260,16 @@ export class GrCountdown {
       <h3 class="min-w-0 text-ui-h5 [overflow-wrap:anywhere]">{{ nombre() }}</h3>
       @if (descripcion()) { <p class="min-w-0 text-body-s text-text-tertiary [overflow-wrap:anywhere]">{{ descripcion() }}</p> }
       <p class="flex flex-wrap items-center gap-2">
-        <span class="inline-flex h-[23px] items-center rounded-pill bg-accent-text/16 px-2.5 text-[12px] font-semibold text-accent-text">× {{ unidades() }} {{ unidades() === 1 ? 'unidad' : 'unidades' }}</span>
-        @if (valor()) { <span class="text-[13px] font-medium text-text-secondary">Valor aprox. {{ valor() }}</span> }
+        <span class="inline-flex h-[23px] items-center rounded-pill bg-accent-text/16 px-2.5 text-[12px] font-semibold text-accent-text">× {{ unidades() }} {{ unidades() === 1 ? t().unidad : t().unidades }}</span>
+        @if (valor()) { <span class="text-[13px] font-medium text-text-secondary">{{ t().valor }} {{ valor() }}</span> }
       </p>
-      @if (donante()) { <p class="text-[13px] text-text-tertiary">Donado por {{ donante() }}</p> }
-      @if (ganador()) { <p class="rounded-sm bg-[#facc15]/12 px-3 py-2 text-[13px] font-semibold text-[#facc15]">Ganador · boleto nº {{ ganador() }}</p> }
+      @if (donante()) { <p class="text-[13px] text-text-tertiary">{{ t().donado }} {{ donante() }}</p> }
+      @if (ganador()) { <p class="rounded-sm bg-[#facc15]/12 px-3 py-2 text-[13px] font-semibold text-[#facc15]">{{ t().ganador }} {{ ganador() }}</p> }
     </div>
   `,
 })
 export class GrRaffleItem {
+  protected readonly t = grDict(T);
   readonly nombre = input.required<string>();
   readonly descripcion = input('');
   readonly imagen = input<string | null>(null);
@@ -266,13 +287,14 @@ export class GrRaffleItem {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex min-w-0 flex-col gap-2 rounded-lg border border-line-subtle bg-[#1a1517] p-5 [overflow-wrap:anywhere]' },
   template: `
-    <p class="text-label-m text-[#f2f2f3]">{{ titulo() }}</p>
+    <p class="text-label-m text-[#f2f2f3]">{{ titulo() || t().rifa }}</p>
     <p class="text-body-s leading-[1.2] text-[#a9adb4]"><ng-content /></p>
-    @if (href()) { <a [href]="href()" class="inline-flex min-h-11 items-center self-start text-label-s text-[#e0485c] hover:underline">{{ enlace() }}</a> }
+    @if (href()) { <a [href]="href()" class="inline-flex min-h-11 items-center self-start text-label-s text-[#e0485c] hover:underline">{{ enlace() || t().verRifa }}</a> }
   `,
 })
 export class GrRaffleNotice {
-  readonly titulo = input('Rifa presencial · solo en efectivo');
+  protected readonly t = grDict(T);
+  readonly titulo = input('');
   readonly href = input<string | null>('/rifa');
-  readonly enlace = input('Ver objetos de la rifa →');
+  readonly enlace = input('');
 }

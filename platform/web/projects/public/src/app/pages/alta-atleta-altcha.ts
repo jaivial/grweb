@@ -1,6 +1,20 @@
-import { ChangeDetectionStrategy, Component, effect, input, output, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { GrIcon } from '@grcup/ui';
 import { AltchaConfig, AltchaEstado, payloadBase64, resolverReto } from '../core/altcha';
+import { I18n } from '../core/i18n';
+
+const T = {
+  es: {
+    comprobando: 'Comprobando…', robot: 'No soy un robot', protegido: 'Protegido por ALTCHA', verificado: 'Verificado.',
+    fallo: 'No hemos podido verificar que no eres un robot. Vuelve a pulsarlo para reintentar.', reintentar: 'Reintentar',
+    verificando: 'Verificamos que no eres un robot…', marca: 'Marca la casilla para continuar.',
+  },
+  en: {
+    comprobando: 'Checking…', robot: "I'm not a robot", protegido: 'Protected by ALTCHA', verificado: 'Verified.',
+    fallo: "We couldn't verify that you're not a robot. Tap it again to retry.", reintentar: 'Retry',
+    verificando: "Checking that you're not a robot…", marca: 'Tick the box to continue.',
+  },
+};
 
 /**
  * Widget antibots del alta de atleta.
@@ -18,26 +32,26 @@ import { AltchaConfig, AltchaEstado, payloadBase64, resolverReto } from '../core
       <div class="relative flex min-h-[62px] items-center gap-3 rounded-lg border border-line-subtle bg-bg-surface px-4 py-3">
         @if (estado() === 'verificando') {
           <span class="flex size-5 shrink-0 items-center justify-center text-text-tertiary"><gr-icon name="loader" [size]="18" [spin]="true" /></span>
-          <span class="text-label-m text-text-secondary">Comprobando…</span>
+          <span class="text-label-m text-text-secondary">{{ t().comprobando }}</span>
         } @else {
           <button type="button" role="checkbox" class="flex size-[22px] shrink-0 cursor-pointer after:absolute after:inset-0 after:rounded-lg after:content-[''] items-center justify-center rounded-[5px] border bg-bg-base transition-colors"
             [class]="estado() === 'verificado' ? 'border-accent bg-accent' : estado() === 'fallo' ? 'border-accent-text' : 'border-line-strong hover:border-text-muted'"
-            [attr.aria-checked]="estado() === 'verificado'" [attr.aria-label]="'No soy un robot'" [disabled]="estado() === 'verificando'"
+            [attr.aria-checked]="estado() === 'verificado'" [attr.aria-label]="t().robot" [disabled]="estado() === 'verificando'"
             (click)="verificar()">
             @if (estado() === 'verificado') { <gr-icon name="check" [size]="13" class="text-white" /> }
             @else if (estado() === 'fallo') { <gr-icon name="circle-alert" [size]="13" class="text-accent-text" /> }
           </button>
-          <span class="text-label-m" [class]="estado() === 'fallo' ? 'text-accent-text' : 'text-text-primary'">No soy un robot</span>
+          <span class="text-label-m" [class]="estado() === 'fallo' ? 'text-accent-text' : 'text-text-primary'">{{ t().robot }}</span>
         }
-        <span class="ml-auto text-body-s text-text-tertiary">Protegido por ALTCHA</span>
+        <span class="ml-auto text-body-s text-text-tertiary">{{ t().protegido }}</span>
       </div>
       <p class="text-body-s text-text-tertiary" aria-live="polite">
         @switch (estado()) {
-          @case ('verificado') { Verificado. }
-          @case ('fallo') { No hemos podido verificar que no eres un robot. Vuelve a pulsarlo para reintentar.
-            <button type="button" class="ml-1 text-accent-text hover:underline" (click)="pedirReto.emit()">Reintentar</button> }
-          @case ('verificando') { Verificamos que no eres un robot… }
-          @default { Marca la casilla para continuar. }
+          @case ('verificado') { {{ t().verificado }} }
+          @case ('fallo') { {{ t().fallo }}
+            <button type="button" class="ml-1 text-accent-text hover:underline" (click)="pedirReto.emit()">{{ t().reintentar }}</button> }
+          @case ('verificando') { {{ t().verificando }} }
+          @default { {{ t().marca }} }
         }
       </p>
     </div>
@@ -53,6 +67,7 @@ export class GrAltcha {
   /** El padre debe pedir un reto nuevo a la API (y un token de tiempo nuevo). */
   readonly pedirReto = output<void>();
 
+  protected readonly t = inject(I18n).dict(T);
   protected readonly estado = signal<AltchaEstado>('idle');
   private readonly pending = signal(false);
 

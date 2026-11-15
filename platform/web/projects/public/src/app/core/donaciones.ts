@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG } from './competition';
+import type { Lang } from './i18n';
 
 /**
  * Donations of the live page (service `donaciones`, contract §5): the public configuration, the ranking of the day
@@ -52,18 +53,18 @@ export function fantasyDe(importe: number): number {
 }
 
 /** «10,00 €» */
-export function euros(centimos: number): string {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(centimos / 100);
+export function euros(centimos: number, lang: Lang = 'es'): string {
+  return new Intl.NumberFormat((lang === 'en' ? 'en-GB' : 'es-ES'), { style: 'currency', currency: 'EUR' }).format(centimos / 100);
 }
 
 /** «10 €» (sin decimales: los importes del chat y de los chips). */
-export function eurosCorto(centimos: number): string {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(centimos / 100);
+export function eurosCorto(centimos: number, lang: Lang = 'es'): string {
+  return new Intl.NumberFormat((lang === 'en' ? 'en-GB' : 'es-ES'), { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(centimos / 100);
 }
 
 /** Thousands separator for coins («1.000»). */
-export function num(n: number): string {
-  return new Intl.NumberFormat('es-ES', { useGrouping: true }).format(n);
+export function num(n: number, lang: Lang = 'es'): string {
+  return new Intl.NumberFormat((lang === 'en' ? 'en-GB' : 'es-ES'), { useGrouping: true }).format(n);
 }
 
 @Injectable({ providedIn: 'root' })

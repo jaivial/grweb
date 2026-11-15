@@ -2,43 +2,61 @@ import { ChangeDetectionStrategy, Component, afterNextRender, inject, input, sig
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { GrCheckbox, GrIcon } from '@grcup/ui';
+import { I18n, LocPipe } from '../core/i18n';
 import { Novedades, mensajeError } from '../core/novedades';
+
+const T = {
+  es: {
+    titulo: 'Novedades de la GRS Cup 2', texto: 'Fechas, horarios, sorteo y próximas competiciones. Un email al mes como mucho.',
+    revisa: 'Revisa tu email', enviadoTexto: 'Te hemos enviado un enlace para confirmar la suscripción. Si no llega, mira en spam.',
+    tuEmail: 'Tu email', placeholder: 'tu@email.com', enviando: 'Enviando…', suscribirme: 'Suscribirme',
+    acepta: 'Quiero recibir novedades de la GRS Cup 2. Te enviaremos un email para confirmarlo y puedes darte de baja en 1 clic.', privacidad: 'Política de privacidad',
+    emailMal: 'Escribe un email válido.', marca: 'Marca la casilla para recibir las novedades.',
+  },
+  en: {
+    titulo: 'GRS Cup 2 news', texto: 'Dates, schedules, raffle and upcoming competitions. One email a month at most.',
+    revisa: 'Check your email', enviadoTexto: 'We have sent you a link to confirm your subscription. If it does not arrive, check your spam folder.',
+    tuEmail: 'Your email', placeholder: 'you@email.com', enviando: 'Sending…', suscribirme: 'Subscribe',
+    acepta: 'I want to receive GRS Cup 2 news. We will send you an email to confirm it and you can unsubscribe in 1 click.', privacidad: 'Privacy policy',
+    emailMal: 'Enter a valid email.', marca: 'Tick the box to receive the news.',
+  },
+};
 
 /** «Novedades de la GRS Cup 2» (Figma «Footer» and «Próximamente» pages): email + unticked consent → double opt-in. */
 @Component({
   selector: 'gr-newsletter',
-  imports: [RouterLink, FormsModule, GrCheckbox, GrIcon],
+  imports: [RouterLink, LocPipe, FormsModule, GrCheckbox, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
     <section id="novedades" class="grain-acento grid rounded-lg border border-accent/30 bg-[linear-gradient(110deg,#4c111b,#280d12_55%,#170c0e)] p-5 md:p-6" [class]="compacta() ? 'gap-5' : 'gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_500px] lg:items-center'"
       [attr.aria-labelledby]="id + '-t'">
       <div>
-        @if (nivel() === 'h3') { <h3 [id]="id + '-t'" class="text-display-2xs md:text-display-xs">{{ titulo() }}</h3> }
-        @else if (nivel() === 'p') { <p [id]="id + '-t'" class="text-display-2xs md:text-display-xs">{{ titulo() }}</p> }
-        @else { <h2 [id]="id + '-t'" class="text-display-2xs md:text-display-xs">{{ titulo() }}</h2> }
-        <p class="mt-2 text-body-s text-text-tertiary">{{ texto() }}</p>
+        @if (nivel() === 'h3') { <h3 [id]="id + '-t'" class="text-display-2xs md:text-display-xs">{{ titulo() || t().titulo }}</h3> }
+        @else if (nivel() === 'p') { <p [id]="id + '-t'" class="text-display-2xs md:text-display-xs">{{ titulo() || t().titulo }}</p> }
+        @else { <h2 [id]="id + '-t'" class="text-display-2xs md:text-display-xs">{{ titulo() || t().titulo }}</h2> }
+        <p class="mt-2 text-body-s text-text-tertiary">{{ texto() || t().texto }}</p>
       </div>
       @if (enviado()) {
         <div class="flex items-start gap-3 rounded-md border border-success/40 bg-success/10 p-4" role="status">
           <gr-icon name="mail" [size]="20" class="mt-0.5 text-success" />
-          <div><p class="text-label-m">Revisa tu email</p><p class="text-body-s text-text-secondary">Te hemos enviado un enlace para confirmar la suscripción. Si no llega, mira en spam.</p></div>
+          <div><p class="text-label-m">{{ t().revisa }}</p><p class="text-body-s text-text-secondary">{{ t().enviadoTexto }}</p></div>
         </div>
       } @else {
         <form class="flex flex-col gap-3" method="post" (submit)="$event.preventDefault(); enviar()" novalidate>
           <div class="flex flex-col gap-2" [class.sm:flex-row]="!compacta()">
             <label class="relative min-w-0 flex-1">
-              <span class="sr-only">Tu email</span>
+              <span class="sr-only">{{ t().tuEmail }}</span>
               <gr-icon name="mail" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
-              <input type="email" name="email" autocomplete="email" placeholder="tu@email.com" [(ngModel)]="email" required maxlength="254"
+              <input type="email" name="email" autocomplete="email" [placeholder]="t().placeholder" [(ngModel)]="email" required maxlength="254"
                 [attr.aria-invalid]="campo() === 'email' || null" [attr.aria-describedby]="campo() === 'email' ? id + '-e' : null"
                 class="h-12 w-full rounded-sm border border-line-strong bg-bg-field pr-3 pl-9 text-body-m placeholder:text-text-muted focus:border-accent-text focus:outline-none" />
             </label>
-            <button type="submit" class="h-12 shrink-0 rounded-sm bg-accent-grain px-6 text-label-m text-white disabled:opacity-60" [disabled]="!hidratado() || enviando()">{{ enviando() ? 'Enviando…' : 'Suscribirme' }}</button>
+            <button type="submit" class="h-12 shrink-0 rounded-sm bg-accent-grain px-6 text-label-m text-white disabled:opacity-60" [disabled]="!hidratado() || enviando()">{{ enviando() ? t().enviando : t().suscribirme }}</button>
           </div>
           <!-- Figma «Checkbox» (Kind Legal) -->
           <gr-checkbox name="acepta" [(checked)]="acepta" [invalid]="campo() === 'acepta'">
-            <span class="block text-body-xs text-text-secondary">Quiero recibir novedades de la GRS Cup 2. Te enviaremos un email para confirmarlo y puedes darte de baja en 1 clic. <a routerLink="/privacidad" class="text-accent-text underline-offset-2 hover:underline">Política de privacidad</a></span>
+            <span class="block text-body-xs text-text-secondary">{{ t().acepta }} <a [routerLink]="'/privacidad' | loc" class="text-accent-text underline-offset-2 hover:underline">{{ t().privacidad }}</a></span>
           </gr-checkbox>
           @if (error()) { <p [id]="id + '-e'" class="text-body-xs text-accent-text" role="alert">{{ error() }}</p> }
         </form>
@@ -47,10 +65,13 @@ import { Novedades, mensajeError } from '../core/novedades';
   `,
 })
 export class Newsletter {
+  private readonly lang = inject(I18n).lang;
   private readonly api = inject(Novedades);
   private readonly router = inject(Router);
-  readonly titulo = input('Novedades de la GRS Cup 2');
-  readonly texto = input('Fechas, horarios, sorteo y próximas competiciones. Un email al mes como mucho.');
+  protected readonly t = inject(I18n).dict(T);
+  /** Empty: the default title / text in the current language. */
+  readonly titulo = input('');
+  readonly texto = input('');
   readonly origen = input('');
   /** Narrow columns (sidebars): one column, stacked button. */
   readonly compacta = input(false);
@@ -76,14 +97,14 @@ export class Newsletter {
     this.error.set('');
     this.campo.set(null);
     const e = this.email.trim();
-    if (e.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return this.fallo('Escribe un email válido.', 'email');
-    if (!this.acepta) return this.fallo('Marca la casilla para recibir las novedades.', 'acepta');
+    if (e.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return this.fallo(this.t().emailMal, 'email');
+    if (!this.acepta) return this.fallo(this.t().marca, 'acepta');
     this.enviando.set(true);
     try {
       await this.api.suscribir(e, true, this.origen() || this.router.url.split('?')[0] || '/');
       this.enviado.set(true);
     } catch (err) {
-      const m = mensajeError(err);
+      const m = mensajeError(err, undefined, this.lang());
       this.fallo(m, m === 'Escribe un email válido.' ? 'email' : null);
     } finally {
       this.enviando.set(false);

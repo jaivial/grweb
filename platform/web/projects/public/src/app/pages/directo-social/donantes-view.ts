@@ -7,13 +7,39 @@ import { Donaciones, type DonantesRanking } from '../../core/donaciones';
 import { diaDeHoy, etiquetaDia } from '../../core/chat';
 import type { Horarios } from '../../core/horarios';
 import { COMPETITION_SLUG } from '../../core/competition';
+import { I18n } from '../../core/i18n';
 import { Juegos, type Jornada, type Premio } from '../../core/juegos';
 import { MEDALLA } from './ui';
 
 /** «1.480 €» (sin decimales: los totales del día). */
-const euros0 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+const euros0 = (loc: string) => new Intl.NumberFormat(loc, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 /** «4,74 €» */
-const euros2 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const euros2 = (loc: string) => new Intl.NumberFormat(loc, { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const T = {
+  es: {
+    jornada: 'Jornada', hoy: 'Hoy · en directo', reintenta: 'Vuelve a intentarlo en unos segundos.', premio: 'Premio', patrocina: 'Patrocina ',
+    entra: 'Entra en el ranking del día', cada: 'Cada donativo sale en el chat y suma al ranking.',
+    recaudadoHoy: 'Recaudado hoy', recaudado: 'Recaudado · ',
+    donativos: (n: number) => n + ' ' + (n === 1 ? 'donativo' : 'donativos'), media: ' · media ',
+    apoya: 'Apoya la GRS Cup', ranking: 'Ranking del día',
+    sinDonativos: (hoy: boolean) => 'Todavía no hay donativos ' + (hoy ? 'hoy' : 'en esta jornada'), primero: 'El primero en donar encabeza el ranking.',
+    donar: 'Donar y entrar en el ranking', seguro: 'Pago seguro · no guardamos tu tarjeta', inactivo: 'Las donaciones aún no están activas. Vuelve en unos días.',
+    error: 'No hemos podido cargar el ranking de donantes.',
+    eyebrow: (n: number) => (n === 1 ? '1.er donante del día' : `${n}.º donante del día`),
+  },
+  en: {
+    jornada: 'Matchday', hoy: 'Today · live', reintenta: 'Try again in a few seconds.', premio: 'Prize', patrocina: 'Sponsored by ',
+    entra: 'Get into today’s ranking', cada: 'Every donation appears in the chat and counts towards the ranking.',
+    recaudadoHoy: 'Raised today', recaudado: 'Raised · ',
+    donativos: (n: number) => n + ' ' + (n === 1 ? 'donation' : 'donations'), media: ' · average ',
+    apoya: 'Support the GRS Cup', ranking: 'Today’s ranking',
+    sinDonativos: (hoy: boolean) => 'No donations ' + (hoy ? 'today' : 'on this matchday') + ' yet', primero: 'The first to donate tops the ranking.',
+    donar: 'Donate and join the ranking', seguro: 'Secure payment · we do not store your card', inactivo: 'Donations are not open yet. Check back in a few days.',
+    error: 'We could not load the donor ranking.',
+    eyebrow: (n: number) => `${n}${n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th'} donor of the day`,
+  },
+};
 
 /**
  * Pestaña «Donantes» del panel del directo (Figma 171:69928 en jornada, 393:120815 fuera de jornada): sub-pestañas por
@@ -32,11 +58,11 @@ const euros2 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EU
   `,
   template: `
     @if (dias().length) {
-      <div class="flex shrink-0 gap-2 overflow-x-auto px-4 pt-3 [scrollbar-width:none]" role="tablist" aria-label="Jornada">
+      <div class="flex shrink-0 gap-2 overflow-x-auto px-4 pt-3 [scrollbar-width:none]" role="tablist" [attr.aria-label]="t().jornada">
         @for (d of dias(); track d) {
           <button type="button" role="tab" [attr.aria-selected]="d === diaSel()" class="gr-sub inline-flex h-8 shrink-0 items-center gap-1.5 rounded-pill border px-3 text-label-s"
             [class]="d === diaSel() ? 'border-accent/60 bg-accent-deep/35 text-accent-text' : 'border-line-strong text-text-secondary hover:border-text-muted hover:text-text-primary'" (click)="elegido.set(d)">
-            @if (d === hoy) { <span class="size-1.5 rounded-full bg-accent shadow-[0_0_6px_rgb(196_43_62/0.8)]" aria-hidden="true"></span>Hoy · en directo }
+            @if (d === hoy) { <span class="size-1.5 rounded-full bg-accent shadow-[0_0_6px_rgb(196_43_62/0.8)]" aria-hidden="true"></span>{{ t().hoy }} }
             @else { {{ corto(d) }} }
           </button>
         }
@@ -50,7 +76,7 @@ const euros2 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EU
         <div class="flex flex-col items-center gap-2 py-10 text-center">
           <span class="flex size-11 items-center justify-center rounded-full border border-line-strong bg-bg-raised text-text-tertiary"><gr-icon name="circle-alert" [size]="18" /></span>
           <p class="text-label-s text-text-primary">{{ error() }}</p>
-          <p class="text-body-xs text-text-tertiary">Vuelve a intentarlo en unos segundos.</p>
+          <p class="text-body-xs text-text-tertiary">{{ t().reintenta }}</p>
         </div>
       } @else {
         <!-- gancho: el premio del 1.er donante (o la invitación si la jornada no tiene premios) -->
@@ -61,10 +87,10 @@ const euros2 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EU
               @else { <gr-icon name="gift" [size]="96" class="absolute top-1/2 right-5 -translate-y-1/2 text-accent-text/25" /> }
               <span class="absolute inset-0 bg-[linear-gradient(90deg,rgb(14_12_13/0.95),rgb(23_12_14/0.7)_50%,rgb(23_12_14/0.05))]" aria-hidden="true"></span>
               <span class="relative inline-flex h-6 w-fit items-center gap-1.5 rounded-pill border border-[#d4af37]/50 bg-[#d4af37]/15 pr-2.5 pl-2 font-mono text-[11px] leading-none font-medium tracking-[0.08em] text-[#e3c25a] uppercase">
-                <gr-icon name="trophy" [size]="12" />Premio · {{ eyebrow() }}</span>
+                <gr-icon name="trophy" [size]="12" />{{ t().premio }} · {{ eyebrow() }}</span>
               <div class="relative mt-6 max-w-[240px]">
                 <p class="font-display text-[24px] leading-[1.1] break-words text-text-primary uppercase italic [overflow-wrap:anywhere]">{{ p.titulo }}</p>
-                @if (p.patrocinador) { <p class="mt-1 text-body-xs text-text-secondary">Patrocina {{ p.patrocinador }}</p> }
+                @if (p.patrocinador) { <p class="mt-1 text-body-xs text-text-secondary">{{ t().patrocina }}{{ p.patrocinador }}</p> }
               </div>
             </div>
             @if (premios().length > 1) {
@@ -74,7 +100,7 @@ const euros2 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EU
                     <span class="flex size-6 shrink-0 items-center justify-center rounded-full border text-[12px] font-medium" [class]="medalla(q.puestoDesde)">{{ q.puestoDesde }}</span>
                     <span class="min-w-0 flex-1">
                       <span class="block text-label-s break-words text-text-primary [overflow-wrap:anywhere]">{{ q.titulo }}</span>
-                      @if (q.patrocinador) { <span class="block truncate text-body-xs text-text-tertiary">Patrocina {{ q.patrocinador }}</span> }
+                      @if (q.patrocinador) { <span class="block truncate text-body-xs text-text-tertiary">{{ t().patrocina }}{{ q.patrocinador }}</span> }
                     </span>
                   </li>
                 }
@@ -85,30 +111,30 @@ const euros2 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EU
         <div class="flex shrink-0 items-start gap-2.5">
           <gr-icon name="trophy" [size]="14" class="mt-0.5 shrink-0 text-[#e3c25a]" />
           <div class="min-w-0">
-            <p class="text-label-s text-text-primary">Entra en el ranking del día</p>
-            <p class="text-body-xs text-text-secondary">Cada donativo sale en el chat y suma al ranking.</p>
+            <p class="text-label-s text-text-primary">{{ t().entra }}</p>
+            <p class="text-body-xs text-text-secondary">{{ t().cada }}</p>
           </div>
         </div>
 
         <!-- recaudado -->
         <div class="flex shrink-0 items-center gap-3 rounded-md border border-accent/35 bg-[linear-gradient(135deg,#4c111b,#281112_55%,#170c0e)] p-4">
           <div class="min-w-0 flex-1">
-            <p class="font-mono text-[11px] font-medium tracking-[0.08em] text-accent-text uppercase">{{ diaSel() === hoy || !diaSel() ? 'Recaudado hoy' : 'Recaudado · ' + corto(diaSel()) }}</p>
+            <p class="font-mono text-[11px] font-medium tracking-[0.08em] text-accent-text uppercase">{{ diaSel() === hoy || !diaSel() ? t().recaudadoHoy : t().recaudado + corto(diaSel()) }}</p>
             <p class="mt-1 font-display text-[36px] leading-none text-text-primary italic">{{ euros0(ranking()?.totalRecaudado ?? 0) }}</p>
-            <p class="mt-1.5 text-body-xs text-text-secondary">{{ donativos() }} {{ donativos() === 1 ? 'donativo' : 'donativos' }} · media {{ media() }}</p>
+            <p class="mt-1.5 text-body-xs text-text-secondary">{{ t().donativos(donativos()) }}{{ t().media }}{{ media() }}</p>
           </div>
           <button type="button" class="flex w-[104px] shrink-0 flex-col items-center gap-1 rounded-sm bg-black/25 px-3 py-2.5 text-center text-body-xs text-text-secondary transition-colors hover:bg-black/40 hover:text-text-primary" (click)="donar.emit()">
-            <gr-icon name="heart" [size]="18" class="text-accent-text" />Apoya la GRS Cup
+            <gr-icon name="heart" [size]="18" class="text-accent-text" />{{ t().apoya }}
           </button>
         </div>
 
         <!-- ranking -->
         <div class="shrink-0">
-          <p class="flex items-center justify-between gap-2 pt-1"><span class="text-label-s text-text-primary">Ranking del día</span><span class="font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">{{ dia() }}</span></p>
+          <p class="flex items-center justify-between gap-2 pt-1"><span class="text-label-s text-text-primary">{{ t().ranking }}</span><span class="font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">{{ dia() }}</span></p>
           @if (!ranking()?.items?.length) {
             <div class="mt-3 flex flex-col items-center gap-1.5 rounded-md border border-dashed border-line-strong px-4 py-6 text-center">
-              <p class="text-label-s text-text-primary">Todavía no hay donativos {{ diaSel() === hoy || !diaSel() ? 'hoy' : 'en esta jornada' }}</p>
-              <p class="text-body-xs text-text-tertiary">El primero en donar encabeza el ranking.</p>
+              <p class="text-label-s text-text-primary">{{ t().sinDonativos(diaSel() === hoy || !diaSel()) }}</p>
+              <p class="text-body-xs text-text-tertiary">{{ t().primero }}</p>
             </div>
           } @else {
             <ol class="mt-2 flex flex-col gap-0.5">
@@ -117,7 +143,7 @@ const euros2 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EU
                   <span class="flex size-8 shrink-0 items-center justify-center rounded-full border" [class]="d.puesto <= 3 ? medalla(d.puesto) + ' text-label-s' : 'border-line-strong font-mono text-[13px] text-text-tertiary'">{{ d.puesto }}</span>
                   <span class="min-w-0 flex-1">
                     <span class="block truncate text-label-s text-text-primary">{{ d.alias }}</span>
-                    <span class="block text-body-xs text-text-tertiary">{{ d.donativos }} {{ d.donativos === 1 ? 'donativo' : 'donativos' }}</span>
+                    <span class="block text-body-xs text-text-tertiary">{{ t().donativos(d.donativos) }}</span>
                   </span>
                   <span [class]="d.puesto === 1 ? 'text-label-m text-[#e3c25a]' : 'font-mono text-[13px] text-text-primary'">{{ euros0(d.total) }}</span>
                 </li>
@@ -130,11 +156,11 @@ const euros2 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EU
     }
     <div class="shrink-0 border-t border-line-subtle px-4 pt-3 pb-4">
       @if (activo()) {
-        <button type="button" grButton variant="primary" size="l" [block]="true" icon="heart" (click)="donar.emit()">Donar y entrar en el ranking</button>
-        <p class="mt-2 flex items-center justify-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />Pago seguro · no guardamos tu tarjeta</p>
+        <button type="button" grButton variant="primary" size="l" [block]="true" icon="heart" (click)="donar.emit()">{{ t().donar }}</button>
+        <p class="mt-2 flex items-center justify-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />{{ t().seguro }}</p>
       } @else {
         <!-- UX4-R1-2: no primary CTA for a module that is off -->
-        <p class="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-body-s text-warning" role="status"><gr-icon name="triangle-alert" [size]="16" class="mt-0.5 shrink-0" />Las donaciones aún no están activas. Vuelve en unos días.</p>
+        <p class="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-body-s text-warning" role="status"><gr-icon name="triangle-alert" [size]="16" class="mt-0.5 shrink-0" />{{ t().inactivo }}</p>
       }
     </div>
   `,
@@ -142,6 +168,8 @@ const euros2 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EU
 export class DonantesView {
   private readonly don = inject(Donaciones);
   private readonly http = inject(HttpClient);
+  private readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(T);
   /** Donations are on (until the config says otherwise). */
   protected readonly activo = computed(() => this.don.config()?.activo !== false);
 
@@ -172,12 +200,13 @@ export class DonantesView {
   protected readonly error = signal<string | null>(null);
   protected readonly premios = signal<Premio[]>([]);
   protected readonly primero = computed(() => this.premios()[0]);
-  protected readonly dia = computed(() => (this.diaSel() ? etiquetaDia(this.diaSel()) : ''));
+  protected readonly dia = computed(() => (this.diaSel() ? etiquetaDia(this.diaSel(), this.i18n.lang()) : ''));
   /** Average donation (from the ranking: the API only returns the top 20). */
   protected readonly media = computed(() => {
     const r = this.ranking();
     const donativos = (r?.items ?? []).reduce((s, d) => s + d.donativos, 0);
-    return donativos ? euros2.format((r?.totalRecaudado ?? 0) / 100 / donativos) : euros2.format(0);
+    const f = euros2(this.i18n.locale());
+    return donativos ? f.format((r?.totalRecaudado ?? 0) / 100 / donativos) : f.format(0);
   });
   /** The image of the prize failed: the brand block is shown instead. */
   private readonly imagenFalla = signal<ReadonlySet<string>>(new Set());
@@ -197,7 +226,7 @@ export class DonantesView {
       void this.don.cargarRanking(dia || undefined).then((r) => {
         if (dia !== untracked(this.diaSel)) return; // a newer day was chosen meanwhile
         this.ranking.set(r);
-        this.error.set(r ? null : 'No hemos podido cargar el ranking de donantes.');
+        this.error.set(r ? null : untracked(this.t).error);
         this.cargando.set(false);
       });
     });
@@ -245,7 +274,7 @@ export class DonantesView {
   protected corto(dia: string): string {
     const d = new Date(dia + 'T12:00:00Z');
     if (isNaN(d.getTime())) return dia;
-    const s = new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', timeZone: 'UTC' }).format(d).replace(',', '');
+    const s = new Intl.DateTimeFormat(this.i18n.locale(), { weekday: 'short', day: 'numeric', timeZone: 'UTC' }).format(d).replace(',', '');
     return s.charAt(0).toUpperCase() + s.slice(1);
   }
 
@@ -263,7 +292,7 @@ export class DonantesView {
   protected eyebrow(): string {
     const p = this.primero();
     if (!p) return '';
-    return p.puestoDesde === 1 ? '1.er donante del día' : `${p.puestoDesde}.º donante del día`;
+    return this.t().eyebrow(p.puestoDesde);
   }
 
   /** Number of donations of the day (from the ranking: the API only returns the top 20). */
@@ -274,6 +303,6 @@ export class DonantesView {
   }
 
   protected euros0(v: number): string {
-    return euros0.format(v / 100); // the API answers in cents
+    return euros0(this.i18n.locale()).format(v / 100); // the API answers in cents
   }
 }

@@ -12,6 +12,7 @@ import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG } from './competition';
 import { FanSession, codigoError, detalleError } from './fan';
+import type { Lang } from './i18n';
 
 // ---------------------------------------------------------------------------------------------
 // Tipos (las etiquetas json del backend: internal/juegos/http.go, porra.go, fantasy.go, ranking.go)
@@ -358,16 +359,29 @@ export interface Premio {
   patrocinador?: string;
 }
 
-const nf1c = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 /** La tabla de la nota (Figma «Tabla de la nota») con los valores de la configuración pública. */
-export function tablaNota(cfg: ConfigJuegos | null): { concepto: string; detalle: string; valor: string; tono: '' | 'rojo'; fondo: boolean }[] {
+export function tablaNota(cfg: ConfigJuegos | null, lang: Lang = 'es'): { concepto: string; detalle: string; valor: string; tono: '' | 'rojo'; fondo: boolean }[] {
   const p = cfg?.puntos ?? {};
+  const loc = lang === 'en' ? 'en-GB' : 'es-ES';
+  const nf1c = new Intl.NumberFormat(loc, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const d = (n: number) => nf1c.format(n);
   const puesto = p.puesto?.length ? p.puesto : [3, 2.4, 1.8, 1.2, 0.6];
   const intentos = p.intentos ?? 5;
+  if (lang === 'en')
+    return [
+      { concepto: 'A · Valid attempts', detalle: `Each valid attempt adds ≈ ${new Intl.NumberFormat(loc, { maximumFractionDigits: 2 }).format(Math.round((intentos / 9) * 100) / 100)}.`, valor: `${d(intentos)} × valid ÷ 9`, tono: '', fondo: false },
+      { concepto: 'No lift', detalle: 'Each no lift deducts from the score.', valor: `−${d(p.nulo ?? 0.3)} per no lift`, tono: 'rojo', fondo: false },
+      { concepto: 'B · Place in their category', detalle: '1st to 5th; provisional live, final once the category is published.', valor: puesto.map(d).join(' · '), tono: '', fondo: false },
+      { concepto: 'C · Perfect 9/9', detalle: '9 valid attempts.', valor: '+' + d(p.pleno ?? 0.5), tono: '', fondo: false },
+      { concepto: 'C · Personal record', detalle: 'Beats their best recorded mark.', valor: '+' + d(p.recordPersonal ?? 0.6), tono: '', fondo: false },
+      { concepto: 'C · Competition record', detalle: 'Replaces the personal record; they do not stack.', valor: '+' + d(p.recordCompeticion ?? 1), tono: '', fondo: false },
+      { concepto: 'C · Completed total', detalle: 'At least 1 valid attempt in each lift.', valor: '+' + d(p.total ?? 0.3), tono: '', fondo: false },
+      { concepto: 'Cap and rounding', detalle: 'Score = A + B + C − no lifts, 1 decimal; C max. 2.0.', valor: '0.0 – 10.0', tono: '', fondo: false },
+      { concepto: 'Bomb-out / disqualification', detalle: '3 no lifts in the same lift (bomb-out) or DQ: an absolute 0.0 that cancels everything.', valor: 'score = 0.0', tono: 'rojo', fondo: true },
+    ];
   return [
-    { concepto: 'A · Intentos válidos', detalle: `Cada intento válido suma ≈ ${new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 }).format(Math.round((intentos / 9) * 100) / 100)}.`, valor: `${d(intentos)} × válidos ÷ 9`, tono: '', fondo: false },
+    { concepto: 'A · Intentos válidos', detalle: `Cada intento válido suma ≈ ${new Intl.NumberFormat(loc, { maximumFractionDigits: 2 }).format(Math.round((intentos / 9) * 100) / 100)}.`, valor: `${d(intentos)} × válidos ÷ 9`, tono: '', fondo: false },
     { concepto: 'Intento nulo (no lift)', detalle: 'Cada intento nulo resta nota.', valor: `−${d(p.nulo ?? 0.3)} por nulo`, tono: 'rojo', fondo: false },
     { concepto: 'B · Puesto en su categoría', detalle: '1.º a 5.º; provisional en directo, definitivo al publicarse la categoría.', valor: puesto.map(d).join(' · '), tono: '', fondo: false },
     { concepto: 'C · Pleno 9/9', detalle: '9 intentos válidos.', valor: '+' + d(p.pleno ?? 0.5), tono: '', fondo: false },
@@ -419,26 +433,63 @@ const MENSAJES: Record<string, string> = {
   SESION_FAN_REVOCADA: 'Tu sesión ha caducado. Entra de nuevo.',
   SESION_FAN_INVALIDA: 'Tu sesión no es válida. Entra de nuevo.',
 };
+const MENSAJES_EN: Record<string, string> = {
+  SALDO_INSUFICIENTE: 'You do not have enough coins in your wallet.',
+  MERCADO_CERRADO: 'The market is closed: no more bets are accepted.',
+  JORNADA_NO_JUGABLE: 'This matchday is no longer open to play.',
+  IMPORTE_NO_VALIDO: 'Each bet must be between 100 and 50,000 coins.',
+  ATLETA_NO_EN_MERCADO: 'That athlete is not in this market.',
+  ATLETA_PROTEGIDO: 'The athlete is protected for a while after their last signing.',
+  MAX_CLAUSULAZOS: "You have already used all of today's release-clause buys.",
+  PLANTILLA_LLENA: 'Your line-up is full: sell someone first.',
+  YA_CON_DUENO: 'Another user already has that athlete. You can pay their release clause.',
+  YA_ES_TUYO: 'That athlete is already in your line-up.',
+  ATLETA_LIBRE: 'That athlete is free: buy them, no release clause needed.',
+  ATLETA_AJENO: 'That athlete is not yours.',
+  ATLETA_PROPIO: 'The athlete is already yours.',
+  SIN_SALA: 'You are not in any room today yet: join one or create your own.',
+  CLAUSULAZO_CERRADO: 'Release-clause buys are closed: the last session of the day has started.',
+  NOMBRE_NO_VALIDO: 'This name contains words that are not allowed or already exists today. Choose another (3–32 characters).',
+  NOMBRE_OCUPADO: 'This name contains words that are not allowed or already exists today. Choose another (3–32 characters).',
+  PLAZAS_NO_VALIDAS: "That number of places exceeds the day's athlete quota.",
+  YA_EN_SALA: 'You are already in another room today. You can only be in one room per day.',
+  YA_MIEMBRO: 'You are already a member of this room.',
+  ATLETAS_INSUFICIENTES: 'There are not enough athletes today to create a room.',
+  SALA_EMPEZADA: 'The room has already started: no changes or new players allowed.',
+  SALA_LLENA: 'The room is full.',
+  SALA_NO_DISPONIBLE: 'The room is no longer available.',
+  MAX_SOLICITUDES: 'You already have 3 pending requests. Cancel one to request another room.',
+  SOLICITUD_RECHAZADA: 'The host has not accepted your request. You cannot request this room again today.',
+  SOLICITUD_NO_PENDIENTE: 'That request is no longer pending.',
+  SIN_PERMISO: 'Only the host can do that.',
+  ANFITRION: 'The host cannot be removed.',
+  MARCADOR_NO_DISPONIBLE: 'Could not read the live scoreboard. Try again in a few seconds.',
+  SESION_FAN_REQUERIDA: 'Sign in with your athlete or spectator account to take part.',
+  SESION_FAN_REVOCADA: 'Your session has expired. Please sign in again.',
+  SESION_FAN_INVALIDA: 'Your session is not valid. Please sign in again.',
+};
 
 /** Traduce el error del API a un mensaje claro (usa el código; si no lo conoce, el detalle del backend). */
-export function mensajeError(e: unknown): string {
+export function mensajeError(e: unknown, lang: Lang = 'es'): string {
   const codigo = codigoError(e);
-  return MENSAJES[codigo] ?? detalleError(e);
+  return (lang === 'en' ? MENSAJES_EN : MENSAJES)[codigo] ?? detalleError(e, lang);
 }
 
 // ---------------------------------------------------------------------------------------------
 // Formato
 // ---------------------------------------------------------------------------------------------
 
-const nf = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 });
-const nf1 = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-const nf2 = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const NF = { es: 'es-ES', en: 'en-GB' } as const;
+const nfOf = (lang: Lang, o: Intl.NumberFormatOptions) => new Intl.NumberFormat(NF[lang], o);
+const nf = { es: nfOf('es', { maximumFractionDigits: 0 }), en: nfOf('en', { maximumFractionDigits: 0 }) };
+const nf1 = { es: nfOf('es', { minimumFractionDigits: 1, maximumFractionDigits: 1 }), en: nfOf('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) };
+const nf2 = { es: nfOf('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), en: nfOf('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) };
 /** «8,6» (nota de un atleta en tarjetas: 1 decimal). */
-export const nota1 = (v: number | null | undefined): string => (v === null || v === undefined ? '—' : nf1.format(v));
+export const nota1 = (v: number | null | undefined, lang: Lang = 'es'): string => (v === null || v === undefined ? '—' : nf1[lang].format(v));
 /** «7,90» (medias de alineación y eventos: 2 decimales). */
-export const nota2 = (v: number | null | undefined): string => (v === null || v === undefined ? '—' : nf2.format(v));
+export const nota2 = (v: number | null | undefined, lang: Lang = 'es'): string => (v === null || v === undefined ? '—' : nf2[lang].format(v));
 /** «+0,56» · «−0,30» (cambio de nota de un evento). */
-export const deltaNota = (v: number): string => (v > 0 ? '+' : v < 0 ? '−' : '') + nf2.format(Math.abs(v));
+export const deltaNota = (v: number, lang: Lang = 'es'): string => (v > 0 ? '+' : v < 0 ? '−' : '') + nf2[lang].format(Math.abs(v));
 /** El tramo de color de una nota (Figma «Nota»: gris < 1 o sin nota · rojo < 5 · ámbar < 6 · azul < 8 · verde < 9 · morado). */
 export type TramoNota = 'gris' | 'rojo' | 'ambar' | 'azul' | 'verde' | 'morado';
 export function tramoNota(valor: number, tieneNota = true): TramoNota {
@@ -450,19 +501,21 @@ export function tramoNota(valor: number, tieneNota = true): TramoNota {
   return 'morado';
 }
 /** «17:30» (hora local de un instante ISO). */
-export const horaTxt = (iso: string | undefined): string => (iso ? new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso)) : '');
+export const horaTxt = (iso: string | undefined, lang: Lang = 'es'): string => (iso ? new Intl.DateTimeFormat(NF[lang], { hour: '2-digit', minute: '2-digit' }).format(new Date(iso)) : '');
 /** «128.400» (monedas, sin decimales). */
-export const monedas = (v: number | null | undefined): string => (v === null || v === undefined ? '—' : nf.format(v));
+export const monedas = (v: number | null | undefined, lang: Lang = 'es'): string => (v === null || v === undefined ? '—' : nf[lang].format(v));
 /** «×2,4» (cuota orientativa). */
-export const cuota = (v: number | null | undefined): string => (v === null || v === undefined ? '—' : '×' + nf2.format(v));
+export const cuota = (v: number | null | undefined, lang: Lang = 'es'): string => (v === null || v === undefined ? '—' : '×' + nf2[lang].format(v));
 /** «Femenino» / «Masculino». */
-export const sexoTxt = (s: Sexo | string): string => (s === 'F' ? 'Femenino' : 'Masculino');
+export const sexoTxt = (s: Sexo | string, lang: Lang = 'es'): string => (lang === 'en' ? (s === 'F' ? 'Women' : 'Men') : s === 'F' ? 'Femenino' : 'Masculino');
 /** «−63 kg» (la categoría del backend viene como «-63»). */
 export const categoriaTxt = (c: string | undefined): string => (c ? c.replace('-', '−') + ' kg' : '');
 /** Etiqueta del movimiento de porra. */
 export const MOV_PORRA: Record<Mov, string> = { sq: 'Sentadilla', bp: 'Press banca', dl: 'Peso muerto' };
+export const MOV_PORRA_EN: Record<Mov, string> = { sq: 'Squat', bp: 'Bench press', dl: 'Deadlift' };
 /** Etiqueta del tipo de mercado. */
 export const TIPO_MERCADO: Record<TipoMercado, string> = { categoria: 'Categoría de peso', gl: 'IPF GL', movimiento: 'Movimiento' };
+export const TIPO_MERCADO_EN: Record<TipoMercado, string> = { categoria: 'Weight class', gl: 'IPF GL', movimiento: 'Lift' };
 
 // ---------------------------------------------------------------------------------------------
 // Cliente del servicio

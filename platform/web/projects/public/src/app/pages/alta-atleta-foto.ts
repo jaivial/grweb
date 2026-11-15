@@ -1,6 +1,36 @@
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, ElementRef, PLATFORM_ID, inject, input, output, signal, viewChild } from '@angular/core';
 import { GrButton, GrIcon } from '@grcup/ui';
+import { I18n } from '../core/i18n';
+
+const T = {
+  es: {
+    aria: 'Foto de perfil (opcional). JPG, PNG o WebP, máximo 8 MB y 48 megapíxeles', suelta: 'Suelta la foto aquí', formatos: 'JPG, PNG o WebP · máx. 8 MB · máx. 48 MP',
+    arrastra: 'Arrastra tu foto o pulsa para elegirla', hacer: 'Hacer o elegir foto',
+    opcional: 'Opcional pero recomendada. La publicamos en blanco y negro, recortada a 4:5 para que todas las fichas sean uniformes.',
+    encuadre: 'Encuadre de la foto: arrástralo o usa las flechas del teclado', vista: 'Vista previa en blanco y negro', recentrar: 'Arrastra la imagen para recentrar el encuadre.',
+    recorte: 'La recortamos a 4:5 (960 × 1200 px) y la publicamos en blanco y negro para que todas las fichas se vean igual.',
+    cambiar: 'Cambiar foto', quitar: 'Quitar foto', preparando: 'Estamos preparando tu foto…', subiendo: 'Subiendo la foto…',
+    ajustamos: 'Ajustamos el contraste, el blanco y negro y el encuadre 4:5.',
+    pesada: (mb: string) => `La foto pesa ${mb} MB y el máximo son 8 MB. Comprime la imagen o sube otra.`,
+    noImagen: 'Ese archivo no es una imagen. Sube un JPG, PNG o WebP.',
+    mp: (n: number) => `La foto tiene ${n} megapíxeles y el máximo son 48. Redimensiona la imagen y vuelve a subirla.`,
+    noPreparada: 'No hemos podido preparar la foto. Prueba con otra imagen.',
+  },
+  en: {
+    aria: 'Profile photo (optional). JPG, PNG or WebP, up to 8 MB and 48 megapixels', suelta: 'Drop the photo here', formatos: 'JPG, PNG or WebP · max. 8 MB · max. 48 MP',
+    arrastra: 'Drag your photo here or click to choose it', hacer: 'Take or choose a photo',
+    opcional: 'Optional but recommended. We publish it in black and white, cropped to 4:5 so that all profiles look the same.',
+    encuadre: 'Photo framing: drag it or use the arrow keys', vista: 'Black and white preview', recentrar: 'Drag the image to recentre the framing.',
+    recorte: 'We crop it to 4:5 (960 × 1200 px) and publish it in black and white so that all profiles look the same.',
+    cambiar: 'Change photo', quitar: 'Remove photo', preparando: "We're preparing your photo…", subiendo: 'Uploading the photo…',
+    ajustamos: 'We adjust the contrast, the black and white and the 4:5 framing.',
+    pesada: (mb: string) => `The photo is ${mb} MB and the maximum is 8 MB. Compress the image or upload another one.`,
+    noImagen: "That file isn't an image. Upload a JPG, PNG or WebP.",
+    mp: (n: number) => `The photo has ${n} megapixels and the maximum is 48. Resize the image and upload it again.`,
+    noPreparada: "We couldn't prepare the photo. Try another image.",
+  },
+};
 
 /** La foto que se envía: el fichero ya precomprimido y el encuadre (focal) elegido. */
 export interface FotoAlta {
@@ -33,18 +63,18 @@ const TIPOS = ['image/jpeg', 'image/png', 'image/webp'];
           class="flex cursor-pointer flex-col items-center gap-2 rounded-[14px] border-2 border-dashed px-5 py-8 text-center transition-colors has-[:focus-visible]:[outline:2px_solid_var(--color-accent-text)] has-[:focus-visible]:outline-offset-2"
           [class]="arrastrando() ? 'border-accent-text bg-accent/8' : 'border-line-strong hover:border-text-muted'"
           (dragover)="arrastrando.set(true); $event.preventDefault()" (dragleave)="arrastrando.set(false)" (drop)="soltar($event)">
-          <input #entrada type="file" class="sr-only" accept="image/*" [attr.aria-label]="'Foto de perfil (opcional). JPG, PNG o WebP, máximo 8 MB y 48 megapíxeles'"
+          <input #entrada type="file" class="sr-only" accept="image/*" [attr.aria-label]="t().aria"
             (change)="elegir($event)" />
           <span class="flex size-10 items-center justify-center rounded-md bg-accent/14 text-accent-text"><gr-icon name="arrow-up" [size]="18" /></span>
           @if (arrastrando()) {
-            <span class="text-label-m">Suelta la foto aquí</span>
-            <span class="text-body-s text-text-tertiary">JPG, PNG o WebP · máx. 8 MB · máx. 48 MP</span>
+            <span class="text-label-m">{{ t().suelta }}</span>
+            <span class="text-body-s text-text-tertiary">{{ t().formatos }}</span>
           } @else {
             <!-- UX2-R1-10: en táctil no se arrastra -->
-            <span class="text-label-m pointer-coarse:hidden">Arrastra tu foto o pulsa para elegirla</span>
-            <span class="hidden text-label-m pointer-coarse:inline">Hacer o elegir foto</span>
-            <span class="text-body-s text-text-tertiary">JPG, PNG o WebP · máx. 8 MB · máx. 48 MP</span>
-            <span class="max-w-[420px] text-body-s text-text-muted">Opcional pero recomendada. La publicamos en blanco y negro, recortada a 4:5 para que todas las fichas sean uniformes.</span>
+            <span class="text-label-m pointer-coarse:hidden">{{ t().arrastra }}</span>
+            <span class="hidden text-label-m pointer-coarse:inline">{{ t().hacer }}</span>
+            <span class="text-body-s text-text-tertiary">{{ t().formatos }}</span>
+            <span class="max-w-[420px] text-body-s text-text-muted">{{ t().opcional }}</span>
           }
         </label>
       }
@@ -57,7 +87,7 @@ const TIPOS = ['image/jpeg', 'image/png', 'image/webp'];
             <canvas #lienzo width="960" height="1200" class="absolute inset-0 size-full"></canvas>
             @if (foto() && !subiendo() && !procesando()) {
               <button type="button" class="absolute z-10 flex size-8 -translate-x-1/2 -translate-y-1/2 cursor-grab items-center justify-center rounded-full border-2 border-white shadow-glow active:cursor-grabbing"
-                [style.left.%]="focal().x" [style.top.%]="focal().y" [attr.aria-label]="'Encuadre de la foto: arrástralo o usa las flechas del teclado'"
+                [style.left.%]="focal().x" [style.top.%]="focal().y" [attr.aria-label]="t().encuadre"
                 (keydown)="teclado($event)" (pointerdown)="$event.stopPropagation()">
                 <span class="size-2.5 rounded-full bg-accent-text"></span>
               </button>
@@ -65,20 +95,20 @@ const TIPOS = ['image/jpeg', 'image/png', 'image/webp'];
           </div>
         </div>
         <div class="flex min-w-0 flex-1 flex-col gap-2">
-          <p class="text-label-m">Vista previa en blanco y negro</p>
-          <p class="text-body-s text-text-secondary">Arrastra la imagen para recentrar el encuadre.</p>
-          <p class="text-body-s text-text-tertiary">La recortamos a 4:5 (960 × 1200 px) y la publicamos en blanco y negro para que todas las fichas se vean igual.</p>
+          <p class="text-label-m">{{ t().vista }}</p>
+          <p class="text-body-s text-text-secondary">{{ t().recentrar }}</p>
+          <p class="text-body-s text-text-tertiary">{{ t().recorte }}</p>
           <div class="mt-1 flex flex-wrap items-center gap-3">
-            <button grButton variant="outline" type="button" (click)="cambiar()">Cambiar foto</button>
-            <button type="button" class="text-label-s text-accent-text hover:underline" (click)="quitar()">Quitar foto</button>
+            <button grButton variant="outline" type="button" (click)="cambiar()">{{ t().cambiar }}</button>
+            <button type="button" class="text-label-s text-accent-text hover:underline" (click)="quitar()">{{ t().quitar }}</button>
           </div>
           @if (subiendo() || procesando()) {
             <div class="mt-2 flex flex-col gap-2 rounded-md border border-line-subtle bg-bg-surface p-3">
               <p class="flex items-center gap-2 text-body-s text-text-secondary">
-                <gr-icon name="loader" [size]="14" [spin]="true" class="text-accent-text" />{{ procesando() ? 'Estamos preparando tu foto…' : 'Subiendo la foto…' }}
+                <gr-icon name="loader" [size]="14" [spin]="true" class="text-accent-text" />{{ procesando() ? t().preparando : t().subiendo }}
               </p>
               <div class="h-1.5 overflow-hidden rounded-pill bg-line-strong"><div class="h-full rounded-pill bg-accent transition-[width] duration-200" [style.width.%]="progreso()"></div></div>
-              <p class="text-body-s text-text-muted">Ajustamos el contraste, el blanco y negro y el encuadre 4:5.</p>
+              <p class="text-body-s text-text-muted">{{ t().ajustamos }}</p>
             </div>
           }
         </div>
@@ -102,6 +132,8 @@ export class AltaFoto {
   readonly progreso = input(0);
 
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(T);
   private readonly lienzo = viewChild<ElementRef<HTMLCanvasElement>>('lienzo');
   private readonly marco = viewChild<ElementRef<HTMLElement>>('marco');
   private readonly entrada = viewChild<ElementRef<HTMLInputElement>>('entrada');
@@ -115,7 +147,7 @@ export class AltaFoto {
   private base: HTMLCanvasElement | null = null;
   private arrastrandoEncuadre = false;
 
-  protected readonly mb = (n: number): string => (n / 1024 / 1024).toLocaleString('es-ES', { maximumFractionDigits: 1 });
+  protected readonly mb = (n: number): string => (n / 1024 / 1024).toLocaleString(this.i18n.locale(), { maximumFractionDigits: 1 });
 
   /** Elige el fichero desde el explorador. */
   protected elegir(e: Event): void {
@@ -153,16 +185,16 @@ export class AltaFoto {
     this.error.set('');
     this.errorFoto.emit('');
     if (f.size > MAX_BYTES) {
-      return this.fallar(`La foto pesa ${this.mb(f.size)} MB y el máximo son 8 MB. Comprime la imagen o sube otra.`);
+      return this.fallar(this.t().pesada(this.mb(f.size)));
     }
     if (f.type && !TIPOS.includes(f.type) && !/\.(jpe?g|png|webp)$/i.test(f.name)) {
-      return this.fallar('Ese archivo no es una imagen. Sube un JPG, PNG o WebP.');
+      return this.fallar(this.t().noImagen);
     }
     const img = await this.decodificar(f);
-    if (!img) return this.fallar('Ese archivo no es una imagen. Sube un JPG, PNG o WebP.');
+    if (!img) return this.fallar(this.t().noImagen);
     const megapixeles = (img.naturalWidth * img.naturalHeight) / 1e6;
     if (megapixeles > MAX_MP) {
-      return this.fallar(`La foto tiene ${Math.round(megapixeles)} megapíxeles y el máximo son 48. Redimensiona la imagen y vuelve a subirla.`);
+      return this.fallar(this.t().mp(Math.round(megapixeles)));
     }
     // Reducción a ≤ 2 MP antes de subirla (el servidor vuelve a procesar la imagen).
     const escala = Math.min(1, Math.sqrt((MAX_PRECOMPRESION_MP * 1e6) / (img.naturalWidth * img.naturalHeight)));
@@ -170,7 +202,7 @@ export class AltaFoto {
     base.width = Math.max(1, Math.round(img.naturalWidth * escala));
     base.height = Math.max(1, Math.round(img.naturalHeight * escala));
     const bctx = base.getContext('2d');
-    if (!bctx) return this.fallar('No hemos podido preparar la foto. Prueba con otra imagen.');
+    if (!bctx) return this.fallar(this.t().noPreparada);
     bctx.drawImage(img, 0, 0, base.width, base.height);
     this.base = base;
     this.gris(base);
@@ -223,7 +255,7 @@ export class AltaFoto {
     c.height = LADO.h;
     this.pintar(base, c, this.focal());
     const blob = await new Promise<Blob | null>((r) => c.toBlob(r, 'image/jpeg', 0.85));
-    if (!blob) return this.fallar('No hemos podido preparar la foto. Prueba con otra imagen.');
+    if (!blob) return this.fallar(this.t().noPreparada);
     const f = this.focal();
     const archivo = new File([blob], 'foto-atleta.jpg', { type: 'image/jpeg' });
     this.foto.set({ archivo, focalX: f.x, focalY: f.y });

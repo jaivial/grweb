@@ -5,6 +5,7 @@
  * prefers-reduced-motion).
  */
 import { ChangeDetectionStrategy, Component, ElementRef, afterRenderEffect, inject, input } from '@angular/core';
+import { I18n, type Lang } from '../../core/i18n';
 import type { Apuesta, Mercado, Sexo } from '../../core/juegos';
 import { monedas } from './formato';
 
@@ -27,7 +28,12 @@ export function kg(cat: string | undefined): string {
   return c.replace(/^-/, '−') + ' kg';
 }
 
-export const sexoTxt = (s: Sexo): string => (s === 'F' ? 'Femenino' : 'Masculino');
+export const sexoTxt = (s: Sexo, lang: Lang = 'es'): string => (lang === 'en' ? (s === 'F' ? 'Women' : 'Men') : s === 'F' ? 'Femenino' : 'Masculino');
+
+const T = {
+  es: { hasPuesto: (n: string) => 'Has puesto ' + n + ' monedas', tuPorra: 'Tu porra', monedas: ' monedas' },
+  en: { hasPuesto: (n: string) => 'You have put ' + n + ' coins', tuPorra: 'Your pick', monedas: ' coins' },
+};
 
 /** Solo los mercados por categoría tienen un atleta por opción sin repetirse entre mercados. */
 export const mercadosCategoria = (l: Mercado[]): Mercado[] => l.filter((m) => m.tipo === 'categoria');
@@ -67,13 +73,13 @@ export function rankingAtletas(mercados: Mercado[], sexo: Sexo, mias: Map<string
             <span class="w-5 shrink-0 font-mono text-[12px] tabular-nums" [class]="i < 3 ? 'text-text-primary' : 'text-text-tertiary'">{{ i + 1 }}</span>
             <span class="min-w-0 flex-1">
               <span class="block truncate text-label-s text-text-primary">{{ f.nombre }}</span>
-              <span class="block truncate text-[11px] leading-[1.3] text-text-tertiary">{{ sexoTxt(f.sexo) }} · {{ f.categoria }}</span>
+              <span class="block truncate text-[11px] leading-[1.3] text-text-tertiary">{{ sexoTxt(f.sexo, i18n.lang()) }} · {{ f.categoria }}</span>
             </span>
             @if (f.mio) {
-              <span class="shrink-0 rounded-pill border border-warning/50 px-2 py-0.5 text-[11px] leading-none text-warning" [attr.title]="'Has puesto ' + monedas(f.mio) + ' monedas'">Tu porra</span>
+              <span class="shrink-0 rounded-pill border border-warning/50 px-2 py-0.5 text-[11px] leading-none text-warning" [attr.title]="t().hasPuesto(monedas(f.mio))">{{ t().tuPorra }}</span>
             }
             <span class="inline-flex shrink-0 items-center gap-1.5 font-mono text-[13px] font-medium text-text-primary tabular-nums">
-              <span class="size-2.5 rounded-full bg-warning" aria-hidden="true"></span>{{ monedas(f.total) }}<span class="sr-only"> monedas</span>
+              <span class="size-2.5 rounded-full bg-warning" aria-hidden="true"></span>{{ monedas(f.total) }}<span class="sr-only">{{ t().monedas }}</span>
             </span>
           </div>
           <span class="block h-1 overflow-hidden rounded-pill bg-white/6" aria-hidden="true">
@@ -86,7 +92,9 @@ export function rankingAtletas(mercados: Mercado[], sexo: Sexo, mias: Map<string
 })
 export class RankingPorra {
   readonly filas = input.required<FilaRanking[]>();
-  protected readonly monedas = monedas;
+  protected readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(T);
+  protected readonly monedas = (v: number) => monedas(v, this.i18n.locale());
   protected readonly sexoTxt = sexoTxt;
   private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
   /** Posición (top relativa a la lista) de cada fila en el último render, para el FLIP. */

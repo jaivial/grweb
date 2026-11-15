@@ -1,6 +1,12 @@
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, effect, inject, input, model, signal } from '@angular/core';
 import { GrIcon } from '@grcup/ui';
+import { I18n } from '../core/i18n';
+
+const T = {
+  es: { foto: (i: number, n: number) => 'Foto ' + i + ' de ' + n, compartir: 'Compartir', cerrar: 'Cerrar', roto: 'No se pudo cargar la foto.', reintentar: 'Reintentar', anterior: 'Foto anterior', siguiente: 'Foto siguiente', copiado: 'Enlace copiado' },
+  en: { foto: (i: number, n: number) => 'Photo ' + i + ' of ' + n, compartir: 'Share', cerrar: 'Close', roto: 'The photo could not be loaded.', reintentar: 'Retry', anterior: 'Previous photo', siguiente: 'Next photo', copiado: 'Link copied' },
+};
 
 /** `pie`: caption instead of the alt text (e.g. «Edición 2025 · Plataforma» in /galeria). */
 export interface FotoLightbox { imagen: string; alt: string; pie?: string }
@@ -17,18 +23,18 @@ export interface FotoLightbox { imagen: string; alt: string; pie?: string }
   host: { '(document:keydown)': 'tecla($event)' },
   template: `
     @if (indice() >= 0 && fotos()[indice()]; as f) {
-      <div animate.enter="gr-visor-in" class="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black py-16 md:bg-[#030303] md:px-28 md:pt-20" [style.background-color]="dy() ? 'rgb(0 0 0 / ' + (1 - Math.min(dy(), 300) / 400) + ')' : null" role="dialog" aria-modal="true" [attr.aria-label]="'Foto ' + (indice() + 1) + ' de ' + fotos().length" (click)="cerrar()">
+      <div animate.enter="gr-visor-in" class="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black py-16 md:bg-[#030303] md:px-28 md:pt-20" [style.background-color]="dy() ? 'rgb(0 0 0 / ' + (1 - Math.min(dy(), 300) / 400) + ')' : null" role="dialog" aria-modal="true" [attr.aria-label]="t().foto(indice() + 1, fotos().length)" (click)="cerrar()">
         <div class="absolute top-[max(16px,env(safe-area-inset-top))] right-[max(16px,env(safe-area-inset-right))] flex gap-2 md:top-20 md:right-[118px]">
           @if (compartir()) {
-            <button type="button" class="flex size-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 md:size-[62px]" aria-label="Compartir" (click)="$event.stopPropagation(); compartirFoto()"><gr-icon name="share" [size]="18" /></button>
+            <button type="button" class="flex size-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 md:size-[62px]" [attr.aria-label]="t().compartir" (click)="$event.stopPropagation(); compartirFoto()"><gr-icon name="share" [size]="18" /></button>
           }
-          <button type="button" class="flex size-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 md:size-[62px]" aria-label="Cerrar" (click)="cerrar()"><gr-icon name="x" [size]="20" /></button>
+          <button type="button" class="flex size-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 md:size-[62px]" data-cerrar [attr.aria-label]="t().cerrar" (click)="cerrar()"><gr-icon name="x" [size]="20" /></button>
         </div>
         <figure class="flex w-full pb-[env(safe-area-inset-bottom)] md:pb-0 flex-col items-center gap-4 md:w-[min(980px,100%,calc(62vh*1.75))] md:gap-12" (click)="$event.stopPropagation()" [style.transform]="dy() ? 'translateY(' + dy() + 'px)' : null" [class.transition-transform]="!dy()" (touchstart)="tocar($event)" (touchmove)="arrastrar($event)" (touchend)="soltar($event)">
           @if (roto()) {
             <div class="flex aspect-[7/4] w-full flex-col items-center justify-center gap-3 bg-white/5 px-4 text-center md:rounded-2xl" role="alert">
-              <gr-icon name="circle-alert" [size]="28" class="text-text-tertiary" /><p class="text-body-s text-text-secondary">No se pudo cargar la foto.</p>
-              <button type="button" class="rounded-full bg-white/10 px-4 py-2 text-label-s hover:bg-white/20" (click)="reintentar()">Reintentar</button>
+              <gr-icon name="circle-alert" [size]="28" class="text-text-tertiary" /><p class="text-body-s text-text-secondary">{{ t().roto }}</p>
+              <button type="button" class="rounded-full bg-white/10 px-4 py-2 text-label-s hover:bg-white/20" (click)="reintentar()">{{ t().reintentar }}</button>
             </div>
           } @else {
             <img [src]="grande(f.imagen) + intento()" [alt]="f.alt" (error)="roto.set(true)" class="max-h-[72vh] w-full object-contain md:aspect-[7/4] md:max-h-none md:rounded-2xl md:object-cover" />
@@ -37,8 +43,8 @@ export interface FotoLightbox { imagen: string; alt: string; pie?: string }
         </figure>
         <p class="sr-only" aria-live="polite">{{ aviso() }}</p>
         @if (fotos().length > 1) {
-          <button type="button" class="absolute top-1/2 left-3 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm md:bg-white/10 hover:bg-white/20 md:left-12 md:top-[calc(50%-28px)] md:size-[62px] xl:left-[132px]" aria-label="Foto anterior" (click)="$event.stopPropagation(); mover(-1)"><gr-icon name="arrow-left" [size]="20" /></button>
-          <button type="button" class="absolute top-1/2 right-3 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm md:bg-white/10 hover:bg-white/20 md:right-12 md:top-[calc(50%-28px)] md:size-[62px] xl:right-[132px]" aria-label="Foto siguiente" (click)="$event.stopPropagation(); mover(1)"><gr-icon name="arrow-right" [size]="20" /></button>
+          <button type="button" class="absolute top-1/2 left-3 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm md:bg-white/10 hover:bg-white/20 md:left-12 md:top-[calc(50%-28px)] md:size-[62px] xl:left-[132px]" [attr.aria-label]="t().anterior" (click)="$event.stopPropagation(); mover(-1)"><gr-icon name="arrow-left" [size]="20" /></button>
+          <button type="button" class="absolute top-1/2 right-3 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm md:bg-white/10 hover:bg-white/20 md:right-12 md:top-[calc(50%-28px)] md:size-[62px] xl:right-[132px]" [attr.aria-label]="t().siguiente" (click)="$event.stopPropagation(); mover(1)"><gr-icon name="arrow-right" [size]="20" /></button>
         }
         @if (aviso()) { <p class="absolute bottom-6 rounded-full bg-white/10 px-4 py-2 text-body-s" aria-hidden="true">{{ aviso() }}</p> }
       </div>
@@ -46,6 +52,7 @@ export interface FotoLightbox { imagen: string; alt: string; pie?: string }
   `,
 })
 export class Lightbox {
+  protected readonly t = inject(I18n).dict(T);
   readonly fotos = input<FotoLightbox[]>([]);
   readonly indice = model(-1);
   /** Share button (Web Share API; copies the page link where it is not available). */
@@ -71,7 +78,7 @@ export class Lightbox {
         document.body.style.overflow = abierto ? 'hidden' : '';
         if (abierto && !this.anterior) {
           this.anterior = document.activeElement as HTMLElement | null;
-          setTimeout(() => (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('button[aria-label="Cerrar"]')?.focus());
+          setTimeout(() => (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('button[data-cerrar]')?.focus());
         } else if (!abierto && this.anterior) {
           this.anterior.focus?.();
           this.anterior = null;
@@ -91,7 +98,7 @@ export class Lightbox {
       if (navigator.share) await navigator.share({ title: document.title, url });
       else {
         await navigator.clipboard.writeText(url);
-        this.avisar('Enlace copiado');
+        this.avisar(this.t().copiado);
       }
     } catch {
       /* cancelled by the user */

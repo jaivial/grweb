@@ -1,18 +1,30 @@
 import { RouterLink } from '@angular/router';
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { GrButton, GrCountdown, LOGO, cdn, CdnPipe } from '@grcup/ui';
 import type { Patrocinador } from '../core/cms';
 import type { CompeticionPublica } from '../core/competition';
+import { I18n, LocPipe, type Lang } from '../core/i18n';
 import { GLOW, GrEyebrow } from './bloques';
 
+const T = {
+  es: { organizan: 'Organizan y colaboran', reserva: 'Reserva tu entrada gratis', verAtletas: 'Ver atletas', patrocinadores: 'Patrocinadores y colaboradores' },
+  en: { organizan: 'Organisers and partners', reserva: 'Book your free ticket', verAtletas: 'See the athletes', patrocinadores: 'Sponsors and partners' },
+};
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 /** BIZ-144 hero: «19 Y 20 DICIEMBRE DE 2026» (two days) · «DEL 19 AL 22 DICIEMBRE DE 2026» (longer) ·
- *  «30 NOVIEMBRE Y 1 DICIEMBRE DE 2026» · «19 DICIEMBRE DE 2026». */
-export const fechasHero = (ini?: string | null, fin?: string | null) => {
+ *  «30 NOVIEMBRE Y 1 DICIEMBRE DE 2026» · «19 DICIEMBRE DE 2026». EN: «19 AND 20 DECEMBER 2026» · «19 TO 22 DECEMBER 2026». */
+export const fechasHero = (ini?: string | null, fin?: string | null, lang: Lang = 'es') => {
   if (!ini) return '';
   const [y, m, d] = ini.slice(0, 10).split('-').map(Number);
   const [y2, m2, d2] = (fin || ini).slice(0, 10).split('-').map(Number);
-  const txt = y2 !== y ? `${d} ${MESES[m - 1]} de ${y} y ${d2} ${MESES[m2 - 1]} de ${y2}`
+  const M = MONTHS;
+  const txt = lang === 'en' ? (y2 !== y ? `${d} ${M[m - 1]} ${y} and ${d2} ${M[m2 - 1]} ${y2}`
+    : m2 !== m ? `${d} ${M[m - 1]} and ${d2} ${M[m2 - 1]} ${y}`
+    : d2 - d === 1 ? `${d} and ${d2} ${M[m - 1]} ${y}`
+    : d2 !== d ? `${d} to ${d2} ${M[m - 1]} ${y}` : `${d} ${M[m - 1]} ${y}`)
+    : y2 !== y ? `${d} ${MESES[m - 1]} de ${y} y ${d2} ${MESES[m2 - 1]} de ${y2}`
     : m2 !== m ? `${d} ${MESES[m - 1]} y ${d2} ${MESES[m2 - 1]} de ${y}`
     : d2 - d === 1 ? `${d} y ${d2} ${MESES[m - 1]} de ${y}`
     : d2 !== d ? `del ${d} al ${d2} ${MESES[m - 1]} de ${y}` : `${d} ${MESES[m - 1]} de ${y}`;
@@ -26,7 +38,7 @@ export const fechasHero = (ini?: string | null, fin?: string | null) => {
  */
 @Component({
   selector: 'gr-campeonato',
-  imports: [CdnPipe, RouterLink, GrButton, GrCountdown, GrEyebrow],
+  imports: [CdnPipe, RouterLink, LocPipe, GrButton, GrCountdown, GrEyebrow],
   changeDetection: ChangeDetectionStrategy.OnPush,
   // iOS Safari paints the hero's composited sticky layer (bottom fade, clouds) over a non-composited z-index sibling:
   // its own layer (translateZ) keeps the section above it (Jaime 15-nov: title, dates and «Reserva» hidden on iPhone).
@@ -41,7 +53,7 @@ export const fechasHero = (ini?: string | null, fin?: string | null) => {
     <div class="relative mx-auto flex max-w-[1440px] flex-col items-center gap-6 px-5 pt-2 pb-18 text-center md:gap-8 md:px-20 md:pt-6 md:pb-32">
       <!-- Figma home R2 «Cabecera evento»: logo, organiser logos in B/N (2 × 2 on mobile, one row from md), level, dates and place -->
       <img [src]="logo" alt="GRS Cup 2" class="h-[120px] w-auto select-none md:h-[200px]" draggable="false" />
-      <ul class="grid w-full max-w-[350px] grid-cols-2 gap-x-5 gap-y-4 md:flex md:max-w-none md:justify-center md:gap-6" aria-label="Organizan y colaboran">
+      <ul class="grid w-full max-w-[350px] grid-cols-2 gap-x-5 gap-y-4 md:flex md:max-w-none md:justify-center md:gap-6" [attr.aria-label]="t().organizan">
         @for (o of organizadores; track o.nombre) {
           <li class="flex h-12 min-w-0 items-center justify-center md:h-14 md:w-40"><img [src]="o.logo" [alt]="o.nombre" width="114" height="40" class="h-10 w-auto max-w-full object-contain" loading="lazy" decoding="async" /></li>
         }
@@ -61,12 +73,12 @@ export const fechasHero = (ini?: string | null, fin?: string | null) => {
       </div>
       @if (aviso()) { <span class="inline-flex h-7 items-center rounded-pill border border-info/60 bg-info/12 px-3 text-label-xs text-info">{{ aviso() }}</span> }
       <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-        @if (c?.modulos?.['entradas'] !== false) { <a grButton variant="primary" size="l" routerLink="/entradas" data-cta-entrada>Reserva tu entrada gratis</a> }
-        @if (c?.modulos?.['atletas'] !== false) { <a grButton variant="glass" size="l" routerLink="/atletas" iconRight="arrow-right">Ver atletas</a> }
+        @if (c?.modulos?.['entradas'] !== false) { <a grButton variant="primary" size="l" [routerLink]="'/entradas' | loc" data-cta-entrada>{{ t().reserva }}</a> }
+        @if (c?.modulos?.['atletas'] !== false) { <a grButton variant="glass" size="l" [routerLink]="'/atletas' | loc" iconRight="arrow-right">{{ t().verAtletas }}</a> }
       </div>
       @if (patrocinadores().length) {
-        <gr-eyebrow class="mt-6 md:mt-10" [texto]="tituloPatrocinadores() || 'Patrocinadores y colaboradores'" />
-        <div class="relative w-full max-w-[1200px] overflow-hidden" role="list" aria-label="Patrocinadores y colaboradores">
+        <gr-eyebrow class="mt-6 md:mt-10" [texto]="tituloPatrocinadores() || t().patrocinadores" />
+        <div class="relative w-full max-w-[1200px] overflow-hidden" role="list" [attr.aria-label]="t().patrocinadores">
           <!-- endless loop right to left (keyframes in tokens.css): each half repeats the logos until it is wider than 1440 px -->
           <div class="flex w-max animate-[gr-marquesina_linear_infinite] items-center hover:[animation-play-state:paused] motion-reduce:animate-none" [style.animation-duration.s]="duracion()">
             @for (p of cinta(); track $index) {
@@ -86,6 +98,7 @@ export const fechasHero = (ini?: string | null, fin?: string | null) => {
   `,
 })
 export class Campeonato {
+  protected readonly t = inject(I18n).dict(T);
   readonly comp = input<CompeticionPublica | null>(null);
   readonly titulo = input('Campeonato de powerlifting');
   /** Second line of the title (the level); empty → the event's level. */

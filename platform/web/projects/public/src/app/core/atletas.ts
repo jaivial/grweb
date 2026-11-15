@@ -4,6 +4,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG, FalloApi, esNoEncontrado } from './competition';
 import { FanSession } from './fan';
+import type { Lang } from './i18n';
 
 export interface Marcas {
   sq?: number;
@@ -167,8 +168,8 @@ export class Favoritos {
 }
 
 export const cat = (c: string) => c.replace('-', '−');
-export const kg = (n?: number | null) => (n === undefined || n === null ? '–' : n.toLocaleString('es-ES', { maximumFractionDigits: 2 }));
-export const hora = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso)) : '');
+export const kg = (n?: number | null, lang: Lang = 'es') => (n === undefined || n === null ? '–' : n.toLocaleString((lang === 'en' ? 'en-GB' : 'es-ES'), { maximumFractionDigits: 2 }));
+export const hora = (iso?: string, lang: Lang = 'es') => (iso ? new Intl.DateTimeFormat((lang === 'en' ? 'en-GB' : 'es-ES'), { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso)) : '');
 export const iniciales = (a: { nombre: string; apellidos: string }) => ((a.nombre[0] ?? '') + (a.apellidos[0] ?? '')).toUpperCase();
 
 /** IPF weight classes by sex (the lightest class is only for sub-juniors and juniors; the API validates it). */
