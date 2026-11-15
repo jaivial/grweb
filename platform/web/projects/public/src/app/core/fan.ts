@@ -4,6 +4,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { NavigationStart, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG } from './competition';
+import type { Lang } from './i18n';
 
 /** Public community account of the live page («cuenta de directo»: atleta or público). Service `fans`. */
 export interface Fan {
@@ -33,9 +34,9 @@ export function codigoError(e: unknown): string {
   if (e instanceof HttpErrorResponse) return (e.error && (e.error.code as string)) || `HTTP_${e.status}`;
   return 'DESCONOCIDO';
 }
-export function detalleError(e: unknown): string {
+export function detalleError(e: unknown, lang: Lang = 'es'): string {
   if (e instanceof HttpErrorResponse && e.error?.detail) return e.error.detail as string;
-  return 'No se ha podido completar. Inténtalo de nuevo en unos segundos.';
+  return lang === 'en' ? 'Could not complete. Please try again in a few seconds.' : 'No se ha podido completar. Inténtalo de nuevo en unos segundos.';
 }
 
 /**

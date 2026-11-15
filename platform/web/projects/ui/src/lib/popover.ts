@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, inject, input, output, viewChild } from '@angular/core';
+import { grDict } from './lang';
 
 /**
  * Popover (Figma «Popover alineación» / «Hoja inferior»): a floating panel anchored to its positioned parent on
@@ -17,7 +18,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, inject
     @media (prefers-reduced-motion: reduce) { .hoja { animation: none; } }
   `,
   template: `
-    <button type="button" tabindex="-1" class="fixed inset-0 z-40 bg-bg-deep/75 md:hidden" aria-label="Cerrar" (click)="cerrar.emit()"></button>
+    <button type="button" tabindex="-1" class="fixed inset-0 z-40 bg-bg-deep/75 md:hidden" [attr.aria-label]="tCerrar()" (click)="cerrar.emit()"></button>
     <div #panel tabindex="-1" role="dialog" [attr.aria-label]="etiqueta()"
       class="hoja fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col gap-3 overflow-y-auto rounded-t-2xl border border-line-strong bg-bg-surface px-5 pt-3 pb-7 text-left outline-none md:absolute md:inset-x-auto md:top-full md:right-0 md:bottom-auto md:z-30 md:mt-2 md:max-h-none md:w-[360px] md:rounded-lg md:bg-bg-raised md:p-4 md:shadow-card">
       <span class="mx-auto block h-1 w-10 shrink-0 rounded-pill bg-line-strong md:hidden" aria-hidden="true"></span>
@@ -26,6 +27,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, inject
   `,
 })
 export class GrPopover {
+  protected readonly tCerrar = grDict({ es: 'Cerrar', en: 'Close' });
   /** Accessible name of the panel. */
   readonly etiqueta = input('');
   readonly cerrar = output<void>();

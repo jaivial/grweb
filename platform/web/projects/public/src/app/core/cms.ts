@@ -4,6 +4,7 @@ import { NavigationStart, Router } from '@angular/router';
 import { marked } from 'marked';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG, FalloApi, esNoEncontrado } from './competition';
+import type { Lang } from './i18n';
 
 export type Seccion = Record<string, unknown>;
 
@@ -180,10 +181,11 @@ const slugify = (s: string) =>
 
 /** Markdown → HTML with ids on h2 (for the table of contents). Angular sanitizes the result when bound. */
 const TITULO_CAJA: Record<string, string> = { dato: 'Dato', consejo: 'Consejo', aviso: 'Aviso', importante: 'Importante', resumen: 'En resumen', filas: '' };
+const TITULO_CAJA_EN: Record<string, string> = { dato: 'Fact', consejo: 'Tip', aviso: 'Notice', importante: 'Important', resumen: 'Summary', filas: '' };
 /** «Texto {toc: Etiqueta}»: the contents entry of a heading or box when it differs from the visible text. */
 const TOC = /\s*\{toc:\s*([^}]+)\}\s*$/;
 
-export function renderMarkdown(src: string): { html: string; headings: Heading[] } {
+export function renderMarkdown(src: string, lang: Lang = 'es'): { html: string; headings: Heading[] } {
   const headings: Heading[] = [];
   const html = (marked.parse(src ?? '', { async: false }) as string)
     // Boxes of the blog (Figma 34): «> [!dato] Título» (also consejo, aviso, importante) and «> [!resumen]» + a list.
@@ -191,7 +193,7 @@ export function renderMarkdown(src: string): { html: string; headings: Heading[]
     .replace(/<blockquote>\s*<p>\[!(dato|consejo|aviso|importante|resumen|filas)\][ \t]*([^\n<]*)(\n|<\/p>)([\s\S]*?)<\/blockquote>/g,
       (_m, tipo: string, titulo: string, sep: string, resto: string) => {
         const toc = TOC.exec(titulo)?.[1];
-        const t = titulo.replace(TOC, '').trim() || TITULO_CAJA[tipo];
+        const t = titulo.replace(TOC, '').trim() || (lang === 'en' ? TITULO_CAJA_EN : TITULO_CAJA)[tipo];
         if (tipo === 'filas') resto = resto.replace(/<\/strong>\s*—\s*([^<]*)/g, '</strong><span>$1</span>');
         return (toc ? `<h2 class="ancla">${toc} {toc: ${toc}}</h2>` : '') +
           `<aside class="caja caja-${tipo}">${t ? `<p class="caja-titulo">${t}</p>` : ''}${sep === '\n' ? '<p>' : ''}${resto.trim()}</aside>`;

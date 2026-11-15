@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { LOGO } from './cdn';
 import { GrIcon, type GrIconName } from './icon';
 import { GR_SKIN } from './skin';
+import { grDict } from './lang';
 
 export type GrTone = 'neutral' | 'accent' | 'success' | 'warning' | 'info' | 'danger' | 'live';
 
@@ -74,12 +75,13 @@ export class GrCard {
   selector: 'gr-spinner',
   imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'inline-flex text-text-tertiary', role: 'status', '[attr.aria-label]': 'label()' },
+  host: { class: 'inline-flex text-text-tertiary', role: 'status', '[attr.aria-label]': 'label() || t()' },
   template: `<gr-icon name="loader" [size]="size()" [spin]="true" />`,
 })
 export class GrSpinner {
   readonly size = input(20);
-  readonly label = input('Cargando');
+  readonly label = input('');
+  protected readonly t = grDict({ es: 'Cargando', en: 'Loading' });
 }
 
 /** Loading placeholder (Figma «BO / Skeleton»). */

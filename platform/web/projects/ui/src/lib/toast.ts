@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, Injectable, inject, input, output, signal } from '@angular/core';
 import { GrIcon, type GrIconName } from './icon';
+import { grDict } from './lang';
 
 export interface GrToast {
   id: number;
@@ -46,10 +47,11 @@ const icons: Record<GrToast['tone'], GrIconName> = { success: 'circle-check', er
     </div>
     @if (action(); as a) {
       <button type="button" class="shrink-0 rounded-xs text-label-s text-accent-text hover:underline focus-visible:outline-2 focus-visible:outline-accent" (click)="a.run(); closed.emit()">{{ a.label }}</button>
-    } @else if (closable()) { <button type="button" class="-m-1 rounded-xs p-1 text-text-muted hover:text-text-primary" aria-label="Cerrar" (click)="closed.emit()"><gr-icon name="x" [size]="16" /></button> }
+    } @else if (closable()) { <button type="button" class="-m-1 rounded-xs p-1 text-text-muted hover:text-text-primary" [attr.aria-label]="tCerrar()" (click)="closed.emit()"><gr-icon name="x" [size]="16" /></button> }
   `,
 })
 export class GrToastCard {
+  protected readonly tCerrar = grDict({ es: 'Cerrar', en: 'Close' });
   readonly tone = input<GrToast['tone']>('info');
   readonly title = input.required<string>();
   readonly text = input<string | undefined>(undefined);
