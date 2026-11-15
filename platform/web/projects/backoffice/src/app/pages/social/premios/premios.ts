@@ -60,7 +60,7 @@ const VACIO: FormPremio = { ranking: 'porra', puestoDesde: 1, puestoHasta: 1, ti
         <!-- inside Sorteo (Jaime 15-nov: only Sorteo exists): no page header, a toolbar and what makes these prizes different from the raffle objects -->
         <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <p class="text-body-s text-text-tertiary">Premios de las clasificaciones en vivo de porra, fantasy y donantes. No son objetos de la rifa: se ganan por puesto en el ranking de la jornada.</p>
-          <div class="flex min-w-0 flex-wrap gap-2"><ng-container *ngTemplateOutlet="acciones" /></div>
+          <div class="flex min-w-0 flex-wrap gap-2 md:shrink-0 md:flex-nowrap"><ng-container *ngTemplateOutlet="acciones" /></div>
         </div>
       } @else {
         <bo-page-header [title]="'Premios' + (jornada() ? ' · ' + jornada() : '')"
