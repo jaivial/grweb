@@ -79,7 +79,7 @@ export class SorteoTitulo {
           <div class="grain-acento relative mx-auto flex max-w-[1200px] flex-col items-center gap-6 overflow-hidden bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] px-5 pt-5 pb-7 md:gap-5 md:rounded-3xl md:border md:border-accent/35 md:px-8 md:py-8 lg:flex-row lg:gap-14 lg:py-14 lg:pr-14 lg:pl-16">
             <div class="pointer-events-none absolute -top-30 right-[-80px] size-[520px] rounded-full bg-[radial-gradient(closest-side,rgb(196_43_62/0.25),transparent)]" aria-hidden="true"></div>
             <div class="relative flex w-full min-w-0 flex-col items-center gap-4 text-center [overflow-wrap:anywhere] lg:max-w-[720px] lg:items-start lg:gap-5 lg:text-left">
-              <p class="inline-flex items-center gap-2 text-label-xs text-text-secondary"><span class="size-2 shrink-0 rounded-full bg-success" aria-hidden="true"></span>Rifa presencial{{ cuando() ? ' · sorteo el ' + cuando() : '' }}</p>
+              <p class="inline-flex items-center gap-2 text-label-xs text-text-secondary">Rifa presencial{{ cuando() ? ' · sorteo el ' + cuando() : '' }}</p>
               <h1 class="text-display-s [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-m lg:text-display-l">Rifa solidaria GRS Cup</h1>
               <p class="text-body-m text-text-tertiary lg:text-body-l">{{ r.textoInfo || 'Boletos solo en efectivo en el stand de la rifa, en el recinto, durante el evento.' }}</p>
               <div class="flex flex-col gap-2 text-body-m text-text-secondary">
@@ -100,9 +100,9 @@ export class SorteoTitulo {
           <gr-sorteo-titulo titulo="Cómo funciona la rifa" />
           <div class="grid w-full max-w-[1104px] grid-cols-2 gap-3 md:grid-cols-3 md:gap-5">
             @for (n of normas(); track n.t) {
-              <div class="grain flex min-w-0 items-center gap-3 rounded-lg border border-line-subtle bg-bg-card p-4 md:p-6 motion-safe:animate-[gr-hoja-in_240ms_ease-out_both]" [style.animation-delay.ms]="$index * 40">
+              <div class="grain flex min-w-0 items-center gap-2.5 rounded-lg border border-line-subtle bg-bg-card p-3 md:gap-3 md:p-6 motion-safe:animate-[gr-hoja-in_240ms_ease-out_both]" [style.animation-delay.ms]="$index * 40">
                 <span class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-accent/12 text-accent-text"><gr-icon [name]="n.i" [size]="20" /></span>
-                <h3 class="min-w-0 text-ui-h5 [overflow-wrap:anywhere]">{{ n.t }}</h3>
+                <h3 class="min-w-0 text-label-m [overflow-wrap:break-word] [hyphens:manual] md:text-ui-h5">{{ n.t }}</h3>
               </div>
             }
           </div>
