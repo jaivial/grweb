@@ -1,13 +1,13 @@
 package athletes
 
 import (
-	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"math"
-	"mime/multipart"
 	"net"
 	"net/http"
 	"net/url"
@@ -419,7 +419,7 @@ func (s *Svc) registerArea() {
 			return &salirOut{SetCookie: []http.Cookie{s.cookie("", -1)}}, nil
 		})
 
-	// Photo upload from the area: stored by cms (media library), linked to the profile.
+	// Photo upload from the area: published in the CDN (Bunny), linked to the profile; the previous photo of this flow is removed.
 	s.a.Mux.HandleFunc("POST "+base+"/foto", func(w http.ResponseWriter, req *http.Request) {
 		ck, _ := req.Cookie(areaCookie)
 		v := ""
@@ -436,6 +436,8 @@ func (s *Svc) registerArea() {
 			problem.Write(w, perr)
 			return
 		}
+		var anterior string
+		_ = s.a.DB.QueryRow(req.Context(), `SELECT COALESCE(foto_url, '') FROM perfiles WHERE atleta_id = $1`, r.ID).Scan(&anterior)
 		if err := s.change(req.Context(), r.CompetitionID, "athletes.foto_subida", map[string]any{"id": r.ID, "origen": "area"}, func(tx pgx.Tx) error {
 			if _, err := tx.Exec(req.Context(), `UPDATE perfiles SET foto_url = $2, focal_x = 50, focal_y = 35, updated_at = now() WHERE atleta_id = $1`, r.ID, url); err != nil {
 				return err
@@ -444,6 +446,9 @@ func (s *Svc) registerArea() {
 		}); err != nil {
 			problem.Write(w, problem.Internal())
 			return
+		}
+		if anterior != "" && anterior != url {
+			s.borraFotoPublicada(req.Context(), r.CompetitionID, anterior)
 		}
 		r, _ = s.session(req.Context(), v)
 		p, err := s.panel(req.Context(), r)
@@ -456,7 +461,8 @@ func (s *Svc) registerArea() {
 	})
 }
 
-// subirFoto forwards the multipart photo to the cms media library (internal endpoint) and returns its URL.
+// subirFoto publishes the photo of the athlete area in the CDN of the competition (Bunny; the volume of
+// the service without credentials) and returns its URL, which the profile stores.
 func (s *Svc) subirFoto(req *http.Request, r row) (string, *problem.Error) {
 	f, fh, err := req.FormFile("file")
 	if err != nil {
@@ -466,33 +472,25 @@ func (s *Svc) subirFoto(req *http.Request, r row) (string, *problem.Error) {
 	if fh.Size > 8<<20 {
 		return "", problem.Unprocessable("ARCHIVO_GRANDE", "La foto supera los 8 MB.")
 	}
-	head := make([]byte, 512)
-	n, _ := io.ReadFull(f, head)
-	if t := http.DetectContentType(head[:n]); t != "image/jpeg" && t != "image/png" && t != "image/webp" {
-		return "", problem.Unprocessable("TIPO_NO_PERMITIDO", "Sube una foto JPG, PNG o WebP.")
-	}
-	var body bytes.Buffer
-	mw := multipart.NewWriter(&body)
-	_ = mw.WriteField("competicion", r.CompetitionID.String())
-	_ = mw.WriteField("alt", r.nombreCompleto())
-	part, _ := mw.CreateFormFile("file", fh.Filename)
-	_, _ = part.Write(head[:n])
-	if _, err := io.Copy(part, f); err != nil {
+	data, err := io.ReadAll(io.LimitReader(f, 8<<20+1))
+	if err != nil {
 		return "", problem.Internal()
 	}
-	_ = mw.Close()
-	var m struct {
-		URL string `json:"url"`
+	ext := map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}[http.DetectContentType(data)]
+	if ext == "" {
+		return "", problem.Unprocessable("TIPO_NO_PERMITIDO", "Sube una foto JPG, PNG o WebP.")
 	}
-	if err := s.cms.Raw(req.Context(), http.MethodPost, "/internal/medios", mw.FormDataContentType(), &body, &m); err != nil {
-		var p *problem.Error
-		if ok := asProblem(err, &p); ok && p.Status < 500 {
-			return "", p
+	st, err := s.storage(req.Context(), r.CompetitionID)
+	if err == nil {
+		sum := sha256.Sum256(data)
+		key := "atletas/" + r.ID.String() + "-" + hex.EncodeToString(sum[:])[:8] + ext
+		var url string
+		if url, err = st.Put(req.Context(), key, http.DetectContentType(data), data); err == nil {
+			return url, nil
 		}
-		s.a.Log.Warn("cms medios no disponible", "err", err)
-		return "", problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No hemos podido guardar la foto. Inténtalo en unos minutos.")
 	}
-	return m.URL, nil
+	s.a.Log.Warn("no se ha podido publicar la foto del área", "err", err)
+	return "", problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No hemos podido guardar la foto. Inténtalo en unos minutos.")
 }
 
 // cmdEnlaceArea prints a one-time link to the area of an athlete (QA/support): athletes enlace-area <slug> <email>.
