@@ -50,7 +50,7 @@
       }
     </section>
 
-    <div class="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
+    <div class="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
       @if (evento()) {
         <!-- Figma 96:9197 · dispositivos de puerta -->
         <gr-card title="Dispositivos de puerta" subtitle="Escáneres conectados por SSE · última sincronización">
@@ -126,7 +126,7 @@
         </gr-card>
     </div>
 
-    <div class="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
+    <div class="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
       <!-- Puesta en marcha -->
       <gr-card title="Puesta en marcha" [subtitle]="checklist() ? checklist()!.hechos + ' de ' + checklist()!.total + ' pasos · ' + fmt(pct(checklist()!.hechos, checklist()!.total)) + ' %' : 'Cargando…'">
         @if (checklist(); as cl) {
@@ -176,7 +176,7 @@
       </gr-card>
     </div>
 
-    <div class="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
+    <div class="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
       <!-- Actividad en directo -->
       <gr-card title="Actividad en directo" subtitle="Eventos de la competición en tiempo real">
         <span cardActions class="inline-flex h-7 items-center gap-1.5 rounded-pill border px-2.5 text-label-s"

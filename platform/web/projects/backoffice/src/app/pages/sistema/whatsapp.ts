@@ -144,7 +144,7 @@ type Dialogo = 'desconectar' | null;
                   <button alertAction type="button" class="mt-2 inline-flex h-9 items-center gap-1 text-label-s text-accent-text" (click)="cargarEstado()">Reintentar ahora <gr-icon name="arrow-right" [size]="14" /></button>
                 </gr-alert>
               }
-              <div class="grid gap-4 lg:grid-cols-2">
+              <div class="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
                 <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
                   <h2 class="text-ui-h5">Vincular con QR</h2>
                   <p class="mt-1 text-body-xs text-text-tertiary">Abre WhatsApp en el móvil › Dispositivos vinculados y escanea. La pantalla se actualiza sola.</p>

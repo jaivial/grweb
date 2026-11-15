@@ -38,7 +38,8 @@ const sizes: Record<GrButtonSize, string> = {
 
 /* Figma 48 «BO / Button»: Primary · Secondary · Ghost · Danger, 44/px20 mobile · 40/px16 desktop, r8, 2 px focus ring. */
 const boBase =
-  'relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-sm font-sans text-[14px] leading-[17px] font-semibold transition-[background,box-shadow,filter] duration-150 ' +
+  // BO: never wider than its container; on phones a long label wraps to 2 lines instead of overflowing (Jaime, 15-nov)
+  'relative inline-flex max-w-full items-center justify-center gap-2 whitespace-nowrap max-sm:whitespace-normal max-sm:text-center rounded-sm font-sans text-[14px] leading-[17px] font-semibold transition-[background,box-shadow,filter] duration-150 ' +
   'focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)] disabled:cursor-not-allowed disabled:opacity-40 aria-disabled:pointer-events-none aria-disabled:opacity-40 select-none motion-reduce:transition-none';
 const boVariants: Partial<Record<GrButtonVariant, string>> = {
   primary: 'bg-accent-grain text-white hover:brightness-115',
