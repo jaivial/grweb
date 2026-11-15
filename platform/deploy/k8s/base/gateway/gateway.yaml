@@ -14,6 +14,7 @@ spec:
     metadata:
       labels: { app.kubernetes.io/name: gateway, app.kubernetes.io/part-of: grcup, grcup.dev/tier: edge, grcup.dev/servicio: gateway }
     spec:
+      priorityClassName: grcup-qa-low # perf-20261115: GRS QA cede ante prod (aplicado en Kraken 12:51)
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 30
       securityContext:
@@ -67,7 +68,7 @@ spec:
             # per pod (63–73 % of 96Mi): request = observed working set + margin, so the scheduler reserves what it uses.
             requests: { cpu: 250m, memory: 128Mi }
             # ST2-R4-1: 500 SSE + bet load peaked at 292Mi and OOMKilled at 384Mi: headroom for the peak.
-            limits: { cpu: "1", memory: 512Mi }
+            limits: { cpu: 700m, memory: 512Mi }
 ---
 apiVersion: v1
 kind: Service

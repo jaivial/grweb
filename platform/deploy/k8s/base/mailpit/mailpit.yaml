@@ -12,6 +12,7 @@ spec:
     metadata:
       labels: { app.kubernetes.io/name: mailpit, app.kubernetes.io/part-of: grcup }
     spec:
+      priorityClassName: grcup-qa-low # perf-20261115: GRS QA cede ante prod (aplicado en Kraken 12:51)
       automountServiceAccountToken: false
       containers:
         - name: mailpit
@@ -32,7 +33,7 @@ spec:
             httpGet: { path: /livez, port: http }
           resources:
             requests: { cpu: 10m, memory: 32Mi }
-            limits: { cpu: 300m, memory: 256Mi }
+            limits: { cpu: 150m, memory: 256Mi }
 ---
 apiVersion: v1
 kind: Service

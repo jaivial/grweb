@@ -9,15 +9,15 @@ from pathlib import Path
 
 HERE = Path(__file__).parent
 
-# name: db (own database), hpa (min, max), mem (request, limit), env (plain), secrets (env ← secret/key),
+# cpu: limit of the main container (default 150m, Kraken grcup-qa 12:51); name: db (own database), hpa (min, max), mem (request, limit), env (plain), secrets (env ← secret/key),
 #       jobs [(name, args, envFrom secrets)]
 # Event-day services (identity, competition, ticketing, live, realtime) keep 2 replicas: losing a pod is not an outage.
 SERVICES = {
-    "identity": dict(db=True, hpa=(2, 4), mem=("96Mi", "512Mi"),
+    "identity": dict(cpu="300m", db=True, hpa=(2, 4), mem=("96Mi", "512Mi"),
                      env={"GOMEMLIMIT": "400MiB"},  # 4 concurrent argon2id runs × 19 MiB + baseline
                      secrets={"JWT_PRIVATE_KEY": ("grcup-jwt", "private.pem")},
                      jobs=[("identity-bootstrap", ["bootstrap-root"], ["grcup-root"])]),
-    "competition": dict(db=True, hpa=(2, 4), mem=("64Mi", "256Mi"),
+    "competition": dict(cpu="300m", db=True, hpa=(2, 4), mem=("64Mi", "256Mi"),
                         secrets={"CRYPTO_KEY": ("grcup-crypto", "CRYPTO_KEY")},
                         jobs=[("competition-seed", ["seed-grcup"], ["grcup-root"])]),
     "audit": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi")),
@@ -27,7 +27,7 @@ SERVICES = {
                 volumes=[("medios", "/var/lib/grcup-qa/medios", "/data/medios")], tmp=[("tmp", "256Mi", "/tmp")],
                 jobs=[("cms-seed", ["seed-grcup"], [])]),
     # Two 48 MP photos can need >600 MiB while decoded, rotated and converted; keep the required two-worker pipeline within the pod limit.
-    "athletes": dict(db=True, hpa=(1, 3), mem=("128Mi", "1Gi"),
+    "athletes": dict(cpu="400m", db=True, hpa=(1, 3), mem=("128Mi", "1Gi"),
                      # The private files of the public form («alta de atleta»): the processed photo of a request
                      # (0600) until it is approved and the published copy when the competition has no CDN.
                      env={"ATLETAS_DIR": "/data/atletas"},
@@ -37,13 +37,13 @@ SERVICES = {
     "schedule": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"), jobs=[("schedule-seed", ["seed-grcup"], [])]),
     "crm": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"), jobs=[("crm-seed", ["seed-grcup"], [])]),
     "messaging": dict(db=True, hpa=(1, 2), mem=("64Mi", "256Mi")),
-    "ticketing": dict(db=True, hpa=(2, 4), mem=("64Mi", "256Mi"), jobs=[("ticketing-seed", ["seed-grcup"], [])]),
-    "live": dict(db=True, hpa=(2, 4), mem=("64Mi", "256Mi"), jobs=[("live-seed", ["seed-grcup"], [])]),
+    "ticketing": dict(cpu="200m", db=True, hpa=(2, 4), mem=("64Mi", "256Mi"), jobs=[("ticketing-seed", ["seed-grcup"], [])]),
+    "live": dict(cpu="300m", db=True, hpa=(2, 4), mem=("64Mi", "256Mi"), jobs=[("live-seed", ["seed-grcup"], [])]),
     # OpenLifter desk (fork) → athletes (weigh-in) and live (attempts): on the event day, like live.
     "openlifter": dict(db=True, hpa=(2, 4), mem=("48Mi", "256Mi")),
     "raffle": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi"), jobs=[("raffle-seed", ["seed-grcup"], [])]),
     "ai": dict(db=False, hpa=(1, 2), mem=("32Mi", "128Mi"), secrets={"MINIMAX_API_KEY": ("grcup-ai", "MINIMAX_API_KEY")}),
-    "realtime": dict(db=False, hpa=(2, 4), mem=("48Mi", "256Mi"), env={"SSE_MAX_CONEXIONES": "10000"}),
+    "realtime": dict(cpu="400m", db=False, hpa=(2, 4), mem=("48Mi", "256Mi"), env={"SSE_MAX_CONEXIONES": "10000"}),
     # Paso 17 · directo social (§10): chat es la ruta caliente; juegos-worker va aparte, más abajo.
     # CHAT_ORIGENES: los orígenes (host:port) que el chat acepta en el handshake del WebSocket (el gateway
     # reescribe el Host, así que el Origin del navegador se comprueba contra esta lista blanca). QA por defecto;
@@ -51,10 +51,10 @@ SERVICES = {
     "fans": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi")),
     # memory, not CPU, bounds the chat: ~200 KiB per connection (load test 08/11/2026, docs/carga) → 1 GiB holds
     # ~4.000 connections per pod; GOMEMLIMIT keeps the GC ahead of the limit.
-    "chat": dict(db=True, hpa=(2, 8), mem=("128Mi", "1Gi"), env={"CHAT_MAX_CONEXIONES": "4000", "GOMEMLIMIT": "800MiB", "CHAT_ORIGENES": "grcup-qa.menustudioai.com,grcup-qa.menustudioai.com:*"}),
+    "chat": dict(cpu="500m", db=True, hpa=(2, 8), mem=("128Mi", "1Gi"), env={"CHAT_MAX_CONEXIONES": "4000", "GOMEMLIMIT": "800MiB", "CHAT_ORIGENES": "grcup-qa.menustudioai.com,grcup-qa.menustudioai.com:*"}),
     "donaciones": dict(db=True, hpa=(1, 3), mem=("64Mi", "256Mi")),
     "patrocinio": dict(db=True, hpa=(1, 2), mem=("64Mi", "256Mi")),
-    "juegos": dict(db=True, hpa=(2, 4), mem=("64Mi", "256Mi")),
+    "juegos": dict(cpu="500m", db=True, hpa=(2, 4), mem=("64Mi", "256Mi")),
 }
 EDGE = ["gateway", "web", "backoffice"]
 # Not a Go service of the platform: their manifests are written by hand (they are not generated).
@@ -201,6 +201,7 @@ spec:
     metadata:
       labels: {{ {pod_labels} }}
     spec:
+      priorityClassName: grcup-qa-low # perf-20261115: GRS QA cede ante prod (aplicado en Kraken 12:51)
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 30
       securityContext:
@@ -234,7 +235,7 @@ spec:
 {SEC}
           resources:
             requests: {{ cpu: 30m, memory: {req} }}
-            limits: {{ cpu: 500m, memory: {lim} }}{volume_mounts(spec)}{volumes(spec)}
+            limits: {{ cpu: {spec.get('cpu', '150m')}, memory: {lim} }}{volume_mounts(spec)}{volumes(spec)}
 ---
 apiVersion: v1
 kind: Service

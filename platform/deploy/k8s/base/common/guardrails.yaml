@@ -17,12 +17,22 @@ spec:
   hard:
     requests.cpu: "7" # ST1 QA r1: real requests of chat/gateway/juegos → ~6.2 CPU with every HPA at max (node: 16)
     requests.memory: 8Gi
-    # Sized for every HPA at its maximum (services 500m each, gateway and web 1 CPU) plus the extra pod of a
-    # rolling update — including the five services and the worker of «directo social» (paso 17). Limits are
-    # ceilings, not reservations: real reservations are bounded by requests.cpu.
-    limits.cpu: "60"
+    # perf-20261115: matches Kraken grcup-qa (applied 12:51 with the per-service limits below the node's 12 CPU);
+    # the old 60 overcommitted the node 5×. Limits are ceilings; reservations are bounded by requests.cpu.
+    limits.cpu: "28"
     limits.memory: 32Gi
     pods: "110"
+---
+# perf-20261115 (applied in Kraken 12:51): GRS QA yields to the rest of the node under pressure and never preempts.
+# Cluster-scoped: kustomize's namespace transformer leaves it without a namespace.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: grcup-qa-low
+value: -100
+preemptionPolicy: Never
+globalDefault: false
+description: "GRS QA: cede ante el resto de pods bajo presion"
 ---
 # Default deny: nothing reaches a pod unless a policy below allows it.
 apiVersion: networking.k8s.io/v1
