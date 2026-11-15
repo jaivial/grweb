@@ -449,6 +449,9 @@ export class EntradasPage {
     const c = this.comp.data();
     // UX8-R1-7: with sessions, only the days that have tickets (the hero must not promise a day without them)
     const dias = [...new Set((this.data()?.sesiones ?? []).map((s) => diaLargo(s.inicio)))];
+    // «sábado 19 y domingo 20 de diciembre»: the month once when both days share it (Figma hero, one line on phones)
+    const mes = (d: string) => d.match(/ de .+$/)?.[0] ?? '';
+    if (dias.length === 2 && mes(dias[0]) && mes(dias[0]) === mes(dias[1])) dias[0] = dias[0].slice(0, -mes(dias[0]).length);
     const t = dias.length ? dias.join(' y ') : c?.fechaInicio ? diaLargo(c.fechaInicio + 'T12:00:00Z') + (c.fechaFin && c.fechaFin !== c.fechaInicio ? ' y ' + diaLargo(c.fechaFin + 'T12:00:00Z') : '') : 'Fecha por confirmar';
     return t.charAt(0).toUpperCase() + t.slice(1);
   });
