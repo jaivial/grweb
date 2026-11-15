@@ -94,7 +94,7 @@ const diaSiguiente = (f: string) => {
         <!-- Toolbar: wraps, never scrolls sideways -->
         <div class="flex flex-wrap items-center gap-2">
           @if (canEdit() && dia()) {
-            <button grButton icon="zap" (click)="generar()">Generar sesiones</button>
+            @if (puedeGenerar()) { <button grButton icon="zap" (click)="generar()">Generar sesiones</button> }
             <button grButton variant="ghost" icon="plus" (click)="nuevaSesion()">Sesión</button>
           }
           <button grButton variant="ghost" icon="filter" [attr.aria-expanded]="filtrosOpen()" aria-controls="h-filtros" (click)="filtrosOpen.set(!filtrosOpen())">Filtros{{ nFiltros() ? ' · ' + nFiltros() : '' }}</button>
@@ -132,7 +132,7 @@ const diaSiguiente = (f: string) => {
                 </section>
               }
 
-              @for (f of sesionesDia(); track f.id) {
+              @for (f of sesionesVisibles(); track f.id) {
                 <section [id]="'sesion-' + f.id" class="rounded-lg border bg-bg-card p-3" [class]="bloquea(f) ? 'border-warning/70' : 'border-line-subtle'" [attr.aria-label]="'Sesión de las ' + hora(f.inicio)">
                   <header class="flex items-start gap-3">
                     <button type="button" class="flex min-w-0 flex-1 items-start gap-3 text-left" [attr.aria-expanded]="!plegada(f)" (click)="plegar(f)">
@@ -166,11 +166,14 @@ const diaSiguiente = (f: string) => {
                 </section>
               } @empty {
                 <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
-                  @if (b.atletas) {
+                  @if (nFiltros() && sesionesDia().length) {
+                    <h2 class="text-ui-h4">Ningún atleta coincide con los filtros</h2>
+                    <button grButton class="mt-4" (click)="limpiarFiltros()">Quitar filtros</button>
+                  } @else if (b.atletas) {
                     <h2 class="text-ui-h4">Aún no hay sesiones el {{ diaLargo(dia()) }}</h2>
-                    <p class="mt-1 max-w-xl text-body-xs text-text-tertiary">{{ pruebaDia() ? 'Se generan con los atletas de ' + nombrePrueba(pruebaDia()) + ': mujeres primero, por categoría y total previsto, una sesión detrás de otra en la tarima.' : 'Genera las sesiones o crea una vacía.' }}</p>
+                    <p class="mt-1 max-w-xl text-body-xs text-text-tertiary">{{ pruebaDia() ? 'Se generan con los atletas de ' + nombrePrueba(pruebaDia()) + ': mujeres primero, por categoría y total previsto, una sesión detrás de otra en la tarima.' : puedeGenerar() ? 'Genera las sesiones o crea una vacía.' : 'Esta fecha no tiene competición propia: crea sus sesiones y mueve a ellas a los atletas.' }}</p>
                     @if (canEdit()) {
-                      <div class="mt-4 flex flex-wrap gap-2"><button grButton variant="primary" (click)="generar()">Generar sesiones</button><button grButton (click)="nuevaSesion()">Crear sesión vacía</button></div>
+                      <div class="mt-4 flex flex-wrap gap-2">@if (puedeGenerar()) { <button grButton variant="primary" (click)="generar()">Generar sesiones</button> }<button grButton [variant]="puedeGenerar() ? 'secondary' : 'primary'" (click)="nuevaSesion()">Crear sesión vacía</button></div>
                     }
                   } @else {
                     <h2 class="text-ui-h4">Primero importa a los atletas</h2>
@@ -494,6 +497,11 @@ export class HorariosPage {
     });
   });
   protected readonly sesionesDia = computed(() => (this.raw()?.sesiones ?? []).filter((s) => s.dia === this.dia()));
+  /** With filters on, only the sessions with some match (no empty cards in the way). */
+  protected readonly sesionesVisibles = computed(() => (this.nFiltros() ? this.sesionesDia().filter((s) => this.filtrar(s.atletas).length) : this.sesionesDia()));
+  /** «Generar» rebuilds the date of one competition (AEP-2 / AEP-3) or a one-date event; an extra date without its own
+   *  competition would rebuild the whole event, so it only gets manual sessions. */
+  protected readonly puedeGenerar = computed(() => !!this.pruebaDia() || (this.raw()?.config.dias.length ?? 0) < 2);
   protected readonly categorias = computed(() => {
     const b = this.raw();
     if (!b) return [];
@@ -647,7 +655,8 @@ export class HorariosPage {
   protected async generar(): Promise<void> {
     const p = this.pruebaDia();
     const hay = this.sesionesDia().length;
-    const texto = p ? `Se sustituyen las sesiones de ${nombrePrueba(p)} (${diaLargo(this.dia())}); la otra competición no cambia.` : 'Esta fecha no tiene competición propia: se generan de nuevo las sesiones de todo el evento.';
+    if (!this.puedeGenerar()) return;
+    const texto = p ? `Se sustituyen las sesiones de ${nombrePrueba(p)} (${diaLargo(this.dia())}); la otra competición no cambia.` : 'Se generan de nuevo las sesiones del evento.';
     if ((hay || !p) && !(await this.confirm.ask({ title: 'Generar sesiones', text: texto + ' La web no cambia hasta que publiques.', confirm: 'Generar' }))) return;
     this.generando.set(true);
     this.movimiento.set(null);
