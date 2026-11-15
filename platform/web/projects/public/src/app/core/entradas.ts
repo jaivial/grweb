@@ -58,11 +58,11 @@ export function errorDe(e: unknown, def = 'No hemos podido completarlo. Inténta
 }
 
 const TZ = 'Europe/Madrid';
-export const hora = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: TZ }).format(new Date(iso)) : '');
-export const dia = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: TZ }).format(new Date(iso)).replace(',', '').replace('.', '') : '');
+export const hora = (iso?: string, loc = 'es-ES') => (iso ? new Intl.DateTimeFormat(loc, { hour: '2-digit', minute: '2-digit', timeZone: TZ }).format(new Date(iso)) : '');
+export const dia = (iso?: string, loc = 'es-ES') => (iso ? new Intl.DateTimeFormat(loc, { weekday: 'long', day: 'numeric', month: 'short', timeZone: TZ }).format(new Date(iso)).replace(',', '').replace('.', '') : '');
 /** «25/07 · 10:12» (stamp of a used ticket). */
-export const validada = (iso?: string) => (iso ? `${new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', timeZone: TZ }).format(new Date(iso))} · ${hora(iso)}` : '');
-export const diaLargo = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ }).format(new Date(iso)).replace(',', '') : '');
+export const validada = (iso?: string, loc = 'es-ES') => (iso ? `${new Intl.DateTimeFormat(loc, { day: '2-digit', month: '2-digit', timeZone: TZ }).format(new Date(iso))} · ${hora(iso, loc)}` : '');
+export const diaLargo = (iso?: string, loc = 'es-ES') => (iso ? new Intl.DateTimeFormat(loc, { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ }).format(new Date(iso)).replace(',', '') : '');
 
 /** QR as a data URL (qrcode is CommonJS: the dynamic import exposes it as `default`). */
 export async function qrDataURL(content: string, width = 240): Promise<string> {
