@@ -25,6 +25,7 @@ export class BarraCta { readonly visible = signal(false); }
 const LINKS: Record<Lang, NavLink[]> = {
   es: [
     { label: 'Competición', href: '/#campeonato' },
+    { label: 'Entradas', href: '/entradas' },
     { label: 'Atletas', href: '/atletas' },
     { label: 'Horarios', href: '/horarios' },
     { label: 'Sorteo', href: '/sorteo' },
@@ -32,6 +33,7 @@ const LINKS: Record<Lang, NavLink[]> = {
   ],
   en: [
     { label: 'Competition', href: '/en#compete' },
+    { label: 'Tickets', href: '/entradas' },
     { label: 'Athletes', href: '/atletas' },
     { label: 'Schedule', href: '/horarios' },
     { label: 'Raffle', href: '/en#raffle' },
@@ -225,7 +227,7 @@ export class Navbar {
   protected readonly grupos = GRUPOS_MOVIL;
   /** The main links of the mobile menu (only the current section is marked, underlined). */
   protected readonly accesos = computed(() => this.lang() === 'en'
-    ? [{ label: 'Home', href: '/en' }, { label: 'Free tickets', href: '/entradas' }, ...LINKS.en.slice(1, 3)]
+    ? [{ label: 'Home', href: '/en' }, { label: 'Free tickets', href: '/entradas' }, ...LINKS.en.slice(2, 4)]
     : [{ label: 'Inicio', href: '/' }, { label: 'Entradas', href: '/entradas' }, { label: 'Horarios', href: '/horarios' }, { label: 'Área de atleta', href: '/area-atleta' }, { label: 'Para el público', href: '/publico' }]);
   protected readonly edicion = computed(() => {
     const c = this.comp.data();
