@@ -6,14 +6,25 @@
 
 // `useGrouping: 'always'` es de Intl.NumberFormat v3 (ES2023); el lib de TS del proyecto (ES2022) solo admite boolean.
 const opciones = { maximumFractionDigits: 0, useGrouping: 'always' } as unknown as Intl.NumberFormatOptions;
-const nfMonedas = new Intl.NumberFormat('es-ES', opciones);
-/** Motores sin NumberFormat v3 tratan 'always' como true (y no agrupan 4 cifras): ahí se agrupa a mano. */
-const agrupaSiempre = nfMonedas.format(1000) === '1.000';
+/** One formatter per locale (es-ES · en-GB) and whether it already groups 4-digit numbers. */
+const nfs = new Map<string, { nf: Intl.NumberFormat; agrupa: boolean; sep: string }>();
+const fmt = (locale: string) => {
+  let f = nfs.get(locale);
+  if (!f) {
+    const nf = new Intl.NumberFormat(locale, opciones);
+    const sep = locale === 'es-ES' ? '.' : ',';
+    // Motores sin NumberFormat v3 tratan 'always' como true (y no agrupan 4 cifras): ahí se agrupa a mano.
+    f = { nf, agrupa: nf.format(1000) === '1' + sep + '000', sep };
+    nfs.set(locale, f);
+  }
+  return f;
+};
 
-/** «3.000» · «128.400» (monedas, sin decimales); «—» si no hay valor. */
-export const monedas = (v: number | null | undefined): string => {
+/** «3.000» · «128.400» (monedas, sin decimales; «3,000» en en-GB); «—» si no hay valor. */
+export const monedas = (v: number | null | undefined, locale = 'es-ES'): string => {
   if (v === null || v === undefined) return '—';
-  if (agrupaSiempre) return nfMonedas.format(v);
+  const f = fmt(locale);
+  if (f.agrupa) return f.nf.format(v);
   const n = Math.round(v);
-  return (n < 0 ? '-' : '') + String(Math.abs(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return (n < 0 ? '-' : '') + String(Math.abs(n)).replace(/\B(?=(\d{3})+(?!\d))/g, f.sep);
 };

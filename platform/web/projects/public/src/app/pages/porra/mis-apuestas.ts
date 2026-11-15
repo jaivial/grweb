@@ -10,6 +10,7 @@ import { Cms } from '../../core/cms';
 import { FanSession } from '../../core/fan';
 import { JuegosEstado, PorraStore, type Apuesta, type Mercado, cuota as cuotaFmt } from '../../core/juegos';
 import { monedas } from './formato';
+import { I18n, LocPipe } from '../../core/i18n';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
@@ -18,23 +19,94 @@ import { CoinBalance, PorraCabecera } from './componentes';
 type Filtro = 'todas' | 'abiertas' | 'ganadas' | 'devueltas' | 'perdidas';
 type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
 
+const T = {
+  es: {
+    titulo: 'Mis apuestas',
+    desc: 'Tu boleto de la jornada: lo que sigue en juego, lo cobrado y lo perdido. Se liquida al publicarse los resultados.',
+    entraVer: 'Entra para ver tus apuestas',
+    entraTxt: 'Con tu cuenta del directo recibes 100.000 monedas por jornada para apostar en la porra.',
+    entrar: 'Entrar para jugar',
+    errorCarga: 'No hemos podido cargar tus apuestas',
+    vacio: 'Tu boleto está vacío',
+    vacioTxt: 'Elige un mercado, pulsa una cuota y haz tu primera apuesta con monedas virtuales. Si aciertas, te llevas tu parte del bote.',
+    verMercados: 'Ver los mercados',
+    filtro: 'Filtro de apuestas',
+    importeApostado: 'importe apostado',
+    cobrados: (n: string) => `+${n} cobrados`,
+    sinAcierto: 'Sin acierto',
+    pierdes: 'pierdes el importe apostado',
+    devueltos: (n: string) => `+${n} devueltos`,
+    nadie: 'nadie acertó · bote de vuelta',
+    siGana: (n: string) => `Si gana (estimado): ${n}`,
+    ahora: 'ahora',
+    filtroVacio: 'No hay apuestas en este filtro',
+    filtroVacioTxt: 'Cambia de filtro o haz una apuesta en los mercados.',
+    estados: { Abierta: 'Abierta', Ganada: 'Ganada', Devuelta: 'Devuelta', Perdida: 'Perdida' } as Record<EstadoApuesta, string>,
+    filtros: { todas: 'Todas', abiertas: 'Abiertas', ganadas: 'Ganadas', devueltas: 'Devueltas', perdidas: 'Perdidas' } as Record<Filtro, string>,
+    enJuego: 'En juego',
+    cobrado: 'Cobrado',
+    devuelto: 'Devuelto',
+    perdido: 'Perdido',
+    nAbiertas: (n: number) => `${n} ${n === 1 ? 'apuesta abierta' : 'apuestas abiertas'}`,
+    nGanadas: (n: number) => `${n} ${n === 1 ? 'ganada' : 'ganadas'}`,
+    nDevueltas: (n: number) => `${n} ${n === 1 ? 'devuelta' : 'devueltas'}`,
+    nPerdidas: (n: number) => `${n} sin acierto`,
+    seoTitulo: 'Mis apuestas · Porra · GR Strength Cup',
+    seoDesc: 'Tus apuestas de porra de la jornada: lo que sigue en juego, lo cobrado, lo devuelto y lo perdido.',
+  },
+  en: {
+    titulo: 'My bets',
+    desc: 'Your slip for the day: what is still in play, what you have collected and what you have lost. It is settled when the results are published.',
+    entraVer: 'Sign in to see your bets',
+    entraTxt: 'With your live stream account you get 100,000 coins per day to bet in the pool.',
+    entrar: 'Sign in to play',
+    errorCarga: "We couldn't load your bets",
+    vacio: 'Your slip is empty',
+    vacioTxt: 'Choose a market, tap some odds and place your first bet with virtual coins. If you get it right, you take your share of the pot.',
+    verMercados: 'See the markets',
+    filtro: 'Bet filter',
+    importeApostado: 'amount staked',
+    cobrados: (n: string) => `+${n} collected`,
+    sinAcierto: 'No win',
+    pierdes: 'you lose the amount staked',
+    devueltos: (n: string) => `+${n} refunded`,
+    nadie: 'nobody got it right · pot refunded',
+    siGana: (n: string) => `If it wins (estimated): ${n}`,
+    ahora: 'now',
+    filtroVacio: 'No bets in this filter',
+    filtroVacioTxt: 'Change the filter or place a bet in the markets.',
+    estados: { Abierta: 'Open', Ganada: 'Won', Devuelta: 'Refunded', Perdida: 'Lost' } as Record<EstadoApuesta, string>,
+    filtros: { todas: 'All', abiertas: 'Open', ganadas: 'Won', devueltas: 'Refunded', perdidas: 'Lost' } as Record<Filtro, string>,
+    enJuego: 'In play',
+    cobrado: 'Collected',
+    devuelto: 'Refunded',
+    perdido: 'Lost',
+    nAbiertas: (n: number) => `${n} open ${n === 1 ? 'bet' : 'bets'}`,
+    nGanadas: (n: number) => `${n} won`,
+    nDevueltas: (n: number) => `${n} refunded`,
+    nPerdidas: (n: number) => `${n} lost`,
+    seoTitulo: 'My bets · Pool · GR Strength Cup',
+    seoDesc: 'Your betting pool bets for the day: what is still in play, collected, refunded and lost.',
+  },
+};
+
 @Component({
   selector: 'gr-mis-apuestas-page',
-  imports: [RouterLink, Page, GrAlert, GrButton, GrIcon, GrSkeleton, CoinBalance, PorraCabecera],
+  imports: [RouterLink, LocPipe, Page, GrAlert, GrButton, GrIcon, GrSkeleton, CoinBalance, PorraCabecera],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="Mis apuestas" [juego]="true">
-      <gr-porra-cabecera [titulo]="'Mis apuestas ' + jornadaTxt()" tituloMovil="Mis apuestas" [asideMovil]="true" crumb="Mis apuestas" activa="apuestas"
-        descripcion="Tu boleto de la jornada: lo que sigue en juego, lo cobrado y lo perdido. Se liquida al publicarse los resultados.">
+    <gr-page [title]="t().titulo" [juego]="true">
+      <gr-porra-cabecera [titulo]="t().titulo + ' ' + jornadaTxt()" [tituloMovil]="t().titulo" [asideMovil]="true" [crumb]="t().titulo" activa="apuestas"
+        [descripcion]="t().desc">
         <gr-coin-balance aside [valor]="saldo()" moneda="porra" motivo="porra" [etiquetaMovil]="false" />
       </gr-porra-cabecera>
 
       @if (!fan.conSesion()) {
         <div class="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line-strong bg-bg-card/40 px-6 py-14 text-center">
           <span class="flex size-14 items-center justify-center rounded-full border border-accent/50 bg-accent-deep/40 text-accent-text shadow-glow-deep"><gr-icon name="lock" [size]="24" /></span>
-          <p class="text-display-xs">Entra para ver tus apuestas</p>
-          <p class="max-w-md text-body-s text-text-tertiary">Con tu cuenta del directo recibes 100.000 monedas por jornada para apostar en la porra.</p>
-          <button grButton variant="primary" icon="user-plus" (click)="entrar()">Entrar para jugar</button>
+          <p class="text-display-xs">{{ t().entraVer }}</p>
+          <p class="max-w-md text-body-s text-text-tertiary">{{ t().entraTxt }}</p>
+          <button grButton variant="primary" icon="user-plus" (click)="entrar()">{{ t().entrar }}</button>
         </div>
       } @else if (store.cargandoApuestas()) {
         <div class="flex flex-col gap-3" aria-busy="true">
@@ -42,13 +114,13 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
           @for (i of [1, 2, 3]; track i) { <gr-skeleton class="h-20 rounded-md" /> }
         </div>
       } @else if (store.errorApuestas(); as e) {
-        <gr-alert tone="warning" title="No hemos podido cargar tus apuestas">{{ e }}</gr-alert>
+        <gr-alert tone="warning" [title]="t().errorCarga">{{ e }}</gr-alert>
       } @else if (!apuestas().length) {
         <div class="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line-strong bg-bg-card/40 px-6 py-14 text-center">
           <span class="flex size-14 items-center justify-center rounded-full border border-accent/50 bg-accent-deep/40 text-accent-text shadow-glow-deep"><gr-icon name="ticket" [size]="24" /></span>
-          <p class="text-display-xs">Tu boleto está vacío</p>
-          <p class="max-w-md text-body-s text-text-tertiary">Elige un mercado, pulsa una cuota y haz tu primera apuesta con monedas virtuales. Si aciertas, te llevas tu parte del bote.</p>
-          <a grButton variant="primary" routerLink="/porra" iconRight="arrow-right">Ver los mercados</a>
+          <p class="text-display-xs">{{ t().vacio }}</p>
+          <p class="max-w-md text-body-s text-text-tertiary">{{ t().vacioTxt }}</p>
+          <a grButton variant="primary" [routerLink]="'/porra' | loc" iconRight="arrow-right">{{ t().verMercados }}</a>
         </div>
       } @else {
         <!-- Figma «Resumen»: en juego, cobrado, devuelto y perdido -->
@@ -63,14 +135,14 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
           }
         </div>
 
-        <div class="hidden flex-wrap gap-2 md:flex" role="group" aria-label="Filtro de apuestas">
+        <div class="hidden flex-wrap gap-2 md:flex" role="group" [attr.aria-label]="t().filtro">
           @for (o of opcionesFiltro(); track o.v) {
             <button type="button" class="h-11 rounded-pill border px-3 text-label-xs transition-colors pointer-fine:h-8" [attr.aria-pressed]="o.v === filtro()" (click)="filtro.set(o.v)"
               [class]="o.v === filtro() ? 'border-accent bg-accent/16 text-accent-text' : 'border-transparent bg-bg-field text-text-secondary hover:text-text-primary'">{{ o.l }} ({{ o.n }})</button>
           }
         </div>
         <label class="relative block md:hidden">
-          <span class="sr-only">Filtro de apuestas</span>
+          <span class="sr-only">{{ t().filtro }}</span>
           <select class="h-12 w-full appearance-none rounded-md border border-line-strong bg-bg-field pr-12 pl-4 text-label-s text-text-primary" (change)="filtro.set($any($event.target).value)">
             @for (o of opcionesFiltro(); track o.v) { <option [value]="o.v" [selected]="o.v === filtro()">{{ o.l }} ({{ o.n }})</option> }
           </select>
@@ -80,7 +152,7 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
         <ul class="flex flex-col gap-3">
           @for (a of visibles(); track a.id) {
             <li class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 rounded-md border border-line-subtle bg-bg-card px-4 py-3 md:flex md:items-center md:gap-4">
-              <span class="inline-flex h-6 items-center self-start justify-self-start rounded-xs px-2.5 text-[0.75rem] font-medium tracking-[0.04em] uppercase md:self-center" [class]="tag(a)">{{ estadoApuesta(a) }}</span>
+              <span class="inline-flex h-6 items-center self-start justify-self-start rounded-xs px-2.5 text-[0.75rem] font-medium tracking-[0.04em] uppercase md:self-center" [class]="tag(a)">{{ t().estados[estadoApuesta(a)] }}</span>
               <span class="row-start-1 col-start-2 text-right font-mono text-[0.8125rem] font-bold text-text-primary tabular-nums md:hidden">{{ monedas(a.importe) }}</span>
               <span class="col-span-2 flex min-w-0 flex-col gap-0.5 md:flex-1">
                 <span class="truncate text-body-s text-text-primary">{{ a.mercado }}</span>
@@ -88,21 +160,21 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
               </span>
               <span class="hidden shrink-0 flex-col items-end md:flex">
                 <span class="font-mono text-[0.8125rem] font-bold text-text-primary tabular-nums">{{ monedas(a.importe) }}</span>
-                <span class="font-mono text-[0.6875rem] text-text-tertiary">importe apostado</span>
+                <span class="font-mono text-[0.6875rem] text-text-tertiary">{{ t().importeApostado }}</span>
               </span>
               <span class="col-span-2 flex min-w-0 flex-col md:w-[220px] md:shrink-0 md:items-end">
                 @switch (estadoApuesta(a)) {
-                  @case ('Ganada') { <span class="text-body-xs text-success md:text-body-s">+{{ monedas(cobro(a)) }} cobrados</span> }
-                  @case ('Perdida') { <span class="text-body-xs text-text-tertiary md:text-body-s">Sin acierto</span><span class="hidden font-mono text-[0.6875rem] text-text-tertiary md:block">pierdes el importe apostado</span> }
-                  @case ('Devuelta') { <span class="text-body-xs text-info md:text-body-s">+{{ monedas(a.importe) }} devueltos</span><span class="hidden font-mono text-[0.6875rem] text-text-tertiary md:block">nadie acertó · bote de vuelta</span> }
-                  @default { <span class="text-body-xs text-text-secondary md:text-body-s md:text-text-primary">Si gana (estimado): {{ monedas(cuota(a)) }}</span><span class="hidden font-mono text-[0.6875rem] text-text-tertiary md:block">ahora {{ cuotaTxt(a) }}</span> }
+                  @case ('Ganada') { <span class="text-body-xs text-success md:text-body-s">{{ t().cobrados(monedas(cobro(a))) }}</span> }
+                  @case ('Perdida') { <span class="text-body-xs text-text-tertiary md:text-body-s">{{ t().sinAcierto }}</span><span class="hidden font-mono text-[0.6875rem] text-text-tertiary md:block">{{ t().pierdes }}</span> }
+                  @case ('Devuelta') { <span class="text-body-xs text-info md:text-body-s">{{ t().devueltos(monedas(a.importe)) }}</span><span class="hidden font-mono text-[0.6875rem] text-text-tertiary md:block">{{ t().nadie }}</span> }
+                  @default { <span class="text-body-xs text-text-secondary md:text-body-s md:text-text-primary">{{ t().siGana(monedas(cuota(a))) }}</span><span class="hidden font-mono text-[0.6875rem] text-text-tertiary md:block">{{ t().ahora }} {{ cuotaTxt(a) }}</span> }
                 }
               </span>
             </li>
           } @empty {
             <li class="rounded-md border border-dashed border-line-strong px-6 py-10 text-center">
-              <p class="text-label-m text-text-primary">No hay apuestas en este filtro</p>
-              <p class="mt-1 text-body-s text-text-tertiary">Cambia de filtro o haz una apuesta en los mercados.</p>
+              <p class="text-label-m text-text-primary">{{ t().filtroVacio }}</p>
+              <p class="mt-1 text-body-s text-text-tertiary">{{ t().filtroVacioTxt }}</p>
             </li>
           }
         </ul>
@@ -111,31 +183,33 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
   `,
 })
 export class MisApuestasPage {
-  protected readonly monedas = monedas;
+  private readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(T);
+  protected readonly monedas = (v: number | null | undefined) => monedas(v, this.i18n.locale());
   protected readonly store = inject(PorraStore);
   protected readonly estado = inject(JuegosEstado);
   protected readonly fan = inject(FanSession);
 
   protected readonly filtro = signal<Filtro>('todas');
-  protected readonly filtros: { v: Filtro; l: string; n: () => number }[] = [
-    { v: 'todas', l: 'Todas', n: () => this.apuestas().length },
-    { v: 'abiertas', l: 'Abiertas', n: () => this.abiertas() },
-    { v: 'ganadas', l: 'Ganadas', n: () => this.ganadas() },
-    { v: 'devueltas', l: 'Devueltas', n: () => this.devueltas() },
-    { v: 'perdidas', l: 'Perdidas', n: () => this.perdidas() },
+  protected readonly filtros: { v: Filtro; n: () => number }[] = [
+    { v: 'todas', n: () => this.apuestas().length },
+    { v: 'abiertas', n: () => this.abiertas() },
+    { v: 'ganadas', n: () => this.ganadas() },
+    { v: 'devueltas', n: () => this.devueltas() },
+    { v: 'perdidas', n: () => this.perdidas() },
   ];
 
   /** Los chips del filtro con su contador. */
-  protected readonly opcionesFiltro = computed(() => this.filtros.map((f) => ({ v: f.v, l: f.l, n: f.n() })));
+  protected readonly opcionesFiltro = computed(() => this.filtros.map((f) => ({ v: f.v, l: this.t().filtros[f.v], n: f.n() })));
   /** Los cuatro indicadores del resumen (Figma «Resumen»). */
   protected readonly kpis = computed(() => {
     const t = this.totales();
-    const pl = (n: number, s: string, p: string) => `${n} ${n === 1 ? s : p}`;
+    const d = this.t();
     return [
-      { label: 'En juego', valor: monedas(t.enJuego), color: 'text-text-primary', nota: pl(this.abiertas(), 'apuesta abierta', 'apuestas abiertas') },
-      { label: 'Cobrado', valor: (t.cobrado ? '+' : '') + monedas(t.cobrado), color: 'text-success', nota: pl(this.ganadas(), 'ganada', 'ganadas') },
-      { label: 'Devuelto', valor: monedas(t.devuelto), color: 'text-info', nota: pl(this.devueltas(), 'devuelta', 'devueltas') },
-      { label: 'Perdido', valor: (t.perdido ? '−' : '') + monedas(t.perdido), color: 'text-accent-text', nota: pl(this.perdidas(), 'sin acierto', 'sin acierto') },
+      { label: d.enJuego, valor: this.monedas(t.enJuego), color: 'text-text-primary', nota: d.nAbiertas(this.abiertas()) },
+      { label: d.cobrado, valor: (t.cobrado ? '+' : '') + this.monedas(t.cobrado), color: 'text-success', nota: d.nGanadas(this.ganadas()) },
+      { label: d.devuelto, valor: this.monedas(t.devuelto), color: 'text-info', nota: d.nDevueltas(this.devueltas()) },
+      { label: d.perdido, valor: (t.perdido ? '−' : '') + this.monedas(t.perdido), color: 'text-accent-text', nota: d.nPerdidas(this.perdidas()) },
     ];
   });
 
@@ -196,7 +270,7 @@ export class MisApuestasPage {
     void inject(PendingTasks).run(async () => {
       await this.estado.cargar();
       await this.store.cargar();
-      await applySeo(cms, seo, '/porra/mis-apuestas', 'Mis apuestas · Porra · GR Strength Cup', 'Tus apuestas de porra de la jornada: lo que sigue en juego, lo cobrado, lo devuelto y lo perdido.');
+      await applySeo(cms, seo, '/porra/mis-apuestas', this.t().seoTitulo, this.t().seoDesc);
     });
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       void this.fan.cargar().then(() => {
