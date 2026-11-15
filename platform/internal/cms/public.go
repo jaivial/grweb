@@ -24,7 +24,7 @@ var tagPub = []string{"Web pública"}
 
 type slugIn struct {
 	Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
-	langIn
+	LangIn
 }
 
 // Home is what the public home renders: published sections + featured FAQ + sponsors.
@@ -169,7 +169,7 @@ func (s *Svc) registerPublic() {
 	type legalIn struct {
 		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		Tipo string `path:"tipo" enum:"privacidad,terminos,cookies,consentimiento,whatsapp,bases-sorteo"`
-		langIn
+		LangIn
 	}
 	type legalOut struct {
 		CacheControl string `header:"Cache-Control"`
@@ -198,7 +198,7 @@ func (s *Svc) registerPublic() {
 	type pagIn struct {
 		Slug  string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		PSlug string `path:"pslug" pattern:"^[a-z0-9-]{1,120}$"`
-		langIn
+		LangIn
 	}
 	type pagOut struct {
 		CacheControl string `header:"Cache-Control"`
@@ -238,7 +238,7 @@ func (s *Svc) registerPublic() {
 		Slug      string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		Page      int    `query:"page" minimum:"1" maximum:"1000" default:"1"`
 		Categoria string `query:"categoria" maxLength:"20"`
-		langIn
+		LangIn
 	}
 	huma.Register(api, huma.Operation{OperationID: "blog-public-list", Method: http.MethodGet, Path: pub + "/blog", Summary: "Entradas del blog publicadas (12 por página, filtro por categoría)", Tags: tagPub},
 		func(ctx context.Context, in *blogIn) (*blogOut, error) {
@@ -475,7 +475,7 @@ func (s *Svc) registerPublicExtra() {
 	type landIn struct {
 		Slug   string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		Pagina string `path:"pagina" enum:"publico,en"`
-		langIn
+		LangIn
 	}
 	type landOut struct {
 		CacheControl string `header:"Cache-Control"`

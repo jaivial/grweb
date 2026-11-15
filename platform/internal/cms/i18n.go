@@ -36,15 +36,15 @@ func saveEn(ctx context.Context, tx pgx.Tx, table string, cid, id uuid.UUID, in 
 	return err
 }
 
-// langIn is embedded in public inputs.
-type langIn struct {
+// LangIn is embedded in public inputs.
+type LangIn struct {
 	Lang string `query:"lang" pattern:"^(es|en)?$" doc:"en: textos en inglés cuando existen"`
 }
 
-func (l langIn) en() bool { return l.Lang == "en" }
+func (l LangIn) en() bool { return l.Lang == "en" }
 
 // key suffixes a cache key with the language.
-func (l langIn) key(k string) string {
+func (l LangIn) key(k string) string {
 	if l.en() {
 		return k + ":en"
 	}
