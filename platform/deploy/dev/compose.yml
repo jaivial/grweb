@@ -18,6 +18,7 @@ x-env: &env
   JWKS_URL: http://identity:8080/.well-known/jwks.json
   INTERNAL_TOKEN_SECRET: dev-internal-secret-change-me
   LOG_LEVEL: info
+  PPROF_ADDR: ":6060"  # local profiling only (docs/carga/2026-11-15-concurrencia.md); not proxied by the gateway
 
 services:
   postgres:
