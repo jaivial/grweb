@@ -82,7 +82,7 @@ const diaMadrid = (iso?: string | null) => (iso ? new Intl.DateTimeFormat('en-CA
             <gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
             <input grInput class="pl-9" placeholder="Buscar por patrocinador o URL…" [ngModel]="q()" (ngModelChange)="q.set($event)" />
           </label>
-          <so-segmented label="Tier" [opciones]="tiersOpc()" [value]="tier()" (valueChange)="tier.set($event)" />
+          <so-segmented class="max-sm:w-full" [llenar]="true" label="Tier" [opciones]="tiersOpc()" [value]="tier()" (valueChange)="tier.set($event)" />
           <button type="button" class="inline-flex h-11 items-center gap-2 rounded-sm border px-3 text-label-s transition-colors md:h-10" [attr.aria-pressed]="soloPausados()"
             [class]="soloPausados() ? 'border-accent bg-accent/10 text-accent-text' : 'border-line-strong text-text-secondary hover:border-text-muted hover:text-text-primary'"
             (click)="soloPausados.update(v => !v)">
