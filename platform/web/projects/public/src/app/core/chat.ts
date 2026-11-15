@@ -4,6 +4,34 @@ import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG } from './competition';
 import { FanSession } from './fan';
+import { I18n, type Lang } from './i18n';
+
+const T = {
+  es: {
+    leyendo: (dia: string) => `Estás viendo el chat del ${dia} (solo lectura)`,
+    unido: 'Te has unido al chat · Sé respetuoso con atletas y público',
+    cerrado: 'Este día ya está cerrado: solo se puede leer.',
+    tu: 'Tú',
+    noEnviado: 'No se ha podido enviar.',
+    borrado: 'Mensaje eliminado por moderación',
+    silenciado: 'Un moderador te ha silenciado temporalmente.',
+    sesion: 'Tu sesión ya no está activa. Vuelve a entrar.',
+    noEnviadoMsg: 'No se ha podido enviar el mensaje.',
+    anonimo: 'Anónimo',
+  },
+  en: {
+    leyendo: (dia: string) => `You are viewing the chat for ${dia} (read-only)`,
+    unido: 'You have joined the chat · Be respectful to athletes and spectators',
+    cerrado: 'This day is closed: read-only.',
+    tu: 'You',
+    noEnviado: 'Could not send.',
+    borrado: 'Message removed by moderation',
+    silenciado: 'A moderator has muted you temporarily.',
+    sesion: 'Your session is no longer active. Please sign in again.',
+    noEnviadoMsg: 'Could not send the message.',
+    anonimo: 'Anonymous',
+  },
+};
 
 /**
  * Chat of the live page (service `chat`, contract §4).
@@ -156,10 +184,10 @@ function wsUrl(ruta: string, params: Record<string, string | undefined>): string
 }
 
 /** Short human label of a day («sáb 21 nov»). */
-export function etiquetaDia(dia: string): string {
+export function etiquetaDia(dia: string, lang: Lang = 'es'): string {
   const d = new Date(dia + 'T12:00:00Z');
   if (isNaN(d.getTime())) return dia;
-  return new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
+  return new Intl.DateTimeFormat(lang === 'en' ? 'en-GB' : 'es-ES', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
     .format(d)
     .replace(',', '');
 }
@@ -179,6 +207,8 @@ export class ChatService {
   private readonly http = inject(HttpClient);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly fan = inject(FanSession);
+  private readonly i18n = inject(I18n);
+  private readonly t = this.i18n.dict(T);
   private readonly base = `/api/competiciones/${COMPETITION_SLUG}/chat`;
 
   /** The list of the room (messages, donations, banners, milestones). */
@@ -245,7 +275,7 @@ export class ChatService {
       {
         kind: 'sistema',
         id: 'hola-' + d,
-        texto: this.soloLectura() ? `Estás viendo el chat del ${etiquetaDia(d)} (solo lectura)` : 'Te has unido al chat · Sé respetuoso con atletas y público',
+        texto: this.soloLectura() ? this.t().leyendo(etiquetaDia(d, this.i18n.lang())) : this.t().unido,
         ts: Date.now(),
       },
     ]);
@@ -312,7 +342,7 @@ export class ChatService {
     const limpio = texto.trim();
     if (!limpio) return false;
     if (this.soloLectura()) {
-      this.errorEnvio.set('Este día ya está cerrado: solo se puede leer.');
+      this.errorEnvio.set(this.t().cerrado);
       return false;
     }
     if (!this.fan.conSesion()) {
@@ -323,7 +353,7 @@ export class ChatService {
     const mio: ChatMsg = {
       kind: 'msg',
       id: 'local-' + cid,
-      alias: this.fan.yo()?.alias ?? 'Tú',
+      alias: this.fan.yo()?.alias ?? this.t().tu,
       atleta: this.fan.yo()?.tipo === 'atleta',
       texto: limpio,
       ts: Date.now(),
@@ -506,7 +536,7 @@ export class ChatService {
       this.marcarEnviado(cid);
       return true;
     } catch (e) {
-      const detalle = e instanceof HttpErrorResponse ? (e.error?.detail as string) || (e.error?.code as string) || 'No se ha podido enviar.' : 'No se ha podido enviar.';
+      const detalle = e instanceof HttpErrorResponse ? (e.error?.detail as string) || (e.error?.code as string) || this.t().noEnviado : this.t().noEnviado;
       this.errorEnvio.set(detalle);
       this.items.update((l) => l.map((i) => (i.kind === 'msg' && i.cid === cid ? { ...i, estado: 'error', error: detalle } : i)));
       return false;
@@ -564,7 +594,7 @@ export class ChatService {
           this.items.update((l) => l.map((i) => (i.kind === 'msg' && i.id === id ? { ...i, borrado: true } : i)));
           return;
         }
-        const borrado: ChatBorrado = { kind: 'borrado', id: id || 'b' + f.ts, texto: 'Mensaje eliminado por moderación', ts: f.ts ?? Date.now() };
+        const borrado: ChatBorrado = { kind: 'borrado', id: id || 'b' + f.ts, texto: this.t().borrado, ts: f.ts ?? Date.now() };
         this.anadir([borrado]);
         return;
       }
@@ -577,11 +607,11 @@ export class ChatService {
         // The server answers the errors of the socket with a `sistema` frame (code + detail).
         const motivo = f.motivo ?? '';
         if (motivo && /^[A-Z0-9_]+$/.test(motivo)) {
-          if (motivo === 'SILENCIADO') this.aviso.set(f.texto ?? 'Un moderador te ha silenciado temporalmente.');
+          if (motivo === 'SILENCIADO') this.aviso.set(f.texto ?? this.t().silenciado);
           else if (motivo.startsWith('SESION_FAN')) {
             this.fan.sesionPerdida();
-            this.aviso.set(f.texto ?? 'Tu sesión ya no está activa. Vuelve a entrar.');
-          } else this.errorEnvio.set(f.texto ?? 'No se ha podido enviar el mensaje.');
+            this.aviso.set(f.texto ?? this.t().sesion);
+          } else this.errorEnvio.set(f.texto ?? this.t().noEnviadoMsg);
           return;
         }
         const item = this.aItem(f);
@@ -612,7 +642,7 @@ export class ChatService {
         return {
           kind: 'msg',
           id: f.id ?? 'x' + ts,
-          alias: f.alias ?? 'Anónimo',
+          alias: f.alias ?? this.t().anonimo,
           atleta: !!f.atleta,
           texto: f.texto ?? '',
           ts,
@@ -626,7 +656,7 @@ export class ChatService {
         return {
           kind: 'donacion',
           id: f.id ?? 'd' + ts,
-          alias: f.alias ?? 'Anónimo',
+          alias: f.alias ?? this.t().anonimo,
           importe: f.importe ?? 0,
           coins: f.coins ?? 0,
           texto: f.texto ?? '',
@@ -647,7 +677,7 @@ export class ChatService {
         return { kind: 'hito', id: f.id ?? 'h' + ts, mensajes: f.mensajes ?? 0, ts };
       case 'borrado':
         // history: a message deleted by moderation keeps its placeholder
-        return { kind: 'borrado', id: f.id ?? 'b' + ts, texto: 'Mensaje eliminado por moderación', ts };
+        return { kind: 'borrado', id: f.id ?? 'b' + ts, texto: this.t().borrado, ts };
       case 'sistema':
         return { kind: 'sistema', id: f.id ?? 's' + ts, texto: f.texto ?? '', ts };
       default:
