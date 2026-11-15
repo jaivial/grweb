@@ -131,6 +131,12 @@ type Relay struct {
 	Log    *slog.Logger
 }
 
+// Poll bounds of the relay: relayMin while there is work, doubling up to relayMax while the outbox stays empty.
+const (
+	relayMin = 40 * time.Millisecond
+	relayMax = 640 * time.Millisecond
+)
+
 // Run loops until ctx is cancelled.
 func (r *Relay) Run(ctx context.Context) {
 	if r.MaxLen == 0 {
@@ -138,6 +144,7 @@ func (r *Relay) Run(ctx context.Context) {
 	}
 	// ST2-R1-6: the weekly purge (a scan of the whole outbox) no longer stalls publishing: it runs on its own
 	go r.limpiar(ctx)
+	espera := relayMin
 	for ctx.Err() == nil {
 		n, err := r.publishBatch(ctx)
 		if err != nil && ctx.Err() == nil {
@@ -145,10 +152,15 @@ func (r *Relay) Run(ctx context.Context) {
 			sleep(ctx, 2*time.Second)
 			continue
 		}
-		if n == 0 {
-			// ST2-R1-2/6: the idle poll bounds the outbox→stream lag; outbox_pending makes an empty poll ~free
-			sleep(ctx, 40*time.Millisecond)
+		if n > 0 {
+			espera = relayMin
+			continue
 		}
+		// ST2-R1-2/6: the idle poll bounds the outbox→stream lag. perf-20261115: ~22 pods polling 25 tx/s each
+		// were most of the idle CPU (Postgres 7 %); an idle relay backs off up to relayMax and snaps back to 40 ms
+		// on the first row, so under traffic the lag is unchanged.
+		sleep(ctx, espera)
+		espera = min(espera*2, relayMax)
 	}
 }
 

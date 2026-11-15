@@ -17,7 +17,9 @@ import { FanSession } from './fan';
 
 /** Frames the server sends (internal/chat/sala.go). */
 export interface ChatFrame {
-  t: 'msg' | 'donacion' | 'banner' | 'borrado' | 'sistema' | 'hito' | 'estado' | 'pong';
+  t: 'msg' | 'donacion' | 'banner' | 'borrado' | 'sistema' | 'hito' | 'estado' | 'pong' | 'lote';
+  /** Frames of a batch (t = 'lote'). */
+  items?: ChatFrame[];
   id?: string;
   texto?: string;
   alias?: string;
@@ -373,7 +375,7 @@ export class ChatService {
     this.pararWs();
     this.pararSse();
     this.transporte.set('ws');
-    const url = wsUrl(`${this.base}/ws`, { dia: this.dia(), desde: this.ultimoId || undefined });
+    const url = wsUrl(`${this.base}/ws`, { dia: this.dia(), desde: this.ultimoId || undefined, lote: '1' });
     let ws: WebSocket;
     try {
       ws = new WebSocket(url);
@@ -391,7 +393,9 @@ export class ChatService {
     };
     ws.onmessage = (ev) => {
       const f = this.parse(ev.data);
-      if (f) this.aplicar(f);
+      // ?lote=1: the server groups the frames of a ~100 ms window into one {t:'lote', items}
+      if (f?.t === 'lote') (f.items ?? []).forEach((x) => this.aplicar(x));
+      else if (f) this.aplicar(f);
     };
     ws.onerror = () => {
       /* the close event does the rest */

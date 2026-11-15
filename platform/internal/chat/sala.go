@@ -13,6 +13,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/jaivial/grweb/platform/pkg/app"
+	"github.com/jaivial/grweb/platform/pkg/config"
 	"github.com/jaivial/grweb/platform/pkg/redisx"
 )
 
@@ -287,4 +288,26 @@ func (h *hub) salasVivas() []*sala {
 		}
 	}
 	return out
+}
+
+// perf-20261115: WS batching (?lote=1). A window collects at most loteMax frames; the batch is the already
+// encoded frames joined as {"t":"lote","items":[…]} (no re-encoding).
+var loteVentana = time.Duration(config.Int("CHAT_LOTE_MS", 100)) * time.Millisecond
+
+const loteMax = 64
+
+func unirLote(fs [][]byte) []byte {
+	n := len(`{"t":"lote","items":[]}`) + len(fs)
+	for _, f := range fs {
+		n += len(f)
+	}
+	b := make([]byte, 0, n)
+	b = append(b, `{"t":"lote","items":[`...)
+	for i, f := range fs {
+		if i > 0 {
+			b = append(b, ',')
+		}
+		b = append(b, f...)
+	}
+	return append(b, "]}"...)
 }
