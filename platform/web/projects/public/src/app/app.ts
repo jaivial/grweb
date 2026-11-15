@@ -24,14 +24,21 @@ export class App {
     let t: ReturnType<typeof setTimeout> | undefined;
     let id = 0;
     let scrollN = 0;
+    // a replaceUrl query change on the same page (?vista=, filters): no loader and no jump to the top
+    let mismaVista = false;
+    const router = inject(Router);
     const fin = (n: number) => {
       if (n !== id) return;
       clearTimeout(t);
       this.cargando.set(false);
     };
-    inject(Router).events.subscribe((e) => {
+    router.events.subscribe((e) => {
+      if (e instanceof NavigationStart) {
+        const ruta = (u: string) => u.split(/[?#]/)[0];
+        mismaVista = e.id > 1 && ruta(e.url) === ruta(router.url) && !!router.currentNavigation()?.extras.replaceUrl;
+      }
       // not on the first navigation: the server HTML is already on screen while the app boots
-      if (e instanceof NavigationStart && e.id > 1) {
+      if (e instanceof NavigationStart && e.id > 1 && !mismaVista) {
         clearTimeout(t);
         id = e.id;
         t = setTimeout(() => this.cargando.set(true), 300);
@@ -49,7 +56,7 @@ export class App {
         const n = ++scrollN;
         const anchor = e.anchor;
         void Promise.race([app.whenStable(), new Promise((r) => setTimeout(r, 10_000))]).then(() => requestAnimationFrame(() => n === scrollN && scroller.scrollToAnchor(anchor)));
-      } else if (e instanceof Scroll && !e.anchor && typeof window !== 'undefined') {
+      } else if (e instanceof Scroll && !e.anchor && !mismaVista && typeof window !== 'undefined') {
         // New page → top at once; back/forward → saved position once the page has its data (and height).
         const n = ++scrollN;
         const pos = e.position;
