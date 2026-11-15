@@ -192,7 +192,7 @@ var catalogo = []Plantilla{
 	pwa("atleta-solicitud-recibida", "Solicitud de alta recibida", "Al enviar el formulario de alta de atleta", "athletes", "solicitudes-atleta", true,
 		[]string{"nombre", "apellidos", "email", "telefono", "club", "ciudad", "marcas", "foto", "pasos", "urlAtletas"},
 		map[string]string{"nombre": "Carlos", "apellidos": "García Molina", "email": "carlos.garcia@example.com", "telefono": "+34 600 123 456", "club": "Club Halter Valencia",
-			"ciudad": "Valencia", "marcas": "180 / 120 / 220 kg", "foto": "blanco y negro · recortada", "pasos": "1. Comprobamos tus datos y tu foto con la lista de inscritos de la AEP.\n\n2. Te avisamos por email con el resultado y el acceso a tu área de atleta.\n\n3. Tu ficha queda privada: no aparece en /atletas hasta que actives su publicación desde el área de atleta.", "urlAtletas": "https://grcup.example/atletas"},
+			"ciudad": "Valencia", "marcas": "180 / 120 / 220 kg", "foto": "blanco y negro · recortada", "pasos": "1. Revisamos a mano los datos de tu alta y tu foto.\n\n2. Te avisamos por email con el resultado y el acceso a tu área de atleta.\n\n3. Tu ficha queda privada: no aparece en /atletas hasta que actives su publicación desde el área de atleta.", "urlAtletas": "https://grcup.example/atletas"},
 		Contenido{Asunto: "Hemos recibido tu solicitud de alta", Preheader: "Revisamos tu ficha a mano y te avisamos por email", Titulo: "{{nombre}}, hemos recibido tu solicitud de alta",
 			Cuerpo:     "Tu solicitud para la ficha de atleta ya está en revisión. El equipo revisa cada solicitud a mano; te avisamos por email con el resultado.\n\n**Qué pasa ahora**\n\n{{pasos}}\n\n**Resumen de lo enviado**\n\n**Nombre:** {{nombre}} {{apellidos}}\n\n**Email:** {{email}}\n\n**Teléfono:** {{telefono}}\n\n**Club · ciudad:** {{club}} · {{ciudad}}\n\n**Mejores marcas:** {{marcas}}\n\n**Foto:** {{foto}}\n\nSi algo no cuadra, escríbenos a admin@grstrength.com.",
 			BotonTexto: "Ver la lista de atletas", BotonURL: "{{urlAtletas}}",
@@ -224,14 +224,14 @@ var catalogo = []Plantilla{
 		ContenidoWA{Texto: "¡Buenas, {{nombre}}! Tu ficha de atleta ya está aprobada ✓\n\n{{privada}}\n\nEntra en tu área de atleta para editar tu foto, tus marcas y tu frase:\n{{urlArea}}"}),
 	pwa("atleta-solicitud-rechazada", "Solicitud de alta rechazada", "Al rechazar una solicitud de alta (si se marca «Avisar»)", "athletes", "solicitudes-atleta", true,
 		[]string{"nombre", "motivo", "urlAlta"},
-		map[string]string{"nombre": "Carlos", "motivo": "Tus datos no coinciden con tu inscripción en la AEP: la fecha de nacimiento que has enviado (12/03/2009) no es la que figura en tu licencia.",
+		map[string]string{"nombre": "Carlos", "motivo": "Tus datos no coinciden con los de tu inscripción: la fecha de nacimiento que has enviado (12/03/2009) no es la que figura en tu licencia.",
 			"urlAlta": "https://grcup.example/alta-atleta"},
 		Contenido{Asunto: "Tu solicitud de alta no se ha podido aprobar", Titulo: "{{nombre}}, tu solicitud de alta no se ha podido aprobar",
-			Cuerpo:     "Hemos revisado tu solicitud de alta y, por ahora, no podemos publicar tu ficha. Tu inscripción en la AEP sigue en vigor: esto no afecta a tu participación.\n\n**Motivo del rechazo**\n\n{{motivo}}\n\n✓ Puedes volver a enviar el formulario con los datos corregidos en cualquier momento.\n\n✓ Si crees que es un error, escríbenos a admin@grstrength.com y lo revisamos a mano.\n\n✓ Tu foto y los datos de la solicitud se borrarán de forma segura (las rechazadas se purgan a los 30 días).",
+			Cuerpo:     "Hemos revisado tu solicitud de alta y, por ahora, no podemos publicar tu ficha. Tu inscripción en la competición sigue en vigor: esto no afecta a tu participación.\n\n**Motivo del rechazo**\n\n{{motivo}}\n\n✓ Puedes volver a enviar el formulario con los datos corregidos en cualquier momento.\n\n✓ Si crees que es un error, escríbenos a admin@grstrength.com y lo revisamos a mano.\n\n✓ Tu foto y los datos de la solicitud se borrarán de forma segura (las rechazadas se purgan a los 30 días).",
 			BotonTexto: "Volver a enviar mi alta", BotonURL: "{{urlAlta}}",
 			Pie:  "No es un bloqueo permanente: corrige el motivo indicado arriba y envía de nuevo.",
 			Nota: "Recibes este email porque tu solicitud de alta en la GR Cup 2026 no ha podido ser aprobada."},
-		ContenidoWA{Texto: "Hola {{nombre}}, tu solicitud de alta no se ha podido aprobar.\n\n{{motivo}}\n\nTu inscripción en la AEP sigue en vigor: esto no afecta a tu participación.\n\nPuedes volver a enviarla con los datos corregidos:\n{{urlAlta}}"}),
+		ContenidoWA{Texto: "Hola {{nombre}}, tu solicitud de alta no se ha podido aprobar.\n\n{{motivo}}\n\nTu inscripción en la competición sigue en vigor: esto no afecta a tu participación.\n\nPuedes volver a enviarla con los datos corregidos:\n{{urlAlta}}"}),
 }
 
 var porClave = func() map[string]Plantilla {

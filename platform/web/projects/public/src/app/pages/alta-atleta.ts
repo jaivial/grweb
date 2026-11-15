@@ -31,7 +31,7 @@ interface ConfigAlta {
   pruebas?: { codigo: string; nombre: string; fecha?: string; nivel: string; plazas: number; ocupadas: number }[];
   /** Último día (AAAA-MM-DD) para elegir la competición desde el área de atleta. */
   limiteEleccion?: string;
-  /** El evento no tiene plazas libres: solo puede darse de alta quien consta en la lista de inscritos de la AEP. */
+  /** El evento no tiene plazas libres: solo puede darse de alta quien ya está inscrito en la competición. */
   completa?: boolean;
 }
 

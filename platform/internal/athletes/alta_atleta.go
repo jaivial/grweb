@@ -678,7 +678,7 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 		if matchID == nil {
 			if err := s.hayPlaza(ctx, tx, c.ID); err != nil {
 				if pe := (*problem.Error)(nil); errors.As(err, &pe) && pe.Code == "INSCRIPCION_COMPLETA" {
-					return problem.Unprocessable("INSCRIPCION_COMPLETA", "La competición está completa y tu email no consta en la lista de inscritos. Revisa que sea el de tu inscripción o escríbenos.")
+					return problem.Unprocessable("INSCRIPCION_COMPLETA", "La competición está completa y tu email no consta en la lista de inscritos. Revisa que sea el que usaste al inscribirte o escríbenos.")
 				}
 				return err
 			}
@@ -1515,9 +1515,9 @@ func (s *Svc) varsRecibida(d DatosAlta, foto, menor bool) map[string]string {
 // pasosRecibida are the numbered next steps of the email to the athlete: the same process as the success screen.
 // A new profile always stays private until the athlete activates its publication.
 func pasosRecibida(foto, menor bool) string {
-	revision := "Comprobamos tus datos con la lista de inscritos de la AEP."
+	revision := "Revisamos a mano los datos de tu alta."
 	if foto {
-		revision = "Comprobamos tus datos y tu foto con la lista de inscritos de la AEP."
+		revision = "Revisamos a mano los datos de tu alta y tu foto."
 	}
 	p := []string{revision}
 	if menor {
