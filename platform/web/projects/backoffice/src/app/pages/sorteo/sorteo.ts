@@ -11,9 +11,10 @@ import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoPageHeader, BoToggle, Confirm, Media, errText, BoTabsMovil } from '../../shared/ui';
 import { BoCheckbox } from '../../shared/kit/controls';
+import { PremiosPage } from '../social/premios/premios';
 import { RifaApi, euros, eurosCorto, type RifaConfig, type RifaHistorial, type RifaItem, type RifaItemIn } from './api';
 
-type Tab = 'items' | 'config' | 'ganadores' | 'historial';
+type Tab = 'items' | 'config' | 'ganadores' | 'historial' | 'premios';
 /** «20/12/2026 21:00» (es-ES, 24 h) ⇄ ISO; native datetime-local follows the browser locale (12 h in en-US). */
 const aLocal = (iso?: string | null) => {
   if (!iso) return '';
@@ -37,7 +38,7 @@ const vacio = (): RifaItemIn => ({ nombre: '', descripcion: '', imagenUrl: null,
  *  create/edit an object with its BunnyCDN photo and (optionally) the winning ticket of each object. */
 @Component({
   selector: 'bo-sorteo',
-  imports: [BoTabsMovil, FormsModule, NgTemplateOutlet, CdkDropList, CdkDrag, CdkDragHandle, BoCheckbox, BoPageHeader, BoToggle, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [PremiosPage, BoTabsMovil, FormsModule, NgTemplateOutlet, CdkDropList, CdkDrag, CdkDragHandle, BoCheckbox, BoPageHeader, BoToggle, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `.cdk-drag-preview{box-shadow:0 12px 32px rgb(0 0 0/.5)}.cdk-drag-animating,.cdk-drop-list-dragging .cdk-drag{transition:transform .2s ease}@media (prefers-reduced-motion:reduce){.cdk-drag-animating,.cdk-drop-list-dragging .cdk-drag{transition:none}}`,
   template: `
@@ -49,7 +50,7 @@ const vacio = (): RifaItemIn => ({ nombre: '', descripcion: '', imagenUrl: null,
           @if (e.id && puede()) { <ng-container actions><button grButton variant="secondary" (click)="borrar()">Eliminar item</button></ng-container> }
         </bo-page-header>
       } @else {
-        <bo-page-header [title]="tab() === 'ganadores' ? 'Rifa · ganadores' : tab() === 'historial' ? 'Rifa · historial' : 'Rifa · items'" [crumbs]="crumbs()"
+        <bo-page-header [title]="tab() === 'ganadores' ? 'Rifa · ganadores' : tab() === 'historial' ? 'Rifa · historial' : tab() === 'premios' ? 'Sorteo · premios de juegos' : 'Rifa · items'" [crumbs]="crumbs()"
           [badge]="tab() !== 'items' || !c ? '' : c.visible ? 'Publicada' : 'Oculta'" [badgeTone]="c?.visible ? 'warning' : 'neutral'" [subtitle]="subtitulo()">
           @if (tab() === 'items') {
             <ng-container actions>
@@ -85,7 +86,8 @@ const vacio = (): RifaItemIn => ({ nombre: '', descripcion: '', imagenUrl: null,
       </nav>
       </bo-tabs-movil>
 
-      @if (its === null) { <gr-empty icon="wifi-off" title="No hemos podido cargar la rifa"><button grButton (click)="cargar()">Reintentar</button></gr-empty> }
+      @if (tab() === 'premios' && !editando()) { <bo-premios [embebido]="true" /> }
+      @else if (its === null) { <gr-empty icon="wifi-off" title="No hemos podido cargar la rifa"><button grButton (click)="cargar()">Reintentar</button></gr-empty> }
       @else if (its === undefined || !c) { <gr-skeleton class="h-96 rounded-lg" /> }
       @else if (editando()) { <ng-container *ngTemplateOutlet="editor" /> }
       @else if (tab() === 'ganadores') { <ng-container *ngTemplateOutlet="ganadores" /> }
@@ -261,7 +263,7 @@ export class SorteoPage {
   protected readonly fechaHora = fechaHora;
   protected readonly fechaLarga = fechaSorteo;
   protected readonly aLocal = aLocal;
-  protected readonly tabs: { v: Tab; l: string }[] = [{ v: 'items', l: 'Items' }, { v: 'config', l: 'Configuración' }, { v: 'ganadores', l: 'Ganadores' }, { v: 'historial', l: 'Historial' }];
+  protected readonly tabs: { v: Tab; l: string }[] = [{ v: 'items', l: 'Items' }, { v: 'config', l: 'Configuración' }, { v: 'ganadores', l: 'Ganadores' }, { v: 'historial', l: 'Historial' }, { v: 'premios', l: 'Premios de juegos' }];
   protected readonly items = signal<RifaItem[] | null | undefined>(undefined);
   protected readonly cfg = signal<RifaConfig | null>(null);
   protected readonly tab = signal<Tab>(((t) => (this.tabs.some((x) => x.v === t) ? t : 'items') as Tab)(this.route.snapshot.queryParamMap.get('tab')));

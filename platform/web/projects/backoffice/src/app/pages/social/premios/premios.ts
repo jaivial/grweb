@@ -1,5 +1,6 @@
 import { A11yModule } from '@angular/cdk/a11y';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, GrToasts, type GrTone } from '@grcup/ui';
@@ -42,23 +43,32 @@ const VACIO: FormPremio = { ranking: 'porra', puestoDesde: 1, puestoHasta: 1, ti
  */
 @Component({
   selector: 'bo-premios',
-  imports: [RouterLink, A11yModule, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, SoThumb],
+  imports: [NgTemplateOutlet, RouterLink, A11yModule, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, SoThumb],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'modal.set(false)' },
   template: `
-    <div class="mx-auto flex max-w-[1280px] flex-col gap-8 pb-24">
-      <bo-page-header [title]="'Premios' + (jornada() ? ' · ' + jornada() : '')"
-        subtitle="Imagen y datos que se anuncian en las clasificaciones en vivo (§6.5)"
-        [crumbs]="[comps.current()?.nombreCorto || '', 'Directo social', 'Premios']">
-        <ng-container actions>
-          <gr-select tipo="filtro" etiqueta="Jornada" [ngModel]="filtroJornada()" (ngModelChange)="cambiarJornada($event)">
-            <option value="">Todas las jornadas</option>
-            @for (j of jornadasLista(); track j.id) { <option [value]="j.id">{{ j.nombre }}</option> }
-          </gr-select>
-          <a grButton icon="external-link" [href]="web + '/fantasy'" target="_blank" rel="noopener">Ver en público</a>
-          <button grButton variant="primary" icon="plus" [disabled]="!puede()" (click)="nuevo()">Nuevo premio</button>
-        </ng-container>
-      </bo-page-header>
+    <ng-template #acciones>
+      <gr-select tipo="filtro" etiqueta="Jornada" [ngModel]="filtroJornada()" (ngModelChange)="cambiarJornada($event)">
+        <option value="">Todas las jornadas</option>
+        @for (j of jornadasLista(); track j.id) { <option [value]="j.id">{{ j.nombre }}</option> }
+      </gr-select>
+      <a grButton icon="external-link" [href]="web + '/fantasy'" target="_blank" rel="noopener">Ver en público</a>
+      <button grButton variant="primary" icon="plus" [disabled]="!puede()" (click)="nuevo()">Nuevo premio</button>
+    </ng-template>
+    <div class="flex flex-col gap-8" [class]="embebido() ? '' : 'mx-auto max-w-[1280px] pb-24'">
+      @if (embebido()) {
+        <!-- inside Sorteo (Jaime 15-nov: only Sorteo exists): no page header, a toolbar and what makes these prizes different from the raffle objects -->
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <p class="text-body-s text-text-tertiary">Premios de las clasificaciones en vivo de porra, fantasy y donantes. No son objetos de la rifa: se ganan por puesto en el ranking de la jornada.</p>
+          <div class="flex min-w-0 flex-wrap gap-2"><ng-container *ngTemplateOutlet="acciones" /></div>
+        </div>
+      } @else {
+        <bo-page-header [title]="'Premios' + (jornada() ? ' · ' + jornada() : '')"
+          subtitle="Imagen y datos que se anuncian en las clasificaciones en vivo (§6.5)"
+          [crumbs]="[comps.current()?.nombreCorto || '', 'Directo social', 'Premios']">
+          <ng-container actions><ng-container *ngTemplateOutlet="acciones" /></ng-container>
+        </bo-page-header>
+      }
 
       @if (!puede()) {
         <gr-alert tone="warning" title="Tu rol no puede gestionar los premios">Hace falta el permiso «directo.operar». Puedes ver los premios, pero los botones de crear, editar y eliminar quedan desactivados.
@@ -236,6 +246,8 @@ const VACIO: FormPremio = { ranking: 'porra', puestoDesde: 1, puestoHasta: 1, ti
   `,
 })
 export class PremiosPage {
+  /** Shown as the «Premios de juegos» tab of Sorteo: no page header of its own. */
+  readonly embebido = input(false);
   private readonly api = inject(PremiosApi);
   protected readonly comps = inject(Competitions);
   private readonly auth = inject(Auth);
