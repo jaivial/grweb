@@ -526,7 +526,11 @@ func (s *Svc) crearFan(ctx context.Context, cid uuid.UUID, acc struct {
 	if err != nil {
 		return fanRow{}, err
 	}
-	return scanFan(s.a.DB.QueryRow(ctx, selFan+` WHERE id = $1`, id))
+	row, err := scanFan(s.a.DB.QueryRow(ctx, selFan+` WHERE id = $1`, id))
+	if err == nil {
+		s.bienvenida(ctx, row) // «Cuenta creada» (público o atleta); the 40-minute announcements come from the worker
+	}
+	return row, err
 }
 
 // demasiados answers 429 with Retry-After and the real wait in the message.

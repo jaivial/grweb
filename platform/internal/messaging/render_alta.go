@@ -230,7 +230,7 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 	enlaces += " · " + link(web+"/privacidad", "Política de privacidad")
 	logo := `<span style="font-size:18px;font-weight:700;color:#ffffff">` + esc(m.Nombre) + `</span>`
 	if m.Logo != "" {
-		logo = `<img src="` + esc(m.Logo) + `" alt="` + esc(m.Nombre) + `" height="40" style="display:block;height:40px;border:0;color:#ffffff;font-size:14px;font-weight:700">`
+		logo = `<img src="` + esc(m.Logo) + `" alt="` + esc(m.Nombre) + `" height="40" style="display:block;margin:0 auto;height:40px;border:0;color:#ffffff;font-size:14px;font-weight:700">`
 	}
 	return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark">` +
 		`<title>` + esc(asunto) + `</title><link href="https://fonts.googleapis.com/css2?family=Contrail+One&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">` +
@@ -239,8 +239,7 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 		`<span style="display:none;max-height:0;overflow:hidden;opacity:0">` + pre + `</span>` +
 		`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0b0a0a"><tr><td align="center">` +
 		`<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#0e0c0d;` + aFont + `">` +
-		`<tr><td class="hd" style="padding:24px 32px 24px 38px;border-bottom:1px solid #2e2729"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td>` + logo +
-		`</td><td align="right" style="font-size:12px;line-height:16px;font-weight:500;letter-spacing:.5px;text-transform:uppercase;color:#6b7280">` + esc(m.Nombre) + `</td></tr></table></td></tr>` +
+		`<tr><td class="hd" align="center" style="padding:24px 32px;border-bottom:1px solid #2e2729;text-align:center">` + logo + `</td></tr>` +
 		`<tr><td class="pad" style="padding:36px 40px 32px">` +
 		`<h1 class="h1" style="margin:0 0 24px;font-family:'Contrail One',Impact,'Arial Narrow',sans-serif;font-weight:400;font-size:36px;line-height:44px;letter-spacing:2px;text-transform:uppercase;color:#ffffff">` + tit + `</h1>` +
 		cuerpo.String() + `</td></tr>` +

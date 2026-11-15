@@ -52,6 +52,7 @@ const T = {
     entrar: "Entrar",
     entrarPass: "Entrar con contraseña",
     sinPass: "Sin contraseña: enviarme un enlace por email",
+    olvido: "¿Has olvidado tu contraseña?",
     sinCuenta: "¿Aún no tienes cuenta?",
     crearCuenta: "Crear cuenta de atleta",
     noLlega: "¿No te llega?",
@@ -212,6 +213,7 @@ const T = {
     entrar: "Sign in",
     entrarPass: "Sign in with password",
     sinPass: "No password: email me a link",
+    olvido: "Forgot your password?",
     sinCuenta: "Don't have an account yet?",
     crearCuenta: "Create athlete account",
     noLlega: "Not arriving?",
@@ -388,6 +390,7 @@ const T = {
                 <gr-field [label]="t().emailIns" for="a-email"><input grInput id="a-email" name="email" type="email" autocomplete="username" inputmode="email" spellcheck="false" autocapitalize="none" [(ngModel)]="email" required [attr.aria-invalid]="error() ? true : null" [attr.aria-describedby]="error() ? 'a-email-err' : null" /></gr-field>
                 @if (!modoEnlace()) {
                   <gr-field [label]="t().pass" for="a-pass"><input grInput id="a-pass" name="password" type="password" autocomplete="current-password" enterkeyhint="go" [(ngModel)]="password" required /></gr-field>
+                  <button type="button" class="-mt-2 self-end text-label-s text-text-secondary hover:text-text-primary hover:underline" (click)="pedir('contrasena')">{{ t().olvido }}</button>
                 }
                 <p id="a-email-err" class="-mt-2 min-h-5 text-body-s text-accent-text" role="alert">{{ error() }}</p>
                 <button grButton variant="primary" size="l" type="submit" [block]="true" [loading]="busy()">{{ modoEnlace() ? t().enviarme : t().entrar }}</button>
@@ -869,14 +872,14 @@ export class AreaAtletaPage {
     this.qr.set(await QR.toDataURL(p.acreditacion, { margin: 1, width: 240, errorCorrectionLevel: 'M' }));
   }
 
-  protected async pedir(): Promise<void> {
+  protected async pedir(motivo?: 'contrasena'): Promise<void> {
     this.error.set('');
     const e = this.email.trim();
     if (!e) return this.error.set(this.t().escribeEmail);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) return this.error.set(!e.includes('@') ? this.t().faltaArroba : /@[^\s@]*\.[^\s@]{2,}$/.test(e) ? this.t().noValido : this.t().faltaDominio);
     this.busy.set(true);
     try {
-      await firstValueFrom(this.http.post(`${api}/enlace`, { competicion: COMPETITION_SLUG, email: this.email.trim() }));
+      await firstValueFrom(this.http.post(`${api}/enlace`, { competicion: COMPETITION_SLUG, email: this.email.trim(), ...(motivo ? { motivo } : {}) }));
       this.vista.set('enviado');
       this.espera.set(45);
       clearInterval(this.timer);

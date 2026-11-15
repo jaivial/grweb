@@ -34,6 +34,17 @@ type Contenido struct {
 type ContenidoWA struct {
 	Texto  string `json:"texto" minLength:"1" maxLength:"2000"`
 	Imagen bool   `json:"imagen,omitempty" doc:"El mensaje lleva una imagen (la foto de la solicitud)"`
+	// ImagenURL is a fixed image of the message (or a variable such as {{foto}}): evo-weai sends it as media.
+	ImagenURL string `json:"imagenUrl,omitempty" maxLength:"500"`
+	// Botones are evo-weai interactive URL buttons (max 3) instead of links pasted in the text; the URL may be a
+	// variable. A button whose URL ends up empty is not sent.
+	Botones []BotonWA `json:"botones,omitempty" maxItems:"3"`
+}
+
+// BotonWA is an interactive URL button of a WhatsApp message.
+type BotonWA struct {
+	Texto string `json:"texto" maxLength:"25"`
+	URL   string `json:"url" maxLength:"300"`
 }
 
 // Automatizacion groups templates the organiser can switch on or off (Figma 62 · «Automatizaciones»).
@@ -48,8 +59,8 @@ type Automatizacion struct {
 
 var automatizaciones = []Automatizacion{
 	{Clave: "accesos", Nombre: "Enlaces de acceso y confirmaciones", Cuando: "al pedirlo", Publico: "Quien lo solicita", Canales: []string{"email"}, Esencial: true},
-	{Clave: "inscripcion", Nombre: "Inscripción, reserva y pagos", Cuando: "al pagar o cambiar", Publico: "Atletas inscritos", Canales: []string{"email"}, Esencial: true},
-	{Clave: "horarios", Nombre: "Tu fecha y horario", Cuando: "al publicar horarios", Publico: "Atletas afectados", Canales: []string{"email"}, Esencial: true},
+	{Clave: "inscripcion", Nombre: "Inscripción, reserva, pagos y acciones necesarias", Cuando: "al pagar o cambiar · al pedirlo la organización", Publico: "Atletas inscritos", Canales: []string{"email", "whatsapp"}, Esencial: true},
+	{Clave: "horarios", Nombre: "Tu fecha y horario", Cuando: "al publicar horarios", Publico: "Atletas afectados", Canales: []string{"email", "whatsapp"}, Esencial: true},
 	{Clave: "seguidores", Nombre: "Avisos a seguidores", Cuando: "al publicar horarios", Publico: "Seguidores con aviso confirmado", Canales: []string{"email"}},
 	{Clave: "salida30", Nombre: "Tu atleta sale en 30 min", Cuando: "−30 min del inicio de su día", Publico: "Seguidores con aviso confirmado", Canales: []string{"email"}},
 	{Clave: "resultados", Nombre: "Resultados publicados", Cuando: "al publicar cada categoría", Publico: "Atletas de la categoría y sus seguidores", Canales: []string{"email"}},
@@ -60,6 +71,8 @@ var automatizaciones = []Automatizacion{
 	{Clave: "recordatorios", Nombre: "Recordatorios de la entrada", Cuando: "T−7 · T−1 (con QR)", Publico: "Reservas activas", Canales: []string{"email"}},
 	{Clave: "voluntarios", Nombre: "Voluntariado recibido", Cuando: "al enviar la solicitud", Publico: "Voluntarios", Canales: []string{"email"}},
 	{Clave: "clubs", Nombre: "Directorio de clubs", Cuando: "al aprobar o rechazar una solicitud (si se marca «Avisar»)", Publico: "Quien propone un club", Canales: []string{"email"}},
+	{Clave: "publico", Nombre: "Avisos al público", Cuando: "al publicar horarios · al empezar el directo · el día antes", Publico: "Cuentas de público del directo", Canales: []string{"email"}},
+	{Clave: "anuncios", Nombre: "Anuncios de juegos y chat", Cuando: "40 min después de crear la cuenta (una vez)", Publico: "Cuentas de público del directo", Canales: []string{"email"}},
 	{Clave: "solicitudes-atleta", Nombre: "Solicitudes de atleta", Cuando: "al enviar el alta y al aprobar o rechazarla", Publico: "Atletas que se dan de alta y el equipo", Canales: []string{"email", "whatsapp"}},
 }
 
@@ -132,12 +145,12 @@ var catalogo = []Plantilla{
 	p("reembolso", "Reembolso", "Al devolver un pago desde el backoffice", "athletes", "inscripcion", true, []string{"nombre", "importe"},
 		map[string]string{"nombre": "Laura", "importe": "35,00 €"},
 		Contenido{Asunto: "Reembolso de {{importe}}", Titulo: "Te hemos devuelto {{importe}}", Cuerpo: "Hola {{nombre}}, hemos tramitado un reembolso de **{{importe}}** a la tarjeta con la que pagaste. Puede tardar entre 5 y 10 días en aparecer."}),
-	p("horario-publicado", "Tu fecha y horario", "Al publicar los horarios por primera vez", "athletes", "horarios", true, []string{"nombre", "atleta", "dia", "hora", "lote", "pesaje", "enlace", "horarios", "version"}, ejHorario,
-		Contenido{Asunto: "Tu horario: {{dia}} a las {{hora}}", Preheader: "Pesaje {{pesaje}}", Titulo: "Ya tienes horario, {{nombre}}", Cuerpo: "Compites el **{{dia}}**: la competición empieza a las **{{hora}}** y sales en el lote {{lote}}.\n\nPesaje: **{{pesaje}}** en la Sala 2.\n\nRellena la previa del pesaje en tu área y el día irá más rápido.", BotonTexto: "Ir a mi área", BotonURL: "{{enlace}}"}),
-	p("horario-cambio", "Cambio en tu horario", "Al publicar una versión que cambia tu fecha u hora", "athletes", "horarios", true, []string{"nombre", "atleta", "dia", "hora", "lote", "pesaje", "enlace", "horarios", "version"}, ejHorario,
-		Contenido{Asunto: "Cambio en tu horario: {{dia}} a las {{hora}}", Preheader: "Pesaje {{pesaje}}", Titulo: "Ha cambiado tu horario", Cuerpo: "Hola {{nombre}}, hemos publicado una nueva versión de los horarios.\n\nAhora compites el **{{dia}}**, empieza a las **{{hora}}** (lote {{lote}}). Pesaje: **{{pesaje}}**.", BotonTexto: "Ver los horarios", BotonURL: "{{horarios}}"}),
-	p("horario-sin-fecha", "Sin fecha asignada", "Al quedarte fuera de los horarios publicados", "athletes", "horarios", true, []string{"nombre", "atleta", "enlace", "horarios", "version"}, ejHorario,
-		Contenido{Asunto: "Tu horario está pendiente", Titulo: "Tu horario está pendiente", Cuerpo: "Hola {{nombre}}, en la última versión de los horarios no tienes fecha de competición asignada. Te escribiremos en cuanto lo tengamos.\n\nSi crees que es un error, responde a este email."}),
+	pwa("horario-publicado", "Tu fecha y horario", "Al publicar los horarios por primera vez", "athletes", "horarios", true, []string{"nombre", "atleta", "dia", "hora", "lote", "pesaje", "enlace", "horarios", "version"}, ejHorario,
+		Contenido{Asunto: "Tu horario: {{dia}} a las {{hora}}", Preheader: "Pesaje {{pesaje}}", Titulo: "Ya tienes horario, {{nombre}}", Cuerpo: "Compites el **{{dia}}**: la competición empieza a las **{{hora}}** y sales en el lote {{lote}}.\n\nPesaje: **{{pesaje}}** en la Sala 2.\n\nRellena la previa del pesaje en tu área y el día irá más rápido.", BotonTexto: "Ir a mi área", BotonURL: "{{enlace}}"}, ContenidoWA{Texto: "*Ya tienes horario, {{nombre}}* 🗓\n\nCompites el *{{dia}}*: la competición empieza a las *{{hora}}* (lote {{lote}}).\nPesaje: *{{pesaje}}*.\n\nRellena la previa del pesaje en tu área y el día irá más rápido.", ImagenURL: logoURL, Botones: []BotonWA{{Texto: "Ir a mi área", URL: "{{enlace}}"}, {Texto: "Ver los horarios", URL: "{{horarios}}"}}}),
+	pwa("horario-cambio", "Cambio en tu horario", "Al publicar una versión que cambia tu fecha u hora", "athletes", "horarios", true, []string{"nombre", "atleta", "dia", "hora", "lote", "pesaje", "enlace", "horarios", "version"}, ejHorario,
+		Contenido{Asunto: "Cambio en tu horario: {{dia}} a las {{hora}}", Preheader: "Pesaje {{pesaje}}", Titulo: "Ha cambiado tu horario", Cuerpo: "Hola {{nombre}}, hemos publicado una nueva versión de los horarios.\n\nAhora compites el **{{dia}}**, empieza a las **{{hora}}** (lote {{lote}}). Pesaje: **{{pesaje}}**.", BotonTexto: "Ver los horarios", BotonURL: "{{horarios}}"}, ContenidoWA{Texto: "*Ha cambiado tu horario*\n\nHola {{nombre}}, ahora compites el *{{dia}}*: empieza a las *{{hora}}* (lote {{lote}}).\nPesaje: *{{pesaje}}*.", Botones: []BotonWA{{Texto: "Ver los horarios", URL: "{{horarios}}"}, {Texto: "Ir a mi área", URL: "{{enlace}}"}}}),
+	pwa("horario-sin-fecha", "Sin fecha asignada", "Al quedarte fuera de los horarios publicados", "athletes", "horarios", true, []string{"nombre", "atleta", "enlace", "horarios", "version"}, ejHorario,
+		Contenido{Asunto: "Tu horario está pendiente", Titulo: "Tu horario está pendiente", Cuerpo: "Hola {{nombre}}, en la última versión de los horarios no tienes fecha de competición asignada. Te escribiremos en cuanto lo tengamos.\n\nSi crees que es un error, responde a este email."}, ContenidoWA{Texto: "*Tu horario está pendiente*\n\nHola {{nombre}}, en la última versión de los horarios no tienes fecha asignada. Te escribiremos en cuanto la tengamos.", Botones: []BotonWA{{Texto: "Ver los horarios", URL: "{{horarios}}"}}}),
 	p("horario-seguidor", "Horario de un atleta que sigues", "Al publicar los horarios (avisos de seguidores)", "athletes", "seguidores", false, []string{"atleta", "lote", "dia", "hora", "enlace", "horarios", "baja"}, ejHorario,
 		Contenido{Asunto: "{{atleta}} compite el {{dia}} a las {{hora}}", Titulo: "{{atleta}} ya tiene horario", Cuerpo: "**{{atleta}}** compite el **{{dia}}**; la competición empieza a las **{{hora}}** (lote {{lote}}).\n\nTe escribiremos también 30 minutos antes de que salga.", BotonTexto: "Ver los horarios", BotonURL: "{{horarios}}", Pie: "Recibes este email porque activaste el aviso de {{atleta}}. Desactívalo aquí: {{baja}}"}),
 	p("atleta-sale-30min", "Tu atleta sale en 30 min", "30 minutos antes de que empiece su día", "athletes", "salida30", false, []string{"atleta", "hora", "enlace", "horarios", "baja"}, ejHorario,
@@ -197,7 +210,7 @@ var catalogo = []Plantilla{
 			Cuerpo:     "Tu solicitud para la ficha de atleta ya está en revisión. El equipo revisa cada solicitud a mano; te avisamos por email con el resultado.\n\n**Qué pasa ahora**\n\n{{pasos}}\n\n**Resumen de lo enviado**\n\n**Nombre:** {{nombre}} {{apellidos}}\n\n**Email:** {{email}}\n\n**Teléfono:** {{telefono}}\n\n**Club · ciudad:** {{club}} · {{ciudad}}\n\n**Mejores marcas:** {{marcas}}\n\n**Foto:** {{foto}}\n\nSi algo no cuadra, escríbenos a admin@grstrength.com.",
 			BotonTexto: "Ver la lista de atletas", BotonURL: "{{urlAtletas}}",
 			Nota: "Recibes este email porque has enviado una solicitud de alta de atleta en la GR Cup 2026."},
-		ContenidoWA{Texto: "¡Hola {{nombre}}! Hemos recibido tu solicitud de alta para la GR Cup 2026 ✍\n\nEl equipo revisa a mano. Cuando la revisemos te avisamos por aquí y por email.\n\nConsulta las fichas publicadas:\n{{urlAtletas}}"}),
+		ContenidoWA{Texto: "¡Hola {{nombre}}! Hemos recibido tu solicitud de alta para la GR Cup 2026 ✍\n\nEl equipo revisa a mano. Cuando la revisemos te avisamos por aquí y por email.", Botones: []BotonWA{{Texto: "Ver atletas", URL: "{{urlAtletas}}"}}}),
 	pwa("atleta-solicitud-nueva", "Nueva solicitud de alta", "Al enviar el formulario de alta de atleta", "athletes", "solicitudes-atleta", true,
 		[]string{"nombre", "apellidos", "email", "telefono", "licencia", "club", "ciudad", "sexo", "edad", "fechaNacimiento", "marcas", "frase", "match", "menor", "coincidencia", "prueba", "foto", "urlRevisar"},
 		map[string]string{"nombre": "Carlos", "apellidos": "García Molina", "email": "carlos.garcia@example.com", "telefono": "+34 600 123 456",
@@ -212,7 +225,7 @@ var catalogo = []Plantilla{
 			BotonTexto: "Revisar solicitud", BotonURL: "{{urlRevisar}}",
 			Pie:  "Este email contiene datos personales: no lo reenvíes.",
 			Nota: "Email automático del panel de solicitudes de atleta. La organización puede desactivar estos avisos en Backoffice › Emails y avisos."},
-		ContenidoWA{Texto: "*Nueva solicitud de alta · {{nombre}} {{apellidos}}*\n\n{{sexo}} · {{edad}} · {{club}} · {{ciudad}}\n\n{{menor}}\n\n**Coincidencia:** {{match}}\n\nRevisar la solicitud: {{urlRevisar}}", Imagen: true}),
+		ContenidoWA{Texto: "*Nueva solicitud de alta · {{nombre}} {{apellidos}}*\n\n{{sexo}} · {{edad}} · {{club}} · {{ciudad}}\n\n{{menor}}\n\n**Coincidencia:** {{match}}", Imagen: true, Botones: []BotonWA{{Texto: "Revisar la solicitud", URL: "{{urlRevisar}}"}}}),
 	pwa("atleta-solicitud-aprobada", "Solicitud de alta aprobada", "Al aprobar una solicitud de alta (si se marca «Avisar»)", "athletes", "solicitudes-atleta", true,
 		[]string{"nombre", "prueba", "urlFicha", "privada", "foto", "urlArea"},
 		map[string]string{"nombre": "Carlos", "prueba": "AEP-2", "urlFicha": "https://grcup.example/atletas/carlos-garcia-molina", "privada": "✓ Tu ficha aún no es pública: actívala desde el área de atleta cuando quieras que aparezca en la lista de atletas.", "foto": "✓ Tu foto en blanco y negro ya está en tu ficha.", "urlArea": "https://grcup.example/area-atleta?t=…"},
@@ -221,7 +234,7 @@ var catalogo = []Plantilla{
 			BotonTexto: "Entrar en mi área de atleta", BotonURL: "{{urlArea}}",
 			Pie:  "Enlace personal: caduca en 7 días; luego puedes pedir otro desde el área de atleta.",
 			Nota: "Recibes este email porque tu solicitud de alta en la GR Cup 2026 ha sido aprobada."},
-		ContenidoWA{Texto: "¡Buenas, {{nombre}}! Tu ficha de atleta ya está aprobada ✓\n\n{{privada}}\n\nEntra en tu área de atleta para editar tu foto, tus marcas y tu frase:\n{{urlArea}}"}),
+		ContenidoWA{Texto: "¡Buenas, {{nombre}}! Tu ficha de atleta ya está aprobada ✓\n\n{{privada}}\n\nEntra en tu área de atleta para editar tu foto, tus marcas y tu frase.", Botones: []BotonWA{{Texto: "Ir a mi área", URL: "{{urlArea}}"}}}),
 	pwa("atleta-solicitud-rechazada", "Solicitud de alta rechazada", "Al rechazar una solicitud de alta (si se marca «Avisar»)", "athletes", "solicitudes-atleta", true,
 		[]string{"nombre", "motivo", "urlAlta"},
 		map[string]string{"nombre": "Carlos", "motivo": "Tus datos no coinciden con los de tu inscripción: la fecha de nacimiento que has enviado (12/03/2009) no es la que figura en tu licencia.",
@@ -231,8 +244,55 @@ var catalogo = []Plantilla{
 			BotonTexto: "Volver a enviar mi alta", BotonURL: "{{urlAlta}}",
 			Pie:  "No es un bloqueo permanente: corrige el motivo indicado arriba y envía de nuevo.",
 			Nota: "Recibes este email porque tu solicitud de alta en la GR Cup 2026 no ha podido ser aprobada."},
-		ContenidoWA{Texto: "Hola {{nombre}}, tu solicitud de alta no se ha podido aprobar.\n\n{{motivo}}\n\nTu inscripción en la competición sigue en vigor: esto no afecta a tu participación.\n\nPuedes volver a enviarla con los datos corregidos:\n{{urlAlta}}"}),
+		ContenidoWA{Texto: "Hola {{nombre}}, tu solicitud de alta no se ha podido aprobar.\n\n{{motivo}}\n\nTu inscripción en la competición sigue en vigor: esto no afecta a tu participación.\n\nPuedes volver a enviarla con los datos corregidos.", Botones: []BotonWA{{Texto: "Volver a enviar", URL: "{{urlAlta}}"}}}),
+
+	// ---- Cuentas, contraseña y acción necesaria (Jaime 15-nov: avisos que faltaban) ----
+	p("publico-cuenta-creada", "Cuenta de público creada", "Al crear la cuenta del directo como público", "fans", "accesos", true, []string{"alias", "competicion", "enlace", "fantasy", "porra"}, ejPublico,
+		Contenido{Asunto: "Bienvenido al directo de la {{competicion}}", Preheader: "Chat, GRS Fantasy y GRS Porra con tu cuenta", Titulo: "¡Ya tienes cuenta, {{alias}}!",
+			Cuerpo:     "Con tu cuenta puedes chatear en el directo, jugar a **GRS Fantasy** y participar en la **GRS Porra**.\n\nEntra cuando quieras con tu email y tu contraseña, o pide un enlace desde el directo.",
+			BotonTexto: "Ir al directo", BotonURL: "{{enlace}}"}),
+	p("atleta-cuenta-creada", "Cuenta de atleta creada", "Al crear la cuenta del directo como atleta", "fans", "accesos", true, []string{"alias", "competicion", "enlace", "area"}, ejPublico,
+		Contenido{Asunto: "Tu cuenta de atleta en la {{competicion}} está lista", Preheader: "Insignia de atleta en el chat y acceso a tu área", Titulo: "¡Bienvenido, {{alias}}!",
+			Cuerpo:     "Tu cuenta del directo ya está vinculada a tu inscripción: en el chat aparecerás con la **insignia de atleta**.\n\nEn tu **área de atleta** tienes tu horario, tu QR de acreditación y la previa del pesaje.",
+			BotonTexto: "Ir a mi área", BotonURL: "{{area}}"}),
+	p("atleta-contrasena", "Cambiar la contraseña del área de atleta", "Al pulsar «¿Has olvidado tu contraseña?» en el área de atleta", "athletes", "accesos", true, []string{"nombre", "enlace"},
+		map[string]string{"nombre": "Laura", "enlace": "https://grcup.example/area-atleta?t=…"},
+		Contenido{Asunto: "Cambia tu contraseña del área de atleta", Preheader: "Enlace válido 30 minutos", Titulo: "Hola, {{nombre}}",
+			Cuerpo:     "Has pedido cambiar la contraseña de tu área de atleta. Entra con este enlace y escribe la nueva en **«Cambiar contraseña»**.\n\nCaduca en 30 minutos. Si no lo has pedido tú, ignora este email: tu contraseña sigue igual.",
+			BotonTexto: "Cambiar mi contraseña", BotonURL: "{{enlace}}"}),
+	pwa("atleta-accion-necesaria", "Acción necesaria", "Cuando la organización pide algo al atleta desde el backoffice", "athletes", "inscripcion", true, []string{"nombre", "accion", "detalle", "fecha", "enlace"},
+		map[string]string{"nombre": "Laura", "accion": "Sube tu licencia AEP", "detalle": "Necesitamos una foto de tu licencia en vigor para validar tu inscripción.", "fecha": "viernes 11 de diciembre", "enlace": "https://grcup.example/area-atleta?t=…"},
+		Contenido{Asunto: "Acción necesaria: {{accion}}", Preheader: "{{detalle}}", Titulo: "{{nombre}}, necesitamos algo de ti",
+			Cuerpo:     "**{{accion}}**\n\n{{detalle}}\n\nHazlo antes del **{{fecha}}** para no perder tu plaza.",
+			BotonTexto: "Resolverlo ahora", BotonURL: "{{enlace}}"},
+		ContenidoWA{Texto: "*Acción necesaria · {{accion}}*\n\nHola {{nombre}}. {{detalle}}\n\nHazlo antes del *{{fecha}}* para no perder tu plaza.", Botones: []BotonWA{{Texto: "Resolverlo ahora", URL: "{{enlace}}"}}}),
+	// ---- Avisos al público (cuentas del directo de tipo público; baja con {{baja}}) ----
+	p("publico-horarios-publicados", "Horarios publicados (público)", "Al publicar los horarios por primera vez", "fans", "publico", false, []string{"alias", "competicion", "horarios", "baja"}, ejPublico,
+		Contenido{Asunto: "Ya están los horarios de la {{competicion}}", Preheader: "Qué día y a qué hora compite cada atleta", Titulo: "Ya hay horarios",
+			Cuerpo:     "Hola {{alias}}, hemos publicado los horarios: consulta qué día y a qué hora compite cada atleta.\n\nActiva el aviso de los atletas que quieras seguir y te escribiremos 30 minutos antes de que salgan.",
+			BotonTexto: "Ver los horarios", BotonURL: "{{horarios}}", Pie: "¿No quieres más avisos del directo? Date de baja aquí: {{baja}}"}),
+	p("publico-directo-iniciado", "Directo iniciado (público)", "Al empezar la retransmisión de cada día", "fans", "publico", false, []string{"alias", "competicion", "dia", "enlace", "baja"}, ejPublico,
+		Contenido{Asunto: "Empieza el directo · {{dia}}", Preheader: "Streaming, marcador y chat", Titulo: "¡Estamos en directo!",
+			Cuerpo:     "Arranca la competición del **{{dia}}**. Míralo en streaming, sigue el marcador y entra al chat: participar te da monedas para **GRS Fantasy** y la **GRS Porra**.",
+			BotonTexto: "Ver el directo", BotonURL: "{{enlace}}", Pie: "¿No quieres más avisos del directo? Date de baja aquí: {{baja}}"}),
+	p("publico-competicion-cerca", "La competición se acerca", "El día antes de que empiece la competición", "fans", "publico", false, []string{"alias", "competicion", "dia", "lugar", "horarios", "entradas", "baja"}, ejPublico,
+		Contenido{Asunto: "Mañana empieza la {{competicion}}", Preheader: "{{dia}} · {{lugar}}", Titulo: "¡Es mañana!",
+			Cuerpo:     "La {{competicion}} empieza el **{{dia}}** en {{lugar}}.\n\nSi vienes, reserva tu entrada gratis: {{entradas}}\n\nSi no puedes venir, síguela en directo y juega a GRS Fantasy y la GRS Porra.",
+			BotonTexto: "Ver los horarios", BotonURL: "{{horarios}}", Pie: "¿No quieres más avisos del directo? Date de baja aquí: {{baja}}"}),
+	// ---- Anuncios (uno por cuenta de público, 40 minutos después de crearla) ----
+	p("publico-anuncio-juegos", "Anuncio: GRS Fantasy y GRS Porra", "40 minutos después de crear la cuenta de público (una vez)", "fans", "anuncios", false, []string{"alias", "competicion", "fantasy", "porra", "baja"}, ejPublico,
+		Contenido{Asunto: "Juega a GRS Fantasy y la GRS Porra", Preheader: "Gratis y con tu cuenta del directo", Titulo: "Demuestra cuánto sabes de powerlifting",
+			Cuerpo:     "**GRS Fantasy**: ficha a tus atletas, gestiona tu equipo y suma puntos con cada levantamiento.\n\n**GRS Porra**: acierta quién gana cada categoría y escala en la clasificación: {{porra}}\n\nEs gratis y ya puedes jugar con tu cuenta.",
+			BotonTexto: "Jugar a GRS Fantasy", BotonURL: "{{fantasy}}", Pie: "¿No quieres más avisos del directo? Date de baja aquí: {{baja}}"}),
+	p("publico-anuncio-chat", "Anuncio: chat del directo y monedas", "40 minutos después de crear la cuenta de público (una vez)", "fans", "anuncios", false, []string{"alias", "competicion", "enlace", "baja"}, ejPublico,
+		Contenido{Asunto: "Entra al chat del directo y gana monedas", Preheader: "Monedas para GRS Fantasy y la GRS Porra", Titulo: "El chat te da monedas",
+			Cuerpo:     "Durante el directo, comentar y participar en el chat te da **monedas** para **GRS Fantasy** y la **GRS Porra**.\n\nCuanto más participes, más monedas.",
+			BotonTexto: "Ir al directo", BotonURL: "{{enlace}}", Pie: "¿No quieres más avisos del directo? Date de baja aquí: {{baja}}"}),
 }
+
+var ejPublico = map[string]string{"alias": "laurafit", "competicion": "GRS Cup 2", "enlace": "https://grcup.example/en-directo", "area": "https://grcup.example/area-atleta",
+	"fantasy": "https://grcup.example/fantasy", "porra": "https://grcup.example/porra", "horarios": "https://grcup.example/horarios", "entradas": "https://grcup.example/entradas",
+	"dia": "sábado 19 de diciembre", "lugar": "Pavelló Municipal d'Almussafes", "baja": "https://grcup.example/api/competiciones/grcup/fans/avisos/baja?t=…"}
 
 var porClave = func() map[string]Plantilla {
 	m := map[string]Plantilla{}

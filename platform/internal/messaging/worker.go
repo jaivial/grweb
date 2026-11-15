@@ -252,7 +252,7 @@ func (s *Svc) procesarWA(ctx context.Context, p pendiente, t plantillaEfectiva) 
 			return
 		}
 	}
-	id, err := s.enviarWA(ctx, c, p.destino, WhatsApp{Texto: texto, Imagen: p.vars["__imagen"]})
+	id, err := s.enviarWA(ctx, c, p.destino, waDe(t.WA, texto, p.vars))
 	if err == nil {
 		detalle := "Enviado"
 		if c.Modo == "simulado" {
@@ -319,4 +319,24 @@ func (s *Svc) estadoSMTP(ctx context.Context, cid uuid.UUID, cfg smtpCfg, ok boo
 		return events.Enqueue(ctx, tx, events.New(ctx, "smtp.estado", map[string]any{"ok": ok, "servidor": cfg.servidor(), "error": msg},
 			events.Competition(cid.String()), events.ForPermission("campanas.enviar")))
 	})
+}
+
+// waDe builds the evo-weai message of a transactional template: the rendered text, the interactive URL buttons
+// (variables replaced; a button without an http URL is dropped) and the image (the producer's photo first, then the
+// template's fixed or variable image).
+func waDe(w *ContenidoWA, texto string, vars map[string]string) WhatsApp {
+	m := WhatsApp{Texto: texto, Imagen: vars["__imagen"]}
+	if m.Imagen == "" && w.ImagenURL != "" {
+		if u, _ := sustituir(w.ImagenURL, vars, false); strings.HasPrefix(u, "http") {
+			m.Imagen = u
+		}
+	}
+	for _, b := range w.Botones {
+		u, _ := sustituir(b.URL, vars, false)
+		t, _ := sustituir(b.Texto, vars, false)
+		if strings.HasPrefix(u, "http") && t != "" {
+			m.Enlaces = append(m.Enlaces, Enlace{Texto: t, URL: u})
+		}
+	}
+	return m
 }
