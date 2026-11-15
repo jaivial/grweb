@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts, GrSelect, GrPopover } from '@grcup/ui';
@@ -10,18 +11,26 @@ import { CampanasApi, ESTADO, fecha, n, type CampanaItem, type Lista, type WAEst
 /** «Campañas · lista» (Figma page 61): campaigns by email and WhatsApp with their audience and progress. */
 @Component({
   selector: 'bo-campanas',
-  imports: [GrSelect, FormsModule, RouterLink, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrPopover],
+  imports: [NgTemplateOutlet, GrSelect, FormsModule, RouterLink, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrPopover],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-44 md:pb-24">
-      <bo-page-header title="Campañas" subtitle="Anuncios por email y WhatsApp a tus contactos · solo a quien aceptó cada canal" [crumbs]="[comps.current()?.nombreCorto || '', 'Público', 'Campañas']">
-        <ng-container actions>
-          <a grButton [routerLink]="['/', comps.current()?.slug, 'contactos', 'bajas']">Bajas y supresiones</a>
+      <ng-template #acciones>
+          <a grButton [routerLink]="['/', comps.current()?.slug, 'emails']" [queryParams]="{ tab: 'contactos', vista: 'bajas' }">Bajas y supresiones</a>
           <a grButton icon="smartphone" [routerLink]="['/', comps.current()?.slug, 'campanas', 'whatsapp']">WhatsApp</a>
           <span class="hidden md:block"><button grButton variant="primary" icon="plus" (click)="nueva.set(true)">Nueva campaña</button></span>
-        </ng-container>
-      </bo-page-header>
+      </ng-template>
+      @if (embebido()) {
+        <div class="flex flex-wrap items-center gap-3">
+          <p class="min-w-0 flex-1 basis-72 text-body-s text-text-tertiary">Anuncios por email y WhatsApp a tus contactos · solo a quien aceptó cada canal</p>
+          <div class="flex flex-wrap gap-2"><ng-container *ngTemplateOutlet="acciones" /></div>
+        </div>
+      } @else {
+        <bo-page-header title="Campañas" subtitle="Anuncios por email y WhatsApp a tus contactos · solo a quien aceptó cada canal" [crumbs]="[comps.current()?.nombreCorto || '', 'Público', 'Campañas']">
+          <ng-container actions><ng-container *ngTemplateOutlet="acciones" /></ng-container>
+        </bo-page-header>
+      }
       <div class="flex flex-wrap items-end gap-3">
         <gr-field label="Estado" class="w-56">
           <gr-select [ngModel]="estado()" (ngModelChange)="estado.set($event)">
@@ -83,6 +92,8 @@ import { CampanasApi, ESTADO, fecha, n, type CampanaItem, type Lista, type WAEst
   `,
 })
 export class CampanasPage {
+  /** Inside «Emails y avisos» (?tab=campanas): no page header. */
+  readonly embebido = input(false);
   private readonly api = inject(CampanasApi);
   protected readonly comps = inject(Competitions);
   private readonly toasts = inject(GrToasts);

@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { urlSort } from '../../shared/url-sort';
@@ -31,25 +32,33 @@ function descargar(blob: Blob, nombre: string): void {
 /** «Contactos» (Figma page 61): list with KPIs and filters, segments and unsubscribes/suppressions. */
 @Component({
   selector: 'bo-contactos',
-  imports: [BoDatePicker, BoTablaMovil, BoTabsMovil, GrSelect, FormsModule, RouterLink, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoCheckbox, BoSortHeader, BoDrawer, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
+  imports: [NgTemplateOutlet, BoDatePicker, BoTablaMovil, BoTabsMovil, GrSelect, FormsModule, RouterLink, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSkeleton, BoEmptyState, BoCheckbox, BoSortHeader, BoDrawer, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
-      <bo-page-header title="Contactos" [crumbs]="[comps.current()?.nombreCorto || '', 'Público', 'Contactos']">
+      <ng-template #acciones>
         @if (tab() === 'contactos') {
-          <ng-container actions>
             @if (canExport()) { <button grButton icon="download" [loading]="exportando()" (click)="exportar()">Exportar (RGPD)</button> }
-            <a grButton variant="primary" icon="send" routerLink="../campanas">Nueva campaña</a>
-          </ng-container>
+            <a grButton variant="primary" icon="send" [routerLink]="['/', comps.current()?.slug, 'emails']" [queryParams]="{ tab: 'campanas' }">Nueva campaña</a>
         }
-        @if (tab() === 'segmentos' && canSeg()) { <button actions grButton variant="primary" icon="plus" (click)="nuevoSeg()">Nuevo segmento</button> }
-        @if (tab() === 'bajas' && canExport()) { <button actions grButton icon="plus" (click)="bajaOpen.set(true)">Añadir baja</button> }
-      </bo-page-header>
+        @if (tab() === 'segmentos' && canSeg()) { <button grButton variant="primary" icon="plus" (click)="nuevoSeg()">Nuevo segmento</button> }
+        @if (tab() === 'bajas' && canExport()) { <button grButton icon="plus" (click)="bajaOpen.set(true)">Añadir baja</button> }
+      </ng-template>
+      @if (embebido()) {
+        <div class="flex flex-wrap items-center gap-3">
+          <p class="min-w-0 flex-1 basis-72 text-body-s text-text-tertiary">Personas que han dejado su email o su teléfono (entradas, novedades, alta de atleta, voluntariado) y qué aceptan recibir. Son los destinatarios de las campañas; las bajas nunca reciben nada.</p>
+          <div class="flex flex-wrap gap-2"><ng-container *ngTemplateOutlet="acciones" /></div>
+        </div>
+      } @else {
+        <bo-page-header title="Contactos" [crumbs]="[comps.current()?.nombreCorto || '', 'Público', 'Contactos']">
+          <ng-container actions><ng-container *ngTemplateOutlet="acciones" /></ng-container>
+        </bo-page-header>
+      }
       <bo-tabs-movil label="Contactos">
       <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Contactos">
         @for (t of tabs; track t.v) {
-          <a [routerLink]="rutaTab(t.ruta)" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null">
+          <a [routerLink]="embebido() ? [] : rutaTab(t.ruta)" [queryParams]="embebido() ? { vista: t.v === 'contactos' ? null : t.v } : {}" queryParamsHandling="merge" (click)="embebido() && irVista(t.v)" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null">
             {{ t.label }}@if (l?.pestanas; as p) { <span class="rounded-2xs px-1.5 text-mono-xs" [class]="t.v === 'contactos' ? 'bg-accent-deep/50 text-accent-text' : 'bg-bg-raised'">{{ p[t.v === 'bajas' ? 'supresiones' : t.v] }}</span> }
             @if (tab() === t.v) { <span class="absolute inset-x-2 bottom-0 h-0.5 rounded-t-2xs bg-accent"></span> }
           </a>
@@ -234,7 +243,16 @@ export class ContactosPage {
   protected rutaTab(r: string): string[] {
     return ['/', this.comps.current()?.slug ?? '', 'contactos', ...(r ? [r] : [])];
   }
-  protected readonly tab = signal<Tab>((this.route.snapshot.data['tab'] as Tab) ?? 'contactos');
+  /** Inside «Emails y avisos» (?tab=contactos): no page header and the sub-tabs live in ?vista=. */
+  readonly embebido = input(false);
+  protected readonly tab = signal<Tab>(
+    ((v) => (['contactos', 'segmentos', 'bajas'].includes(v) ? (v as Tab) : 'contactos'))(this.route.snapshot.queryParamMap.get('vista') ?? this.route.snapshot.data['tab'] ?? ''),
+  );
+  protected irVista(v: Tab): void {
+    this.tab.set(v);
+    if (v === 'segmentos') void this.cargarSeg();
+    if (v === 'bajas') void this.cargarSup();
+  }
   protected readonly lista = signal<Lista | null | undefined>(undefined);
   private readonly srt = urlSort(['nombre', 'actividad'] as const, 'actividad', 'desc', (c) => (c === 'actividad' ? 'desc' : 'asc'));
   protected readonly f = signal<Filtros>({ pagina: 1, q: this.route.snapshot.queryParamMap.get('q') ?? undefined, orden: this.srt.orden(), dir: this.srt.dir() });
@@ -314,7 +332,7 @@ export class ContactosPage {
     this.t = setTimeout(() => void this.cargar(), p.q !== undefined ? 250 : 0);
   }
   protected abrir(c: ContactoItem): void {
-    void this.router.navigate([c.id], { relativeTo: this.route });
+    void this.router.navigate(['/', this.comps.current()?.slug, 'contactos', c.id]);
   }
   protected async exportar(ids: string[] = []): Promise<void> {
     this.exportando.set(true);
