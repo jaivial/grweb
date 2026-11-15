@@ -146,6 +146,7 @@ func (s *Svc) registerPublic() {
 	type patroPubIn struct {
 		Slug string `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
 		Hero bool   `query:"hero" required:"false" doc:"Solo los marcados «Mostrar en hero» (BIZ-144)"`
+		LangIn
 	}
 	huma.Register(api, huma.Operation{OperationID: "patrocinadores-public", Method: http.MethodGet, Path: pub + "/patrocinadores", Summary: "Patrocinadores activos", Tags: tagPub},
 		func(ctx context.Context, in *patroPubIn) (*patroOut, error) {
@@ -153,7 +154,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			list, err := cached(ctx, s, cid, "patrocinadores-v3", ttlContent, func() ([]patroPub, error) { return s.patrocinadores(ctx, cid, in.Slug) })
+			list, err := cached(ctx, s, cid, in.key("patrocinadores-v3"), ttlContent, func() ([]patroPub, error) { return s.patrocinadores(ctx, cid, in.Slug, in.en()) })
 			if err == nil && in.Hero {
 				hero := []patroPub{}
 				for _, p := range list {
@@ -614,8 +615,8 @@ func collect[T any](rows pgx.Rows) ([]T, error) {
 }
 
 // patrocinadores lists the active sponsors; their links carry ?utm_source={slug}&utm_medium=web (Figma 54).
-func (s *Svc) patrocinadores(ctx context.Context, cid uuid.UUID, slug string) ([]patroPub, error) {
-	rows, err := s.a.DB.Query(ctx, `SELECT nombre, nivel, logo_url, url, descripcion, mostrar_en_hero, foto_url, focal_x, focal_y, alt FROM patrocinadores WHERE competition_id = $1 AND activo ORDER BY orden`, cid)
+func (s *Svc) patrocinadores(ctx context.Context, cid uuid.UUID, slug string, en bool) ([]patroPub, error) {
+	rows, err := s.a.DB.Query(ctx, `SELECT nombre, nivel, logo_url, url, `+tr(en, "descripcion")+`, mostrar_en_hero, foto_url, focal_x, focal_y, `+tr(en, "alt")+` FROM patrocinadores WHERE competition_id = $1 AND activo ORDER BY orden`, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -652,7 +653,7 @@ func (s *Svc) home(ctx context.Context, cid uuid.UUID, slug string, en bool) (Ho
 	if h.FaqDestacadas, err = collect[faqPub](rows); err != nil {
 		return h, err
 	}
-	h.Patrocinadores, err = s.patrocinadores(ctx, cid, slug)
+	h.Patrocinadores, err = s.patrocinadores(ctx, cid, slug, en)
 	return h, err
 }
 

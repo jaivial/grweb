@@ -7,7 +7,7 @@ import { Favoritos, cat } from '../core/atletas';
 import { Cms } from '../core/cms';
 import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
 import { HorariosPublic, ICS_URL, type Horarios, type PubAtleta, type PubDia, type PubHorario } from '../core/horarios';
-import { I18n, LocPipe } from '../core/i18n';
+import { DivisionPipe, I18n, LocPipe, divisionEn } from '../core/i18n';
 import { Seo } from '../core/seo';
 import { Newsletter } from '../layout/newsletter';
 import { Page } from '../layout/page';
@@ -91,7 +91,7 @@ const T = {
  */
 @Component({
   selector: 'gr-horarios-page',
-  imports: [RouterLink, Page, FormsModule, GrAlert, GrIcon, GrSkeleton, Fav, Related, Community, Newsletter, LocPipe],
+  imports: [RouterLink, Page, FormsModule, GrAlert, GrIcon, GrSkeleton, Fav, Related, Community, Newsletter, LocPipe, DivisionPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let h = data();
@@ -197,7 +197,7 @@ const T = {
                               <span class="flex size-10 shrink-0 items-center justify-center rounded-full border border-line-strong text-label-s" aria-hidden="true">{{ ini(a.nombre) }}</span>
                               <a [href]="'/atletas/' + a.slug | loc" class="flex min-w-0 flex-1 flex-col gap-0.5 py-2">
                                 <span class="truncate text-label-m" [class.text-accent-text]="fav.slugs().includes(a.slug)">{{ a.nombre }}</span>
-                                <span class="truncate text-body-xs text-text-tertiary">{{ a.club || t().independiente }} · {{ a.divisionNombre }} · {{ cat(a.categoria) }} kg</span>
+                                <span class="truncate text-body-xs text-text-tertiary">{{ a.club || t().independiente }} · {{ a.divisionNombre | division }} · {{ cat(a.categoria) }} kg</span>
                               </a>
                               <gr-fav class="-mr-3" [slug]="a.slug" [nombre]="a.nombre" [plano]="true" />
                             </li>
