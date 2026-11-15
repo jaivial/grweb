@@ -10,6 +10,7 @@ import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { BoDatePicker } from '../../shared/kit';
 import { BoDrawer, BoPageHeader, BoToggle, Confirm, TituloMovil, errText, BoTabsMovil } from '../../shared/ui';
+import { tabEnUrl } from '../../shared/tab-url';
 
 interface Referidos { activo: boolean; modo: 'basico' | 'acumulativo'; descTipo: 'porcentaje' | 'importe'; descValor: number; recompensa: number; maxUsos: number; acumModo: 'basica' | 'multiplicador'; multiplicador: number }
 interface Config { modo: 'externa' | 'propia'; cuota: number; abre?: string; cierra?: string; reserva: boolean; cupones: boolean; referidos: Referidos; version: number }
@@ -427,6 +428,7 @@ export class InscripcionPage {
   protected readonly acumModos = [{ value: 'basica', label: 'Recompensa básica' }, { value: 'multiplicador', label: 'Multiplicador' }];
   protected readonly tiposCupon = [{ value: 'porcentaje', label: 'Porcentaje' }, { value: 'importe', label: 'Importe fijo' }];
   protected readonly tab = signal<Tab>('config');
+  private readonly tabUrl = tabEnUrl(this.tab, () => this.tabs.map((t) => t.key));
   protected readonly cfg = signal<Config | null>(null);
   /** AEP data of the competition, edited here (competition service, its own version). */
   protected readonly aep = signal<Aep | null>(null);

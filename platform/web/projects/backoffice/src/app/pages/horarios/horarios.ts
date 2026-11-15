@@ -11,6 +11,7 @@ import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoDatePicker } from '../../shared/kit';
 import { BoDrawer, BoPageHeader, BoTabBar, BoToggle, Confirm, errText, type BoTabOpcion } from '../../shared/ui';
+import { tabEnUrl } from '../../shared/tab-url';
 import {
   HorariosApi, cat, diaCorto, diaLargo, hora, kg, nombrePrueba, pruebaDeDia,
   type AgendaItem, type Borrador, type Config, type Diff, type Sesion, type SesionAtleta, type VersionInfo,
@@ -496,6 +497,7 @@ export class HorariosPage {
       return { value: f, label: d.charAt(0).toUpperCase() + d.slice(1) + (p ? ' · ' + nombrePrueba(p) : ''), count: (b?.sesiones ?? []).filter((s) => s.dia === f).reduce((n, s) => n + this.activos(s), 0) };
     });
   });
+  private readonly fechaUrl = tabEnUrl(this.dia, () => this.fechas(), 'fecha');
   protected readonly sesionesDia = computed(() => (this.raw()?.sesiones ?? []).filter((s) => s.dia === this.dia()));
   /** With filters on, only the sessions with some match (no empty cards in the way). */
   protected readonly sesionesVisibles = computed(() => (this.nFiltros() ? this.sesionesDia().filter((s) => this.filtrar(s.atletas).length) : this.sesionesDia()));

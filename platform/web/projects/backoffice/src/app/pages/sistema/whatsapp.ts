@@ -9,6 +9,7 @@ import { Realtime } from '../../core/realtime';
 import { problemOf } from '../../core/api';
 import { BoPageHeader, BoToggle, BoTabsMovil } from '../../shared/ui';
 import { WhatsAppApi, type EstadoWa, type EstadoWaInfo, type TelefonoAviso } from './whatsapp-api';
+import { tabEnUrl } from '../../shared/tab-url';
 
 type Tab = 'vinculacion' | 'avisos';
 type Dialogo = 'desconectar' | null;
@@ -343,6 +344,7 @@ export class WhatsAppSistemaPage {
   protected readonly desconectarTexto = signal('');
 
   protected readonly tabs: { k: Tab; l: string }[] = [{ k: 'vinculacion', l: 'Vinculación' }, { k: 'avisos', l: 'Avisos de solicitudes' }];
+  private readonly tabUrl = tabEnUrl(this.tab, () => this.tabs.map((t) => t.k));
   protected readonly paises = [
     { nombre: 'España', prefijo: '+34' }, { nombre: 'Portugal', prefijo: '+351' }, { nombre: 'Francia', prefijo: '+33' },
     { nombre: 'Italia', prefijo: '+39' }, { nombre: 'Alemania', prefijo: '+49' }, { nombre: 'Reino Unido', prefijo: '+44' },

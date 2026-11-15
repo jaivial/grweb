@@ -8,6 +8,7 @@ import { Realtime } from '../../core/realtime';
 import { BoPageHeader, TituloMovil, errText, BoTabsMovil } from '../../shared/ui';
 import { AtletasApi } from '../atletas/api';
 import { EntradasApi, RESULTADO, fechaCorta, horaSeg, hora, type Bootstrap, type Compacta, type Entrada, type EscaneoIn, type Resultado, type ResumenCheckin } from '../entradas/api';
+import { tabEnUrl } from '../../shared/tab-url';
 
 type TabTaquilla = 'puerta' | 'escaneos' | 'incidencias';
 /** «Sábado mañana» → «Sáb. mañana» (mobile topbar and search rows). */
@@ -105,6 +106,7 @@ export class TaquillaPage {
   protected readonly data = signal<ResumenCheckin | null>(null);
   protected readonly error = signal(false);
   protected readonly tab = signal<TabTaquilla>('puerta');
+  private readonly tabUrl = tabEnUrl(this.tab, () => ['puerta', 'escaneos', 'incidencias'] as TabTaquilla[]);
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
   protected readonly dentro = computed(() => (this.data()?.sesiones ?? []).reduce((a, s) => a + s.dentro, 0));
   protected readonly reservadas = computed(() => (this.data()?.sesiones ?? []).filter((s) => s.publicada).reduce((a, s) => a + s.ocupadas, 0));
