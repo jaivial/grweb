@@ -11,6 +11,7 @@ import { Realtime } from '../../core/realtime';
 import { BO_ROW, BoCheckbox, BoEmptyState, BoFilterPill, BoPagination, BoSearch, BoSkeleton, BoSortHeader, BoTableToolbar } from '../../shared/kit';
 import { BoPageHeader, BoToggle, errText, BoTabsMovil } from '../../shared/ui';
 import { AtletasApi, cat, diaFecha, type ItemLista, type Lista } from './api';
+import { AccionNecesariaDialogo } from './accion-necesaria';
 import { tabEnUrl } from '../../shared/tab-url';
 
 type Pestana = 'todos' | 'confirmados' | 'reserva' | 'bajas' | 'incidencias';
@@ -30,7 +31,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
 /** «Atletas» (Figma page 55 · «Atletas · lista», «casos límite», «vacío y carga»). */
 @Component({
   selector: 'bo-atletas',
-  imports: [BoTabsMovil, GrSelect, FormsModule, RouterLink, A11yModule, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoFilterPill, BoSkeleton, BoEmptyState, BoCheckbox, BoSortHeader, BoToggle, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton],
+  imports: [AccionNecesariaDialogo, BoTabsMovil, GrSelect, FormsModule, RouterLink, A11yModule, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoFilterPill, BoSkeleton, BoEmptyState, BoCheckbox, BoSortHeader, BoToggle, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
@@ -96,6 +97,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
           @if (pestana() !== 'incidencias') {
             <bo-table-toolbar noun="atletas" [total]="l?.total ?? 0" [selected]="sel().size" [loading]="cargando()" [filtered]="filtrado()" (reset)="limpiar()" (clear)="limpiarSel()">
               @if (canEdit()) { <button bulk grButton variant="secondary" icon="download" [loading]="exporting()" (click)="exportar([...sel()])">Exportar selección</button> }
+              @if (canEdit()) { <button bulk grButton variant="secondary" icon="send" (click)="accionIds.set([...sel()])">Pedir una acción</button> }
               <bo-search filters class="w-full md:w-[280px]" placeholder="Buscar atleta, club o licencia…" [shortcut]="false" [value]="q()" (valueChange)="buscar($event)" [loading]="cargando() && !!q()" />
               <gr-select filters tipo="filtro" [ngModel]="sexo()" (ngModelChange)="sexo.set($event); recargar(1)" aria-label="Sexo">
                 <option value="">Sexo</option><option value="F">Femenino</option><option value="M">Masculino</option>
@@ -209,6 +211,9 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
       }
     </div>
 
+    @if (accionIds(); as ids) {
+      <bo-accion-necesaria [ids]="ids" (cerrar)="accionIds.set(null)" (enviado)="accionIds.set(null); limpiarSel()" />
+    }
     @if (promo(); as p) {
       <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" (click)="promo.set(null)" (keydown.escape)="promo.set(null)">
         <div class="w-full max-w-md rounded-lg border border-line-strong bg-bg-raised p-6 shadow-card" role="dialog" aria-modal="true" [attr.aria-label]="'Promocionar a ' + p.nombreCompleto"
@@ -272,6 +277,7 @@ export class AtletasPage {
   protected readonly orden = this.srt.orden;
   protected readonly dir = this.srt.dir;
   protected readonly sel = signal(new Set<string>());
+  protected readonly accionIds = signal<string[] | null>(null);
   protected readonly todos = computed(() => {
     const ids = this.filas().map((a) => a.id), n = ids.filter((id) => this.sel().has(id)).length;
     return n && n === ids.length ? true : n ? 'mixed' : false;

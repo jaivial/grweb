@@ -17,7 +17,7 @@ const T = {
     noAtleta: 'No encontramos ningún atleta inscrito con ese email', usaEmail: 'Usa el email de tu inscripción en la AEP o entra como público: podrás chatear igual.',
     emailAep: 'Email con el que te inscribiste en la AEP *', emailInscripcion: 'Email de inscripción', insignia: 'La insignia «Atleta» solo se acredita con el email de inscripción.',
     comoPublico: 'Entrar como público', reintentarAtleta: 'Reintentar como atleta', comoFunciona: 'Cómo funciona', entrarOCrear: 'Entrar o crear cuenta',
-    comoEntras: '¿Cómo entras?', alias: 'Alias *', aliasPh: 'tu alias en el directo', aliasAyuda: '3–20 caracteres: letras, números, espacios o _ . -',
+    comoEntras: '¿Cómo entras?', telefono: 'Móvil (opcional)', telefonoAyuda: 'Para recibir los avisos del directo también por WhatsApp.', alias: 'Alias *', aliasPh: 'tu alias en el directo', aliasAyuda: '3–20 caracteres: letras, números, espacios o _ . -',
     email: 'Email *', emailPh: 'email@ejemplo.com', enlaceAyuda: 'Te enviamos un enlace para verificar tu email; al abrirlo eliges tu contraseña.',
     clave: 'Contraseña *', claveAria: 'Contraseña', ocultar: 'Ocultar', mostrar: 'Mostrar', olvido: '¿Has olvidado tu contraseña?',
     normasPart: 'Acepto las normas de participación de GRS Cup 2.', normasChat: 'Acepto las normas del chat: sin enlaces, sin insultos, sin spam.', marca: 'Marca la casilla para continuar.',
@@ -52,7 +52,7 @@ const T = {
     noAtleta: 'We could not find any registered athlete with that email', usaEmail: 'Use the email of your AEP registration or sign in as a spectator: you can still chat.',
     emailAep: 'Email you registered with at the AEP *', emailInscripcion: 'Registration email', insignia: 'The «Athlete» badge is only granted with the registration email.',
     comoPublico: 'Sign in as a spectator', reintentarAtleta: 'Try again as an athlete', comoFunciona: 'How it works', entrarOCrear: 'Sign in or create an account',
-    comoEntras: 'How are you joining?', alias: 'Alias *', aliasPh: 'your alias in the live stream', aliasAyuda: '3–20 characters: letters, numbers, spaces or _ . -',
+    comoEntras: 'How are you joining?', telefono: 'Mobile (optional)', telefonoAyuda: 'To also get the live-stream notices on WhatsApp.', alias: 'Alias *', aliasPh: 'your alias in the live stream', aliasAyuda: '3–20 characters: letters, numbers, spaces or _ . -',
     email: 'Email *', emailPh: 'email@example.com', enlaceAyuda: 'We will send you a link to verify your email; when you open it you choose your password.',
     clave: 'Password *', claveAria: 'Password', ocultar: 'Hide', mostrar: 'Show', olvido: 'Forgotten your password?',
     normasPart: 'I accept the GRS Cup 2 participation rules.', normasChat: 'I accept the chat rules: no links, no insults, no spam.', marca: 'Tick the box to continue.',
@@ -146,6 +146,13 @@ const T = {
                 <input grInput grSize="l" type="email" autocomplete="email" class="mt-1.5" placeholder="carlos@otroclub.com" [attr.aria-label]="t().emailInscripcion" [invalid]="true" [ngModel]="email()" (ngModelChange)="email.set($event)" />
                 <span class="mt-1.5 block text-body-xs text-text-tertiary">{{ t().insignia }}</span>
               </label>
+              @if (modo() === 'crear') {
+              <label class="mt-4 block">
+                <span class="text-label-s text-text-primary">{{ t().telefono }}</span>
+                <input grInput grSize="l" type="tel" autocomplete="tel" inputmode="tel" class="mt-1.5" placeholder="+34 600 123 456" [attr.aria-label]="t().telefono" [ngModel]="telefono()" (ngModelChange)="telefono.set($event)" />
+                <span class="mt-1.5 block text-body-xs text-text-tertiary">{{ t().telefonoAyuda }}</span>
+              </label>
+              }
               <div class="mt-5 flex flex-col gap-2">
                 <button type="button" grButton variant="primary" size="l" [block]="true" [loading]="enviando()" (click)="entrarComoPublico()">{{ t().comoPublico }}</button>
                 <button type="button" grButton variant="outline" [block]="true" (click)="estado.set('formulario')">{{ t().reintentarAtleta }}</button>
@@ -248,6 +255,7 @@ export class AccesoModal {
   protected readonly alias = signal('');
   protected readonly email = signal('');
   protected readonly normas = signal(false);
+  protected readonly telefono = signal('');
   protected readonly error = signal<string | null>(null);
   protected readonly errorAlias = signal<string | null>(null);
   protected readonly errorNormas = signal(false);
@@ -363,7 +371,7 @@ export class AccesoModal {
       }
       const crear = this.modo() === 'crear';
       await this.fan.pedirAcceso({ email: this.email().trim(), tipo: crear ? this.tipo() : 'publico', alias: crear ? this.alias().trim() : '',
-        aceptaNormas: crear && this.normas(), next: this.fan.volverA() ?? undefined });
+        aceptaNormas: crear && this.normas(), next: this.fan.volverA() ?? undefined, ...(crear && this.telefono().trim() ? { telefono: this.telefono().trim() } : {}) });
       this.estado.set('enviado');
     } catch (e) {
       const codigo = codigoError(e);

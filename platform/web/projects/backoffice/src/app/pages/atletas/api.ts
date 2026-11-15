@@ -180,6 +180,9 @@ export class AtletasApi {
   }
   decidir(cid: string, id: string, accion: 'cambiar_categoria' | 'no_compite'): Promise<Atleta> { return firstValueFrom(this.http.post<Atleta>(`${this.base(cid)}/${id}/pesaje/decision`, { accion })); }
   enlace(cid: string, id: string): Promise<{ enviado: boolean; caduca: string }> { return firstValueFrom(this.http.post<{ enviado: boolean; caduca: string }>(`${this.base(cid)}/${id}/enlace-area`, {})); }
+  accionNecesaria(cid: string, body: { ids: string[]; accion: string; detalle: string; fecha: string; enlace: string }): Promise<{ emails: number; whatsapps: number; sinEmail: number }> {
+    return firstValueFrom(this.http.post<{ emails: number; whatsapps: number; sinEmail: number }>(`${this.base(cid)}/accion-necesaria`, body));
+  }
   borrar(cid: string, id: string): Promise<unknown> { return firstValueFrom(this.http.delete(`${this.base(cid)}/${id}`)); }
 
   subirActa(cid: string, file: File): Promise<Importacion> {
