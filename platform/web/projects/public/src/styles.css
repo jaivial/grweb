@@ -34,6 +34,10 @@ html {
   --font-archivo: "Archivo", "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Mobile menu open (layout.ts): the page behind the opaque menu is not painted (iOS stuttered over the hero video). */
+html.gr-menu-abierto main { visibility: hidden; }
+html.gr-menu-abierto #menu-movil { visibility: visible; } /* a navbar inside <main> (styleguide demo) */
+
 /* Hero preload overlay: only when JS runs (index.html adds «js» to <html>). */
 html:not(.js) .gr-precarga { display: none !important; }
 
