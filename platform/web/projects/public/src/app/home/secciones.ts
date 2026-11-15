@@ -42,10 +42,14 @@ const FOTO = 'border border-white/8';
           (pointerenter)="pausa.set(true)" (pointerleave)="pausa.set(false)" (focusin)="pausa.set(true)" (focusout)="pausa.set(false)"
           (touchstart)="pausa.set(true)" (touchend)="pausa.set(false)">
           <div class="relative aspect-[9/19.5] w-[min(86vw,360px)] rounded-[56px] border border-white/20 bg-[#0b0a0a] p-[12px] shadow-[0_30px_80px_rgb(0_0_0/0.6)] lg:w-[360px]">
-            <div class="relative size-full overflow-hidden rounded-[44px] bg-black">
+            <div class="relative flex size-full flex-col overflow-hidden rounded-[44px] bg-black">
+              <!-- status bar (safe area): the Dynamic Island never covers the screen content -->
+              <div class="flex h-[6.5%] shrink-0 items-center justify-between px-[9%] text-[13px] font-semibold text-white" aria-hidden="true"><span>9:41</span><span class="h-[9px] w-[20px] rounded-[3px] bg-white"></span></div>
+              <div class="relative min-h-0 flex-1">
               @for (p of pantallas(); track p.src; let i = $index) {
                 <img [src]="p.src" [alt]="p.alt" class="absolute inset-0 size-full transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none" [class]="(p.story ? 'object-contain ' : 'object-cover object-top ') + (i === slide() ? 'opacity-100 scale-100' : 'opacity-0 scale-[1.03]')" [attr.aria-hidden]="i !== slide() || null" [attr.loading]="i ? 'lazy' : null" decoding="async" />
               }
+              </div>
               <span class="absolute top-2.5 left-1/2 h-7 w-[96px] -translate-x-1/2 rounded-pill bg-black" aria-hidden="true"></span>
               <span class="absolute bottom-2 left-1/2 h-1 w-[110px] -translate-x-1/2 rounded-pill bg-white/80" aria-hidden="true"></span>
             </div>
