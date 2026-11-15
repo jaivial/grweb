@@ -16,8 +16,10 @@ const frameUrl = (i: number) => `https://jaimedigitalstudio.b-cdn.net/grcup/fram
 /** Scroll timeline of Figma page 04 «Hero · Storyboard scroll» (the previous web's animation, same thresholds). */
 // Jaime 14-nov: the intro text fades with the smoke (same span), and the closing clouds end covering the trophy.
 // Jaime 15-nov 11:09: longer trophy turn, shorter cloud cover. Before (200vh phone / 500vh md): frames 4-60 %, clouds 48-60 %,
-// 40 % idle hold. Now (300vh / 500vh): the trophy turns until 90 %, the clouds cover in the last 5 % of it (10vh phone, 20vh md).
-const T = { textoFuera: [0.01, 0.08], humo: [0.01, 0.08], frames: [0.03, 0.9], nubes: [0.85, 0.9] } as const;
+// 40 % idle hold. Now (300vh / 500vh): the trophy turns until 90 %, the clouds cover in its last part.
+// Jaime 15-nov 11:40: the clouds rose too fast at 85-90 % (10vh phone, 20vh md): 82.5-90 % = 15vh / 30vh, still shorter
+// than the original 48-60 % (12vh within a 100vh hero on phones, 48vh md) relative to the trophy turn.
+const T = { textoFuera: [0.01, 0.08], humo: [0.01, 0.08], frames: [0.03, 0.9], nubes: [0.825, 0.9] } as const;
 /** Frame fallback (video failed or stalled): every 3rd WebP, loaded progressively, shown as the nearest loaded frame. */
 const PASO_FRAMES = 3;
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
