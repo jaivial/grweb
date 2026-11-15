@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input, model, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, model, signal } from '@angular/core';
 import { marked } from 'marked';
 import { GrButton, GrField, GrIcon, GrIconButton, GrInput, GrToasts, GrSelect } from '@grcup/ui';
 import { webPublica } from '../core/web';
@@ -22,6 +22,7 @@ export interface FieldDef {
 }
 
 type Obj = Record<string, unknown>;
+const TEXTO = new Set<FieldDef['tipo']>(['texto', 'area', 'markdown', 'lista']);
 
 /** Form rendered from a field schema (the same schema the API returns for home sections). Lists nest recursively. */
 @Component({
@@ -30,8 +31,9 @@ type Obj = Record<string, unknown>;
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'grid grid-cols-1 gap-4 sm:grid-cols-2' },
   template: `
-    @for (f of fields(); track f.clave) {
+    @for (f of shown(); track f.clave) {
       @let id = prefix() + f.clave;
+      @let ph = refStr(f.clave);
       <div [class.sm:col-span-2]="f.ancho !== 'mitad'">
         @switch (f.tipo) {
           @case ('bool') {
@@ -42,21 +44,23 @@ type Obj = Record<string, unknown>;
           }
           @case ('lista') {
             <fieldset class="rounded-md border border-line-subtle p-4">
-              <legend class="px-1 text-label-s">{{ f.etiqueta }} <span class="text-body-xs font-normal text-text-muted">{{ list(f.clave).length }}{{ f.max ? ' / ' + f.max : '' }}</span></legend>
+              <legend class="px-1 text-label-s">{{ f.etiqueta }} <span class="text-body-xs font-normal text-text-muted">{{ items(f.clave).length }}{{ f.max ? ' / ' + f.max : '' }}</span></legend>
               <div class="flex flex-col gap-3">
-                @for (item of list(f.clave); track $index; let i = $index; let first = $first; let last = $last) {
+                @for (item of items(f.clave); track $index; let i = $index; let first = $first; let last = $last) {
                   <div class="rounded-sm border border-line-subtle bg-bg-surface p-3">
                     <div class="mb-2 flex items-center justify-between"><span class="text-mono-xs text-text-tertiary">#{{ i + 1 }}</span>
+                      @if (!ref()) {
                       <span class="flex">
                         <button grIconButton icon="arrow-up" label="Subir" [disabled]="first" (click)="move(f.clave, i, -1)"></button>
                         <button grIconButton icon="arrow-down" label="Bajar" [disabled]="last" (click)="move(f.clave, i, 1)"></button>
                         <button grIconButton icon="x" label="Quitar" (click)="removeAt(f.clave, i)"></button>
                       </span>
+                      }
                     </div>
-                    <bo-schema-form [fields]="f.campos ?? []" [value]="item" (valueChange)="setAt(f.clave, i, $event)" [prefix]="id + '-' + i + '-'" />
+                    <bo-schema-form [fields]="f.campos ?? []" [value]="item" [ref]="ref() ? refList(f.clave)[i] : null" (valueChange)="setAt(f.clave, i, $event)" [prefix]="id + '-' + i + '-'" />
                   </div>
                 }
-                @if (!f.max || list(f.clave).length < f.max) {
+                @if (!ref() && (!f.max || list(f.clave).length < f.max)) {
                   <button grButton size="s" type="button" icon="plus" (click)="add(f.clave)">Añadir</button>
                 }
               </div>
@@ -67,7 +71,7 @@ type Obj = Record<string, unknown>;
             <gr-field [label]="f.etiqueta" [for]="id" [hint]="f.ayuda ?? null">
               @if (f.max) { <bo-count fieldAside [value]="str(f.clave)" [max]="f.max" /> }
               @switch (f.tipo) {
-                @case ('area') { <textarea grInput [id]="id" rows="4" class="h-auto! py-2" [attr.maxlength]="f.max || null" [value]="str(f.clave)" (input)="set(f.clave, $any($event.target).value)"></textarea> }
+                @case ('area') { <textarea grInput [id]="id" rows="4" class="h-auto! py-2" [attr.maxlength]="f.max || null" [placeholder]="ph" [value]="str(f.clave)" (input)="set(f.clave, $any($event.target).value)"></textarea> }
                 @case ('markdown') {
                   <div class="flex flex-col gap-2">
                     <div class="flex gap-1 text-label-s">
@@ -77,7 +81,7 @@ type Obj = Record<string, unknown>;
                     @if (preview()) {
                       <div class="prose-gr min-h-40 rounded-sm border border-line-strong bg-bg-field p-3 text-body-s" [innerHTML]="md(str(f.clave))"></div>
                     } @else {
-                      <textarea grInput [id]="id" rows="10" class="h-auto! py-2 font-mono text-[13px]" [value]="str(f.clave)" (input)="set(f.clave, $any($event.target).value)"></textarea>
+                      <textarea grInput [id]="id" rows="10" class="h-auto! py-2 font-mono text-[13px]" [placeholder]="ph" [value]="str(f.clave)" (input)="set(f.clave, $any($event.target).value)"></textarea>
                     }
                   </div>
                 }
@@ -102,7 +106,7 @@ type Obj = Record<string, unknown>;
                     @if (str(f.clave)) { <img [src]="vista(str(f.clave))" alt="" class="max-h-40 w-auto self-start rounded-sm border border-line-subtle object-cover" /> }
                   </div>
                 }
-                @default { <input grInput [id]="id" [attr.maxlength]="f.max || null" [type]="f.tipo === 'url' ? 'url' : 'text'" [value]="str(f.clave)" [attr.aria-describedby]="aviso ? id + '-aviso' : null" (input)="set(f.clave, $any($event.target).value)" /> }
+                @default { <input grInput [id]="id" [attr.maxlength]="f.max || null" [type]="f.tipo === 'url' ? 'url' : 'text'" [placeholder]="ph" [value]="str(f.clave)" [attr.aria-describedby]="aviso ? id + '-aviso' : null" (input)="set(f.clave, $any($event.target).value)" /> }
               }
               @if (aviso) { <p class="flex items-start gap-1.5 text-body-xs text-warning" [id]="id + '-aviso'"><gr-icon name="triangle-alert" [size]="14" class="mt-px shrink-0" />{{ aviso }}</p> }
             </gr-field>
@@ -118,6 +122,9 @@ export class BoSchemaForm {
   readonly fields = input.required<FieldDef[]>();
   readonly value = model<Obj>({});
   readonly prefix = input('f-');
+  /** English mode: the Spanish object; only text fields are shown, with the Spanish text as placeholder (lists keep the Spanish items, by index). */
+  readonly ref = input<Obj | null>(null);
+  protected readonly shown = computed(() => (this.ref() ? this.fields().filter((f) => TEXTO.has(f.tipo)) : this.fields()));
   protected readonly preview = signal(false);
   protected readonly uploading = signal(false);
 
@@ -126,8 +133,11 @@ export class BoSchemaForm {
   protected vista(u: string): string { return u.startsWith('/') && !u.startsWith('//') ? webPublica() + u : u; }
   protected str(k: string): string { const v = this.get(k); return v === null || v === undefined ? '' : String(v); }
   protected list(k: string): Obj[] { const v = this.get(k); return Array.isArray(v) ? (v as Obj[]) : []; }
+  protected refList(k: string): Obj[] { const v = this.ref()?.[k]; return Array.isArray(v) ? (v as Obj[]) : []; }
+  protected refStr(k: string): string { const v = this.ref()?.[k]; return typeof v === 'string' ? v : ''; }
+  protected items(k: string): Obj[] { const l = this.list(k); return this.ref() ? this.refList(k).map((_, i) => l[i] ?? {}) : l; }
   protected set(k: string, v: unknown): void { this.value.update((o) => ({ ...(o ?? {}), [k]: v })); }
-  protected setAt(k: string, i: number, v: Obj): void { const l = [...this.list(k)]; l[i] = v; this.set(k, l); }
+  protected setAt(k: string, i: number, v: Obj): void { const l = [...this.list(k)]; while (l.length < i) l.push({}); l[i] = v; this.set(k, l); }
   protected add(k: string): void { this.set(k, [...this.list(k), {}]); }
   protected removeAt(k: string, i: number): void { this.set(k, this.list(k).filter((_, j) => j !== i)); }
   protected move(k: string, i: number, d: number): void {
