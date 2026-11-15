@@ -69,7 +69,7 @@ const TA = {
               <div class="flex h-[6.5%] shrink-0 items-center justify-between px-[9%] text-[11px] font-semibold text-white sm:text-[13px]" aria-hidden="true"><span>9:41</span><span class="h-[9px] w-[20px] rounded-[3px] bg-white"></span></div>
               <div class="relative min-h-0 flex-1">
               @for (p of pantallas(); track p.src; let i = $index) {
-                <img [src]="p.src" [alt]="p.alt" class="absolute inset-0 size-full transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none" [class]="(p.story ? 'object-contain ' : 'object-cover object-top ') + (i === slide() ? 'opacity-100 scale-100' : 'opacity-0 scale-[1.03]')" [attr.aria-hidden]="i !== slide() || null" [attr.loading]="i ? 'lazy' : null" decoding="async" />
+                <img [src]="p.src" [alt]="p.alt" loading="lazy" decoding="async" class="absolute inset-0 size-full transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none" [class]="(p.story ? 'object-contain ' : 'object-cover object-top ') + (i === slide() ? 'opacity-100 scale-100' : 'opacity-0 scale-[1.03]')" [attr.aria-hidden]="i !== slide() || null" [attr.loading]="i ? 'lazy' : null" decoding="async" />
               }
               </div>
               <span class="absolute top-2.5 left-1/2 h-[22px] w-[76px] -translate-x-1/2 sm:h-7 sm:w-[96px] rounded-pill bg-black" aria-hidden="true"></span>
@@ -276,7 +276,7 @@ const TX = {
         <div class="w-full max-w-[400px] overflow-hidden rounded-xl border border-accent/55 bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] shadow-card" aria-hidden="true">
           <div class="flex flex-col gap-3 px-5 pt-6 pb-4">
             <div class="flex items-center justify-between">
-              <img [src]="logo" alt="" class="h-8 w-auto" />
+              <img [src]="logo" alt="" loading="lazy" decoding="async" class="h-8 w-auto" />
               <span class="inline-flex h-6 items-center rounded-pill border border-white/25 bg-white/6 px-2.5 text-label-xs text-text-secondary">{{ te().gratis }}</span>
             </div>
             <p class="text-display-xs">{{ nombreTicket() }}</p>
@@ -290,7 +290,7 @@ const TX = {
             <span class="absolute top-0 -right-3 size-6 rounded-full border border-line-strong bg-bg-deep"></span>
           </div>
           <div class="flex flex-col items-center gap-2 px-5 pt-2 pb-6 text-center">
-            @if (qr()) { <img [src]="qr()" alt="" class="size-[168px] rounded-[4px] bg-white" /> } @else { <span class="size-[168px] rounded-[4px] bg-white"></span> }
+            @if (qr()) { <img [src]="qr()" alt="" loading="lazy" decoding="async" class="size-[168px] rounded-[4px] bg-white" /> } @else { <span class="size-[168px] rounded-[4px] bg-white"></span> }
             <span class="text-mono-s">GRC-7K3P</span>
             <span class="text-body-xs text-text-tertiary">{{ te().puerta }}</span>
           </div>
