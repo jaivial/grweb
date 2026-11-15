@@ -13,11 +13,15 @@ export interface Celda { peso: number; resultado: 'pendiente' | 'valido' | 'nulo
 export interface Fila {
   puesto?: number; nombre: string; slug?: string; club?: string; division?: string; iniciales: string; pesoCorporal?: number; sq?: number; bp?: number; dl?: number;
   total?: number; subtotal?: number; gl?: number; intentos: Record<Mov, Celda[]>; medalla?: 'oro' | 'plata' | 'bronce'; records?: string[]; sinTotal?: boolean; completo: boolean;
+  /** Public photo (only public profile + image consent) and lot number: optional, older payloads do not bring them. */
+  fotoUrl?: string; lote?: number;
 }
 export interface Categoria { clave: string; sexo: 'F' | 'M'; categoria: string; titulo: string; corto: string; atletas: number; completos: number; filas: Fila[] }
 export interface Directo {
   fase: 'antes' | 'en_directo' | 'finalizado'; pausa: boolean; retrasoMin: number; streamUrl?: string; replayUrl?: string; streamHome?: boolean; espectadores: number;
-  flight?: { codigo: string; titulo: string; plataforma: number }; movimiento: Mov; ronda: number; turnoAt?: string;
+  /** @deprecated no flights on the public web: only the arena screen (pages/directo.ts · Pantalla) still reads it. */
+  flight?: { codigo: string; titulo: string; plataforma: number };
+  movimiento: Mov; ronda: number; turnoAt?: string;
   actual?: EnPlataforma; ultimo?: EnPlataforma; siguientes: EnPlataforma[]; clasificacion: Categoria[];
   proximo?: { titulo: string; inicio: string }; resultadosPublicados: boolean;
 }
@@ -36,6 +40,40 @@ export const kg = (v?: number | null) => (v === undefined || v === null ? '—' 
 export const gl = (v?: number | null) => (v === undefined || v === null ? '—' : nf2.format(v));
 export const catCorta = (sexo: string, c: string) => `${sexo} ${c.replace('-', '−')}`;
 export const catLarga = (sexo: string, c: string) => `${sexo === 'F' ? 'Femenino' : 'Masculino'} ${c.replace('-', '−')} kg`;
+
+/** An athlete waiting for the active attempt of the current lift (input of the «Siguientes» list). */
+export interface Turno { fila: Fila; sexo: 'F' | 'M'; categoria: string; numero: number; peso: number }
+
+/**
+ * Lifting order of the current lift, computed in the client from the provisional ranking (same rules as OpenLifter,
+ * src/logic/liftingOrder.ts, which the table runs):
+ * - a cell is pending when it has a requested weight (> 0) and no result yet; without weight the athlete is not in the order;
+ * - active attempt = the lowest attempt number with some pending cell. When every athlete with a weight in column N has a
+ *   result, the lowest pending one is N + 1 (so the round moves on and the list reorders with the new weights);
+ * - order inside the attempt: requested weight ascending; ties: 1) lot, when both have one; 2) from the 2.º attempt, the
+ *   order of the previous attempt (recursively, same rules); 3) lighter bodyweight; 4) name.
+ * Returns the pending athletes of the active attempt in lifting order (the first one is the athlete on the tarima).
+ */
+export function ordenTarima(cats: Categoria[], mov: Mov): { numero: number; orden: Turno[] } {
+  const todos = cats.flatMap((c) => c.filas.map((fila) => ({ fila, sexo: c.sexo, categoria: c.categoria })));
+  const celda = (f: Fila, n: number): Celda | undefined => f.intentos?.[mov]?.[n - 1];
+  const pendiente = (f: Fila, n: number) => { const x = celda(f, n); return !!x && x.peso > 0 && x.resultado === 'pendiente'; };
+  const numero = [1, 2, 3].find((n) => todos.some((t) => pendiente(t.fila, n))) ?? 0;
+  if (!numero) return { numero: 0, orden: [] };
+  const cmp = (a: Fila, b: Fila, n: number): number => {
+    const pa = celda(a, n)?.peso ?? 0, pb = celda(b, n)?.peso ?? 0;
+    if (pa !== pb) return pa - pb;
+    if (a.lote && b.lote && a.lote !== b.lote) return a.lote - b.lote;
+    if (n > 1) return cmp(a, b, n - 1);
+    if ((a.pesoCorporal ?? 0) !== (b.pesoCorporal ?? 0)) return (a.pesoCorporal ?? Infinity) - (b.pesoCorporal ?? Infinity);
+    return a.nombre.localeCompare(b.nombre, 'es');
+  };
+  const orden = todos
+    .filter((t) => pendiente(t.fila, numero))
+    .sort((a, b) => cmp(a.fila, b.fila, numero))
+    .map((t) => ({ ...t, numero, peso: celda(t.fila, numero)!.peso }));
+  return { numero, orden };
+}
 
 /** YouTube / Twitch link → embeddable player URL (shared with the backoffice preview). */
 export const embed = embedVideo;
