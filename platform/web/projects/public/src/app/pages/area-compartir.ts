@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, computed, 
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { GrAlert, GrButton, GrIcon, GrSkeleton, GrToasts } from '@grcup/ui';
+import { CdnPipe, GrAlert, GrButton, GrIcon, GrSkeleton, GrToasts } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG, Competition } from '../core/competition';
 import { I18n, LocPipe } from '../core/i18n';
@@ -130,7 +130,7 @@ const T = {
 /** /area-atleta/compartir (Figma 83): «Comparte tu cuenta atrás». Only for confirmed athletes (area session). */
 @Component({
   selector: 'gr-area-compartir',
-  imports: [RouterLink, LocPipe, FormsModule, Navbar, Footer, GrAlert, GrButton, GrIcon, GrSkeleton, StoryMovil, StoryRecorte],
+  imports: [CdnPipe, RouterLink, LocPipe, FormsModule, Navbar, Footer, GrAlert, GrButton, GrIcon, GrSkeleton, StoryMovil, StoryRecorte],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `.seg{display:flex;gap:4px;border-radius:8px;border:1px solid var(--color-line-subtle);background:var(--color-bg-field);padding:4px}
     .seg button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:4px 8px;white-space:normal;text-align:center;line-height:1.2;border-radius:6px;font-size:14px;font-weight:600;color:var(--color-text-tertiary);transition:color .15s,background .15s}
@@ -272,7 +272,7 @@ const T = {
                       <gr-story-movil [src]="url()" [alt]="alt()" [hueco]="!foto()" />
                     }
                   } @else {
-                    <gr-story-movil src="/img/edicion-2025/foto-1.webp" alt="" [borroso]="true" />
+                    <gr-story-movil [src]="'/img/edicion-2025/foto-1.webp' | cdn" alt="" [borroso]="true" />
                   }
                 </div>
                 <p class="mt-4 text-center text-[12px] text-text-tertiary">{{ pie() }}</p>
