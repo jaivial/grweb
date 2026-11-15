@@ -8,13 +8,14 @@ import { BoFocal } from '../shared/focal';
 import { BoSchemaForm, type FieldDef } from '../shared/schema-form';
 import { Confirm, errText } from '../shared/ui';
 import { BoDatePicker } from '../shared/kit';
+import { BoLangToggle, type Idioma } from '../shared/lang-toggle';
 import { WebSections, type Seccion } from './web';
 
 /** Figma 54 «Web · editar hero»: texts, background image with focal point and crops, desktop/mobile preview,
  * autosaved draft, discard, schedule and publish. */
 @Component({
   selector: 'bo-web-hero',
-  imports: [BoDatePicker, GrAlert, GrBadge, GrButton, GrIcon, BoSchemaForm, BoFocal],
+  imports: [BoDatePicker, GrAlert, GrBadge, GrButton, GrIcon, BoSchemaForm, BoFocal, BoLangToggle],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-6' },
   template: `
@@ -47,7 +48,12 @@ import { WebSections, type Seccion } from './web';
         <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
           <h3 class="text-ui-h5">Textos</h3>
           <p class="mt-0.5 mb-4 text-body-xs text-text-tertiary">Se muestran sobre la animación del trofeo</p>
-          <bo-schema-form [fields]="textos()" [value]="draft()" (valueChange)="change($event)" prefix="hero-" />
+          <bo-lang-toggle class="mb-4 block" [(value)]="idioma" />
+          @if (idioma() === 'en') {
+            <bo-schema-form [fields]="textos()" [value]="enDraft()" [ref]="draft()" (valueChange)="changeEn($event)" prefix="hero-en-" />
+          } @else {
+            <bo-schema-form [fields]="textos()" [value]="draft()" (valueChange)="change($event)" prefix="hero-" />
+          }
         </section>
         <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
           <h3 class="text-ui-h5">Imagen de fondo (móvil sin animación)</h3>
@@ -108,6 +114,8 @@ export class WebHeroEditor {
   private readonly toasts = inject(GrToasts);
   private readonly confirm = inject(Confirm);
   protected readonly draft = signal<Record<string, unknown>>({});
+  protected readonly enDraft = signal<Record<string, unknown>>({});
+  protected readonly idioma = signal<Idioma>('es');
   protected readonly saving = signal(false);
   protected readonly busy = signal(false);
   protected readonly dirty = signal(false);
@@ -139,6 +147,7 @@ export class WebHeroEditor {
 
   private reset(s: Seccion): void {
     this.draft.set(structuredClone(s.borrador ?? {}));
+    this.enDraft.set(structuredClone(s.enBorrador ?? {}));
     this.rev = s.rev;
     this.savedAt.set(s.updatedAt);
     this.dirty.set(false);
@@ -153,6 +162,14 @@ export class WebHeroEditor {
   protected change(v: Record<string, unknown>): void {
     if (!this.canEdit()) return;
     this.draft.update((d) => ({ ...d, ...v }));
+    this.touch();
+  }
+  protected changeEn(v: Record<string, unknown>): void {
+    if (!this.canEdit()) return;
+    this.enDraft.set(v);
+    this.touch();
+  }
+  private touch(): void {
     this.dirty.set(true);
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => void this.flush(), 1500);
@@ -165,7 +182,7 @@ export class WebHeroEditor {
     this.error.set('');
     this.conflict.set(false);
     try {
-      const s = await this.secs.save(this.seccion().id, { borrador: this.draft() }, this.rev);
+      const s = await this.secs.save(this.seccion().id, { borrador: this.draft(), enBorrador: this.enDraft() }, this.rev);
       this.rev = s.rev;
       this.dirty.set(false);
       this.savedAt.set(s.updatedAt);
