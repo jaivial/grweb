@@ -602,7 +602,7 @@ export class SecHorarios {
     void this.api.get().then(async (h) => {
       if (h?.publicado) this.completo.set(h);
       const sin = (this.datos()?.dias ?? []).flatMap((d) => d.flights).filter((f) => !f.atletas?.length);
-      const pags = await Promise.all(sin.map((f) => this.api.atletas(f.id, 1, 200)));
+      const pags = await Promise.all(sin.map((f) => this.api.atletas(f.id, 1, 50)));
       const l: Record<string, PubAtleta[]> = {};
       sin.forEach((f, i) => { l[f.id] = pags[i]?.items ?? []; });
       this.listas.set(l);
