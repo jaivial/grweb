@@ -1,12 +1,13 @@
 import { RouterLink } from '@angular/router';
-import { ChangeDetectionStrategy, Component, PLATFORM_ID, afterNextRender, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, afterNextRender, computed, inject, input, signal } from '@angular/core';
+import { StoryMovil } from '../pages/area-compartir-ui';
 import { isPlatformBrowser } from '@angular/common';
 import { GrButton, GrIcon, type GrIconName } from '@grcup/ui';
 import { renderMarkdown, type Faq, type Seccion } from '../core/cms';
 import type { CompeticionPublica } from '../core/competition';
 import { CATEGORIAS_IPF, Favoritos } from '../core/atletas';
 import { hora, qrDataURL, type Entradas, type SesionPub } from '../core/entradas';
-import { HorariosPublic, ICS_URL, type Horarios, type PubAtleta, type PubFlight } from '../core/horarios';
+import { HorariosPublic, ICS_URL, normalizar, type Horarios, type PubAtleta, type PubDia, type PubFlight } from '../core/horarios';
 import { Lightbox } from '../layout/lightbox';
 import { ANCHO, GLOW, GrCabecera, GrEyebrow, GrTitulo, SECCION, sinNumero, textoTitulo } from './bloques';
 
@@ -26,24 +27,19 @@ const FOTO = 'border border-white/8';
  */
 @Component({
   selector: 'gr-sec-alta',
-  imports: [RouterLink, GrButton, GrIcon],
+  imports: [RouterLink, GrButton, GrIcon, StoryMovil],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block bg-bg-base px-5 pt-10 pb-18 md:px-8 md:pt-16 md:pb-24 xl:px-20 xl:pb-32' },
   template: `
     <div class="mx-auto flex max-w-[1200px] flex-col items-center gap-8 md:gap-12">
       <h2 class="text-center font-display text-[36px] leading-[1.25] tracking-[0.06em] uppercase [text-shadow:0_0_24px_rgb(196_43_62/0.6)] md:text-[56px]">{{ s()?.['titulo'] || 'Crea tu perfil de atleta' }}</h2>
       <div class="flex w-full flex-col items-center gap-8 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
-        <!-- Figma «Carrusel iPhone»: one slide (the athlete's story) and the 4-dot indicator -->
+        <!-- Jaime 14-nov: the iPhone of «Compartir» with four screens rotating every 1.5 s (story, public profile, schedule, Fantasy) -->
         <div class="flex shrink-0 flex-col items-center gap-4" aria-hidden="true">
-          <div class="relative h-[650px] w-[300px] rounded-[48px] border border-white/20 bg-[#0b0a0a] p-[11px] shadow-[0_30px_80px_rgb(0_0_0/0.6)]">
-            <div class="relative flex size-full flex-col overflow-hidden rounded-[38px] bg-black">
-              <div class="flex h-[50px] shrink-0 items-center justify-between px-7 text-[13px] font-semibold text-white"><span>9:41</span><span class="h-[9px] w-[19px] rounded-[3px] bg-white"></span></div>
-              <span class="absolute top-3 left-1/2 h-6 w-[83px] -translate-x-1/2 rounded-pill bg-black ring-1 ring-white/10"></span>
-              <img src="/img/home/alta-story.webp" alt="" width="278" height="514" class="min-h-0 w-full flex-1 object-cover" loading="lazy" decoding="async" />
-              <span class="absolute bottom-2 left-1/2 h-1 w-[95px] -translate-x-1/2 rounded-pill bg-white/80"></span>
-            </div>
-          </div>
-          <span class="flex items-center gap-2"><span class="h-2 w-6 rounded-pill bg-accent"></span><span class="size-2 rounded-full bg-white/25"></span><span class="size-2 rounded-full bg-white/25"></span><span class="size-2 rounded-full bg-white/25"></span></span>
+          <gr-story-movil [src]="slides[slide()]" usuario="grscup" />
+          <span class="flex items-center gap-2">
+            @for (x of slides; track x; let i = $index) { <span class="h-2 rounded-pill transition-all motion-reduce:transition-none" [class]="i === slide() ? 'w-6 bg-accent' : 'w-2 bg-white/25'"></span> }
+          </span>
         </div>
         <a grButton variant="primary" size="l" routerLink="/alta-atleta" class="w-full lg:hidden">{{ s()?.['cta'] || 'Dar de alta mi atleta' }}</a>
         <div class="flex w-full flex-col items-center gap-6 lg:w-[760px] lg:gap-10">
@@ -64,6 +60,17 @@ const FOTO = 'border border-white/8';
 })
 export class SecAlta {
   readonly s = input<Seccion | undefined>();
+  protected readonly slides = ['/img/home/alta-story.webp', '/img/home/alta-slide-perfil.webp', '/img/home/alta-slide-horarios.webp', '/img/home/alta-slide-fantasy.webp'];
+  protected readonly slide = signal(0);
+  constructor() {
+    const destroy = inject(DestroyRef);
+    afterNextRender(() => {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      this.slides.slice(1).forEach((u) => { new Image().src = u; });
+      const t = setInterval(() => this.slide.set((this.slide() + 1) % this.slides.length), 1500);
+      destroy.onDestroy(() => clearInterval(t));
+    });
+  }
   protected readonly beneficios: { i: GrIconName; t: string }[] = [
     { i: 'user', t: 'Área de atleta personalizada' },
     { i: 'image', t: 'Tu póster de competición' },
@@ -470,7 +477,7 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
               <li class="overflow-hidden rounded-xl border bg-bg-card" [class]="f.estado === 'en_curso' ? 'border-accent/70' : 'border-line-subtle'" [class.opacity-60]="f.estado === 'finalizado'">
                 <button type="button" class="flex w-full items-center gap-4 p-4 text-left md:px-5" [attr.aria-expanded]="abierto" (click)="alternar(f.id)">
                   <span class="flex min-w-0 flex-1 flex-col gap-1">
-                    <span class="text-label-xs tracking-[0.08em] uppercase">{{ f.sexo === 'F' ? 'Femenino' : 'Masculino' }}</span>
+                    <span class="flex items-center gap-2"><span class="text-label-xs tracking-[0.08em] uppercase">{{ f.sexo === 'F' ? 'Femenino' : 'Masculino' }}</span>@if (ep(f); as e) { <span class="inline-flex h-[22px] items-center rounded-[6px] border border-white/40 px-2 text-label-xs">{{ e }}</span> }</span>
                     <span class="text-ui-h5">{{ pesos(f) }}</span>
                     <span class="text-body-xs text-text-tertiary">{{ f.total }} atletas · Pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }}</span>
                     @if (f.estado !== 'programado') {
@@ -483,7 +490,7 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
                   <gr-icon [name]="abierto ? 'chevron-up' : 'chevron-down'" [size]="18" class="shrink-0 text-text-tertiary" />
                 </button>
                 @if (abierto) {
-                  @if (f.atletas.length) {
+                  @if (ats(f).length) {
                     <ul class="border-t border-line-subtle">
                       @for (a of atletasDe(f); track a.slug) {
                         <li class="flex items-center gap-3 border-b border-line-subtle px-4 py-2.5 md:px-5">
@@ -499,7 +506,7 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
                     </ul>
                     <a routerLink="/horarios" class="flex items-center gap-1.5 px-4 py-3 text-label-s text-accent-text hover:underline md:px-5">Ver los {{ f.total }} atletas<gr-icon name="arrow-right" [size]="14" /></a>
                   } @else {
-                    <p class="border-t border-line-subtle px-4 py-3 text-body-s text-text-tertiary md:px-5">{{ completos() ? 'Aún no hay atletas asignados.' : 'Cargando atletas…' }}</p>
+                    <p class="border-t border-line-subtle px-4 py-3 text-body-s text-text-tertiary md:px-5">{{ listos() ? 'Aún no hay atletas asignados.' : 'Cargando atletas…' }}</p>
                   }
                 }
               </li>
@@ -531,10 +538,17 @@ export class SecHorarios {
   protected readonly abiertos = signal<string[]>([]);
   /** Full schedule with the athletes (browser only, loaded once when a view needs it). */
   private readonly completo = signal<Horarios | null>(null);
-  protected readonly completos = computed(() => !!this.completo());
+  /** Athletes per time slot from GET …/horarios/{id}/atletas (the schedule JSON no longer carries them). */
+  private readonly listas = signal<Record<string, PubAtleta[]>>({});
+  protected readonly listos = signal(false);
   private cargando = false;
   protected t = (k: string) => str(this.s(), k);
-  private readonly datos = computed(() => this.completo() ?? this.horarios());
+  private readonly datos = computed(() => {
+    const h = this.completo() ?? this.horarios();
+    return h ? normalizar(h as Horarios & { dias: (PubDia & { fecha: string })[] }) : null;
+  });
+  /** Athletes of a slot: the ones in the JSON (old shape) or the loaded list. */
+  protected ats(f: PubFlight): PubAtleta[] { return f.atletas?.length ? f.atletas : (this.listas()[f.id] ?? []); }
   protected readonly dias = computed(() => (this.datos()?.dias ?? []).filter((d) => d.flights.length).map((d) => {
     const e = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(d.fecha + 'T12:00:00Z')).replace(',', '').replace('.', '');
     return { fecha: d.fecha, etiqueta: e, dia: d };
@@ -542,7 +556,7 @@ export class SecHorarios {
   protected readonly misAtletas = computed(() => {
     const favs = new Set(this.fav.slugs());
     const out: { a: PubAtleta; f: PubFlight }[] = [];
-    for (const d of this.datos()?.dias ?? []) for (const f of d.flights) for (const a of f.atletas) if (favs.has(a.slug)) out.push({ a, f });
+    for (const d of this.datos()?.dias ?? []) for (const f of d.flights) for (const a of this.ats(f)) if (favs.has(a.slug)) out.push({ a, f });
     return out;
   });
   protected readonly icsUrl = computed(() => `${ICS_URL}?atletas=${encodeURIComponent(this.misAtletas().map((m) => m.a.slug).join(','))}`);
@@ -551,7 +565,7 @@ export class SecHorarios {
     if (!d) return [];
     const q = norm(this.q());
     let fl = d.flights.filter((f) => !this.sexo() || f.sexo === this.sexo());
-    if (q.length > 1) fl = fl.filter((f) => f.atletas.some((a) => norm(a.nombre + ' ' + a.club).includes(q)));
+    if (q.length > 1) fl = fl.filter((f) => this.ats(f).some((a) => norm(a.nombre + ' ' + a.club).includes(q)));
     const rows: FilaHorario[] = fl.map((f) => ({ t: hora(f.inicio), flight: f }));
     if (q.length < 2) rows.push(...d.agenda.map((a) => ({ t: a.hora, item: { titulo: a.titulo, icono: ICONOS[a.icono ?? ''] ?? ('clock' as GrIconName) } })));
     return rows.sort((a, b) => a.t.localeCompare(b.t));
@@ -565,7 +579,15 @@ export class SecHorarios {
   private cargar(): void {
     if (this.cargando || this.completo()) return;
     this.cargando = true;
-    void this.api.get().then((h) => { if (h?.publicado) this.completo.set(h); });
+    void this.api.get().then(async (h) => {
+      if (h?.publicado) this.completo.set(h);
+      const sin = (this.datos()?.dias ?? []).flatMap((d) => d.flights).filter((f) => !f.atletas?.length);
+      const pags = await Promise.all(sin.map((f) => this.api.atletas(f.id, 1, 200)));
+      const l: Record<string, PubAtleta[]> = {};
+      sin.forEach((f, i) => { l[f.id] = pags[i]?.items ?? []; });
+      this.listas.set(l);
+      this.listos.set(true);
+    });
   }
   protected elegir(v: Vista): void {
     this.vista.set(v);
@@ -583,7 +605,8 @@ export class SecHorarios {
   /** The athletes of the group in the open card (Figma: five, then «Ver los N atletas»), the searched ones first. */
   protected atletasDe(f: PubFlight): PubAtleta[] {
     const q = norm(this.q());
-    const l = q.length > 1 ? f.atletas.filter((a) => norm(a.nombre + ' ' + a.club).includes(q)) : f.atletas;
+    const todos = this.ats(f);
+    const l = q.length > 1 ? todos.filter((a) => norm(a.nombre + ' ' + a.club).includes(q)) : todos;
     return l.slice(0, 5);
   }
   /** «Femenino −47 / −52 kg» → «−47 / −52 kg». */
@@ -592,6 +615,11 @@ export class SecHorarios {
     return p.length ? p.join(' / ') + ' kg' : f.titulo;
   }
   protected kg = (c: string) => (c || '').replace('-', '−');
+  /** «AEP-2» / «AEP-3» of the slot (API «ep», or «prueba» aep2/aep3). */
+  protected ep(f: PubFlight): string {
+    const x = f as PubFlight & { prueba?: string };
+    return f.ep || (x.prueba ? x.prueba.toUpperCase().replace('AEP', 'AEP-') : '');
+  }
   protected pad = (n: number) => String(n).padStart(2, '0');
   protected iniciales = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0]).join('').toUpperCase();
 }
