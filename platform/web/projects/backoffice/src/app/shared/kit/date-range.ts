@@ -33,7 +33,7 @@ const month = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' 
           <span class="flex h-9 shrink-0 items-center rounded-sm px-2 text-body-s" [class]="custom() ? 'bg-accent/12 text-text-primary' : 'text-text-secondary'">Personalizado</span>
         </div>
         <div class="flex flex-1 flex-col gap-2 p-4">
-          <div class="flex items-center justify-between text-label-s capitalize">
+          <div class="flex items-center justify-between text-label-s">
             <button type="button" class="flex size-8 items-center justify-center rounded-sm text-text-tertiary hover:bg-bg-hover" aria-label="Mes anterior" (click)="shift(-1)"><gr-icon name="chevron-left" [size]="16" /></button>
             {{ title() }}
             <button type="button" class="flex size-8 items-center justify-center rounded-sm text-text-tertiary hover:bg-bg-hover" aria-label="Mes siguiente" (click)="shift(1)"><gr-icon name="chevron-right" [size]="16" /></button>
@@ -65,7 +65,7 @@ export class BoDateRange {
     const { from, to } = this.value();
     return `${day.format(parse(from))} – ${day.format(parse(to))} ${parse(to).getFullYear()}`.replace(/\./g, '');
   });
-  protected readonly title = computed(() => month.format(this.view()));
+  protected readonly title = computed(() => { const t = month.format(this.view()); return t.charAt(0).toUpperCase() + t.slice(1); });
   protected readonly cells = computed(() => {
     const v = this.view();
     const first = new Date(v.getFullYear(), v.getMonth(), 1);
