@@ -2,6 +2,12 @@ import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, inject, input, linkedSignal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { GrIcon, type GrIconName } from '@grcup/ui';
+import { I18n } from '../core/i18n';
+
+const T = {
+  es: { dato: 'Dato', consejo: 'Consejo', aviso: 'Aviso', importante: 'Importante', resumen: 'En resumen', secciones: 'Secciones' },
+  en: { dato: 'Fact', consejo: 'Tip', aviso: 'Warning', importante: 'Important', resumen: 'In short', secciones: 'Sections' },
+};
 
 /**
  * Shared blocks of the SEO pages (Figma 20–35): callouts («Dato», «Consejo», «Aviso»), the «En resumen» key facts card
@@ -17,7 +23,7 @@ import { GrIcon, type GrIconName } from '@grcup/ui';
   template: `
     <gr-icon [name]="estilo[tono()].icono" [size]="20" class="shrink-0 self-start" [class]="estilo[tono()].texto" />
     <div class="flex flex-col gap-1">
-      <p class="text-label-s" [class]="estilo[tono()].texto">{{ titulo() || estilo[tono()].titulo }}</p>
+      <p class="text-label-s" [class]="estilo[tono()].texto">{{ titulo() || t()[tono()] }}</p>
       <div class="text-body-m text-text-secondary"><ng-content /></div>
     </div>
   `,
@@ -25,11 +31,12 @@ import { GrIcon, type GrIconName } from '@grcup/ui';
 export class GrCallout {
   readonly tono = input<'dato' | 'consejo' | 'aviso' | 'importante'>('dato');
   readonly titulo = input('');
-  protected readonly estilo: Record<string, { caja: string; barra: string; texto: string; icono: GrIconName; titulo: string }> = {
-    dato: { caja: 'bg-info/8', barra: 'bg-info', texto: 'text-info', icono: 'zap', titulo: 'Dato' },
-    consejo: { caja: 'bg-success/8', barra: 'bg-success', texto: 'text-success', icono: 'circle-check', titulo: 'Consejo' },
-    aviso: { caja: 'bg-warning/8', barra: 'bg-warning', texto: 'text-warning', icono: 'triangle-alert', titulo: 'Aviso' },
-    importante: { caja: 'bg-accent/8', barra: 'bg-accent', texto: 'text-accent-text', icono: 'circle-alert', titulo: 'Importante' },
+  protected readonly t = inject(I18n).dict(T);
+  protected readonly estilo: Record<string, { caja: string; barra: string; texto: string; icono: GrIconName }> = {
+    dato: { caja: 'bg-info/8', barra: 'bg-info', texto: 'text-info', icono: 'zap' },
+    consejo: { caja: 'bg-success/8', barra: 'bg-success', texto: 'text-success', icono: 'circle-check' },
+    aviso: { caja: 'bg-warning/8', barra: 'bg-warning', texto: 'text-warning', icono: 'triangle-alert' },
+    importante: { caja: 'bg-accent/8', barra: 'bg-accent', texto: 'text-accent-text', icono: 'circle-alert' },
   };
 }
 
@@ -40,14 +47,15 @@ export class GrCallout {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-3 rounded-lg border border-accent/10 bg-bg-card/40 p-6' },
   template: `
-    <p class="text-label-xs text-accent-text uppercase">{{ titulo() }}</p>
+    <p class="text-label-xs text-accent-text uppercase">{{ titulo() || t().resumen }}</p>
     <ul class="flex flex-col gap-3">
       @for (h of items(); track h; let i = $index) { <li class="flex gap-2.5 text-body-m text-text-secondary"><gr-icon [name]="iconos()[i] ?? 'check'" [size]="18" class="mt-[3px] shrink-0 text-accent-text" />{{ h }}</li> }
     </ul>
   `,
 })
 export class GrHechos {
-  readonly titulo = input('En resumen');
+  readonly titulo = input('');
+  protected readonly t = inject(I18n).dict(T);
   readonly items = input<string[]>([]);
   /** Optional icon per item (Figma «Key facts · reglamento»); defaults to a check. */
   readonly iconos = input<GrIconName[]>([]);
@@ -60,7 +68,7 @@ export class GrHechos {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'sticky top-[76px] z-20 -mx-5 -mt-4 mb-6 block border-b border-line-subtle bg-bg-base/95 backdrop-blur md:hidden' },
   template: `
-    <nav class="flex gap-2 overflow-x-auto px-5 py-3 [scrollbar-width:none]" aria-label="Secciones">
+    <nav class="flex gap-2 overflow-x-auto px-5 py-3 [scrollbar-width:none]" [attr.aria-label]="t().secciones">
       @for (s of anclas(); track s.id) {
         <a routerLink="." [fragment]="s.id" [attr.aria-current]="activa() === s.id ? 'location' : null" [class]="'flex h-11 md:h-9 shrink-0 items-center rounded-full border px-4 text-label-s ' + (activa() === s.id ? 'border-accent bg-accent text-white' : 'border-line-strong text-text-secondary')">{{ s.t }}</a>
       }
@@ -69,6 +77,7 @@ export class GrHechos {
 })
 export class GrChipsAncla {
   readonly anclas = input<{ id: string; t: string }[]>([]);
+  protected readonly t = inject(I18n).dict(T);
   protected readonly activa = linkedSignal(() => this.anclas()[0]?.id ?? '');
   constructor() {
     if (!isPlatformBrowser(inject(PLATFORM_ID))) return;

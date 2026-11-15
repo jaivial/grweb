@@ -32,7 +32,7 @@ export class Seo {
   /** Ruta de la página que se está renderizando (la fija `set`). */
   readonly path = signal('');
 
-  private readonly i18n = inject(I18n);
+  readonly i18n = inject(I18n);
 
   /** Pages pass their Spanish path: in EN the canonical is the /en one, <html lang> follows the URL and every page
    *  gets its es / en / x-default hreflang pair unless it gives its own. */
