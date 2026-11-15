@@ -3,6 +3,12 @@ import { ApplicationRef, ChangeDetectionStrategy, Component, inject, signal } fr
 import { NavigationCancel, NavigationEnd, NavigationError, NavigationSkipped, NavigationStart, Router, RouterOutlet, Scroll } from '@angular/router';
 import { GrPageLoader, GrToaster, GrToasts } from '@grcup/ui';
 import { GrColaEspera } from './core/cola';
+import { I18n } from './core/i18n';
+
+const T = {
+  es: { error: 'No se pudo abrir la página', conexion: 'Comprueba tu conexión.', reintentar: 'Reintentar' },
+  en: { error: 'The page could not be opened', conexion: 'Check your connection.', reintentar: 'Retry' },
+};
 
 @Component({
   selector: 'gr-root',
@@ -21,6 +27,7 @@ export class App {
     scroller.setHistoryScrollRestoration('manual');
     const app = inject(ApplicationRef);
     const toasts = inject(GrToasts);
+    const t = inject(I18n).dict(T);
     let t: ReturnType<typeof setTimeout> | undefined;
     let id = 0;
     let scrollN = 0;
@@ -49,7 +56,7 @@ export class App {
       } else if (e instanceof NavigationError) {
         fin(e.id);
         // e.g. a stale lazy chunk after a deploy: tell the user and offer a full load of the target page
-        toasts.error('No se pudo abrir la página', 'Comprueba tu conexión.', { label: 'Reintentar', run: () => location.assign(e.url) });
+        toasts.error(t().error, t().conexion, { label: t().reintentar, run: () => location.assign(e.url) });
       } else if (e instanceof NavigationCancel || e instanceof NavigationSkipped) fin(e.id);
       else if (e instanceof Scroll && e.anchor && !e.position && typeof window !== 'undefined') {
         // In-app link to /x#anchor: the router tries before the new page has its (async) sections; try again once it settles.

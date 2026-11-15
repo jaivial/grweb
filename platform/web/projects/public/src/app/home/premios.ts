@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { GrButton, GrIcon, cdn, CdnPipe } from '@grcup/ui';
 import type { Seccion } from '../core/cms';
@@ -6,9 +6,35 @@ import { CATEGORIAS_IPF } from '../core/atletas';
 import { ANCHO, GrCabecera, GrTitulo } from './bloques';
 import { MedallaFisica } from './medalla-fisica';
 import { irA } from './secciones';
+import { I18n, LocPipe } from '../core/i18n';
 
 const str = (s: Seccion | undefined, k: string) => (s?.[k] as string | undefined) ?? '';
 const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefined) ?? []);
+
+const T = {
+  es: {
+    premios: 'Premios', irA: (n: number) => 'Ir a premio ' + n, catEyebrow: 'Categorías de peso', catTitulo: 'Premio por|*categoría de peso*',
+    catTexto: 'El podio de cada categoría se lleva su medalla: oro, plata y bronce para los tres mejores totales.', sexo: 'Sexo', categorias: (n: number) => n + ' categorías',
+    marcasTitulo: 'Consulta las marcas mínimas', marcasTexto: 'Para clasificar para otras competiciones AEP (PDF oficial).', verMarcas: 'Ver marcas mínimas',
+    absEyebrow: 'Clasificación absoluta', absTitulo: 'Ganadores absolutos|*GL Points*', absTexto: 'Mejor atleta masculino y mejor atleta femenina por puntos GL.',
+    absolutos: [
+      { titulo: 'Ganador Absoluto - GL points', label: 'Masculino', alt: 'Trofeo del ganador absoluto masculino' },
+      { titulo: 'Ganadora Absoluta - GL points', label: 'Femenino', alt: 'Trofeo de la ganadora absoluta femenina' },
+    ],
+    generos: [{ k: 'M' as const, l: 'Hombres' }, { k: 'F' as const, l: 'Mujeres' }] as { k: 'M' | 'F'; l: string }[],
+  },
+  en: {
+    premios: 'Prizes', irA: (n: number) => 'Go to prize ' + n, catEyebrow: 'Weight classes', catTitulo: 'A prize for each|*weight class*',
+    catTexto: 'The podium of each weight class takes its medal: gold, silver and bronze for the three best totals.', sexo: 'Sex', categorias: (n: number) => n + ' weight classes',
+    marcasTitulo: 'Check the qualifying totals', marcasTexto: 'To qualify for other AEP competitions (official PDF).', verMarcas: 'See qualifying totals',
+    absEyebrow: 'Overall standings', absTitulo: 'Overall winners|*GL Points*', absTexto: 'Best male lifter and best female lifter by GL points.',
+    absolutos: [
+      { titulo: 'Overall winner - GL points', label: 'Men', alt: 'Trophy of the overall men’s winner' },
+      { titulo: 'Overall winner - GL points', label: 'Women', alt: 'Trophy of the overall women’s winner' },
+    ],
+    generos: [{ k: 'M', l: 'Men' }, { k: 'F', l: 'Women' }],
+  },
+};
 
 /**
  * «Section / Premios v2» (Figma 80 · Home · Premios 3D, physics of page 79; in 05 Home 204:124862 · 125008 · 125132).
@@ -19,7 +45,7 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
  */
 @Component({
   selector: 'gr-sec-premios',
-  imports: [CdnPipe, RouterLink, GrButton, GrIcon, GrCabecera, GrTitulo, MedallaFisica],
+  imports: [CdnPipe, RouterLink, LocPipe, GrButton, GrIcon, GrCabecera, GrTitulo, MedallaFisica],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'relative block overflow-hidden bg-bg-base px-5 pb-18 md:px-8 md:pb-24 xl:px-20 xl:pb-32' },
   styles: `
@@ -68,8 +94,8 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
           }
         </ul>
         </div>
-        <div class="flex items-center lg:hidden" role="group" aria-label="Premios">
-          @for (p of items(); track p.titulo; let i = $index) { <button type="button" class="relative flex size-6 items-center justify-center before:absolute before:-inset-2.5 before:content-['']" [attr.aria-label]="'Ir a premio ' + (i + 1)" [attr.aria-current]="i === activa() || null" (click)="irA(pista, i)"><span class="h-1.5 rounded-pill transition-all motion-reduce:transition-none" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span></button> }
+        <div class="flex items-center lg:hidden" role="group" [attr.aria-label]="tr().premios">
+          @for (p of items(); track p.titulo; let i = $index) { <button type="button" class="relative flex size-6 items-center justify-center before:absolute before:-inset-2.5 before:content-['']" [attr.aria-label]="tr().irA(i + 1)" [attr.aria-current]="i === activa() || null" (click)="irA(pista, i)"><span class="h-1.5 rounded-pill transition-all motion-reduce:transition-none" [class]="i === activa() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span></button> }
         </div>
         @if (t('lema')) { <p class="max-w-[350px] text-center font-display text-[20px] leading-[27px] tracking-[0.02em] text-[#d1d5db] uppercase lg:max-w-none lg:text-[24px] lg:leading-[30px]"><gr-titulo [titulo]="t('lema')" /></p> }
       </div>
@@ -77,9 +103,9 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
       <!-- B · podium medals per weight class -->
       <div class="mt-20 flex w-full flex-col items-center lg:mt-[120px]">
         <!-- Figma home R2: title and text first, then the podium medals and the weight classes (eyebrow only for SEO) -->
-        <p class="sr-only">{{ t('catEyebrow') || 'Categorías de peso' }}</p>
-        <gr-cabecera class="relative z-[25] max-w-[350px] lg:max-w-[720px] max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [titulo]="t('catTitulo') || 'Premio por|*categoría de peso*'"
-          [texto]="t('catTexto') || 'El podio de cada categoría se lleva su medalla: oro, plata y bronce para los tres mejores totales.'" />
+        <p class="sr-only">{{ t('catEyebrow') || tr().catEyebrow }}</p>
+        <gr-cabecera class="relative z-[25] max-w-[350px] lg:max-w-[720px] max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [titulo]="t('catTitulo') || tr().catTitulo"
+          [texto]="t('catTexto') || tr().catTexto" />
         <div class="relative mt-8 h-[334px] w-full max-w-[350px] lg:h-[700px] lg:max-w-none" aria-hidden="true">
           <div class="absolute top-4 left-1/2 flex h-[660px] w-max origin-top -translate-x-1/2 scale-50 items-start justify-center gap-[13px] lg:top-10 lg:scale-100 lg:gap-[67px]">
             @for (m of podio; track m.src) {
@@ -91,15 +117,15 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
         <div class="relative z-10 mt-4 flex w-full max-w-[350px] flex-col items-center gap-5 lg:mt-0 lg:max-w-none lg:gap-10">
           <!-- UX1-R1-11: the weight-class grid shows once on the home (in «Categorías» when that section is on) -->
           @if (!sinCategorias()) {
-          <div class="grid w-full grid-cols-2 gap-1 rounded-md border border-line-subtle p-1 lg:hidden" role="tablist" aria-label="Sexo">
-            @for (g of generos; track g.k) {
+          <div class="grid w-full grid-cols-2 gap-1 rounded-md border border-line-subtle p-1 lg:hidden" role="tablist" [attr.aria-label]="tr().sexo">
+            @for (g of tr().generos; track g.k) {
               <button type="button" role="tab" [attr.aria-selected]="sel() === g.k" (click)="sel.set(g.k)" class="h-11 rounded-sm text-label-m" [class]="sel() === g.k ? 'bg-accent-grain text-text-primary' : 'text-text-secondary'">{{ g.l }}</button>
             }
           </div>
           <div class="flex w-full flex-col justify-center gap-6 lg:flex-row">
-            @for (g of generos; track g.k) {
+            @for (g of tr().generos; track g.k) {
               <div class="w-full flex-col gap-4 rounded-[20px] border border-[#2e2729] bg-[#221d1f]/85 px-4 py-5 lg:flex lg:w-[400px] lg:flex-none lg:p-7" [class.flex]="sel() === g.k" [class.hidden]="sel() !== g.k" role="tabpanel">
-                <div class="hidden items-center justify-between lg:flex"><span class="text-display-xs">{{ g.l }}</span><span class="text-label-xs text-text-muted uppercase">{{ cats[g.k].length }} categorías</span></div>
+                <div class="hidden items-center justify-between lg:flex"><span class="text-display-xs">{{ g.l }}</span><span class="text-label-xs text-text-muted uppercase">{{ tr().categorias(cats[g.k].length) }}</span></div>
                 <ul class="grid grid-cols-2 gap-2 lg:grid-cols-3">
                   @for (c of cats[g.k]; track c; let last = $last) { <li class="flex h-[53px] items-center justify-center rounded-sm border border-[#2e2729] bg-bg-card text-display-body uppercase" [class]="last && cats[g.k].length % 2 ? 'col-span-2 mx-auto w-[calc(50%-4px)] lg:col-span-1 lg:mx-0 lg:w-auto' : ''">{{ kg(c) }}</li> }
                 </ul>
@@ -109,18 +135,18 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
           }
           <div class="flex w-full max-w-[824px] flex-col items-center gap-3 rounded-lg border border-accent/60 bg-accent/6 p-5 text-center md:flex-row md:gap-6 md:px-7 md:text-left">
             <span class="flex size-11 shrink-0 items-center justify-center rounded-md bg-accent/14 text-accent-text"><gr-icon name="trophy" [size]="20" /></span>
-            <span class="flex flex-1 flex-col gap-1"><span class="text-label-m">Consulta las marcas mínimas</span><span class="text-body-s text-text-tertiary">Para clasificar para otras competiciones AEP (PDF oficial).</span></span>
-            <a grButton variant="glass" routerLink="/marcas-minimas" iconRight="arrow-right" class="w-full md:w-auto">Ver marcas mínimas</a>
+            <span class="flex flex-1 flex-col gap-1"><span class="text-label-m">{{ tr().marcasTitulo }}</span><span class="text-body-s text-text-tertiary">{{ tr().marcasTexto }}</span></span>
+            <a grButton variant="glass" [routerLink]="'/marcas-minimas' | loc" iconRight="arrow-right" class="w-full md:w-auto">{{ tr().verMarcas }}</a>
           </div>
         </div>
       </div>
 
       <!-- C · absolute winners (GL Points) -->
       <div class="mt-20 flex w-full flex-col items-center gap-7 lg:mt-[120px] lg:gap-10">
-        <gr-cabecera class="max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [eyebrow]="t('absEyebrow') || 'Clasificación absoluta'" [titulo]="t('absTitulo') || 'Ganadores absolutos|*GL Points*'"
-          [texto]="t('absTexto') || 'Mejor atleta masculino y mejor atleta femenina por puntos GL.'" />
+        <gr-cabecera class="max-lg:[&_h2]:text-display-s max-lg:[&_p]:text-body-m" [eyebrow]="t('absEyebrow') || tr().absEyebrow" [titulo]="t('absTitulo') || tr().absTitulo"
+          [texto]="t('absTexto') || tr().absTexto" />
         <ul class="grid w-full grid-cols-2 gap-3 md:gap-6">
-          @for (a of absolutos; track a.label; let i = $index) {
+          @for (a of tr().absolutos; track a.label; let i = $index) {
             <li class="flex flex-col overflow-hidden rounded-[24px] border md:rounded-[32px] border-[#d4af37]/35 bg-[#221d1f] bg-[radial-gradient(70%_60%_at_50%_45%,rgb(212_175_55/0.22),transparent)]">
               <!-- both start facing the camera (Figma); a small offset so they do not turn in lockstep -->
               <!-- Figma home R2: the trophy image (no 3D render) -->
@@ -137,6 +163,7 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
   `,
 })
 export class SecPremios {
+  protected readonly tr = inject(I18n).dict(T);
   readonly s = input<Seccion | undefined>();
   readonly sinCategorias = input(false);
   protected readonly ancho = ANCHO;
@@ -155,12 +182,7 @@ export class SecPremios {
     { src: cdn('/img/home/medalla-oro-cat.webp'), w: 218, h: 665, t: '6.4s', d: '-4s', amp: 3.5, per: 3.6, fase: 0 },
     { src: cdn('/img/home/medalla-bronce.webp'), w: 228, h: 597, t: '6s', d: '-1s', amp: 5, per: 3, fase: 0.66 },
   ];
-  protected readonly absolutos = [
-    { titulo: 'Ganador Absoluto - GL points', label: 'Masculino', alt: 'Trofeo del ganador absoluto masculino' },
-    { titulo: 'Ganadora Absoluta - GL points', label: 'Femenino', alt: 'Trofeo de la ganadora absoluta femenina' },
-  ];
   protected readonly cats = CATEGORIAS_IPF;
-  protected readonly generos = [{ k: 'M' as const, l: 'Hombres' }, { k: 'F' as const, l: 'Mujeres' }];
   protected readonly sel = signal<'M' | 'F'>('M');
   protected readonly activa = signal(0);
   protected t = (k: string) => str(this.s(), k);

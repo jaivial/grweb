@@ -5,6 +5,12 @@ import { isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { GrButton, GrIcon, LOGO, cdn, CdnPipe } from '@grcup/ui';
 import { VideoScrub } from '../core/video-scrub';
+import { I18n, LocPipe } from '../core/i18n';
+
+const T = {
+  es: { titulo: 'Los ganadores nunca se rinden', desliza: 'Desliza', saltar: 'Saltar intro', cargando: 'Cargando la animación' },
+  en: { titulo: 'Winners never give up', desliza: 'Scroll', saltar: 'Skip intro', cargando: 'Loading the animation' },
+};
 
 const FRAMES = 313;
 export interface HeroCms { eyebrow?: string; fecha?: string; ctaTexto?: string; ctaDestino?: string; imagen?: string; focalX?: number; focalY?: number }
@@ -49,7 +55,7 @@ const PUFFS = [
  */
 @Component({
   selector: 'gr-hero-trophy',
-  imports: [CdnPipe, GrIcon, GrButton, RouterLink],
+  imports: [CdnPipe, GrIcon, GrButton, RouterLink, LocPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   // UX1-R1-1/6: 200vh on phones (500vh from md), one screen with reduced motion - in CSS, so it holds from the SSR paint
   // iOS Safari: own stacking context at z-0 so its sticky composited layers never paint over «Campeonato» (z-10)
@@ -92,25 +98,25 @@ const PUFFS = [
       <div class="gr-intro pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-5 pb-[12dvh] text-center" [style.opacity]="texto()">
         <img [src]="logo" alt="GRS Cup 2" class="h-[clamp(80px,30vw,125px)] w-auto select-none md:h-[198px]" draggable="false" fetchpriority="high" />
         @if (hero().eyebrow) { <p class="gr-intro-extra mt-10 text-label-xs tracking-[0.12em] text-accent-text uppercase">{{ hero().eyebrow }}</p> }
-        <h1 class="max-w-[1000px] font-display text-[clamp(22px,8vw,30px)] leading-[1.05] tracking-[-0.01em] uppercase [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-[56px]" [class]="hero().eyebrow ? 'mt-3' : 'mt-3 md:mt-1'">{{ titulo() || 'Los ganadores nunca se rinden' }}</h1>
+        <h1 class="max-w-[1000px] font-display text-[clamp(22px,8vw,30px)] leading-[1.05] tracking-[-0.01em] uppercase [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-[56px]" [class]="hero().eyebrow ? 'mt-3' : 'mt-3 md:mt-1'">{{ titulo() || t().titulo }}</h1>
         @if (hero().ctaTexto && hero().ctaDestino) {
-          <a grButton variant="primary" size="l" class="gr-intro-extra pointer-events-auto mt-8" [routerLink]="hero().ctaDestino">{{ hero().ctaTexto }}</a>
+          <a grButton variant="primary" size="l" class="gr-intro-extra pointer-events-auto mt-8" [routerLink]="hero().ctaDestino | loc">{{ hero().ctaTexto }}</a>
         }
       </div>
       @if (!reduced()) {
         <div class="gr-desliza absolute inset-x-0 bottom-[110px] flex flex-col items-center gap-2 text-label-xs text-text-tertiary transition-opacity duration-500 md:inset-x-auto md:bottom-9 md:left-[120px] md:h-11 md:flex-row" [style.opacity]="pista()">
-          Desliza<gr-icon name="arrow-down" [size]="18" class="animate-bounce text-text-muted" />
+          {{ t().desliza }}<gr-icon name="arrow-down" [size]="18" class="animate-bounce text-text-muted" />
         </div>
         <button type="button" (click)="skip()" [class.invisible]="finished()"
           class="absolute bottom-[calc(24px+env(safe-area-inset-bottom))] left-1/2 inline-flex h-11 -translate-x-1/2 items-center gap-2 rounded-pill border border-white/15 bg-white/8 px-4 text-label-s backdrop-blur-[20px] hover:border-white/30 md:right-[120px] md:bottom-9 md:left-auto md:translate-x-0">
-          Saltar intro<gr-icon name="arrow-down" [size]="16" />
+          {{ t().saltar }}<gr-icon name="arrow-down" [size]="16" />
         </button>
         <!-- «Hero preload»: download progress until the first video seek completes -->
         @if (precarga()) {
           <!-- also in the server HTML; it leaves by itself after 4 s if the script never runs (and at once without JS) -->
           <!-- UX1-R1-9: a 2 px bar on top - the SSR intro (logo, title, CTA) stays readable while the video loads -->
           <div class="gr-precarga pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 bg-white/8 transition-opacity duration-500" [style.opacity]="precargaFuera() ? 0 : null"
-            role="progressbar" aria-label="Cargando la animación" [attr.aria-valuenow]="progresoIndeterminado() ? null : criticoPct()" aria-valuemin="0" aria-valuemax="100">
+            role="progressbar" [attr.aria-label]="t().cargando" [attr.aria-valuenow]="progresoIndeterminado() ? null : criticoPct()" aria-valuemin="0" aria-valuemax="100">
             <div class="h-full bg-[linear-gradient(90deg,#6e1420,#a82334)] transition-[width] duration-300" [class.animate-pulse]="progresoIndeterminado()" [style.width.%]="progresoIndeterminado() ? 100 : criticoPct()"></div>
           </div>
         }
@@ -154,6 +160,7 @@ const PUFFS = [
   `],
 })
 export class HeroTrophy {
+  protected readonly t = inject(I18n).dict(T);
   /** Title from the CMS (section «hero»). */
   readonly titulo = input('');
   /** U30 · Figma 54 «Web · editar hero»: antetítulo, fecha visible, CTA (texto/destino) and background image with focal point. */

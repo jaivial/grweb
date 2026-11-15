@@ -13,7 +13,8 @@ import { COMPETITION_SLUG, Competition, FalloApi, esLimitado } from '../core/com
 import type { Entradas } from '../core/entradas';
 import type { Horarios } from '../core/horarios';
 import { JuegosEnVivo } from '../core/juegos';
-import { HOME_ALTERNATES, Seo } from '../core/seo';
+import { Seo } from '../core/seo';
+import { I18n, LocPipe } from '../core/i18n';
 import { Footer, Navbar } from '../layout/layout';
 import { NoEncontrada } from '../layout/no-encontrada';
 import { Campeonato, fechasHero } from './campeonato';
@@ -25,6 +26,25 @@ import { SecPremios } from './premios';
 import { SecFantasy, SecPorra, type ResumenFantasy, type ResumenPorra } from './juegos';
 import { SecSorteo } from './sorteo';
 
+const T = {
+  es: {
+    retransmision: 'Retransmisión en directo', enDirecto: 'En directo', verDirecto: 'Ver el directo completo →',
+    limitadoTitulo: 'Demasiadas visitas desde tu red', limitado: 'Hemos recibido muchas peticiones desde tu conexión. Espera un minuto y vuelve a cargar la página.',
+    campeonato: 'Campeonato de powerlifting',
+    seoTitulo: (nombre: string, ciudad: string) => `${nombre} · Campeonato de powerlifting en ${ciudad}`,
+    seoTexto: (nombre: string, nivel: string, fecha: string, sede: string) => `${nombre}: campeonato de powerlifting ${nivel ? '(' + nivel + ') ' : ''}el ${fecha} en ${sede}. Entradas gratuitas, atletas, horarios y directo.`,
+    noEncontradaTitulo: 'Página no encontrada · GRS Cup 2', noEncontradaTexto: 'La página que buscas no existe.',
+  },
+  en: {
+    retransmision: 'Live broadcast', enDirecto: 'Live', verDirecto: 'Watch the full live stream →',
+    limitadoTitulo: 'Too many visits from your network', limitado: 'We have received a lot of requests from your connection. Wait a minute and reload the page.',
+    campeonato: 'Powerlifting championship',
+    seoTitulo: (nombre: string, ciudad: string) => `${nombre} · Powerlifting championship in ${ciudad}`,
+    seoTexto: (nombre: string, nivel: string, fecha: string, sede: string) => `${nombre}: powerlifting championship ${nivel ? '(' + nivel + ') ' : ''}on ${fecha} at ${sede}. Free tickets, athletes, schedule and live stream.`,
+    noEncontradaTitulo: 'Page not found · GRS Cup 2', noEncontradaTexto: 'The page you are looking for does not exist.',
+  },
+};
+
 /**
  * «/ — Home» (Figma page 05, desktop · tablet · mobile). Data from the competition and the CMS («Web · home»: order,
  * visibility and texts of every section) plus the live numbers of tickets, raffle, schedule and athletes; all of it
@@ -32,7 +52,7 @@ import { SecSorteo } from './sorteo';
  */
 @Component({
   selector: 'gr-home',
-  imports: [Navbar, Footer, GrAlert, GrIcon, RouterLink, HeroTrophy, Campeonato, SecAlta, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
+  imports: [Navbar, Footer, GrAlert, GrIcon, RouterLink, LocPipe, HeroTrophy, Campeonato, SecAlta, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
     SecSorteo, SecPorra, SecFantasy, SecCategorias, SecHorarios, SecLocalizacion, SecFaq],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -41,24 +61,24 @@ import { SecSorteo } from './sorteo';
     <gr-navbar [hidden]="!introDone()" />
     <main>
       <gr-hero-trophy [titulo]="$any(h?.secciones?.['hero']?.['titulo']) || ''" [hero]="$any(h?.secciones?.['hero']) || {}" (done)="introDone.set($event)" />
-      <gr-campeonato [comp]="c" [titulo]="$any(h?.secciones?.['campeonato']?.['titulo']) || 'Campeonato de powerlifting'"
+      <gr-campeonato [comp]="c" [titulo]="$any(h?.secciones?.['campeonato']?.['titulo']) || t().campeonato"
         [subtitulo]="$any(h?.secciones?.['campeonato']?.['subtitulo']) || ''" [aviso]="$any(h?.secciones?.['campeonato']?.['aviso']) || ''" [fechas]="heroFechas()" [lugar]="heroLugar()"
         [patrocinadores]="h && h.orden.includes('patrocinadores') ? h.patrocinadores : []" [tituloPatrocinadores]="$any(h?.secciones?.['patrocinadores']?.['titulo']) || ''" />
       @if (enVivo(); as v) {
         <!-- Event day: the broadcast also on the home («Directo › Retransmisión», switch «también en la home») -->
-        <section class="mx-auto flex max-w-[1440px] flex-col gap-4 px-5 py-10 md:px-8 xl:px-[120px]" aria-label="Retransmisión en directo">
+        <section class="mx-auto flex max-w-[1440px] flex-col gap-4 px-5 py-10 md:px-8 xl:px-[120px]" [attr.aria-label]="t().retransmision">
           <div class="flex flex-wrap items-center justify-between gap-3">
-            <span class="inline-flex items-center gap-2 text-display-label text-success"><gr-icon name="radio" [size]="16" />En directo</span>
-            <a routerLink="/en-directo" class="text-label-m text-accent-text hover:underline">Ver el directo completo →</a>
+            <span class="inline-flex items-center gap-2 text-display-label text-success"><gr-icon name="radio" [size]="16" />{{ t().enDirecto }}</span>
+            <a [routerLink]="'/en-directo' | loc" class="text-label-m text-accent-text hover:underline">{{ t().verDirecto }}</a>
           </div>
           <div class="relative aspect-video overflow-hidden rounded-lg border border-line-subtle bg-black">
-            <iframe [src]="v" class="absolute inset-0 size-full border-0" title="Retransmisión en directo" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+            <iframe [src]="v" class="absolute inset-0 size-full border-0" [title]="t().retransmision" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
           </div>
         </section>
       }
       @if (cmsApi.limitado()) {
         <div class="mx-auto max-w-[1440px] px-5 py-10 md:px-8 xl:px-[120px]">
-          <gr-alert tone="warning" title="Demasiadas visitas desde tu red">Hemos recibido muchas peticiones desde tu conexión. Espera un minuto y vuelve a cargar la página.</gr-alert>
+          <gr-alert tone="warning" [title]="t().limitadoTitulo">{{ t().limitado }}</gr-alert>
         </div>
       }
       @if (h) {
@@ -100,6 +120,8 @@ export class HomePage {
   protected readonly comp = inject(Competition);
   protected readonly cmsApi = inject(Cms);
   private readonly seo = inject(Seo);
+  private readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(T);
   protected readonly introDone = signal(false);
   protected readonly cms = signal<HomeCms | null>(null);
   protected readonly heroFechas = signal('');
@@ -130,17 +152,16 @@ export class HomePage {
     ]).then(([c, h, entradas, horarios, porra, fantasy]) => {
       this.porra.set(porra);
       this.fantasy.set(fantasy);
-      this.heroFechas.set(fechasHero(c?.fechaInicio, c?.fechaFin));
+      this.heroFechas.set(fechasHero(c?.fechaInicio, c?.fechaFin, this.i18n.lang()));
       this.heroLugar.set(c?.sede ? [c.sede.ciudad && (c.sede.provincia ? `${c.sede.ciudad} (${c.sede.provincia})` : c.sede.ciudad), c.sede.nombre].filter(Boolean).join(' · ') : '');
       this.cms.set(h);
       this.entradas.set(entradas);
       this.horarios.set(horarios);
       const nombre = c?.nombre ?? 'GRS Cup 2';
       this.seo.set({
-        title: `${nombre} · Campeonato de powerlifting en ${c?.sede?.ciudad ?? 'Almussafes'}`,
-        description: `${nombre}: campeonato de powerlifting ${c?.evento?.nivel ? '(' + c.evento.nivel + ') ' : ''}el ${c?.fechaInicio ? fmtLongDate(c.fechaInicio) : ''} en ${c?.sede?.nombre ?? 'Almussafes'}. Entradas gratuitas, atletas, horarios y directo.`,
+        title: this.t().seoTitulo(nombre, c?.sede?.ciudad ?? 'Almussafes'),
+        description: this.t().seoTexto(nombre, c?.evento?.nivel ?? '', c?.fechaInicio ? this.fechaLarga(c.fechaInicio) : '', c?.sede?.nombre ?? 'Almussafes'),
         path: '/',
-        alternates: HOME_ALTERNATES,
         jsonLd: c
           ? {
               '@context': 'https://schema.org',
@@ -204,6 +225,12 @@ export class HomePage {
     });
   }
 
+  /** «19 de diciembre de 2026» / «19 December 2026». */
+  private fechaLarga(iso: string): string {
+    return this.i18n.lang() === 'es' ? fmtLongDate(iso)
+      : new Intl.DateTimeFormat(this.i18n.locale(), { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Madrid' }).format(new Date(iso.length === 10 ? iso + 'T12:00:00Z' : iso));
+  }
+
   private api(p: string): string {
     return `/api/competiciones/${COMPETITION_SLUG}${p}`;
   }
@@ -253,6 +280,7 @@ export class NotFoundPage {
   constructor() {
     const res = inject(RESPONSE_INIT, { optional: true });
     if (res) res.status = 404;
-    inject(Seo).set({ title: 'Página no encontrada · GRS Cup 2', description: 'La página que buscas no existe.', path: '/404', robots: 'noindex' });
+    const t = inject(I18n).dict(T)();
+    inject(Seo).set({ title: t.noEncontradaTitulo, description: t.noEncontradaTexto, path: '/404', robots: 'noindex' });
   }
 }
