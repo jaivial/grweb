@@ -116,7 +116,7 @@ const PUFFS = [
           <!-- also in the server HTML; it leaves by itself after 4 s if the script never runs (and at once without JS) -->
           <div class="gr-precarga absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-bg-base transition-opacity duration-500" [style.opacity]="precargaFuera() ? 0 : null"
             role="progressbar" [attr.aria-label]="t().cargando" [attr.aria-valuenow]="progresoIndeterminado() ? null : criticoPct()" aria-valuemin="0" aria-valuemax="100">
-            <img src="/img/home/trofeo.webp" alt="" class="h-[70px] w-20 animate-pulse object-contain" />
+            <img [src]="'/img/home/trofeo.webp' | cdn" alt="" class="h-[70px] w-20 animate-pulse object-contain" />
             <div class="h-2 w-64 overflow-hidden rounded-pill bg-bg-surface"><div class="h-full rounded-pill bg-[linear-gradient(90deg,#0e0c0d,#a82334)] transition-[width] duration-300" [class.animate-pulse]="progresoIndeterminado()" [style.width.%]="progresoIndeterminado() ? 100 : criticoPct()"></div></div>
             <p class="text-body-s text-text-tertiary">@if (progresoIndeterminado()) { {{ t().cargandoVideo }} } @else { {{ criticoPct() }} % }</p>
           </div>
