@@ -36,3 +36,17 @@ html {
 
 /* Hero preload overlay: only when JS runs (index.html adds «js» to <html>). */
 html:not(.js) .gr-precarga { display: none !important; }
+
+/* R005 (Jaime 14-nov): en TODOS los títulos, la parte roja usa el rojo del botón fijo «Reservar» con su grano
+   (= utilidad bg-accent-grain) y no se parte a mitad: es un bloque en línea que baja entero a la línea siguiente. */
+:where(h1, h2, h3) .text-accent-text,
+:where(h1, h2, h3) .text-accent {
+  display: inline-block;
+  background-image: var(--grain-dark), linear-gradient(100deg, var(--color-accent) 0%, var(--color-accent-700) 55%, var(--color-accent-deep) 100%);
+  background-size: 128px 128px, 100% 100%;
+  background-blend-mode: multiply, normal;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+}

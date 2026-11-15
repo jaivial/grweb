@@ -462,7 +462,7 @@ func (s *Svc) registerInternal() {
 		})
 }
 
-// seedGRCup creates the GR Strength Cup 2026 competition with public data of the current site ("Datos de ejemplo"
+// seedGRCup creates the GRS Cup 2 (2026) competition with public data of the current site ("Datos de ejemplo"
 // where the organiser still has to confirm) and makes ROOT_EMAIL its Admin. Idempotent.
 func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 	if err := db.Migrate(ctx, a.DB, mustMigrations(), a.Log); err != nil {
@@ -490,7 +490,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		}
 		err = db.Tx(ctx, a.DB, func(tx pgx.Tx) error {
 			if _, err := tx.Exec(ctx, `INSERT INTO competiciones (id, slug, nombre, nombre_corto, edicion, estado, fecha_inicio, fecha_fin, sede, evento, modulos, inscripcion, como_llegar)
-				VALUES ($1,'grcup','GR Strength Cup 2026','GR Cup',2,'proximamente','2026-12-19','2026-12-20',$2,$3,$4,$5,$6)`, id, sede, evento, mods, insc, llegar); err != nil {
+				VALUES ($1,'grcup','GRS Cup 2','GRS Cup 2',2,'proximamente','2026-12-19','2026-12-20',$2,$3,$4,$5,$6)`, id, sede, evento, mods, insc, llegar); err != nil {
 				return err
 			}
 			if err := seedChecklist(ctx, tx, id); err != nil {
@@ -506,7 +506,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 			if err := markStep(ctx, tx, id, "modulos", true); err != nil {
 				return err
 			}
-			return events.Enqueue(ctx, tx, events.New(ctx, "competition.creada", map[string]any{"slug": "grcup", "nombre": "GR Strength Cup 2026", "seed": true},
+			return events.Enqueue(ctx, tx, events.New(ctx, "competition.creada", map[string]any{"slug": "grcup", "nombre": "GRS Cup 2", "seed": true},
 				events.Competition(id.String()), events.Subject("competicion:"+id.String())))
 		})
 		if err != nil {

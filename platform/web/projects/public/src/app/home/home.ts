@@ -135,7 +135,7 @@ export class HomePage {
       this.cms.set(h);
       this.entradas.set(entradas);
       this.horarios.set(horarios);
-      const nombre = c?.nombre ?? 'GR Strength Cup';
+      const nombre = c?.nombre ?? 'GRS Cup 2';
       this.seo.set({
         title: `${nombre} · Campeonato de powerlifting en ${c?.sede?.ciudad ?? 'Almussafes'}`,
         description: `${nombre}: campeonato de powerlifting ${c?.evento?.nivel ? '(' + c.evento.nivel + ') ' : ''}el ${c?.fechaInicio ? fmtLongDate(c.fechaInicio) : ''} en ${c?.sede?.nombre ?? 'Almussafes'}. Entradas gratuitas, atletas, horarios y directo.`,
@@ -253,6 +253,6 @@ export class NotFoundPage {
   constructor() {
     const res = inject(RESPONSE_INIT, { optional: true });
     if (res) res.status = 404;
-    inject(Seo).set({ title: 'Página no encontrada · GR Strength Cup', description: 'La página que buscas no existe.', path: '/404', robots: 'noindex' });
+    inject(Seo).set({ title: 'Página no encontrada · GRS Cup 2', description: 'La página que buscas no existe.', path: '/404', robots: 'noindex' });
   }
 }
