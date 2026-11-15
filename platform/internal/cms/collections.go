@@ -65,6 +65,7 @@ type patroRow struct {
 	FocalX        int    `json:"focalX" db:"focal_x"`
 	FocalY        int    `json:"focalY" db:"focal_y"`
 	Alt           string `json:"alt" db:"alt"`
+	enCol
 }
 
 type patroIn struct {
@@ -83,6 +84,7 @@ type patroIn struct {
 	FocalX  int    `json:"focalX" required:"false" minimum:"0" maximum:"100" default:"50"`
 	FocalY  int    `json:"focalY" required:"false" minimum:"0" maximum:"100" default:"50"`
 	Alt     string `json:"alt,omitempty" maxLength:"200"`
+	enField
 }
 
 // ---- SEO and redirects ----
@@ -294,7 +296,7 @@ func (s *Svc) registerCollections() {
 	})
 	register(s, collection[patroRow, patroIn]{
 		name: "patrocinadores", path: "/web/patrocinadores", table: "patrocinadores", tag: tagWeb, perm: "web.editar", order: "orden, nombre",
-		cols: "id, nombre, nivel, logo_url, url, orden, activo, descripcion, mostrar_en_hero, foto_url, focal_x, focal_y, alt",
+		cols: "id, nombre, nivel, logo_url, url, orden, activo, descripcion, mostrar_en_hero, foto_url, focal_x, focal_y, alt, en",
 		validate: func(in *patroIn) error {
 			trimAll(&in.Nombre, &in.LogoURL, &in.URL, &in.Descripcion, &in.FotoURL, &in.Alt)
 			if !validURL(in.URL, false) || !validURL(in.LogoURL, true) || !validURL(in.FotoURL, true) {
