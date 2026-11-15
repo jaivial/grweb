@@ -8,6 +8,7 @@ import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { webPublica } from '../../core/web';
 import { BoPageHeader, BoToggle, errText, BoTabsMovil } from '../../shared/ui';
+import { moduloActivo } from '../../layout/nav';
 import { DirectoApi, type Mesa } from './api';
 
 const FASE: Record<string, { l: string; d: string }> = {
@@ -24,7 +25,7 @@ const FASE: Record<string, { l: string; d: string }> = {
   template: `
     @let m = mesa();
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
-      <bo-page-header title="Directo" subtitle="El vídeo de /en-directo antes, durante y después de la competición" [crumbs]="[comps.current()?.nombreCorto || '', 'Hoy', 'Directo']">
+      <bo-page-header title="Retransmisión" subtitle="El vídeo de /en-directo antes, durante y después de la competición" [crumbs]="[comps.current()?.nombreCorto || '', 'Directo social', 'Retransmisión']">
         <ng-container actions>
           <a grButton icon="external-link" [href]="web + '/en-directo'" target="_blank" rel="noopener">Ver /en-directo</a>
           @if (puede() && m) { <button grButton variant="primary" [loading]="guardando()" [disabled]="!valida()" (click)="guardar()">Guardar</button> }
@@ -98,10 +99,14 @@ export class RetransmisionPage {
   protected readonly guardando = signal(false);
   private readonly cambios = signal(0);
   protected f = { streamUrl: '', replayUrl: '', visible: true, home: false };
-  protected readonly tabs = [
-    { l: 'Mesa', ruta: ['directo'], actual: false }, { l: 'Pantalla', ruta: ['directo', 'pantalla'], actual: false },
-    { l: 'Retransmisión', ruta: ['directo', 'retransmision'], actual: true }, { l: 'Resultados', ruta: ['resultados'], actual: false },
-  ];
+  // Mesa and Pantalla belong to the «mesa-directo» module (off while OpenLifter drives the live results)
+  protected get tabs() {
+    const mesa = moduloActivo(this.comps.current()?.modulos, 'mesa-directo');
+    return [
+      ...(mesa ? [{ l: 'Mesa', ruta: ['directo'], actual: false }, { l: 'Pantalla', ruta: ['directo', 'pantalla'], actual: false }] : []),
+      { l: 'Retransmisión', ruta: ['directo', 'retransmision'], actual: true }, { l: 'Resultados', ruta: ['resultados'], actual: false },
+    ];
+  }
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
   protected readonly puede = computed(() => this.auth.can(this.cid(), 'directo.operar'));
   protected readonly fase = computed(() => FASE[this.mesa()?.estado.fase ?? 'antes'] ?? FASE['antes']);

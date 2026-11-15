@@ -31,10 +31,10 @@ const PASO: Record<string, { path: string; cta: string; perm?: string }> = {
   'inscripcion-aep': { path: 'evento', cta: 'Añadir enlace', perm: 'evento.editar' },
   equipo: { path: 'equipo', cta: 'Invitar', perm: 'equipo.gestionar' },
   'integracion-email': { path: 'sistema', cta: 'Configurar', perm: 'integraciones.config' },
-  'textos-legales': { path: 'web', cta: 'Configurar', perm: 'web.editar' },
+  'textos-legales': { path: 'evento/web', cta: 'Configurar', perm: 'web.editar' },
   'entradas-sesiones': { path: 'entradas', cta: 'Configurar', perm: 'entradas.gestionar' },
   'horarios-publicados': { path: 'horarios', cta: 'Ir a horarios', perm: 'horarios.publicar' },
-  'web-publicada': { path: 'web', cta: 'Publicar', perm: 'web.publicar' },
+  'web-publicada': { path: 'evento/web', cta: 'Publicar', perm: 'web.publicar' },
 };
 
 interface Pendiente {

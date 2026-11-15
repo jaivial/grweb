@@ -4,7 +4,8 @@ import { Auth } from '../core/auth';
 import { AtletasApi, diaFecha as diaFechaCorta } from '../pages/atletas/api';
 import { EntradasApi } from '../pages/entradas/api';
 import { ContactosApi } from '../pages/contactos/api';
-import { ALL_ITEMS } from './nav';
+import { ALL_ITEMS, moduloActivo } from './nav';
+import { Competitions } from '../core/competitions';
 
 type Hit = BoPaletteItem & { url: string };
 const RECENT_KEY = 'bo.palette.recientes';
@@ -13,6 +14,7 @@ const RECENT_KEY = 'bo.palette.recientes';
 @Injectable({ providedIn: 'root' })
 export class PaletteSearch {
   private readonly auth = inject(Auth);
+  private readonly comps = inject(Competitions);
   private readonly atletas = inject(AtletasApi);
   private readonly entradas = inject(EntradasApi);
   private readonly contactos = inject(ContactosApi);
@@ -46,7 +48,7 @@ export class PaletteSearch {
       return;
     }
     const ql = q.toLowerCase();
-    const paginas: Hit[] = ALL_ITEMS.filter((i) => can(i.perm) && i.label.toLowerCase().includes(ql)).slice(0, 4)
+    const paginas: Hit[] = ALL_ITEMS.filter((i) => can(i.perm) && moduloActivo(this.comps.list().find((c) => c.slug === slug)?.modulos, i.modulo) && i.label.toLowerCase().includes(ql)).slice(0, 4)
       .map((i) => ({ id: 'pag:' + i.path, icon: i.icon, title: i.label, sub: 'Página', url: base + i.path }));
     this.groups.set([{ label: 'Páginas · ' + paginas.length, items: put(paginas) }]);
     if (!cid || q.length < 2) { this.loading.set(false); return; }
