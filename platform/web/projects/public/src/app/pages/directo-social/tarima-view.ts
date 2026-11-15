@@ -278,17 +278,28 @@ export class TarimaView {
     return (this.filaDe(a)?.intentos?.[a.movimiento] ?? []).slice(0, hasta).filter((x) => x.resultado !== 'pendiente');
   });
 
-  /** «Siguientes»: lifting order computed in the client (ordenTarima), without the athlete on the tarima; the server's 3 as fallback. */
+  /**
+   * «Siguientes»: lifting order computed in the client (ordenTarima), without the athlete shown on the tarima (while the
+   * judged attempt stays on screen, the athlete the server has on the tarima is the first one). The server's list is the
+   * fallback when the client order is empty or does not contain the server's athlete on the tarima (e.g. declared openers
+   * of the session that the ranking cells do not carry yet): the list never contradicts the card above.
+   */
   protected readonly siguientes = computed(() => {
     const d = this.directo();
     const { numero, orden } = ordenTarima(d.clasificacion, d.movimiento);
     const a = d.actual;
-    const lista = orden
-      .filter((t) => !a || !(t.fila.nombre === a.nombre && t.sexo === a.sexo && t.categoria === a.categoria && t.numero === a.numero))
-      .map((t) => ({ nombre: t.fila.nombre, club: t.fila.club, categoria: t.categoria, peso: t.peso }))
-      .slice(0, 5);
-    if (orden.length) return { numero, lista };
-    return { numero: d.siguientes[0]?.numero ?? 0, lista: d.siguientes.map((s) => ({ nombre: s.nombre, club: s.club, categoria: s.categoria, peso: s.peso })) };
+    const es = (t: { fila: Fila; sexo: string; categoria: string; numero: number }, x: EnPlataforma) =>
+      t.fila.nombre === x.nombre && t.sexo === x.sexo && t.categoria === x.categoria && t.numero === x.numero;
+    if (orden.length && (!a || orden.some((t) => es(t, a)))) {
+      const visto = this.mostrandoUltimo() ? undefined : a;
+      const lista = orden
+        .filter((t) => !visto || !es(t, visto))
+        .map((t) => ({ nombre: t.fila.nombre, club: t.fila.club, categoria: t.categoria, peso: t.peso }))
+        .slice(0, 5);
+      return { numero, lista };
+    }
+    const srv = this.mostrandoUltimo() && a ? [a, ...d.siguientes] : d.siguientes;
+    return { numero: srv[0]?.numero ?? 0, lista: srv.map((s) => ({ nombre: s.nombre, club: s.club, categoria: s.categoria, peso: s.peso })) };
   });
 
   protected readonly catSel = computed(() => {
