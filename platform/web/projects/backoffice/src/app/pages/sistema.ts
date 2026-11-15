@@ -92,7 +92,7 @@ const STRIPE: Record<StripeConnect['estado'], { l: string; punto: string }> = {
             </div>
             @if (root()) {
               <gr-alert tone="info" icon="info" title="Webhooks de Stripe Connect (plataforma)">
-                <p>Stripe envía los eventos de todas las cuentas conectadas a <span class="font-mono text-mono-s">/api/webhooks/pagos/inscripciones</span> y <span class="font-mono text-mono-s">/api/webhooks/pagos/donaciones</span> (checkout.session.*) y a <span class="font-mono text-mono-s">/api/webhooks/stripe-connect</span> (account.updated). Su secreto whsec_ va en el servidor, no aquí.</p>
+                <p>Stripe envía los eventos de todas las cuentas conectadas a <span class="font-mono text-mono-s break-all">/api/webhooks/pagos/inscripciones</span> y <span class="font-mono text-mono-s break-all">/api/webhooks/pagos/donaciones</span> (checkout.session.*) y a <span class="font-mono text-mono-s break-all">/api/webhooks/stripe-connect</span> (account.updated). Su secreto whsec_ va en el servidor, no aquí.</p>
                 <a routerLink="../salud" class="mt-1 inline-flex items-center gap-1 text-label-s text-info hover:underline">Ver webhooks recibidos <gr-icon name="arrow-right" [size]="14" /></a>
               </gr-alert>
             }

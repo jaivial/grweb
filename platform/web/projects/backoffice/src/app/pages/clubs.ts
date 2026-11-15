@@ -51,7 +51,7 @@ const TH = 'px-4 py-3 text-left text-label-xs font-normal tracking-[0.04em] text
       </nav>
       <div class="flex gap-1 rounded-md border border-line-subtle bg-bg-card p-1 md:hidden" role="tablist" aria-label="Clubs">
         @for (t of tabs; track t.k) {
-          <button type="button" role="tab" [attr.aria-selected]="tab() === t.k" (click)="ir(t.k)" class="h-10 flex-auto rounded-sm px-2 text-[13px] leading-4 font-semibold whitespace-nowrap" [class]="tab() === t.k ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary'">{{ t.m }}@if (l) { {{ ' ' + cuenta(t.k) }} }</button>
+          <button type="button" role="tab" [attr.aria-selected]="tab() === t.k" (click)="ir(t.k)" class="h-10 min-w-0 flex-auto rounded-sm px-1.5 text-[13px] leading-4 font-semibold" [class]="tab() === t.k ? 'bg-bg-raised text-text-primary' : 'text-text-tertiary'">{{ t.m }}@if (l) { {{ ' ' + cuenta(t.k) }} }</button>
         }
       </div>
 

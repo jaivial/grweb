@@ -31,7 +31,7 @@ import { problemOf } from '../../core/api';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { BoPageHeader, Confirm, errText, BoTablaMovil } from '../../shared/ui';
+import { BoPageHeader, Confirm, errText, BoTablaMovil, BoTabsMovil } from '../../shared/ui';
 import {
   PERMISOS,
   PERMISOS_DIA,
@@ -57,7 +57,7 @@ const menuItem =
 /** «Equipo y permisos» (Figma 63): members with role, competitions, 2FA and last access; the permissions matrix; invitations. */
 @Component({
   selector: 'bo-equipo',
-  imports: [BoTablaMovil, 
+  imports: [BoTabsMovil, BoTablaMovil, 
     A11yModule,
     NgTemplateOutlet,
     FormsModule,
@@ -98,6 +98,7 @@ const menuItem =
         </ng-container>
       </bo-page-header>
 
+      <bo-tabs-movil label="Equipo">
       <nav
         class="-mt-1 flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]"
         aria-label="Equipo"
@@ -126,6 +127,7 @@ const menuItem =
           </button>
         }
       </nav>
+      </bo-tabs-movil>
 
       @if (error()) {
         <gr-empty icon="circle-alert" title="No se pudo cargar el equipo" [text]="error()"
