@@ -29,10 +29,11 @@ import (
 
 var tagInt = []string{"Integraciones"}
 
-// TiposIntegracion and the non-secret fields each one expects (Figma page 64 · "Sistema · integraciones").
+// TiposIntegracion and the non-secret fields each one expects (Figma page 64 · "Sistema · integraciones"). Stripe
+// is not here: it is connected with Stripe Connect (stripe_connect.go); keys saved before that are still honoured
+// as a read-only fallback (pagos.DeCompeticion) but can no longer be edited.
 var TiposIntegracion = map[string][]string{
 	"smtp":     {"proveedor", "host", "puerto", "usuario", "remitente", "nombreRemitente", "tls", "porMinuto", "limiteDiario"},
-	"stripe":   {"modo", "clavePublica"},
 	"whatsapp": {"proveedor", "url", "instancia", "numero"}, // proveedor evo-weai (Evolution API v2); secret = its API key
 	"bunny":    {"zona", "cdnUrl"},
 	"aep":      {"urlActa"},
@@ -69,6 +70,15 @@ func (s *Svc) listIntegraciones(ctx context.Context, cid uuid.UUID) ([]integraci
 		have[i.Tipo] = i
 	}
 	rows.Close()
+	// Stripe Connect decides the state of «stripe» once the competition has a connected account.
+	if c, err := s.cuentaConnect(ctx, s.a.DB, cid); err == nil && c != nil {
+		i := have["stripe"]
+		i.Tipo, i.Config, i.Estado = "stripe", map[string]string{"connect": c.Estado}, "configurada"
+		if c.Cobros {
+			i.Estado = "ok"
+		}
+		have["stripe"] = i
+	}
 	out := []integracion{}
 	for _, t := range []string{"gmail", "smtp", "stripe", "whatsapp", "bunny", "aep"} {
 		i, ok := have[t]
@@ -95,7 +105,7 @@ func (s *Svc) registerIntegrations() {
 
 	type putIn struct {
 		CID  uuid.UUID `path:"cid"`
-		Tipo string    `path:"tipo" enum:"smtp,stripe,whatsapp,bunny,aep"`
+		Tipo string    `path:"tipo" enum:"smtp,whatsapp,bunny,aep"`
 		Body struct {
 			Config  map[string]string `json:"config"`
 			Secreto *string           `json:"secreto,omitempty" doc:"Contraseña o clave. Omitir para conservar la actual; cadena vacía para borrarla"`
@@ -151,7 +161,7 @@ func (s *Svc) registerIntegrations() {
 
 	type probarIn struct {
 		CID  uuid.UUID `path:"cid"`
-		Tipo string    `path:"tipo" enum:"smtp,stripe,whatsapp,bunny,aep"`
+		Tipo string    `path:"tipo" enum:"smtp,whatsapp,bunny,aep"`
 		Body *struct {
 			Config  map[string]string `json:"config,omitempty" doc:"Probar estos valores sin guardarlos (sobre los guardados)"`
 			Secreto *string           `json:"secreto,omitempty"`
@@ -304,7 +314,7 @@ func testIntegration(ctx context.Context, tipo string, cfg map[string]string, se
 			}
 		}
 		return c.Quit()
-	case "stripe", "whatsapp", "bunny":
+	case "whatsapp", "bunny":
 		// QA has no real credentials: these are validated for completeness only (the providers are simulated).
 		if len(cfg) == 0 {
 			return fmt.Errorf("sin configurar")

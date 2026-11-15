@@ -82,7 +82,7 @@ var routeTable = func() []route {
 		{`^/api/webhooks/pagos/donaciones$`, "donaciones"}, {`^/api/pagos/simulado/donaciones/`, "donaciones"},
 		{c + `patrocinio(/|$)`, "patrocinio"}, {p + `patrocinio(/|$)`, "patrocinio"},
 		{c + `juegos(/|$)`, "juegos"}, {p + `juegos(/|$)`, "juegos"},
-		{`^/api/oauth/google/callback$`, "competition"},
+		{`^/api/oauth/google/callback$`, "competition"}, {`^/api/webhooks/stripe-connect$`, "competition"},
 		{`^/api/admin/(competiciones|workspaces)(/|$)`, "competition"},
 		{`^/api/competiciones(/|$)`, "competition"},
 	}

@@ -44,6 +44,7 @@ type CheckoutOut struct {
 // Event is a verified webhook event.
 type Event struct {
 	ID        string // unique (idempotency)
+	Account   string // Stripe Connect: connected account of the event
 	Type      string // checkout.session.completed · checkout.session.expired · checkout.session.async_payment_failed
 	SessionID string
 	PaymentID string // payment intent (needed for refunds)
