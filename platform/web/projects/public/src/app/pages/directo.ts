@@ -629,6 +629,7 @@ export class ResultadosEdicionPage {
 
 const TD = {
   es: {
+    celebrada: 'Celebrada',
     eyebrow: 'Edición anterior', seccion: 'Ediciones', fuente: (a: string) => 'Fuente: cartel oficial de la edición ' + a, cartel: (n: string) => 'Cartel de la ' + n,
     verResultados: 'Ver resultados', verGaleria: 'Ver galería', galEyebrow: 'Galería', galTitulo: (a: string) => 'Así fue *la edición ' + a + '*', ampliar: 'Ampliar: ',
     patro: (a: string) => 'Patrocinadores ' + a, patroTitulo: 'Gracias a *nuestros colaboradores*', logos: (a: string) => 'Logos del cartel de la edición ' + a + '.',
@@ -640,6 +641,7 @@ const TD = {
     seoT: (n: string, c: string) => n + ' · ' + c + ' · Edición anterior', seoD: (f: string, c: string, d: string) => f + ' en ' + c + '. ' + d,
   },
   en: {
+    celebrada: 'Held',
     eyebrow: 'Past edition', seccion: 'Editions', fuente: (a: string) => 'Source: official poster of the ' + a + ' edition', cartel: (n: string) => 'Poster of ' + n,
     verResultados: 'See results', verGaleria: 'See gallery', galEyebrow: 'Gallery', galTitulo: (a: string) => 'How *the ' + a + ' edition* went', ampliar: 'Enlarge: ',
     patro: (a: string) => a + ' sponsors', patroTitulo: 'Thanks to *our partners*', logos: (a: string) => 'Logos from the ' + a + ' edition poster.',
@@ -666,7 +668,7 @@ const TD = {
       @if (c) {
         <div pageStamps class="flex flex-wrap gap-2">
           <span class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />{{ t().fuente(anio()) }}</span>
-          <span class="inline-flex h-7 items-center rounded-full border border-text-muted bg-text-muted/12 px-3 text-label-xs text-text-tertiary uppercase">Celebrada</span>
+          <span class="inline-flex h-7 items-center rounded-full border border-text-muted bg-text-muted/12 px-3 text-label-xs text-text-tertiary uppercase">{{ t().celebrada }}</span>
         </div>
       }
       @if (c === undefined) { <gr-skeleton class="h-96 rounded-lg" /> }
@@ -818,10 +820,12 @@ export class EdicionPage {
 
 const TP = {
   es: {
+    enVivo: '● En directo', aContinuacion: 'A continuación',
     ...T.es, noVale: 'Este enlace de pantalla ya no vale.', copia: 'Copia el nuevo desde el backoffice: Directo › Pantalla del pabellón.', pausaD2: 'Volvemos enseguida', retraso2: (n: number) => ' · ' + n + ' min de retraso',
     webRes: 'Resultados en la web: /resultados', empezamos: (h: string) => 'Empezamos ' + h, enseguida: 'Enseguida empezamos', sigue: 'Sigue el directo', sigueD: '/en-directo · sigue a tus atletas y recibe aviso antes de que compitan',
   },
   en: {
+    enVivo: '● Live', aContinuacion: 'Up next',
     ...T.en, noVale: 'This screen link is no longer valid.', copia: 'Copy the new one from the back office: Live › Venue screen.', pausaD2: 'We’ll be right back', retraso2: (n: number) => ' · ' + n + ' min late',
     webRes: 'Results online: /en/resultados', empezamos: (h: string) => 'Starting ' + h, enseguida: 'Starting shortly', sigue: 'Follow it live', sigueD: '/en/en-directo · follow your athletes and get an alert before they compete',
   },
@@ -842,7 +846,7 @@ const TP = {
         @let d = p.directo;
         <header class="absolute top-[60px] left-[80px] flex items-center gap-8">
           <gr-logo [height]="76" />
-          @if (d.fase === 'en_directo') { <span class="rounded-pill border border-accent/70 px-4 py-1.5 font-mono text-[18px] text-accent-text">● En directo</span> }
+          @if (d.fase === 'en_directo') { <span class="rounded-pill border border-accent/70 px-4 py-1.5 font-mono text-[18px] text-accent-text">{{ t().enVivo }}</span> }
           @if (d.sesion) { <span class="font-display text-[30px] text-white/70 uppercase italic">Sesión de las {{ d.sesion.hora }}</span> }
         </header>
 
@@ -869,7 +873,7 @@ const TP = {
         <aside class="absolute top-[60px] right-[80px] flex w-[560px] flex-col gap-8">
           @if (p.pantalla.siguientes && d.fase === 'en_directo' && d.siguientes.length) {
             <section class="rounded-[24px] border border-white/10 bg-white/[0.04] p-8">
-              <p class="font-display text-[28px] text-white/70 uppercase italic">A continuación</p>
+              <p class="font-display text-[28px] text-white/70 uppercase italic">{{ t().aContinuacion }}</p>
               @for (s of d.siguientes; track $index) { <p class="mt-5 flex justify-between font-display text-[34px] uppercase italic"><span class="truncate pr-4">{{ s.nombre }}</span><span class="text-accent-text">{{ kg(s.peso) }} kg</span></p> }
             </section>
           }

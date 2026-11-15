@@ -342,6 +342,7 @@ function catSort(a: string, b: string): number {
 
 const T2 = {
   es: {
+    entrenador: 'Entrenador/a:', historial: 'Historial:',
     ...T.es, noEncontrado: 'Atleta no encontrado', seccion: 'Atletas', atleta: 'Atleta', atletaGrs: 'Atleta · GRS Cup 2',
     confT: 'Aviso confirmado', confD: (n: string) => 'Te escribiremos 30 minutos antes de que ' + n + ' salga a competir.',
     bajaT: 'Aviso desactivado', bajaD: (n: string) => 'Ya no te escribiremos sobre ' + (n || 'este atleta') + '. Puedes volver a activarlo cuando quieras.',
@@ -360,6 +361,7 @@ const T2 = {
     previsto: 'Total previsto: ', emailMal: 'Escribe un email válido.', aceptaMal: 'Marca la casilla para recibir el aviso.', reintenta: 'Inténtalo de nuevo en unos minutos.',
   },
   en: {
+    entrenador: 'Coach:', historial: 'History:',
     ...T.en, noEncontrado: 'Athlete not found', seccion: 'Athletes', atleta: 'Athlete', atletaGrs: 'Athlete · GRS Cup 2',
     confT: 'Alert confirmed', confD: (n: string) => 'We’ll email you 30 minutes before ' + n + ' competes.',
     bajaT: 'Alert turned off', bajaD: (n: string) => 'We won’t email you about ' + (n || 'this athlete') + ' any more. You can turn it back on whenever you like.',
@@ -496,9 +498,9 @@ const T2 = {
                 <h2 class="text-ui-h5">Sobre {{ a.nombre }}</h2>
                 @if (a.bio || a.frase) { <p class="mt-3 text-body-m text-text-secondary">{{ a.bio || a.frase }}</p> }
                 <dl class="mt-4 flex flex-col gap-2 text-body-s">
-                  @if (a.entrenador) { <div class="flex gap-2"><gr-icon name="user" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">Entrenador/a:</dt><dd>{{ a.entrenador }}</dd></div> }
+                  @if (a.entrenador) { <div class="flex gap-2"><gr-icon name="user" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">{{ t().entrenador }}</dt><dd>{{ a.entrenador }}</dd></div> }
                   @if (a.instagram) { <div class="flex gap-2"><gr-icon name="instagram" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">Instagram:</dt><dd><a [href]="'https://www.instagram.com/' + a.instagram.replace('@', '') + '/'" target="_blank" rel="noopener nofollow" class="hover:text-accent-text">{{ a.instagram }}</a></dd></div> }
-                  @if (a.historial.length) { <div class="flex gap-2"><gr-icon name="trophy" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">Historial:</dt><dd>@for (h of a.historial; track $index) { <span class="block">{{ h.competicion }}</span> }</dd></div> }
+                  @if (a.historial.length) { <div class="flex gap-2"><gr-icon name="trophy" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">{{ t().historial }}</dt><dd>@for (h of a.historial; track $index) { <span class="block">{{ h.competicion }}</span> }</dd></div> }
                 </dl>
               </section>
             }
