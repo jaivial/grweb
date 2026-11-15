@@ -2,7 +2,8 @@ import { inject } from '@angular/core';
 import { type ActivatedRouteSnapshot, type CanActivateChildFn, type CanActivateFn, Router, type Routes } from '@angular/router';
 import { Auth } from './core/auth';
 import { Competitions } from './core/competitions';
-import { ALL_ITEMS } from './layout/nav';
+import { GrToasts } from '@grcup/ui';
+import { ALL_ITEMS, moduloActivo } from './layout/nav';
 import { Shell } from './layout/shell';
 import { DevicePage, InvitationPage } from './pages/access';
 import { InicioPage } from './pages/inicio';
@@ -88,6 +89,11 @@ const compGuard: CanActivateChildFn = async (child) => {
   const seccion = path === ':seccion' ? (r?.paramMap.get('seccion') ?? '') : path;
   const item = ALL_ITEMS.find((i) => i.path === seccion);
   if (path === ':seccion' && !item) return router.createUrlTree(['/404']);
+  // a BO module switched off for this edition (Evento y módulos › Módulos): back to Inicio, saying why
+  if (!moduloActivo(c.modulos, item?.modulo)) {
+    inject(GrToasts).info(`${item?.label} está desactivado en esta edición`, 'Se reactiva en Evento y módulos › Módulos.');
+    return router.createUrlTree(['/', c.slug, 'inicio']);
+  }
   // a role that requires 2FA grants nothing until it is on: send to Inicio, where the shell explains it and offers to turn it on
   if (item?.perm && auth.user()?.competiciones.find((m) => m.competitionId === c.id)?.exige2fa) return router.createUrlTree(['/', c.slug, 'inicio']);
   if (item?.perm && !item.lectura && !auth.can(c.id, item.perm)) return router.createUrlTree(['/403'], { queryParams: { seccion: item.path } });
@@ -119,10 +125,14 @@ export const routes: Routes = [
       { path: 'inicio', component: InicioPage, title: 'Inicio · Backoffice GR Cup' },
       // the volunteers moved from Web › Voluntarios to their own page (Figma 68)
       { path: 'web/voluntarios', pathMatch: 'full', redirectTo: 'voluntarios' },
+      { path: 'evento/web/voluntarios', pathMatch: 'full', redirectTo: 'voluntarios' },
+      // «Web y contenidos» is a tab of Evento y módulos (orden 15-nov 13:05): the old /web/… links keep working
+      { path: 'web', pathMatch: 'full', redirectTo: 'evento/web' },
+      { path: 'web/:tab', redirectTo: 'evento/web/:tab' },
       {
-        path: 'web',
+        path: 'evento/web',
         component: WebPage,
-        title: 'Web y contenidos · Backoffice GR Cup',
+        title: 'Web y contenidos · Evento · Backoffice GR Cup',
         children: [
           { path: '', pathMatch: 'full', redirectTo: 'home' },
           { path: 'home', component: WebHomeTab },
@@ -138,9 +148,10 @@ export const routes: Routes = [
       { path: 'atletas/solicitudes/:id', loadComponent: () => import('./pages/atletas/solicitudes').then((m) => m.SolicitudesPage), title: 'Solicitud de atleta · Backoffice GR Cup' },
       { path: 'atletas/:id', component: AtletaFichaPage, title: 'Atleta · Backoffice GR Cup' },
       { path: 'horarios', loadComponent: () => import('./pages/horarios/horarios').then((m) => m.HorariosPage), title: 'Horarios · Backoffice GR Cup' },
-      { path: 'contactos', loadComponent: () => import('./pages/contactos/contactos').then((m) => m.ContactosPage), data: { tab: 'contactos' }, title: 'Contactos · Backoffice GR Cup' },
-      { path: 'contactos/segmentos', loadComponent: () => import('./pages/contactos/contactos').then((m) => m.ContactosPage), data: { tab: 'segmentos' }, title: 'Segmentos · Backoffice GR Cup' },
-      { path: 'contactos/bajas', loadComponent: () => import('./pages/contactos/contactos').then((m) => m.ContactosPage), data: { tab: 'bajas' }, title: 'Bajas y supresiones · Backoffice GR Cup' },
+      // Contactos and Campañas are tabs of Emails y avisos (orden 15-nov 13:05): the lists redirect, cards and editors stay
+      { path: 'contactos', pathMatch: 'full', redirectTo: 'emails?tab=contactos' },
+      { path: 'contactos/segmentos', pathMatch: 'full', redirectTo: 'emails?tab=contactos&vista=segmentos' },
+      { path: 'contactos/bajas', pathMatch: 'full', redirectTo: 'emails?tab=contactos&vista=bajas' },
       { path: 'contactos/:id', loadComponent: () => import('./pages/contactos/contactos').then((m) => m.ContactoFichaPage), title: 'Contacto · Backoffice GR Cup' },
       { path: 'emails', loadComponent: () => import('./pages/emails/emails').then((m) => m.EmailsPage), data: { tab: 'plantillas' }, title: 'Emails y avisos · Backoffice GR Cup' },
       { path: 'emails/whatsapp', loadComponent: () => import('./pages/emails/emails').then((m) => m.EmailsPage), data: { tab: 'whatsapp' }, title: 'WhatsApp (Meta) · Backoffice GR Cup' },
@@ -159,7 +170,7 @@ export const routes: Routes = [
       { path: 'clubs', loadComponent: () => import('./pages/clubs').then((m) => m.ClubsPage), title: 'Clubs · Backoffice GR Cup' },
       { path: 'directo/retransmision', loadComponent: () => import('./pages/directo/retransmision').then((m) => m.RetransmisionPage), title: 'Retransmisión · Backoffice GR Cup' },
       { path: 'resultados', loadComponent: () => import('./pages/directo/resultados').then((m) => m.ResultadosPage), title: 'Resultados · Backoffice GR Cup' },
-      { path: 'campanas', loadComponent: () => import('./pages/campanas/campanas').then((m) => m.CampanasPage), title: 'Campañas · Backoffice GR Cup' },
+      { path: 'campanas', pathMatch: 'full', redirectTo: 'emails?tab=campanas' },
       { path: 'campanas/whatsapp', loadComponent: () => import('./pages/campanas/campanas').then((m) => m.WhatsAppPage), title: 'WhatsApp · Backoffice GR Cup' },
       { path: 'campanas/:id', loadComponent: () => import('./pages/campanas/editor').then((m) => m.CampanaEditorPage), title: 'Campaña · Backoffice GR Cup' },
       { path: 'sorteo', loadComponent: () => import('./pages/sorteo/sorteo').then((m) => m.SorteoPage), title: 'Sorteo · Backoffice GR Cup' },

@@ -13,6 +13,8 @@ import { BoSchemaForm, type FieldDef } from '../shared/schema-form';
 import { BoDrawer, BoPageHeader, BoTabs, BoToggle, Confirm, errText } from '../shared/ui';
 import { WebHeroEditor } from './web-hero';
 import { WebSponsorsTab } from './web-sponsors';
+import { BoEventoTabs } from './evento-tabs';
+import { moduloActivo } from '../layout/nav';
 import { WebSeoExtra } from './web-seo';
 
 /** Static routes of the public app (projects/public/src/app/app.routes.ts); a redirect from one of them hides that page. */
@@ -117,11 +119,12 @@ function campos(s: Seccion): Seccion {
 /** «Web y contenidos» (Figma page 54): header, publish action and tabs. */
 @Component({
   selector: 'bo-web',
-  imports: [RouterOutlet, BoPageHeader, BoTabs, GrButton],
+  imports: [RouterOutlet, BoPageHeader, BoTabs, BoEventoTabs, GrButton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-[1180px] flex-col gap-6">
-      <bo-page-header title="Web y contenidos" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Web y contenidos']"
+      <bo-page-header title="Web y contenidos" [back]="['/', comps.current()?.slug, 'evento']"
+        [crumbs]="[comps.current()?.nombreCorto || '', { label: 'Sistema e integraciones', link: ['/', comps.current()?.slug, 'sistema'] }, { label: 'Evento y módulos', link: ['/', comps.current()?.slug, 'evento'] }, 'Web y contenidos']"
         [badge]="secs.pending() ? 'Cambios sin publicar' : ''">
         <a actions grButton icon="external-link" [href]="previewUrl()" target="_blank" rel="noopener">Vista previa</a>
         @if (canPublish()) {
@@ -130,6 +133,7 @@ function campos(s: Seccion): Seccion {
           </button>
         }
       </bo-page-header>
+      <bo-evento-tabs activa="web" />
       <bo-tabs [tabs]="tabs()" />
       <div><router-outlet /></div>
     </div>
@@ -153,7 +157,8 @@ export class WebPage {
       { label: 'Home y landings', path: 'home' },
       { label: 'FAQ', path: 'faq', count: n['faq'] },
       { label: 'Patrocinadores', path: 'patrocinadores', count: n['patrocinadores'] },
-      { label: 'Clubs', path: 'clubs', count: n['clubs'] },
+      // the Clubs module can be off for the edition (Evento y módulos › Módulos)
+      ...(moduloActivo(this.comps.current()?.modulos, 'clubs') ? [{ label: 'Clubs', path: 'clubs', count: n['clubs'] }] : []),
       { label: 'Páginas y SEO', path: 'seo', count: n['seo'] },
       { label: 'Blog y galería', path: 'blog' },
       { label: 'Mapas de acceso', path: 'mapas' },

@@ -82,6 +82,8 @@ export const MODULOS: { k: string; l: string; d: string }[] = [
   { k: 'galeria', l: 'Galería', d: 'Fotos por álbum' },
   { k: 'patrocinadores', l: 'Patrocinadores', d: 'Logos y niveles de patrocinio' },
   { k: 'campanas', l: 'Campañas', d: 'Campañas de email y WhatsApp (backoffice)' },
+  { k: 'clubs', l: 'Clubs', d: 'Directorio de clubs y sus propuestas (backoffice)' },
+  { k: 'mesa-directo', l: 'Mesa del directo', d: 'Mesa y pantalla del pabellón (backoffice)' },
 ];
 
 const fechaCorta = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Madrid' });

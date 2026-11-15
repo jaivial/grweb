@@ -1,4 +1,5 @@
 import { webPublica } from '../core/web';
+import { EVENTO_TABS } from './evento-tabs';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, computed, effect, inject, signal, untracked } from '@angular/core';
@@ -25,7 +26,7 @@ interface Comp {
 }
 interface ModItem extends Modulo { clave: string; nombre: string; descripcion: string }
 interface EstadoInfo { estado: string; programados: { id: string; estado: string; en: string }[] }
-type Tab = 'datos' | 'estado' | 'modulos' | 'inscripcion' | 'llegar';
+type Tab = 'datos' | 'estado' | 'modulos' | 'web' | 'inscripcion' | 'llegar';
 interface Editor { id: string; nombre: string; desde: string }
 
 const ESTADOS = [
@@ -44,7 +45,7 @@ const NIVELES = ['AEP 1 · Nacional', 'AEP 2 · Interregional', 'AEP 3 · Region
   template: `
     @let c = comp();
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-28">
-      <bo-page-header title="Evento y módulos" subtitle="Lo que ve el público en la home, /como-llegar y los emails" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Evento y módulos']">
+      <bo-page-header title="Evento y módulos" subtitle="Lo que ve el público en la home, /como-llegar y los emails" [back]="['/', comps.current()?.slug, 'sistema']" [crumbs]="[comps.current()?.nombreCorto || '', { label: 'Sistema e integraciones', link: ['/', comps.current()?.slug, 'sistema'] }, 'Evento y módulos']">
         <ng-container actions><a grButton icon="external-link" [href]="web" target="_blank" rel="noopener">Ver en la web</a></ng-container>
       </bo-page-header>
       <bo-tabs-movil label="Sección">
@@ -234,7 +235,7 @@ export class EventoPage {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly san = inject(DomSanitizerRef);
-  protected readonly tabs: { v: Tab; l: string }[] = [{ v: 'datos', l: 'Datos' }, { v: 'estado', l: 'Estado del evento' }, { v: 'modulos', l: 'Módulos' }, { v: 'llegar', l: 'Cómo llegar' }];
+  protected readonly tabs: readonly { v: Tab; l: string }[] = EVENTO_TABS;
   protected readonly dispositivos = [{ value: 'escritorio', label: 'Escritorio' }, { value: 'movil', label: 'Móvil' }];
   protected readonly vista = signal('escritorio');
   protected readonly estados = ESTADOS;
@@ -265,6 +266,8 @@ export class EventoPage {
   constructor() {
     // the AEP registration moved to Atletas › Inscripción (one screen for the mode and the AEP data)
     if (this.route.snapshot.queryParamMap.get('tab') === 'inscripcion') void this.router.navigate(['../atletas/inscripcion'], { relativeTo: this.route, replaceUrl: true });
+    // «Web y contenidos» is a tab with its own sub-pages: /evento?tab=web opens /evento/web
+    if (this.route.snapshot.queryParamMap.get('tab') === 'web') void this.router.navigate(['web'], { relativeTo: this.route, replaceUrl: true });
     effect(() => {
       if (!this.cid()) return;
       untracked(() => void this.cargar());
@@ -312,6 +315,7 @@ export class EventoPage {
   protected ir(t: Tab): void {
     // the AEP registration is edited in Atletas › Inscripción (one screen for the mode and the AEP data)
     if (t === 'inscripcion') { void this.router.navigate(['../atletas/inscripcion'], { relativeTo: this.route }); return; }
+    if (t === 'web') { void this.router.navigate(['web'], { relativeTo: this.route }); return; }
     this.tab.set(t);
     void this.router.navigate([], { queryParams: { tab: t }, replaceUrl: true });
   }
@@ -429,6 +433,7 @@ export class EventoPage {
     try {
       await firstValueFrom(this.http.put(`${this.b()}/modulos/${m.clave}`, { activo }));
       this.mods.set(await firstValueFrom(this.http.get<ModItem[]>(`${this.b()}/modulos`)));
+      void this.comps.reload(this.cid()).catch(() => undefined); // the menu follows the BO modules (clubs, mesa-directo)
       this.toasts.success(`${m.nombre}: ${activo ? 'activo' : 'desactivado'}`);
     } catch (e) {
       this.toasts.error(errText(e, 'No se pudo cambiar el módulo.'));

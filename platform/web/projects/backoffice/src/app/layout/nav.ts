@@ -13,6 +13,13 @@ export interface NavItem {
    * permiso»): the page explains it and disables the actions.
    */
   lectura?: boolean;
+  /** Not in the sidebar (reached from another page) but still a section: its permission and title still apply. */
+  oculto?: boolean;
+  /**
+   * BO module of the edition (Evento y módulos › Módulos) that switches the section on: when the competition has it
+   * switched off the section leaves the menu and its routes go back to Inicio. Code and data stay.
+   */
+  modulo?: string;
 }
 
 export interface NavGroup {
@@ -26,15 +33,17 @@ export const NAV: NavGroup[] = [
     label: 'Hoy',
     items: [
       { label: 'Inicio', path: 'inicio', icon: 'home', mobileTab: true },
-      { label: 'Directo', path: 'directo', icon: 'radio', perm: 'directo.operar', mobileTab: true },
+      { label: 'Directo', path: 'directo', icon: 'radio', perm: 'directo.operar', mobileTab: true, modulo: 'mesa-directo' },
+      { label: 'Pantalla del pabellón', path: 'directo/pantalla', icon: 'radio', perm: 'directo.operar', oculto: true, modulo: 'mesa-directo' },
       { label: 'Check-in y taquilla', path: 'checkin', icon: 'scan', perm: 'checkin.escanear', mobileTab: true },
     ],
   },
   {
     label: 'Evento',
     items: [
-      { label: 'Evento y módulos', path: 'evento', icon: 'trophy', perm: 'evento.editar' },
-      { label: 'Web y contenidos', path: 'web', icon: 'layout', perm: 'web.editar' },
+      // reached from Sistema e integraciones (and Web y contenidos is one of its tabs)
+      { label: 'Evento y módulos', path: 'evento', icon: 'trophy', perm: 'evento.editar', oculto: true },
+      { label: 'Web y contenidos', path: 'evento/web', icon: 'layout', perm: 'web.editar', oculto: true },
       { label: 'Atletas', path: 'atletas', icon: 'user', perm: 'atletas.editar', contador: 'solicitudes' },
       { label: 'Horarios', path: 'horarios', icon: 'clock', perm: 'horarios.publicar' },
       { label: 'Resultados', path: 'resultados', icon: 'award', perm: 'resultados.publicar' },
@@ -46,6 +55,7 @@ export const NAV: NavGroup[] = [
     items: [
       { label: 'Chat', path: 'chat', icon: 'send', perm: 'directo.operar', lectura: true },
       { label: 'Patrocinio', path: 'patrocinio', icon: 'image', perm: 'web.editar', lectura: true },
+      { label: 'Retransmisión', path: 'directo/retransmision', icon: 'play', perm: 'directo.operar', lectura: true },
       { label: 'Juegos', path: 'juegos', icon: 'trophy', perm: 'directo.operar', lectura: true },
       { label: 'Donaciones', path: 'donaciones', icon: 'heart', perm: 'sorteo.gestionar', lectura: true },
       { label: 'Premios', path: 'premios', icon: 'gift', perm: 'directo.operar', lectura: true },
@@ -57,10 +67,10 @@ export const NAV: NavGroup[] = [
     items: [
       { label: 'Entradas y aforo', path: 'entradas', icon: 'ticket', perm: 'entradas.gestionar', mobileTab: true },
       { label: 'Sorteo', path: 'sorteo', icon: 'gift', perm: 'sorteo.gestionar' },
-      { label: 'Contactos', path: 'contactos', icon: 'users', perm: 'contactos.ver' },
-      { label: 'Campañas', path: 'campanas', icon: 'send', perm: 'campanas.enviar' },
+      { label: 'Contactos', path: 'contactos', icon: 'users', perm: 'contactos.ver', oculto: true }, // tab of Emails y avisos
+      { label: 'Campañas', path: 'campanas', icon: 'send', perm: 'campanas.enviar', oculto: true }, // tab of Emails y avisos
       { label: 'Emails y avisos', path: 'emails', icon: 'mail', perm: 'campanas.enviar' },
-      { label: 'Clubs', path: 'clubs', icon: 'building', perm: 'web.editar', contador: 'clubs' },
+      { label: 'Clubs', path: 'clubs', icon: 'building', perm: 'web.editar', contador: 'clubs', modulo: 'clubs' },
       { label: 'Voluntarios', path: 'voluntarios', icon: 'heart', perm: 'web.editar', contador: 'voluntarios' },
     ],
   },
@@ -75,3 +85,8 @@ export const NAV: NavGroup[] = [
 ];
 
 export const ALL_ITEMS = NAV.flatMap((g) => g.items);
+
+/** A BO module is off only when the edition says so: editions without the key keep the section (old data). */
+export function moduloActivo(modulos: Record<string, { activo: boolean }> | undefined, clave?: string): boolean {
+  return !clave || modulos?.[clave]?.activo !== false;
+}

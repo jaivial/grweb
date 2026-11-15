@@ -28,6 +28,9 @@ var ModulosCatalogo = []struct{ Clave, Nombre, Descripcion string }{
 	{"galeria", "Galería", "Fotos por álbum"},
 	{"patrocinadores", "Patrocinadores", "Logos y niveles de patrocinio"},
 	{"campanas", "Campañas", "Campañas de email y WhatsApp (backoffice)"},
+	// backoffice-only sections that an edition can switch off (orden 15-nov 13:05): code and data stay
+	{"clubs", "Clubs", "Directorio de clubs y sus propuestas (backoffice)"},
+	{"mesa-directo", "Mesa del directo", "Mesa y pantalla del pabellón en el backoffice; apagado cuando OpenLifter lleva los resultados en vivo"},
 }
 
 func validModulo(k string) bool {

@@ -13,7 +13,7 @@ import { SolicitudesContador } from '../core/solicitudes';
 import { ClubsContador, VoluntariosContador } from '../core/clubs';
 import type { Notificacion } from '../core/api';
 import { BoCommandPalette, BoLiveStatus, BoNavItem, BoNotificationItem, BoWorkspaceSwitcher, type BoPaletteItem, type BoTone, type BoWorkspace } from '../shared/kit';
-import { ALL_ITEMS, NAV, type NavItem } from './nav';
+import { ALL_ITEMS, NAV, moduloActivo, type NavItem } from './nav';
 import { PaletteSearch } from './palette-search';
 import { Outside } from './outside';
 import { BoDosFactores, DosFactoresUi } from '../shared/dos-factores';
@@ -59,7 +59,7 @@ export class Shell {
   protected readonly exige2fa = computed(() => !!this.auth.user()?.competiciones.find((c) => c.competitionId === this.cid())?.exige2fa);
   /** One figure for the bell badge and its label (capped like the rail badges). */
   protected readonly unreadTxt = computed(() => { const n = this.notifs.unread(); return n > 99 ? '99+' : String(n); });
-  protected readonly visible = (it: NavItem) => !it.perm || !!it.lectura || this.auth.can(this.cid(), it.perm);
+  protected readonly visible = (it: NavItem) => !it.oculto && moduloActivo(this.comps.current()?.modulos, it.modulo) && (!it.perm || !!it.lectura || this.auth.can(this.cid(), it.perm));
   protected readonly nav = computed(() => NAV.map((g) => ({ ...g, items: g.items.filter((i) => this.visible(i)) })).filter((g) => g.items.length));
   /** Figma 49 tab bar order: Inicio · Check-in · Directo · Entradas · Más. */
   protected readonly tabs = computed(() => ['inicio', 'checkin', 'directo', 'entradas'].map((p) => ALL_ITEMS.find((i) => i.path === p)!).filter((i) => this.visible(i)));
