@@ -335,8 +335,8 @@ export class HorariosPage {
       if (f.atletas.length || !f.total || this.completos().has(f.id) || this.pidiendo.has(f.id)) continue;
       this.pidiendo.add(f.id);
       const items: PubAtleta[] = [];
-      for (let page = 1; page <= 20; page++) {
-        const r = await this.api.atletas(f.id, page, 100);
+      for (let page = 1; page <= 40; page++) {
+        const r = await this.api.atletas(f.id, page, 50); // API maximum
         if (!r) break;
         items.push(...r.items);
         if (items.length >= r.total || !r.items.length) break;
