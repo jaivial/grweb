@@ -127,7 +127,16 @@ func (s *Svc) registerGmail() {
 			http.Error(w, "Enlace de autorización caducado o no válido. Vuelve a intentarlo desde el backoffice.", http.StatusBadRequest)
 			return
 		}
-		volver := func(res string) { http.Redirect(w, r, origen+"/sistema/integraciones?gmail="+res, http.StatusFound) }
+		// The BO routes live under the competition slug: /<slug>/sistema/integraciones.
+		var slug string
+		_ = s.a.DB.QueryRow(r.Context(), `SELECT slug FROM competiciones WHERE id = $1`, cid).Scan(&slug)
+		volver := func(res string) {
+			destino := origen + "/"
+			if slug != "" {
+				destino = origen + "/" + url.PathEscape(slug) + "/sistema/integraciones?gmail=" + res
+			}
+			http.Redirect(w, r, destino, http.StatusFound)
+		}
 		code := r.URL.Query().Get("code")
 		if code == "" {
 			volver("cancelado")
