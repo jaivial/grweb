@@ -14,8 +14,10 @@ const VIDEO_DESKTOP = 'https://jaimedigitalstudio.b-cdn.net/grcup/videos/copa-sc
 const frameUrl = (i: number) => `https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_${String(i + 1).padStart(4, '0')}.webp`;
 
 /** Scroll timeline of Figma page 04 «Hero · Storyboard scroll» (the previous web's animation, same thresholds). */
-// Jaime 14-nov: the intro text fades with the smoke (same span), and the closing clouds rise earlier and end covering the trophy.
-const T = { textoFuera: [0.01, 0.12], humo: [0.01, 0.12], frames: [0.04, 0.6], nubes: [0.48, 0.6] } as const;
+// Jaime 14-nov: the intro text fades with the smoke (same span), and the closing clouds end covering the trophy.
+// Jaime 15-nov 11:09: longer trophy turn, shorter cloud cover. Before (200vh phone / 500vh md): frames 4-60 %, clouds 48-60 %,
+// 40 % idle hold. Now (300vh / 500vh): the trophy turns until 90 %, the clouds cover in the last 5 % of it (10vh phone, 20vh md).
+const T = { textoFuera: [0.01, 0.08], humo: [0.01, 0.08], frames: [0.03, 0.9], nubes: [0.85, 0.9] } as const;
 /** Frame fallback (video failed or stalled): every 3rd WebP, loaded progressively, shown as the nearest loaded frame. */
 const PASO_FRAMES = 3;
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -47,7 +49,8 @@ const PUFFS = [
   // UX1-R1-1/6: 200vh on phones (500vh from md), one screen with reduced motion - in CSS, so it holds from the SSR paint
   host: { class: 'relative block' },
   template: `
-    <div class="sticky top-0 h-dvh overflow-hidden bg-bg-base">
+    <!-- contain:paint: WebKit does not clip blurred, transformed puffs with overflow alone -->
+    <div class="sticky top-0 h-dvh overflow-hidden bg-bg-base [contain:paint]">
       <!-- «Fondo»: grey at the top while the smoke is on screen (Figma intro), base later -->
       <div class="absolute inset-0 bg-[linear-gradient(180deg,#3a3435_0%,#252021_65%,#141112_100%)]" [style.opacity]="humo()"></div>
       <!-- Trophy: 2:3 box, 80 % of the height, red glow behind. The frames' near-black lightens into whatever is behind
@@ -109,7 +112,7 @@ const PUFFS = [
     </div>
   `,
   styles: [`
-    :host { height: 200vh; }
+    :host { height: 300vh; }
     @media (min-width: 768px) { :host { height: 500vh; } }
     @media (prefers-reduced-motion: reduce) { :host { height: 100dvh; } }
     /* Figma «Fundido · arriba/abajo/izquierda/derecha»: 20 % at the top and bottom, 24 % at the sides */
@@ -191,6 +194,8 @@ export class HeroTrophy {
   private io?: IntersectionObserver;
   private readonly framesListos = new Set<number>();
   private framesCargando = false;
+  private anchoVista = 0;
+  private altoVista = 0;
 
   constructor() {
     const destroy = inject(DestroyRef);
@@ -264,7 +269,11 @@ export class HeroTrophy {
 
   private measure(): void {
     const r = this.host.nativeElement.getBoundingClientRect();
-    const span = r.height - window.innerHeight;
+    // iOS Safari: innerHeight grows when the toolbar hides mid-scroll; the largest height seen at this width keeps the
+    // progress from jumping back (the host is in vh = the large viewport, so this matches it once the bar is gone).
+    if (window.innerWidth !== this.anchoVista) { this.anchoVista = window.innerWidth; this.altoVista = 0; }
+    this.altoVista = Math.max(this.altoVista, window.innerHeight);
+    const span = r.height - this.altoVista;
     this.progress = span > 0 ? Math.min(1, Math.max(0, -r.top / span)) : 0;
     const isDone = this.progress > 0.97 || r.bottom < window.innerHeight * 0.5;
     if (isDone !== this.wasDone) {
