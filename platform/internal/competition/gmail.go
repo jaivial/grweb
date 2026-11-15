@@ -2,6 +2,7 @@ package competition
 
 import (
 	"context"
+	"errors"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -73,6 +74,18 @@ func (s *Svc) gmailLeerState(st string) (uuid.UUID, string, bool) {
 	return cid, parts[1], true
 }
 
+// gmailStateSinFirma reads cid and origin of a state without trusting it (only to choose where to send the user).
+func gmailStateSinFirma(st string) (uuid.UUID, string) {
+	p, _, _ := strings.Cut(st, ".")
+	raw, err := base64.RawURLEncoding.DecodeString(p)
+	parts := strings.Split(string(raw), "|")
+	if err != nil || len(parts) != 3 {
+		return uuid.Nil, ""
+	}
+	cid, _ := uuid.Parse(parts[0])
+	return cid, parts[1]
+}
+
 func (s *Svc) registerGmail() {
 	type autIn struct {
 		CID    uuid.UUID `path:"cid"`
@@ -122,34 +135,73 @@ func (s *Svc) registerGmail() {
 
 	// Google redirects the browser here (no bearer: the signed state identifies the competition).
 	s.a.Mux.HandleFunc("GET "+gmailCallback, func(w http.ResponseWriter, r *http.Request) {
-		cid, origen, ok := s.gmailLeerState(r.URL.Query().Get("state"))
+		q := r.URL.Query()
+		cid, origen, ok := s.gmailLeerState(q.Get("state"))
+		valido := ok
 		if !ok {
-			http.Error(w, "Enlace de autorización caducado o no válido. Vuelve a intentarlo desde el backoffice.", http.StatusBadRequest)
+			// Expired or tampered state: never a bare error page. The unsigned payload only chooses where to send the
+			// user (an allowed BO origin and a competition that exists); nothing is stored.
+			cid, origen = gmailStateSinFirma(q.Get("state"))
+		}
+		if o, permitido := gmailOrigen(origen); permitido {
+			origen = o
+		} else if l := config.List("GOOGLE_OAUTH_ORIGINS"); len(l) > 0 {
+			origen = strings.TrimRight(l[0], "/")
+		} else {
+			http.Error(w, "Enlace de autorización no válido. Vuelve a intentarlo desde el backoffice.", http.StatusBadRequest)
 			return
 		}
-		// The BO routes live under the competition slug: /<slug>/sistema/integraciones.
+		ctx := r.Context()
 		var slug string
-		_ = s.a.DB.QueryRow(r.Context(), `SELECT slug FROM competiciones WHERE id = $1`, cid).Scan(&slug)
+		if cid != uuid.Nil {
+			_ = s.a.DB.QueryRow(ctx, `SELECT slug FROM competiciones WHERE id = $1`, cid).Scan(&slug)
+		}
+		conectado := func() bool {
+			var n int
+			_ = s.a.DB.QueryRow(ctx, `SELECT count(*) FROM integraciones WHERE competition_id = $1 AND tipo = 'gmail' AND secreto IS NOT NULL`, cid).Scan(&n)
+			return n > 0
+		}
+		// The BO routes live under the competition slug; without it, /oauth/google picks the user's competition.
 		volver := func(res string) {
-			destino := origen + "/"
+			destino := origen + "/oauth/google?gmail=" + res
 			if slug != "" {
 				destino = origen + "/" + url.PathEscape(slug) + "/sistema/integraciones?gmail=" + res
 			}
 			http.Redirect(w, r, destino, http.StatusFound)
 		}
-		code := r.URL.Query().Get("code")
-		if code == "" {
-			volver("cancelado")
+		// A reloaded or reopened callback (expired state or code already used) when Gmail is already connected.
+		yaOCaducado := func() string {
+			if slug != "" && conectado() {
+				return "ya_conectado"
+			}
+			return "caducado"
+		}
+		if !valido {
+			s.a.Log.Info("gmail oauth: state caducado o no válido")
+			volver(yaOCaducado())
 			return
 		}
-		email, refresh, err := gmailCanjear(r.Context(), code, origen+gmailCallback)
+		if e := q.Get("error"); e != "" || q.Get("code") == "" {
+			if e == "" || e == "access_denied" {
+				volver("cancelado")
+			} else {
+				s.a.Log.Warn("gmail oauth: error de Google", "error", e)
+				volver("error")
+			}
+			return
+		}
+		email, refresh, err := gmailCanjear(ctx, q.Get("code"), origen+gmailCallback)
 		if err != nil || refresh == "" {
 			s.a.Log.Warn("gmail oauth: canje fallido", "err", err)
+			var p *problem.Error
+			if errors.As(err, &p) && strings.Contains(p.Code, "INVALID_GRANT") {
+				volver(yaOCaducado()) // the code was already used (reload) or expired
+				return
+			}
 			volver("error")
 			return
 		}
 		cfg, _ := json.Marshal(map[string]string{"proveedor": "gmail", "remitente": email})
-		ctx := r.Context()
 		err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 			if _, err := tx.Exec(ctx, `INSERT INTO integraciones (competition_id, tipo, config, secreto, secreto_mascara, estado, probado_at) VALUES ($1,'gmail',$2,$3,$4,'ok',now())
 				ON CONFLICT (competition_id, tipo) DO UPDATE SET config = EXCLUDED.config, secreto = EXCLUDED.secreto, secreto_mascara = EXCLUDED.secreto_mascara,

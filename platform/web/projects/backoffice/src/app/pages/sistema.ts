@@ -8,6 +8,15 @@ import { BoDrawer, BoPageHeader, BoTabs, Confirm, errText, type BoTab, BoTablaMo
 import { WhatsAppApi, type EstadoWaInfo } from './sistema/whatsapp-api';
 import { ESTADO_COMP, ESTADO_INT, INTEG, MODULOS, SistemaApi, fecha, fechaDMA, hace, type CompSistema, type Exportacion, type Integracion, type Salud, type StripeConnect, type Webhooks } from './sistema/api';
 
+type GmailAviso = { tone: GrTone; icon: 'circle-check' | 'triangle-alert' | 'info'; titulo: string; texto: string; reintentar: boolean };
+/** Notice after coming back from Google (?gmail=…) when the connection did not finish in this attempt. */
+const GMAIL_AVISO: Record<string, GmailAviso> = {
+  ya_conectado: { tone: 'success', icon: 'circle-check', titulo: 'Gmail ya está conectado', texto: 'Ese enlace de Google ya se había usado (por ejemplo, al recargar la página o abrirlo otra vez). No hace falta hacer nada: los emails siguen saliendo desde la cuenta conectada.', reintentar: false },
+  caducado: { tone: 'warning', icon: 'triangle-alert', titulo: 'El enlace de Google ha caducado', texto: 'La autorización solo vale unos minutos y una sola vez. Si recargas la página de vuelta o abres un enlace antiguo deja de servir. Empieza de nuevo desde aquí.', reintentar: true },
+  cancelado: { tone: 'info', icon: 'info', titulo: 'Conexión con Google cancelada', texto: 'No se ha dado permiso en Google, así que Gmail no se ha conectado. Puedes intentarlo otra vez cuando quieras.', reintentar: true },
+  error: { tone: 'danger', icon: 'triangle-alert', titulo: 'No se pudo conectar Gmail', texto: 'Google no ha completado la autorización. Vuelve a intentarlo; si se repite, avisa al equipo técnico.', reintentar: true },
+};
+
 type Vista = 'competiciones' | 'integraciones' | 'salud' | 'peligro';
 const ORDEN: Integracion['tipo'][] = ['gmail', 'stripe', 'whatsapp', 'aep', 'bunny'];
 const WA: Record<string, { l: string; tone: GrTone }> = {
@@ -64,6 +73,15 @@ const STRIPE: Record<StripeConnect['estado'], { l: string; punto: string }> = {
           @else if (error()) { <gr-error-state titulo="No se pudieron cargar las integraciones" texto="Comprueba la conexión y vuelve a intentarlo." (reintentar)="cargar()" /> }
           @else if (integs() === null) { <div class="grid gap-4 lg:grid-cols-2">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-[150px] rounded-lg" /> }</div> }
           @else {
+            @if (gmailAviso(); as a) {
+              <gr-alert [tone]="a.tone" [icon]="a.icon" [title]="a.titulo" data-aviso="gmail">
+                <p>{{ a.texto }}</p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                  @if (a.reintentar && puede()) { <button grButton size="s" variant="primary" [loading]="conectandoGmail()" (click)="conectarGmail()">Reintentar conexión con Google</button> }
+                  <button grButton size="s" variant="ghost" (click)="gmailAviso.set(null)">Entendido</button>
+                </div>
+              </gr-alert>
+            }
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
               @for (x of integs(); track x.tipo) {
                 <section class="flex flex-col gap-5 rounded-lg border border-line-subtle bg-bg-card p-6" [attr.data-integ]="x.tipo">
@@ -291,7 +309,7 @@ export class SistemaPage {
     const gmail = this.route.snapshot.queryParamMap.get('gmail');
     if (gmail) {
       if (gmail === 'ok') this.toasts.success('Gmail conectado', 'Los emails de la competición se envían desde esta cuenta.');
-      else if (gmail === 'error') this.toasts.error('No se pudo conectar Gmail', 'Google no devolvió la autorización. Vuelve a intentarlo.');
+      else this.gmailAviso.set(GMAIL_AVISO[gmail] ?? GMAIL_AVISO['error']);
       void this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
     }
     // Back from Stripe's onboarding: «volver» (finished or left), «refrescar» (the link expired: open a new one).
@@ -463,6 +481,7 @@ export class SistemaPage {
     this.cfgOpen.set(true);
   }
   protected readonly conectandoGmail = signal(false);
+  protected readonly gmailAviso = signal<GmailAviso | null>(null);
   protected async conectarGmail(): Promise<void> {
     this.conectandoGmail.set(true);
     try {
