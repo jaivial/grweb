@@ -160,7 +160,7 @@ export const routes: Routes = [
       { path: 'contactos/:id', loadComponent: () => import('./pages/contactos/contactos').then((m) => m.ContactoFichaPage), title: 'Contacto · Backoffice GR Cup' },
       { path: 'emails', loadComponent: () => import('./pages/emails/emails').then((m) => m.EmailsPage), data: { tab: 'plantillas' }, title: 'Emails y avisos · Backoffice GR Cup' },
       // The WhatsApp template designer was merged into the campaign editor (email + WhatsApp in one place).
-      { path: 'emails/whatsapp', redirectTo: 'emails?tab=campanas' },
+      { path: 'emails/whatsapp', pathMatch: 'full', canActivate: [aPestana('emails', { tab: 'campanas' })], children: [] },
       { path: 'emails/salida', loadComponent: () => import('./pages/emails/emails').then((m) => m.EmailsPage), data: { tab: 'salida' }, title: 'Bandeja de salida · Backoffice GR Cup' },
       { path: 'emails/automatizaciones', loadComponent: () => import('./pages/emails/emails').then((m) => m.EmailsPage), data: { tab: 'automatizaciones' }, title: 'Automatizaciones · Backoffice GR Cup' },
       { path: 'emails/plantillas/:clave', loadComponent: () => import('./pages/emails/editor').then((m) => m.PlantillaEditorPage), title: 'Plantilla · Backoffice GR Cup' },
