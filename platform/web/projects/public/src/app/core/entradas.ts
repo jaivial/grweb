@@ -1,8 +1,9 @@
+import { errorEn } from './errores';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG, FalloApi } from './competition';
-import type { Lang } from './i18n';
+import { idiomaActual, type Lang } from './i18n';
 
 export type EstadoSesion = 'disponible' | 'ultimas' | 'agotada' | 'cerrada' | 'proximamente';
 export interface SesionPub {
@@ -50,11 +51,11 @@ export class EntradasPublic {
   ics(t: string): string { return `/api/mi-entrada/calendario.ics?t=${encodeURIComponent(t)}`; }
 }
 
-export function errorDe(e: unknown, def?: string, lang: Lang = 'es'): { code: string; detail: string } {
+export function errorDe(e: unknown, def?: string, lang: Lang = idiomaActual()): { code: string; detail: string } {
   def ??= lang === 'en' ? 'We could not complete it. Please try again in a few minutes.' : 'No hemos podido completarlo. Inténtalo en unos minutos.';
   if (e instanceof HttpErrorResponse) {
     const p = e.error as { code?: string; detail?: string; errors?: { location?: string; message?: string }[] } | null;
-    return { code: p?.code ?? String(e.status), detail: p?.detail ?? def };
+    return { code: p?.code ?? String(e.status), detail: (lang === 'en' ? errorEn(p?.code) : p?.detail) ?? def };
   }
   return { code: '', detail: def };
 }

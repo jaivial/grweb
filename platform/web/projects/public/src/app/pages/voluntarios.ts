@@ -1,3 +1,4 @@
+import { textoError } from '../core/errores';
 import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, PendingTasks, afterNextRender, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -280,7 +281,7 @@ export class VoluntariosPage {
       this.enviado.set(true);
       setTimeout(() => document.getElementById('apuntate')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     } catch (e) {
-      this.error.set((e as { error?: { detail?: string } }).error?.detail ?? this.t().reintenta);
+      this.error.set(textoError(e, this.t().reintenta));
     } finally {
       this.enviando.set(false);
     }

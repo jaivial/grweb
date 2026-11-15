@@ -1,8 +1,9 @@
+import { errorEn } from './errores';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG } from './competition';
-import type { Lang } from './i18n';
+import { idiomaActual, type Lang } from './i18n';
 
 export interface BajaInfo { destino: string; finalidad: string; texto: string; baja: boolean }
 
@@ -27,14 +28,14 @@ export class Novedades {
   }
 }
 
-export function mensajeError(e: unknown, def?: string, lang: Lang = 'es'): string {
+export function mensajeError(e: unknown, def?: string, lang: Lang = idiomaActual()): string {
   const en = lang === 'en';
   def ??= en ? 'We could not complete it. Please try again in a few minutes.' : 'No hemos podido completarlo. Inténtalo en unos minutos.';
   if (e instanceof HttpErrorResponse) {
     const b = e.error as { detail?: string; code?: string; errors?: { location?: string }[] } | null;
     // schema validation (code VALIDACION) carries Huma's English «validation failed»: never show it raw
     if (b?.code === 'VALIDACION') return b.errors?.some((x) => x.location === 'body.email') ? (en ? 'Enter a valid email.' : 'Escribe un email válido.') : en ? 'Check the form: some details are not valid.' : 'Revisa los datos del formulario: alguno no es válido.';
-    const d = b?.detail;
+    const d = en ? errorEn(b?.code) : b?.detail;
     if (e.status === 429) return d ?? (en ? 'Too many attempts in a row. Try again later.' : 'Demasiados intentos seguidos. Prueba más tarde.');
     if (e.status === 422 || e.status === 404) return d ?? def;
   }
