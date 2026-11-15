@@ -177,7 +177,7 @@ const T = {
     @if (open()) {
       <!-- Figma «Mobile menu v3»: logo, ES / EN and close; the four main links; the groups as an accordion (the first one
            open); the edition line and the booking button at the bottom -->
-      <div id="menu-movil" animate.enter="gr-hoja-in" animate.leave="gr-hoja-out" class="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bg-base pt-[max(12px,env(safe-area-inset-top))] pr-[max(20px,env(safe-area-inset-right))] pl-[max(20px,env(safe-area-inset-left))] md:hidden" role="dialog" aria-modal="true" (keydown.tab)="atrapar($event)" (keydown.shift.tab)="atrapar($event)" [attr.aria-label]="t().menu">
+      <div id="menu-movil" animate.enter="gr-hoja-in" animate.leave="gr-hoja-out" class="fixed inset-0 z-50 flex flex-col overflow-y-auto overscroll-contain bg-bg-base pt-[max(12px,env(safe-area-inset-top))] pr-[max(20px,env(safe-area-inset-right))] pl-[max(20px,env(safe-area-inset-left))] md:hidden" role="dialog" aria-modal="true" (keydown.tab)="atrapar($event)" (keydown.shift.tab)="atrapar($event)" [attr.aria-label]="t().menu">
         <div class="flex shrink-0 items-center justify-between pt-2 pb-4">
           <a [routerLink]="'/' | loc" (click)="open.set(false)" [attr.aria-label]="t().home" class="flex h-11 items-center"><img [src]="logo" alt="GRS Cup 2" class="h-[34px] w-[92px] object-contain" /></a>
           <div class="flex items-center gap-2">
@@ -283,9 +283,15 @@ export class Navbar {
       mq.addEventListener('change', onMq);
       inject(DestroyRef).onDestroy(() => mq.removeEventListener('change', onMq));
       let estaba = false;
+      let tapar: ReturnType<typeof setTimeout> | undefined;
       effect(() => {
         const abierto = this.open();
         document.body.style.overflow = abierto ? 'hidden' : '';
+        // iOS: the page behind the opaque menu (above all the hero's scroll video, blend and blur layers) kept being
+        // painted every frame and the menu stuttered; it is hidden once the menu has faded in, and shown at once on close.
+        clearTimeout(tapar);
+        if (abierto) tapar = setTimeout(() => document.documentElement.classList.add('gr-menu-abierto'), 300);
+        else document.documentElement.classList.remove('gr-menu-abierto');
         // R091: the menu opens with the group of the current route unfolded (e.g. /galeria → «El evento»), the rest folded.
         if (abierto) untracked(() => this.grupo.set(this.t().grupos.findIndex((g) => g.items.some((i) => this.activo(i.href)))));
         if (abierto) setTimeout(() => (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-cerrar-menu]')?.focus());
@@ -293,7 +299,7 @@ export class Navbar {
         estaba = abierto;
       });
       const sub = this.router.events.subscribe(() => { this.open.set(false); this.alNavegar(); });
-      inject(DestroyRef).onDestroy(() => { sub.unsubscribe(); document.body.style.overflow = ''; });
+      inject(DestroyRef).onDestroy(() => { sub.unsubscribe(); clearTimeout(tapar); document.body.style.overflow = ''; document.documentElement.classList.remove('gr-menu-abierto'); });
     }
   }
   /** Active link by the Spanish path (the same tree under /en). */

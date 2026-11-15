@@ -270,6 +270,12 @@ export class HeroTrophy {
       const url = window.innerWidth < 768 || conn?.saveData ? VIDEO_MOBILE : VIDEO_DESKTOP;
       void scrub.load(url);
       const loop = () => {
+        // under the open mobile menu (layout.ts) nothing is visible: no measuring nor seeking; jump on return
+        if (document.documentElement.classList.contains('gr-menu-abierto')) {
+          this.saltar = true;
+          this.raf = requestAnimationFrame(loop);
+          return;
+        }
         this.measure();
         if (this.saltar || Math.abs(this.progress - this.shown) > 0.25) this.shown = this.progress;
         else this.shown += (this.progress - this.shown) * 0.15; // smoothing (same as the previous web)
