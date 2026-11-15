@@ -10,28 +10,74 @@ import { Cms } from '../../core/cms';
 import { FanSession } from '../../core/fan';
 import { JuegosEnVivo, JuegosEstado, PorraStore } from '../../core/juegos';
 import { monedas } from './formato';
+import { I18n, LocPipe } from '../../core/i18n';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
 import { CoinBalance, LeaderboardRow, PorraCabecera, Podio, type PlazaPodio } from './componentes';
 
+const T = {
+  es: {
+    titulo: 'Clasificación',
+    desc: 'Saldo de porra al cierre de cada apuesta. Premios en monedas al liquidar la jornada; en caso de empate gana quien llegó antes a ese saldo.',
+    bote: 'Bote de la porra',
+    primero: '1.er puesto',
+    enJuego: 'monedas en juego',
+    patrocina: 'Patrocina',
+    sinPremios: 'Todavía no hay premios publicados para esta jornada.',
+    podioLibre: 'El podio está libre',
+    podioLibreTxt: 'En cuanto alguien apueste, aquí verás el ranking en vivo. La primera apuesta puede ser la tuya.',
+    irMercados: 'Ir a los mercados',
+    puesto: 'Puesto',
+    usuarioSaldo: 'Usuario y saldo de porra',
+    desde4: 'Clasificación desde el 4.º puesto',
+    puestos: (a: number, b: string) => `· · · puestos ${a} a ${b} · · ·`,
+    premios: (l: string) => `Premios: ${l} (monedas). El resto del bote se reparte entre los acertantes de cada mercado.`,
+    porra: 'Porra',
+    seoTitulo: 'Clasificación de la porra · GR Strength Cup',
+    seoDesc: 'Ranking de la porra de la jornada: saldo de monedas virtuales, premios y tu puesto.',
+    tuPuesto: 'Tu puesto',
+  },
+  en: {
+    titulo: 'Leaderboard',
+    desc: 'Pool balance at the close of each bet. Prizes in coins when the day is settled; in a tie, whoever reached that balance first wins.',
+    bote: 'Betting pool jackpot',
+    primero: '1st place',
+    enJuego: 'coins at stake',
+    patrocina: 'Sponsored by',
+    sinPremios: 'No prizes have been published for this day yet.',
+    podioLibre: 'The podium is up for grabs',
+    podioLibreTxt: 'As soon as someone bets, you will see the live ranking here. The first bet could be yours.',
+    irMercados: 'Go to the markets',
+    puesto: 'Place',
+    usuarioSaldo: 'User and pool balance',
+    desde4: 'Leaderboard from 4th place',
+    puestos: (a: number, b: string) => `· · · places ${a} to ${b} · · ·`,
+    premios: (l: string) => `Prizes: ${l} (coins). The rest of the pot is shared among the winners of each market.`,
+    porra: 'Pool',
+    seoTitulo: 'Betting pool leaderboard · GR Strength Cup',
+    seoDesc: "The day's betting pool ranking: virtual coin balance, prizes and your place.",
+    tuPuesto: 'Your place',
+  },
+};
+
 @Component({
   selector: 'gr-porra-clasificacion-page',
-  imports: [RouterLink, Page, GrButton, GrIcon, GrSkeleton, CoinBalance, LeaderboardRow, PorraCabecera, Podio],
+  imports: [RouterLink, LocPipe, Page, GrButton, GrIcon, GrSkeleton, CoinBalance, LeaderboardRow, PorraCabecera, Podio],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="Clasificación" [juego]="true">
-      <gr-porra-cabecera [titulo]="'Clasificación ' + jornadaTxt()" crumb="Clasificación" activa="clasificacion" [descMovil]="true"
-        descripcion="Saldo de porra al cierre de cada apuesta. Premios en monedas al liquidar la jornada; en caso de empate gana quien llegó antes a ese saldo.">
-        <section aside class="flex w-[340px] flex-col gap-2 rounded-lg border border-accent/45 bg-bg-card p-4 shadow-glow-deep" aria-label="Bote de la porra">
-          <p class="flex items-center gap-2 text-mono-xs text-accent-text"><gr-icon name="trophy" [size]="14" />1.er puesto</p>
-          <p class="text-ui-h5 text-text-primary">Bote de la porra {{ jornadaNombre() }}</p>
-          <p class="flex items-baseline gap-1.5"><span class="font-mono text-[1.375rem] font-bold text-text-primary tabular-nums">{{ monedas(bote()) }}</span><span class="text-body-xs text-text-tertiary">monedas en juego</span></p>
+    <gr-page [title]="t().titulo" [juego]="true">
+      <gr-porra-cabecera [titulo]="t().titulo + ' ' + jornadaTxt()" [crumb]="t().titulo" activa="clasificacion" [descMovil]="true"
+        [descripcion]="t().desc">
+        <section aside class="flex w-[340px] flex-col gap-2 rounded-lg border border-accent/45 bg-bg-card p-4 shadow-glow-deep" [attr.aria-label]="t().bote">
+          <p class="flex items-center gap-2 text-mono-xs text-accent-text"><gr-icon name="trophy" [size]="14" />{{ t().primero }}</p>
+          <p class="text-ui-h5 text-text-primary">{{ t().bote }} {{ jornadaNombre() }}</p>
+          <p class="flex items-baseline gap-1.5"><span class="font-mono text-[1.375rem] font-bold text-text-primary tabular-nums">{{ monedas(bote()) }}</span><span class="text-body-xs text-text-tertiary">{{ t().enJuego }}</span></p>
           @if (premios()[0]; as p) {
             <p class="text-body-xs text-text-secondary">{{ p.titulo }}@if (p.valorTexto) { · <span class="font-mono text-accent-text">{{ p.valorTexto }}</span> }</p>
-            @if (p.patrocinador) { <p class="text-mono-xs text-text-tertiary">Patrocina · {{ p.patrocinador }}</p> }
+            @if (p.patrocinador) { <p class="text-mono-xs text-text-tertiary">{{ t().patrocina }} · {{ p.patrocinador }}</p> }
           } @else {
-            <p class="text-body-xs text-text-tertiary">Todavía no hay premios publicados para esta jornada.</p>
+            <p class="text-body-xs text-text-tertiary">{{ t().sinPremios }}</p>
           }
         </section>
       </gr-porra-cabecera>
@@ -47,20 +93,20 @@ import { CoinBalance, LeaderboardRow, PorraCabecera, Podio, type PlazaPodio } fr
           } @else if (!filas().length) {
             <div class="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line-strong bg-bg-card/40 px-6 py-14 text-center">
               <span class="flex size-14 items-center justify-center rounded-full border border-accent/50 bg-accent-deep/40 text-accent-text shadow-glow-deep"><gr-icon name="trophy" [size]="24" /></span>
-              <p class="text-display-xs">El podio está libre</p>
-              <p class="max-w-md text-body-s text-text-tertiary">En cuanto alguien apueste, aquí verás el ranking en vivo. La primera apuesta puede ser la tuya.</p>
-              <a grButton variant="primary" routerLink="/porra" iconRight="arrow-right">Ir a los mercados</a>
+              <p class="text-display-xs">{{ t().podioLibre }}</p>
+              <p class="max-w-md text-body-s text-text-tertiary">{{ t().podioLibreTxt }}</p>
+              <a grButton variant="primary" [routerLink]="'/porra' | loc" iconRight="arrow-right">{{ t().irMercados }}</a>
             </div>
           } @else {
-            <p class="flex justify-between px-4 text-label-xs text-text-tertiary" aria-hidden="true"><span>Puesto</span><span>Usuario y saldo de porra</span></p>
+            <p class="flex justify-between px-4 text-label-xs text-text-tertiary" aria-hidden="true"><span>{{ t().puesto }}</span><span>{{ t().usuarioSaldo }}</span></p>
             <gr-podio class="mt-3 mb-2" [plazas]="podio()" />
-            <ol class="flex flex-col gap-2" aria-label="Clasificación desde el 4.º puesto">
+            <ol class="flex flex-col gap-2" [attr.aria-label]="t().desde4">
               @for (f of resto(); track f.puesto) {
                 <li><gr-leaderboard-row [fila]="f" [nota]="nota(f)" [yo]="f.puesto === miPuesto()" /></li>
               }
             </ol>
             @if (hayMas()) {
-              <p class="my-3 text-center font-mono text-[0.6875rem] text-text-secondary uppercase">· · · puestos {{ visibles().length + 1 }} a {{ monedas(miPuesto() - 1) }} · · ·</p>
+              <p class="my-3 text-center font-mono text-[0.6875rem] text-text-secondary uppercase">{{ t().puestos(visibles().length + 1, monedas(miPuesto() - 1)) }}</p>
             }
             @if (miFilaFuera(); as m) {
               <div class="mt-2">
@@ -82,6 +128,8 @@ export class PorraClasificacionPage {
   private readonly vivo = inject(JuegosEnVivo);
   protected readonly estado = inject(JuegosEstado);
   protected readonly fan = inject(FanSession);
+  private readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(T);
 
   protected readonly visibles = computed(() => this.store.clas()?.top.slice(0, 7) ?? []);
   protected readonly miPuesto = computed(() => this.store.clas()?.miPuesto ?? 0);
@@ -100,7 +148,7 @@ export class PorraClasificacionPage {
   protected readonly podio = computed<PlazaPodio[]>(() =>
     this.filas()
       .filter((f) => f.puesto <= 3)
-      .map((f) => ({ puesto: f.puesto, alias: f.alias, valor: monedas(f.saldo), yo: f.puesto === this.miPuesto() })),
+      .map((f) => ({ puesto: f.puesto, alias: f.alias, valor: this.monedas(f.saldo), yo: f.puesto === this.miPuesto() })),
   );
   /** Del 4.º en adelante (los visibles). */
   protected readonly resto = computed(() => this.filas().filter((f) => f.puesto > 3));
@@ -110,7 +158,7 @@ export class PorraClasificacionPage {
     return m && m.puesto > this.visibles().length ? m : null;
   });
   protected readonly saldo = computed(() => this.estado.saldoPorra());
-  protected readonly monedas = monedas;
+  protected readonly monedas = (v: number | null | undefined) => monedas(v, this.i18n.locale());
   /** El bote total de la jornada (suma de los botes de sus mercados). */
   protected readonly bote = computed(() => this.store.mercados().reduce((s, m) => s + m.bote, 0));
   protected readonly jornadaNombre = computed(() => (this.store.jornada() ?? this.estado.jornada())?.nombre.replace(/\s*\(.*\)$/, '') ?? '');
@@ -120,11 +168,11 @@ export class PorraClasificacionPage {
     const l = this.premios();
     if (!l.length) return '';
     const lista = l.map((p) => p.valorTexto || p.titulo).join(' · ');
-    return `Premios: ${lista} (monedas). El resto del bote se reparte entre los acertantes de cada mercado.`;
+    return this.t().premios(lista);
   });
   protected readonly jornadaTxt = computed(() => {
     const j = this.store.jornada() ?? this.estado.jornada();
-    return j ? '· Porra ' + j.nombre.replace(/\s*\(.*\)$/, '') : '· Porra';
+    return j ? '· ' + this.t().porra + ' ' + j.nombre.replace(/\s*\(.*\)$/, '') : '· ' + this.t().porra;
   });
 
   constructor() {
@@ -134,7 +182,7 @@ export class PorraClasificacionPage {
       await this.estado.cargar();
       await this.store.cargar();
       await this.store.cargarClasificacion();
-      await applySeo(cms, seo, '/porra/clasificacion', 'Clasificación de la porra · GR Strength Cup', 'Ranking de la porra de la jornada: saldo de monedas virtuales, premios y tu puesto.');
+      await applySeo(cms, seo, '/porra/clasificacion', this.t().seoTitulo, this.t().seoDesc);
     });
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       this.vivo.conectar();
@@ -156,6 +204,6 @@ export class PorraClasificacionPage {
    * da, así que solo la fila del usuario lleva su mensaje.
    */
   protected nota(f: { puesto: number; alias: string; saldo: number }): string {
-    return f.puesto === this.miPuesto() ? 'Tu puesto' : '';
+    return f.puesto === this.miPuesto() ? this.t().tuPuesto : '';
   }
 }

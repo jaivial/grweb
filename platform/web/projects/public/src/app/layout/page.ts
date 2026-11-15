@@ -2,7 +2,21 @@ import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { GrAlert, GrIcon } from '@grcup/ui';
 import { Cms } from '../core/cms';
-import { Footer, Navbar, type Lang } from './layout';
+import { I18n, LocPipe } from '../core/i18n';
+import { Footer, Navbar } from './layout';
+
+const T = {
+  es: {
+    migas: 'Migas', inicio: 'Inicio',
+    limitadoTitulo: 'Demasiadas visitas desde tu red', limitado: 'Hemos recibido muchas peticiones desde tu conexión. Espera un minuto y vuelve a cargar la página.',
+    falloTitulo: 'No hemos podido cargar el contenido', fallo: 'Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.',
+  },
+  en: {
+    migas: 'Breadcrumbs', inicio: 'Home',
+    limitadoTitulo: 'Too many visits from your network', limitado: 'We have received a lot of requests from your connection. Wait a minute and reload the page.',
+    falloTitulo: 'We could not load the content', fallo: 'We are having a temporary problem. Please try again in a few minutes.',
+  },
+};
 
 /**
  * Standard inner page (Figma pages 11–34): navbar, header with breadcrumbs / eyebrow / title with accent, content, footer.
@@ -11,10 +25,10 @@ import { Footer, Navbar, type Lang } from './layout';
  */
 @Component({
   selector: 'gr-page',
-  imports: [RouterLink, Navbar, Footer, GrIcon, GrAlert],
+  imports: [RouterLink, LocPipe, Navbar, Footer, GrIcon, GrAlert],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-navbar [lang]="lang()" />
+    <gr-navbar />
     <!-- overflow-x-clip: the header glow must not widen the page on phones (clip keeps «sticky» working) -->
     <main class="relative overflow-x-clip">
       <!-- Figma «Cabecera» (SEO pages): 640 px glow at the top right (360 on mobile; none at 200 % zoom, UX6-R1-12) -->
@@ -36,8 +50,8 @@ import { Footer, Navbar, type Lang } from './layout';
              «Meta» row (updated stamp / pageStamps badges) is gone. -->
         @if (cabecera() && !centrado() && !juego()) {
           <header class="max-w-[900px] flex-col gap-4 md:flex md:gap-6" [class.flex]="cabeceraMovil()" [class.hidden]="!cabeceraMovil()">
-            <nav class="flex-wrap items-center gap-1.5 text-body-s text-text-tertiary md:flex" [class.flex]="migasMovil()" [class.hidden]="!migasMovil()" aria-label="Migas">
-              <a routerLink="/" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">Inicio</a>
+            <nav class="flex-wrap items-center gap-1.5 text-body-s text-text-tertiary md:flex" [class.flex]="migasMovil()" [class.hidden]="!migasMovil()" [attr.aria-label]="t().migas">
+              <a [routerLink]="'/' | loc" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">{{ t().inicio }}</a>
               @if (section()) { <gr-icon name="chevron-right" [size]="14" /><span>{{ section() }}</span> }
               <gr-icon name="chevron-right" [size]="14" /><span class="text-text-secondary">{{ crumb() || (title() + (accent() ? ' ' + accent() : '')) }}</span>
             </nav>
@@ -50,18 +64,19 @@ import { Footer, Navbar, type Lang } from './layout';
           </header>
         }
         @if (!centrado() && cms.limitado()) {
-          <gr-alert class="mt-10 md:mt-16" tone="warning" title="Demasiadas visitas desde tu red">Hemos recibido muchas peticiones desde tu conexión. Espera un minuto y vuelve a cargar la página.</gr-alert>
+          <gr-alert class="mt-10 md:mt-16" tone="warning" [title]="t().limitadoTitulo">{{ t().limitado }}</gr-alert>
         } @else if (!centrado() && cms.failed()) {
-          <gr-alert class="mt-10 md:mt-16" tone="warning" title="No hemos podido cargar el contenido">Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.</gr-alert>
+          <gr-alert class="mt-10 md:mt-16" tone="warning" [title]="t().falloTitulo">{{ t().fallo }}</gr-alert>
         }
         <div [class]="centrado() || juego() ? 'contents' : cabecera() ? (separacion() || 'mt-10 block md:mt-16') : 'block'"><ng-content /></div>
       </div>
     </main>
-    <gr-footer [lang]="lang()" />
+    <gr-footer />
   `,
 })
 export class Page {
   protected readonly cms = inject(Cms);
+  protected readonly t = inject(I18n).dict(T);
   readonly title = input.required<string>();
   readonly accent = input('');
   /** Keep the h1 for SEO / screen readers but hide it (the page shows the name in its own hero). */
@@ -77,7 +92,6 @@ export class Page {
   readonly crumb = input('');
   /** Middle breadcrumb (e.g. «Visita», «Comunidad»). */
   readonly section = input('');
-  readonly lang = input<Lang>('es');
   /** Ignored since the «Cabecera de página» redesign (no updated stamp in the header); kept so pages still compile. */
   readonly stamp = input('');
   readonly centrado = input(false);

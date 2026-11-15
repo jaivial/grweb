@@ -13,6 +13,7 @@ import { map } from 'rxjs';
 import { Cms } from '../../core/cms';
 import { FanSession, codigoError } from '../../core/fan';
 import { Juegos, JuegosEnVivo, JuegosEstado, PorraStore, type Jornada, type Mercado, type Sexo, mensajeError } from '../../core/juegos';
+import { I18n, LocPipe } from '../../core/i18n';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
@@ -27,57 +28,156 @@ const norm = (s: string): string => s.normalize('NFD').replace(/[\u0300-\u036f]/
 /** El peso de la categoría como número para ordenar («-63» → 63, «84+» → 84.5). */
 const peso = (c: string | undefined): number => (c ? parseFloat(c.replace('-', '')) + (c.endsWith('+') ? 0.5 : 0) : 999);
 /** «Sáb 19» a partir de la fecha ISO del día. */
-export function diaCorto(dia: string): string {
+export function diaCorto(dia: string, locale = 'es-ES'): string {
   if (!dia) return '';
-  const d = new Intl.DateTimeFormat('es-ES', { weekday: 'short', timeZone: 'UTC' }).format(new Date(dia + 'T12:00:00Z')).replace('.', '');
+  const d = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(new Date(dia + 'T12:00:00Z')).replace('.', '');
   return d.charAt(0).toUpperCase() + d.slice(1) + ' ' + Number(dia.slice(8, 10));
 }
 
 const VISIBLES = 5;
 const TOP = 10;
 
+const T = {
+  es: {
+    porra: 'Porra',
+    migas: 'Migas',
+    inicio: 'Inicio',
+    juegos: 'Juegos',
+    enVivo: 'En vivo',
+    hacer: 'Hacer porra',
+    masculino: 'Masculino',
+    femenino: 'Femenino',
+    errorCarga: 'No hemos podido cargar la porra',
+    jornada: 'Jornada',
+    busca: 'Busca un atleta por nombre',
+    categorias: 'Categorías',
+    nCategorias: (n: number) => `${n} ${n === 1 ? 'categoría' : 'categorías'}`,
+    nAtletas: (n: number) => `${n} atletas`,
+    resuelta: 'resuelta',
+    cerrada: 'cerrada',
+    bote: 'bote',
+    catCerrada: 'Categoría cerrada: ya no se puede hacer porra',
+    buscarEn: 'Buscar en',
+    cambiar: 'Cambiar',
+    cuantas: '¿Cuántas monedas?',
+    importe: 'Importe',
+    menos: 'Menos monedas',
+    mas: 'Más monedas',
+    monedas: ' monedas',
+    sinSaldo: (n: string) => `No tienes monedas suficientes: tu saldo es ${n}. Gana más escribiendo en el chat del directo.`,
+    saldoTras: (n: string) => `Saldo tras la porra: ${n} monedas · puedes sumar más mientras la categoría siga abierta.`,
+    enviando: 'Enviando…',
+    confirmar: (n: string) => 'Confirmar porra · ' + n,
+    tuPorra: 'Tu porra',
+    elegir: 'Elegir',
+    ninguno: (q: string) => `Ningún atleta coincide con «${q}».`,
+    verLos: (n: number) => `Ver los ${n} atletas`,
+    sinResultados: (q: string) => `Sin resultados para «${q}»`,
+    revisa: 'Revisa el nombre o busca por apellido.',
+    borrar: 'Borrar búsqueda',
+    pronto: 'Las categorías de esta jornada aparecerán aquí cuando se publiquen.',
+    sexo: 'Sexo',
+    masApostados: 'Más apostados · todas las categorías',
+    porrasEnJuego: (p: string, b: string) => [p + ' porras · ', b + ' monedas en juego'] as const,
+    sinAtletas: (f: boolean) => `Todavía no hay atletas ${f ? 'femeninas' : 'masculinos'} en la porra de esta jornada.`,
+    aviso: 'Monedas de juego: nunca se compran con dinero ni se canjean por dinero.',
+    todo: 'Todo',
+    hecha: (n: string, a: string) => `Porra hecha: ${n} monedas a ${a}.`,
+    seoTitulo: 'Porra · GRS Cup',
+    seoDesc: 'Haz tu porra con monedas de juego en la GRS Cup: elige atleta en cada categoría y sigue en vivo a los más apostados.',
+  },
+  en: {
+    porra: 'Pool',
+    migas: 'Breadcrumbs',
+    inicio: 'Home',
+    juegos: 'Games',
+    enVivo: 'Live',
+    hacer: 'Make a pick',
+    masculino: 'Men',
+    femenino: 'Women',
+    errorCarga: "We couldn't load the betting pool",
+    jornada: 'Day',
+    busca: 'Search for an athlete by name',
+    categorias: 'Categories',
+    nCategorias: (n: number) => `${n} ${n === 1 ? 'category' : 'categories'}`,
+    nAtletas: (n: number) => `${n} athletes`,
+    resuelta: 'settled',
+    cerrada: 'closed',
+    bote: 'pot',
+    catCerrada: 'Category closed: picks can no longer be made',
+    buscarEn: 'Search in',
+    cambiar: 'Change',
+    cuantas: 'How many coins?',
+    importe: 'Amount',
+    menos: 'Fewer coins',
+    mas: 'More coins',
+    monedas: ' coins',
+    sinSaldo: (n: string) => `You don't have enough coins: your balance is ${n}. Earn more by writing in the live stream chat.`,
+    saldoTras: (n: string) => `Balance after your pick: ${n} coins · you can add more while the category stays open.`,
+    enviando: 'Sending…',
+    confirmar: (n: string) => 'Confirm pick · ' + n,
+    tuPorra: 'Your pick',
+    elegir: 'Choose',
+    ninguno: (q: string) => `No athlete matches “${q}”.`,
+    verLos: (n: number) => `See all ${n} athletes`,
+    sinResultados: (q: string) => `No results for “${q}”`,
+    revisa: 'Check the name or search by surname.',
+    borrar: 'Clear search',
+    pronto: "This day's categories will appear here once they are published.",
+    sexo: 'Sex',
+    masApostados: 'Most backed · all categories',
+    porrasEnJuego: (p: string, b: string) => [p + ' picks · ', b + ' coins at stake'] as const,
+    sinAtletas: (f: boolean) => `There are no ${f ? 'women' : 'men'} athletes in this day's pool yet.`,
+    aviso: 'Game coins: they are never bought with money or exchanged for money.',
+    todo: 'All',
+    hecha: (n: string, a: string) => `Pick made: ${n} coins on ${a}.`,
+    seoTitulo: 'Betting pool · GRS Cup',
+    seoDesc: 'Make your pick with game coins at the GRS Cup: choose an athlete in each category and follow the most backed ones live.',
+  },
+};
+
 @Component({
   selector: 'gr-porra-page',
-  imports: [Page, GrAlert, GrIcon, GrSkeleton, CoinBalance, RankingPorra],
+  imports: [LocPipe, Page, GrAlert, GrIcon, GrSkeleton, CoinBalance, RankingPorra],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="Porra" [juego]="true">
+    <gr-page [title]="t().porra" [juego]="true">
       <div class="mx-auto flex w-full max-w-[640px] flex-col gap-5">
         <!-- cabecera: migas, título y saldo -->
         <div class="flex flex-col gap-2">
-          <nav class="text-body-xs text-text-tertiary" aria-label="Migas">
-            <a href="/" class="hover:text-text-primary">Inicio</a> · Juegos · Porra@if (vista() === 'en-vivo') { · En vivo }
+          <nav class="text-body-xs text-text-tertiary" [attr.aria-label]="t().migas">
+            <a [href]="'/' | loc" class="hover:text-text-primary">{{ t().inicio }}</a> · {{ t().juegos }} · {{ t().porra }}@if (vista() === 'en-vivo') { · {{ t().enVivo }} }
           </nav>
           <div class="flex items-center justify-between gap-3">
-            <h1 class="bg-[linear-gradient(180deg,#ff5a6e,#c8102e)] bg-clip-text pr-1.5 font-display text-[2rem] leading-none text-transparent uppercase italic">Porra</h1>
+            <h1 class="bg-[linear-gradient(180deg,#ff5a6e,#c8102e)] bg-clip-text pr-1.5 font-display text-[2rem] leading-none text-transparent uppercase italic">{{ t().porra }}</h1>
             <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" [etiquetaMovil]="false" />
           </div>
         </div>
 
         <!-- pestañas Hacer porra / En vivo -->
-        <div class="flex border-b border-line-subtle" role="tablist" aria-label="Porra">
-          @for (t of pestanas; track t.v) {
+        <div class="flex border-b border-line-subtle" role="tablist" [attr.aria-label]="t().porra">
+          @for (p of pestanas(); track p.v) {
             <button type="button" role="tab" class="-mb-px h-11 flex-1 border-b-2 text-label-s transition-colors motion-reduce:transition-none"
-              [class]="vista() === t.v ? 'border-accent text-text-primary' : 'border-transparent text-text-tertiary hover:text-text-primary'"
-              [attr.aria-selected]="vista() === t.v" (click)="irA(t.v)">{{ t.l }}</button>
+              [class]="vista() === p.v ? 'border-accent text-text-primary' : 'border-transparent text-text-tertiary hover:text-text-primary'"
+              [attr.aria-selected]="vista() === p.v" (click)="irA(p.v)">{{ p.l }}</button>
           }
         </div>
 
         @if (store.cargando()) {
           <div class="flex flex-col gap-3" aria-busy="true">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-16 rounded-md" /> }</div>
         } @else if (store.error(); as e) {
-          <gr-alert tone="warning" title="No hemos podido cargar la porra">{{ e }}</gr-alert>
+          <gr-alert tone="warning" [title]="t().errorCarga">{{ e }}</gr-alert>
         } @else if (vista() === 'hacer') {
           <!-- jornada -->
           @if (jornadas().length) {
             <div class="flex flex-col gap-2">
-              <p class="font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">Jornada</p>
-              <div class="flex flex-wrap gap-2" role="group" aria-label="Jornada">
+              <p class="font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">{{ t().jornada }}</p>
+              <div class="flex flex-wrap gap-2" role="group" [attr.aria-label]="t().jornada">
                 @for (j of jornadas(); track j.id) {
                   <button type="button" class="flex min-h-11 flex-col items-start justify-center rounded-md border px-3 py-1.5 text-left transition-colors"
                     [class]="j.id === jornadaActiva()?.id ? 'border-accent bg-accent/16' : 'border-line-subtle bg-bg-field hover:border-line-strong'"
                     [attr.aria-pressed]="j.id === jornadaActiva()?.id" (click)="elegirJornada(j.id)">
-                    <span class="text-label-s text-text-primary">{{ diaCorto(j.dia) || j.nombre }}</span>
+                    <span class="text-label-s text-text-primary">{{ diaCorto(j.dia, i18n.locale()) || j.nombre }}</span>
                     <span class="text-[11px] leading-[1.3] text-text-tertiary">{{ nombreJornada(j) }}</span>
                   </button>
                 }
@@ -87,15 +187,15 @@ const TOP = 10;
 
           <!-- buscador global -->
           <label class="relative block">
-            <span class="sr-only">Busca un atleta por nombre</span>
+            <span class="sr-only">{{ t().busca }}</span>
             <gr-icon name="search" [size]="18" class="pointer-events-none absolute top-3.5 left-3.5 text-text-tertiary" />
             <input type="search" class="h-12 w-full rounded-md border border-line-subtle bg-bg-field pr-4 pl-11 text-body-s text-text-primary outline-none placeholder:text-text-muted focus-visible:border-accent-text"
-              placeholder="Busca un atleta por nombre" autocomplete="off" [value]="q()" (input)="q.set($any($event.target).value)" />
+              [placeholder]="t().busca" autocomplete="off" [value]="q()" (input)="q.set($any($event.target).value)" />
           </label>
 
           <div class="flex flex-col">
             <p class="flex items-center justify-between gap-2 pb-2 font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">
-              <span>Categorías@if (jornadaActiva(); as j) { · {{ diaCorto(j.dia) }} }</span><span>{{ categorias().length }} {{ categorias().length === 1 ? 'categoría' : 'categorías' }}</span>
+              <span>{{ t().categorias }}@if (jornadaActiva(); as j) { · {{ diaCorto(j.dia, i18n.locale()) }} }</span><span>{{ t().nCategorias(categorias().length) }}</span>
             </p>
             @for (m of categoriasVisibles(); track m.id) {
               @let cerrada = cerradaM(m);
@@ -105,20 +205,20 @@ const TOP = 10;
                   [attr.aria-controls]="'cat-' + m.id" (click)="alternar(m)">
                   <span class="min-w-0 flex-1">
                     <span class="block text-label-m" [class]="cerrada ? 'text-text-tertiary' : 'text-text-primary'">{{ etiqueta(m) }}</span>
-                    <span class="block text-body-xs text-text-tertiary">{{ m.opciones.length }} atletas · {{ cerrada ? (m.estado === 'liquidado' ? 'resuelta' : 'cerrada') : 'bote ' + monedas(m.bote) }}</span>
+                    <span class="block text-body-xs text-text-tertiary">{{ t().nAtletas(m.opciones.length) }} · {{ cerrada ? (m.estado === 'liquidado' ? t().resuelta : t().cerrada) : t().bote + ' ' + monedas(m.bote) }}</span>
                   </span>
                   @if (miImporteMercado(m.id); as t) { <span class="inline-flex shrink-0 items-center gap-1 font-mono text-[12px] text-warning"><span class="size-2 rounded-full bg-warning" aria-hidden="true"></span>{{ monedas(t) }}</span> }
-                  @if (cerrada) { <gr-icon name="lock" [size]="16" class="shrink-0 text-text-tertiary" /><span class="sr-only">Categoría cerrada: ya no se puede hacer porra</span> }
+                  @if (cerrada) { <gr-icon name="lock" [size]="16" class="shrink-0 text-text-tertiary" /><span class="sr-only">{{ t().catCerrada }}</span> }
                   @else { <gr-icon name="chevron-down" [size]="18" class="shrink-0 text-text-secondary transition-transform duration-[240ms] motion-reduce:transition-none" [class.rotate-180]="abierta" /> }
                 </button>
                 @if (abierta) {
                   <div [id]="'cat-' + m.id" class="flex flex-col gap-1 pb-4 motion-safe:animate-[gr-desplegar_240ms_ease-out]">
                     @if (!q()) {
                       <label class="relative mb-1 block">
-                        <span class="sr-only">Buscar en {{ etiqueta(m) }}</span>
+                        <span class="sr-only">{{ t().buscarEn }} {{ etiqueta(m) }}</span>
                         <gr-icon name="search" [size]="16" class="pointer-events-none absolute top-3 left-3 text-text-tertiary" />
                         <input type="search" class="h-10 w-full rounded-md border border-line-subtle bg-bg-field pr-3 pl-9 text-body-s text-text-primary outline-none placeholder:text-text-muted focus-visible:border-accent-text"
-                          [placeholder]="'Buscar en ' + kg(m.categoria)" autocomplete="off" [value]="qCat()[m.id] ?? ''" (input)="buscarEn(m.id, $any($event.target).value)" />
+                          [placeholder]="t().buscarEn + ' ' + kg(m.categoria)" autocomplete="off" [value]="qCat()[m.id] ?? ''" (input)="buscarEn(m.id, $any($event.target).value)" />
                       </label>
                     }
                     @let lista = atletas(m);
@@ -128,13 +228,13 @@ const TOP = 10;
                           <p class="flex items-center gap-2.5">
                             <gr-icon name="circle-check" [size]="18" class="shrink-0 text-accent-text" />
                             <span class="min-w-0 flex-1 truncate text-label-m text-text-primary">{{ o.nombre }}</span>
-                            <button type="button" class="-my-2 min-h-11 px-1 text-label-s text-text-secondary hover:text-text-primary" (click)="sel.set(null)">Cambiar</button>
+                            <button type="button" class="-my-2 min-h-11 px-1 text-label-s text-text-secondary hover:text-text-primary" (click)="sel.set(null)">{{ t().cambiar }}</button>
                           </p>
                           @if (exito(); as ok) {
                             <p class="flex items-center gap-2 rounded-sm bg-success/10 px-3 py-2.5 text-body-s text-success" role="status"><gr-icon name="circle-check" [size]="16" class="shrink-0" />{{ ok }}</p>
                           } @else {
-                            <p class="font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">¿Cuántas monedas?</p>
-                            <div class="grid grid-cols-5 gap-1.5" role="group" aria-label="Importe">
+                            <p class="font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">{{ t().cuantas }}</p>
+                            <div class="grid grid-cols-5 gap-1.5" role="group" [attr.aria-label]="t().importe">
                               @for (c of chips(); track c.l) {
                                 <button type="button" class="h-11 rounded-pill border font-mono text-[12px] transition-colors"
                                   [class]="importe() === c.v ? 'border-accent bg-accent text-white' : 'border-line-subtle bg-bg-field text-text-secondary hover:text-text-primary'"
@@ -142,18 +242,18 @@ const TOP = 10;
                               }
                             </div>
                             <div class="flex items-center justify-between gap-3">
-                              <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong text-text-primary disabled:opacity-40" aria-label="Menos monedas" [disabled]="importe() <= minimo()" (click)="paso(-1)"><gr-icon name="minus" [size]="18" /></button>
-                              <p class="flex items-center gap-2 font-display text-[1.75rem] leading-none text-text-primary tabular-nums italic" aria-live="polite"><span class="size-4 rounded-full bg-warning" aria-hidden="true"></span>{{ monedas(importe()) }}<span class="sr-only"> monedas</span></p>
-                              <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong text-text-primary disabled:opacity-40" aria-label="Más monedas" [disabled]="importe() >= maximo()" (click)="paso(1)"><gr-icon name="plus" [size]="18" /></button>
+                              <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong text-text-primary disabled:opacity-40" [attr.aria-label]="t().menos" [disabled]="importe() <= minimo()" (click)="paso(-1)"><gr-icon name="minus" [size]="18" /></button>
+                              <p class="flex items-center gap-2 font-display text-[1.75rem] leading-none text-text-primary tabular-nums italic" aria-live="polite"><span class="size-4 rounded-full bg-warning" aria-hidden="true"></span>{{ monedas(importe()) }}<span class="sr-only">{{ t().monedas }}</span></p>
+                              <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong text-text-primary disabled:opacity-40" [attr.aria-label]="t().mas" [disabled]="importe() >= maximo()" (click)="paso(1)"><gr-icon name="plus" [size]="18" /></button>
                             </div>
                             @if (sinSaldo()) {
-                              <p class="text-body-xs text-accent-text" role="alert">No tienes monedas suficientes: tu saldo es {{ monedas(saldo()) }}. Gana más escribiendo en el chat del directo.</p>
+                              <p class="text-body-xs text-accent-text" role="alert">{{ t().sinSaldo(monedas(saldo())) }}</p>
                             } @else {
-                              <p class="text-body-xs text-text-tertiary">Saldo tras la porra: {{ monedas(saldo() - importe()) }} monedas · puedes sumar más mientras la categoría siga abierta.</p>
+                              <p class="text-body-xs text-text-tertiary">{{ t().saldoTras(monedas(saldo() - importe())) }}</p>
                             }
                             @if (errorPorra(); as e) { <p class="text-body-xs text-accent-text" role="alert">{{ e }}</p> }
                             <button type="button" class="flex h-12 items-center justify-center rounded-md bg-accent-grain text-label-m text-white shadow-glow-deep transition-opacity disabled:bg-bg-field disabled:text-text-muted disabled:shadow-none"
-                              [disabled]="sinSaldo() || enviando() || importe() < minimo()" (click)="confirmar(m, o.atletaId, o.nombre)">{{ enviando() ? 'Enviando…' : 'Confirmar porra · ' + monedas(importe()) }}</button>
+                              [disabled]="sinSaldo() || enviando() || importe() < minimo()" (click)="confirmar(m, o.atletaId, o.nombre)">{{ enviando() ? t().enviando : t().confirmar(monedas(importe())) }}</button>
                           }
                         </div>
                       } @else {
@@ -162,15 +262,15 @@ const TOP = 10;
                             <span class="block truncate text-label-s text-text-primary">{{ o.nombre }}</span>
                             @if (q()) { <span class="block text-[11px] leading-[1.3] text-text-tertiary">{{ etiqueta(m) }}</span> }
                           </span>
-                          @if (mias().get(m.id + ':' + o.atletaId); as mio) { <span class="shrink-0 rounded-pill border border-warning/50 px-2 py-0.5 text-[11px] leading-none text-warning">Tu porra {{ monedas(mio) }}</span> }
-                          <span class="inline-flex shrink-0 items-center gap-0.5 text-label-s text-accent-text">Elegir <gr-icon name="chevron-right" [size]="16" /></span>
+                          @if (mias().get(m.id + ':' + o.atletaId); as mio) { <span class="shrink-0 rounded-pill border border-warning/50 px-2 py-0.5 text-[11px] leading-none text-warning">{{ t().tuPorra }} {{ monedas(mio) }}</span> }
+                          <span class="inline-flex shrink-0 items-center gap-0.5 text-label-s text-accent-text">{{ t().elegir }} <gr-icon name="chevron-right" [size]="16" /></span>
                         </button>
                       }
                     } @empty {
-                      <p class="py-3 text-body-s text-text-tertiary">Ningún atleta coincide con «{{ qCat()[m.id] }}».</p>
+                      <p class="py-3 text-body-s text-text-tertiary">{{ t().ninguno(qCat()[m.id] ?? '') }}</p>
                     }
                     @if (lista.length > visibles && !verTodos().has(m.id)) {
-                      <button type="button" class="mx-auto min-h-11 px-3 text-label-s text-accent-text" (click)="mostrarTodos(m.id)">Ver los {{ lista.length }} atletas</button>
+                      <button type="button" class="mx-auto min-h-11 px-3 text-label-s text-accent-text" (click)="mostrarTodos(m.id)">{{ t().verLos(lista.length) }}</button>
                     }
                   </div>
                 }
@@ -179,19 +279,19 @@ const TOP = 10;
               @if (q()) {
                 <div class="flex flex-col items-center gap-2 py-10 text-center">
                   <gr-icon name="search" [size]="24" class="text-text-tertiary" />
-                  <p class="text-label-m text-text-primary">Sin resultados para «{{ q() }}»</p>
-                  <p class="text-body-xs text-text-tertiary">Revisa el nombre o busca por apellido.</p>
-                  <button type="button" class="min-h-11 px-3 text-label-s text-accent-text" (click)="q.set('')">Borrar búsqueda</button>
+                  <p class="text-label-m text-text-primary">{{ t().sinResultados(q()) }}</p>
+                  <p class="text-body-xs text-text-tertiary">{{ t().revisa }}</p>
+                  <button type="button" class="min-h-11 px-3 text-label-s text-accent-text" (click)="q.set('')">{{ t().borrar }}</button>
                 </div>
               } @else {
-                <p class="py-10 text-center text-body-s text-text-tertiary">Las categorías de esta jornada aparecerán aquí cuando se publiquen.</p>
+                <p class="py-10 text-center text-body-s text-text-tertiary">{{ t().pronto }}</p>
               }
             }
           </div>
         } @else {
           <!-- En vivo -->
-          <div class="flex rounded-pill border border-line-subtle bg-bg-surface p-1" role="group" aria-label="Sexo">
-            @for (s of sexosVivo; track s.v) {
+          <div class="flex rounded-pill border border-line-subtle bg-bg-surface p-1" role="group" [attr.aria-label]="t().sexo">
+            @for (s of sexosVivo(); track s.v) {
               <button type="button" class="h-10 flex-1 rounded-pill border text-label-s transition-colors"
                 [class]="sexo() === s.v ? 'border-line-strong bg-bg-raised text-text-primary' : 'border-transparent text-text-tertiary hover:text-text-primary'"
                 [attr.aria-pressed]="sexo() === s.v" (click)="sexo.set(s.v)">{{ s.l }}</button>
@@ -199,27 +299,29 @@ const TOP = 10;
           </div>
           <div class="flex flex-col gap-1.5">
             <p class="flex items-center justify-between gap-2 font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">
-              <span>Más apostados · todas las categorías</span>@if (jornadaActiva(); as j) { <span>{{ diaCorto(j.dia) }}</span> }
+              <span>{{ t().masApostados }}</span>@if (jornadaActiva(); as j) { <span>{{ diaCorto(j.dia, i18n.locale()) }}</span> }
             </p>
-            <p class="flex items-center gap-1.5 font-mono text-[12px] text-text-secondary">{{ monedas(resumen().porras) }} porras · <span class="size-2.5 rounded-full bg-warning" aria-hidden="true"></span>{{ monedas(resumen().bote) }} monedas en juego</p>
+            <p class="flex items-center gap-1.5 font-mono text-[12px] text-text-secondary">@let pj = t().porrasEnJuego(monedas(resumen().porras), monedas(resumen().bote));{{ pj[0] }}<span class="size-2.5 rounded-full bg-warning" aria-hidden="true"></span>{{ pj[1] }}</p>
           </div>
           @if (ranking().length) {
             <gr-ranking-porra [filas]="verRanking() ? ranking() : ranking().slice(0, top)" aria-live="polite" />
             @if (ranking().length > top && !verRanking()) {
-              <button type="button" class="mx-auto -mt-2 min-h-11 px-3 text-label-s text-accent-text" (click)="verRanking.set(true)">Ver los {{ ranking().length }} atletas</button>
+              <button type="button" class="mx-auto -mt-2 min-h-11 px-3 text-label-s text-accent-text" (click)="verRanking.set(true)">{{ t().verLos(ranking().length) }}</button>
             }
           } @else {
-            <p class="py-10 text-center text-body-s text-text-tertiary">Todavía no hay atletas {{ sexo() === 'F' ? 'femeninas' : 'masculinos' }} en la porra de esta jornada.</p>
+            <p class="py-10 text-center text-body-s text-text-tertiary">{{ t().sinAtletas(sexo() === 'F') }}</p>
           }
         }
 
-        <p class="flex items-start gap-2 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="14" class="mt-0.5 shrink-0" />Monedas de juego: nunca se compran con dinero ni se canjean por dinero.</p>
+        <p class="flex items-start gap-2 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="14" class="mt-0.5 shrink-0" />{{ t().aviso }}</p>
       </div>
     </gr-page>
   `,
 })
 export class PorraPage {
-  protected readonly monedas = monedas;
+  protected readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(T);
+  protected readonly monedas = (v: number | null | undefined) => monedas(v, this.i18n.locale());
   protected readonly kg = kg;
   protected readonly diaCorto = diaCorto;
   protected readonly visibles = VISIBLES;
@@ -232,14 +334,14 @@ export class PorraPage {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
-  protected readonly pestanas: { v: Vista; l: string }[] = [
-    { v: 'hacer', l: 'Hacer porra' },
-    { v: 'en-vivo', l: 'En vivo' },
-  ];
-  protected readonly sexosVivo: { v: Sexo; l: string }[] = [
-    { v: 'M', l: 'Masculino' },
-    { v: 'F', l: 'Femenino' },
-  ];
+  protected readonly pestanas = computed<{ v: Vista; l: string }[]>(() => [
+    { v: 'hacer', l: this.t().hacer },
+    { v: 'en-vivo', l: this.t().enVivo },
+  ]);
+  protected readonly sexosVivo = computed<{ v: Sexo; l: string }[]>(() => [
+    { v: 'M', l: this.t().masculino },
+    { v: 'F', l: this.t().femenino },
+  ]);
 
   protected readonly vista = toSignal(this.route.queryParamMap.pipe(map((p): Vista => (p.get('vista') === 'en-vivo' ? 'en-vivo' : 'hacer'))), { initialValue: 'hacer' as Vista });
   protected readonly q = signal(this.route.snapshot.queryParamMap.get('q') ?? '');
@@ -263,8 +365,8 @@ export class PorraPage {
   protected readonly sinSaldo = computed(() => this.fan.conSesion() && this.importe() > this.saldo());
   /** Chips de importe (Figma «¿Cuántas monedas?»): 100 · 250 · 500 · 1.000 · Todo (el saldo, hasta el máximo). */
   protected readonly chips = computed(() => [
-    ...[100, 250, 500, 1000].map((v) => ({ v, l: monedas(v) })),
-    { v: Math.max(this.minimo(), Math.min(this.saldo(), this.maximo())), l: 'Todo' },
+    ...[100, 250, 500, 1000].map((v) => ({ v, l: this.monedas(v) })),
+    { v: Math.max(this.minimo(), Math.min(this.saldo(), this.maximo())), l: this.t().todo },
   ]);
 
   private readonly ahora = signal(Date.now());
@@ -298,7 +400,7 @@ export class PorraPage {
     void inject(PendingTasks).run(async () => {
       await this.estado.cargar();
       await this.store.cargar();
-      await applySeo(cms, seo, '/porra', 'Porra · GRS Cup', 'Haz tu porra con monedas de juego en la GRS Cup: elige atleta en cada categoría y sigue en vivo a los más apostados.');
+      await applySeo(cms, seo, '/porra', this.t().seoTitulo, this.t().seoDesc);
     });
 
     // al cambiar de atleta se limpian los mensajes del anterior
@@ -359,7 +461,7 @@ export class PorraPage {
   }
 
   protected etiqueta(m: Mercado): string {
-    return sexoTxt(m.sexo) + ' · ' + kg(m.categoria);
+    return sexoTxt(m.sexo, this.i18n.lang()) + ' · ' + kg(m.categoria);
   }
 
   protected cerradaM(m: Mercado): boolean {
@@ -424,7 +526,7 @@ export class PorraPage {
     try {
       const importe = this.importe();
       await this.juegos.porraApostar(m.id, atletaId, importe, this.estado.jornadaActual());
-      this.exito.set(`Porra hecha: ${monedas(importe)} monedas a ${nombre}.`);
+      this.exito.set(this.t().hecha(this.monedas(importe), nombre));
       await Promise.all([this.estado.cargarCartera(), this.store.recargarMercados(), this.store.cargarApuestas()]);
     } catch (err) {
       this.errorPorra.set(mensajeError(err));
