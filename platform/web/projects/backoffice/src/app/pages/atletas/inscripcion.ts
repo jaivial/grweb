@@ -531,7 +531,6 @@ export class InscripcionPage {
       this.etagCfg = r.headers.get('ETag') ?? '';
       this.cfg.set(r.body);
       this.modoGuardado.set(r.body?.modo ?? 'externa');
-      if (r.body?.modo !== 'propia' && this.tab() !== 'config') this.tab.set('config');
       this.conflicto.set(false);
       this.tocado.set(false);
       await this.cargarAep();
@@ -543,6 +542,8 @@ export class InscripcionPage {
       this.cupones.set(c);
       this.refs.set(refs);
       this.pagos.set(p);
+      // same rule as the disabled tabs: a tab (also one from ?tab=) only falls back to «Configuración» when it is locked
+      if (this.bloqueada(this.tab())) this.tab.set('config');
     } catch (e) {
       this.toasts.error('No se pudo cargar la inscripción', errText(e, 'Inténtalo de nuevo.'));
     }
