@@ -7,6 +7,7 @@ import { GrIcon, GrToasts, type GrLiveEstado } from '@grcup/ui';
 import { ChatService, diaDeHoy } from '../../core/chat';
 import { type Directo } from '../../core/directo';
 import { FanSession } from '../../core/fan';
+import { I18n } from '../../core/i18n';
 import { Juegos, type Jornada } from '../../core/juegos';
 import { ChatView } from './chat-view';
 import { DonantesView } from './donantes-view';
@@ -16,6 +17,29 @@ import { TarimaView } from './tarima-view';
 
 type Pestana = 'chat' | 'donantes' | 'porra' | 'tarima';
 const PESTANAS: readonly Pestana[] = ['chat', 'donantes', 'porra', 'tarima'];
+
+const T = {
+  es: {
+    seccion: 'Chat y juegos del directo',
+    conectados: (n: string) => n + ' ' + (n === '1' ? 'conectado' : 'conectados'),
+    secciones: 'Secciones del directo',
+    pestanas: { chat: 'Chat', donantes: 'Donantes', porra: 'Porra', tarima: 'Tarima' } as Record<Pestana, string>,
+    graciasT: '¡Gracias! Tu donativo aparecerá en el chat',
+    graciasD: 'Los coins y las monedas de GRS Fantasy se acreditan al volver a la sala de la jornada.',
+    canceladoT: 'Donativo cancelado',
+    canceladoD: 'No se ha hecho ningún cargo: puedes intentarlo otra vez cuando quieras.',
+  },
+  en: {
+    seccion: 'Live chat and games',
+    conectados: (n: string) => n + ' online',
+    secciones: 'Live sections',
+    pestanas: { chat: 'Chat', donantes: 'Donors', porra: 'Pool', tarima: 'Platform' } as Record<Pestana, string>,
+    graciasT: 'Thank you! Your donation will appear in the chat',
+    graciasD: 'The coins and GRS Fantasy money are credited when you return to the matchday room.',
+    canceladoT: 'Donation cancelled',
+    canceladoD: 'No charge has been made: you can try again whenever you like.',
+  },
+};
 
 /** True on desktop (≥ 1024 px), following resizes; false on the server. Call it in an injection context. */
 export function escritorio(): Signal<boolean> {
@@ -53,15 +77,15 @@ export function escritorio(): Signal<boolean> {
     @media (prefers-reduced-motion: reduce) { .gr-tab { animation: none; } }
   `,
   template: `
-    <section class="flex flex-col md:overflow-hidden md:rounded-lg md:border md:border-line-subtle md:bg-bg-card lg:sticky lg:top-[92px] lg:h-[calc(100vh-120px)]" aria-label="Chat y juegos del directo">
+    <section class="flex flex-col md:overflow-hidden md:rounded-lg md:border md:border-line-subtle md:bg-bg-card lg:sticky lg:top-[92px] lg:h-[calc(100vh-120px)]" [attr.aria-label]="t().seccion">
       <p class="flex h-6 shrink-0 items-center justify-end gap-1.5 px-4 pt-1.5 pb-0.5 font-mono text-[11px] leading-none font-medium tracking-[0.08em] text-text-tertiary uppercase md:h-8 md:pt-3" role="status">
-        @if (vivo()) { <gr-icon name="users" [size]="16" />{{ conectados() }} {{ conectados() === '1' ? 'conectado' : 'conectados' }} }
+        @if (vivo()) { <gr-icon name="users" [size]="16" />{{ t().conectados(conectados()) }} }
       </p>
-      <nav class="grid shrink-0 border-b border-line-subtle px-1" [class]="visibles().length === 4 ? 'grid-cols-4' : 'grid-cols-3'" role="tablist" aria-label="Secciones del directo">
-        @for (t of visibles(); track t.v) {
-          <button type="button" role="tab" [id]="'tab-' + t.v" aria-controls="panel-directo" [attr.aria-selected]="tab() === t.v" class="relative h-[42px] pt-0.5 text-[14px] leading-[17px] font-semibold transition-colors" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" (click)="elegir(t.v)">
-            {{ t.l }}
-            @if (tab() === t.v) { <span class="absolute inset-x-0 bottom-0 h-[3px] rounded-t-2xs bg-accent-grain" aria-hidden="true"></span> }
+      <nav class="grid shrink-0 border-b border-line-subtle px-1" [class]="visibles().length === 4 ? 'grid-cols-4' : 'grid-cols-3'" role="tablist" [attr.aria-label]="t().secciones">
+        @for (tb of visibles(); track tb.v) {
+          <button type="button" role="tab" [id]="'tab-' + tb.v" aria-controls="panel-directo" [attr.aria-selected]="tab() === tb.v" class="relative h-[42px] pt-0.5 text-[14px] leading-[17px] font-semibold transition-colors" [class]="tab() === tb.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" (click)="elegir(tb.v)">
+            {{ t().pestanas[tb.v] }}
+            @if (tab() === tb.v) { <span class="absolute inset-x-0 bottom-0 h-[3px] rounded-t-2xs bg-accent-grain" aria-hidden="true"></span> }
           </button>
         }
       </nav>
@@ -83,6 +107,8 @@ export function escritorio(): Signal<boolean> {
 })
 export class PanelSocial {
   protected readonly chat = inject(ChatService);
+  private readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(T);
   private readonly juegos = inject(Juegos);
   protected readonly fan = inject(FanSession);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
@@ -108,12 +134,7 @@ export class PanelSocial {
   protected readonly jornadas = signal<Jornada[]>([]);
   protected readonly jornadasCargadas = signal(false);
 
-  private readonly pestanas: { v: Pestana; l: string }[] = [
-    { v: 'chat', l: 'Chat' },
-    { v: 'donantes', l: 'Donantes' },
-    { v: 'porra', l: 'Porra' },
-    { v: 'tarima', l: 'Tarima' },
-  ];
+  private readonly pestanas: { v: Pestana }[] = [{ v: 'chat' }, { v: 'donantes' }, { v: 'porra' }, { v: 'tarima' }];
   protected readonly visibles = computed(() => (this.escritorio() ? this.pestanas.filter((t) => t.v !== 'tarima') : this.pestanas));
 
   /** Today (Madrid): the day of the chat room and of the games. */
@@ -128,7 +149,7 @@ export class PanelSocial {
 
   /** Connected and live: the audience shows (no red dot, Figma 393:120125). */
   protected readonly vivo = computed(() => this.chat.estado() === 'conectado' && !this.chat.cerrado() && this.chat.conectados() > 0);
-  protected readonly conectados = computed(() => new Intl.NumberFormat('es-ES').format(this.chat.conectados()));
+  protected readonly conectados = computed(() => new Intl.NumberFormat(this.i18n.locale()).format(this.chat.conectados()));
 
   constructor() {
     if (this.browser) {
@@ -164,9 +185,9 @@ export class PanelSocial {
         void this.router.navigate([], { relativeTo: this.route, queryParams, queryParamsHandling: 'merge', replaceUrl: true });
       }
       if (donacion === 'ok') {
-        this.toasts.success('¡Gracias! Tu donativo aparecerá en el chat', 'Los coins y las monedas de GRS Fantasy se acreditan al volver a la sala de la jornada.');
+        this.toasts.success(this.t().graciasT, this.t().graciasD);
       } else if (donacion === 'cancelada') {
-        this.toasts.info('Donativo cancelado', 'No se ha hecho ningún cargo: puedes intentarlo otra vez cuando quieras.');
+        this.toasts.info(this.t().canceladoT, this.t().canceladoD);
       }
     }
     inject(DestroyRef).onDestroy(() => this.chat.desconectar());
