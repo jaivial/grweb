@@ -1,6 +1,6 @@
 import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { GrButton, GrCountdown, LOGO, cdn } from '@grcup/ui';
+import { GrButton, GrCountdown, LOGO, cdn, CdnPipe } from '@grcup/ui';
 import type { Patrocinador } from '../core/cms';
 import type { CompeticionPublica } from '../core/competition';
 import { GLOW, GrEyebrow } from './bloques';
@@ -26,7 +26,7 @@ export const fechasHero = (ini?: string | null, fin?: string | null) => {
  */
 @Component({
   selector: 'gr-campeonato',
-  imports: [RouterLink, GrButton, GrCountdown, GrEyebrow],
+  imports: [CdnPipe, RouterLink, GrButton, GrCountdown, GrEyebrow],
   changeDetection: ChangeDetectionStrategy.OnPush,
   // iOS Safari paints the hero's composited sticky layer (bottom fade, clouds) over a non-composited z-index sibling:
   // its own layer (translateZ) keeps the section above it (Jaime 15-nov: title, dates and «Reserva» hidden on iPhone).
@@ -71,7 +71,7 @@ export const fechasHero = (ini?: string | null, fin?: string | null) => {
           <div class="flex w-max animate-[gr-marquesina_linear_infinite] items-center hover:[animation-play-state:paused] motion-reduce:animate-none" [style.animation-duration.s]="duracion()">
             @for (p of cinta(); track $index) {
               <a role="listitem" class="shrink-0 pr-9 md:pr-[72px]" [attr.href]="p.url || null" target="_blank" rel="noopener sponsored" [attr.aria-hidden]="$index >= patrocinadores().length || null" [attr.tabindex]="$index >= patrocinadores().length ? -1 : null">
-                @if (p.logoUrl) { <img [src]="p.logoUrl" [alt]="p.nombre" class="h-[34px] w-auto max-w-none opacity-90 transition-opacity hover:opacity-100 md:h-12" /> }
+                @if (p.logoUrl) { <img [src]="p.logoUrl | cdn" [alt]="p.nombre" class="h-[34px] w-auto max-w-none opacity-90 transition-opacity hover:opacity-100 md:h-12" /> }
                 @else { <span class="flex h-[34px] items-center text-label-m whitespace-nowrap text-text-secondary md:h-12">{{ p.nombre }}</span> }
               </a>
             }

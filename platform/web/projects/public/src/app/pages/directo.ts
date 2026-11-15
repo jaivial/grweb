@@ -564,7 +564,7 @@ export class ResultadosEdicionPage {
 /** /ediciones/:anio (Figma page 28): the archive of a past edition: poster, facts, gallery and sponsors. */
 @Component({
   selector: 'gr-edicion',
-  imports: [RouterLink, Page, GrSkeleton, GrIcon, GrButton, GrCabecera, Lightbox, Related, Navbar, Footer, NoEncontrada],
+  imports: [CdnPipe, RouterLink, Page, GrSkeleton, GrIcon, GrButton, GrCabecera, Lightbox, Related, Navbar, Footer, NoEncontrada],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = comp();
@@ -618,7 +618,7 @@ export class ResultadosEdicionPage {
             <gr-cabecera [eyebrow]="'Patrocinadores ' + anio()" titulo="Gracias a *nuestros colaboradores*" [centro]="false" tam="m" />
             <!-- Figma 80:189922 / 80:190214: one common box per logo (120×40 mobile, 140×48 desktop), optical scale per logo -->
             <ul class="flex flex-wrap gap-3 md:gap-4">
-              @for (p of sponsors(); track p.nombre) { <li class="flex items-center justify-center rounded-lg border border-line-subtle bg-bg-card px-4 py-3 md:px-5"><span class="flex h-10 w-[120px] items-center justify-center md:h-12 md:w-[140px]"><img [src]="p.logoUrl" [alt]="p.nombre" class="max-h-full max-w-full object-contain" [style.transform]="escalaLogo(p)" loading="lazy" /></span></li> }
+              @for (p of sponsors(); track p.nombre) { <li class="flex items-center justify-center rounded-lg border border-line-subtle bg-bg-card px-4 py-3 md:px-5"><span class="flex h-10 w-[120px] items-center justify-center md:h-12 md:w-[140px]"><img [src]="p.logoUrl | cdn" [alt]="p.nombre" class="max-h-full max-w-full object-contain" [style.transform]="escalaLogo(p)" loading="lazy" /></span></li> }
             </ul>
             <p class="text-body-xs text-text-tertiary">Logos del cartel de la edición {{ anio() }}.</p>
           </section>
@@ -729,7 +729,7 @@ export class EdicionPage {
 /** Arena screen (Figma page 44 · «Pantalla del pabellón»): 1920 × 1080 scaled to the window, fed by the public SSE. */
 @Component({
   selector: 'gr-pantalla',
-  imports: [GrLogo],
+  imports: [CdnPipe, GrLogo],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'fixed inset-0 overflow-hidden bg-[#0d0a0b]' },
   template: `
@@ -788,7 +788,7 @@ export class EdicionPage {
         }
         @if (p.pantalla.carrusel && sponsors().length) {
           <div class="absolute bottom-[70px] left-[80px] flex h-[90px] w-[1100px] flex-wrap content-start items-center gap-x-14 overflow-hidden">
-            @for (s of visibles(); track s.nombre) { <img [src]="s.logoUrl" [alt]="s.nombre" class="h-[90px] w-auto max-w-[200px] object-contain py-[10px] opacity-90" /> }
+            @for (s of visibles(); track s.nombre) { <img [src]="s.logoUrl | cdn" [alt]="s.nombre" class="h-[90px] w-auto max-w-[200px] object-contain py-[10px] opacity-90" /> }
           </div>
         }
       }

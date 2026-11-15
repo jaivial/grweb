@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injectable, PLATFORM_ID, PendingTasks, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { GrButton, GrIcon, GrLogo, LOGO } from '@grcup/ui';
+import { GrButton, GrIcon, GrLogo, LOGO, CdnPipe } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import type { Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, Competition, type CompeticionPublica } from '../core/competition';
@@ -283,7 +283,7 @@ export class Overlays {
 /** Footer (Figma «Footer»). */
 @Component({
   selector: 'gr-footer',
-  imports: [RouterLink, GrLogo, GrIcon, Newsletter, Overlays],
+  imports: [CdnPipe, RouterLink, GrLogo, GrIcon, Newsletter, Overlays],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block border-t border-line-subtle bg-bg-deep' },
   template: `
@@ -344,7 +344,7 @@ export class Overlays {
         <ul class="flex flex-wrap items-center justify-center gap-x-5 gap-y-4 md:gap-x-10 md:gap-y-5 md:py-2" aria-label="Patrocinadores">
           @for (p of logos(); track p.nombre) {
             <li><a [href]="p.url || '/patrocinadores'" [attr.target]="p.url ? '_blank' : null" rel="noopener" class="flex min-h-11 items-center opacity-60 grayscale transition hover:opacity-100 hover:grayscale-0">
-              <img [src]="p.logoUrl" [alt]="p.nombre" class="h-8 w-auto max-w-[150px] object-contain md:h-7" loading="lazy" /></a></li>
+              <img [src]="p.logoUrl | cdn" [alt]="p.nombre" class="h-8 w-auto max-w-[150px] object-contain md:h-7" loading="lazy" /></a></li>
           }
         </ul>
       }
