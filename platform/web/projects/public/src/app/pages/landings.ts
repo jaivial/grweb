@@ -117,13 +117,13 @@ export class Community {
       <!-- Jaime 15-nov: quick accesses first — square cards with only an icon and a title -->
       <nav class="mb-12 md:mb-20" aria-labelledby="publico-accesos">
         <h2 id="publico-accesos" class="mb-4 text-label-s text-text-secondary uppercase md:mb-6">Accesos rápidos</h2>
-        <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-5">
+        <ul class="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 lg:grid-cols-5">
           @for (a of accesos; track a.ruta) {
             <li>
-              <a [routerLink]="a.ruta" class="group relative flex aspect-square flex-col items-center justify-center gap-3 overflow-hidden rounded-xl border border-white/8 bg-white/3 p-4 text-center transition-[background-color,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-accent/50 hover:bg-white/6 focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transition-none motion-reduce:hover:translate-y-0 md:gap-4">
+              <a [routerLink]="a.ruta" class="group relative flex aspect-square flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-white/8 bg-white/3 p-2 text-center transition-[background-color,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-accent/50 hover:bg-white/6 focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-4 md:gap-4">
                 <span class="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgb(196_43_62/0.18),transparent)] opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true"></span>
-                <span class="flex size-12 items-center justify-center rounded-lg bg-accent/16 text-accent-text md:size-14"><gr-icon [name]="a.icono" [size]="24" /></span>
-                <span class="text-[15px] leading-tight font-semibold md:text-[17px]">{{ a.texto }}</span>
+                <span class="flex size-10 items-center justify-center rounded-lg bg-accent/16 text-accent-text sm:size-12 md:size-14"><gr-icon [name]="a.icono" [size]="22" /></span>
+                <span class="text-[13px] leading-tight font-semibold sm:text-[15px] md:text-[17px]">{{ a.texto }}</span>
               </a>
             </li>
           }
