@@ -61,7 +61,8 @@ var servicios = []string{"identity", "competition", "cms", "athletes", "schedule
 func (s *Svc) salud(ctx context.Context, cid uuid.UUID) Salud {
 	o := Salud{Generado: time.Now().UTC(), Servicios: make([]Servicio, len(servicios)), Grupos: []Grupo{}}
 	var wg sync.WaitGroup
-	cli := &http.Client{Timeout: 3 * time.Second}
+	// readyz answers in milliseconds: a service that is down must not hold the whole page for long.
+	cli := &http.Client{Timeout: time.Second}
 	for i, n := range servicios {
 		wg.Add(1)
 		go func(i int, n string) {
