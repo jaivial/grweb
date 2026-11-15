@@ -177,7 +177,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
       <!-- UX8-R1-13: only the background layers are clipped; the text reflows at 200 % text size -->
       <section class="relative flex lg:min-h-[920px] lg:items-center">
         <div class="absolute inset-0 overflow-hidden" aria-hidden="true">
-        <img src="/img/home/org-publico-l.webp" srcset="/img/home/org-publico-s.webp 640w, /img/home/org-publico-l.webp 1300w" sizes="100vw" alt="" class="absolute inset-0 size-full object-cover grayscale-[60%]" fetchpriority="high" />
+        <img src="/img/home/org-publico-l.webp" srcset="/img/home/org-publico-s.webp 640w, /img/home/org-publico-l.webp 1300w" sizes="100vw" alt="" class="absolute inset-0 size-full object-cover grayscale" fetchpriority="high" />
         <div class="absolute inset-0 bg-[linear-gradient(180deg,rgb(14_12_13/0.72),rgb(14_12_13/0.8)_60%,var(--color-bg-base))]" aria-hidden="true"></div>
         <div class="pointer-events-none absolute -top-40 -right-40 size-[780px] rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.5),transparent)]" aria-hidden="true"></div>
         </div>
@@ -191,7 +191,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
             <p class="sr-only">Entradas · GRS Cup 2</p>
             @if (todasAgotadas()) { <p class="inline-flex min-h-7 items-center rounded-full border border-line-strong bg-white/5 px-3 text-label-xs text-text-secondary uppercase">Entradas agotadas</p> }
             <h1 class="text-display-m hyphens-auto max-md:text-[clamp(2.25rem,9vw,4.5rem)] md:text-display-hero" lang="es">
-              @if (todasAgotadas()) { Hasta aquí <span class="whitespace-nowrap bg-accent-grain bg-clip-text text-transparent">el aforo</span> } @else { Vive la GRS Cup 2 <span class="whitespace-nowrap bg-accent-grain bg-clip-text text-transparent">en directo</span> }
+              @if (todasAgotadas()) { Hasta aquí <span class="whitespace-nowrap bg-[linear-gradient(100deg,#C42B3E,#6E2020)] bg-clip-text text-transparent">el aforo</span> } @else { Vive la GRS Cup 2 <span class="whitespace-nowrap bg-[linear-gradient(100deg,#C42B3E,#6E2020)] bg-clip-text text-transparent">en directo</span> }
             </h1>
             @if (todasAgotadas()) {
               <p class="max-w-[640px] text-body-m text-text-secondary md:text-body-l">Se han reservado todas las entradas. Apúntate a la lista de espera: si alguien anula, te avisamos por email y tienes un plazo para confirmar.</p>
@@ -214,7 +214,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
               <!-- same social proof as the home «Entradas» section -->
               <div class="flex items-center gap-3">
                 <span class="flex items-center" aria-hidden="true">@for (a of avatares; track a) { <span class="-ml-2.5 flex size-8 items-center justify-center rounded-full border-2 border-bg-base bg-[linear-gradient(135deg,#58202b,#1b1718)] text-label-xs first:ml-0">{{ a }}</span> }</span>
-                <span class="text-body-s">{{ n(d!.personas) }} personas ya tienen entrada</span>
+                <span class="text-body-s"><b class="font-semibold">{{ n(d!.personas) }} personas</b> ya tienen entrada</span>
               </div>
             }
           </div>
@@ -452,12 +452,16 @@ export class EntradasPage {
     const t = dias.length ? dias.join(' y ') : c?.fechaInicio ? diaLargo(c.fechaInicio + 'T12:00:00Z') + (c.fechaFin && c.fechaFin !== c.fechaInicio ? ' y ' + diaLargo(c.fechaFin + 'T12:00:00Z') : '') : 'Fecha por confirmar';
     return t.charAt(0).toUpperCase() + t.slice(1);
   });
-  /** «Puertas 8:30 · premios y sorteo 21:30» from the published schedule (else the first session's doors). */
+  /** «Puertas 8:30 · premios y sorteo dom 17:00» from the published schedule (BO → Horarios: doors and the trophy agenda item). */
   protected readonly puertas = computed(() => {
-    const dd = this.horarios()?.dias?.[0];
+    const dias = this.horarios()?.dias ?? [];
+    const dd = dias[0];
     const p = dd?.puertas ?? (this.data()?.sesiones[0] ? hora(this.data()!.sesiones[0].puertas) : '');
-    const premios = dd?.agenda.find((a) => a.icono === 'trophy')?.hora;
-    return [p && 'Puertas ' + p.replace(/^0/, ''), premios && 'premios y sorteo ' + premios.replace(/^0/, '')].filter(Boolean).join(' · ');
+    // the prizes can be on another day of a multi-day event: search every day and name it when it is not the first
+    const i = dias.findIndex((x) => x.agenda.some((a) => a.icono === 'trophy'));
+    const premios = i < 0 ? '' : (i > 0 ? new Intl.DateTimeFormat('es-ES', { weekday: 'short', timeZone: 'Europe/Madrid' }).format(new Date(dias[i].fecha + 'T12:00:00Z')).replace('.', '') + ' ' : '')
+      + dias[i].agenda.find((a) => a.icono === 'trophy')!.hora.replace(/^0/, '');
+    return [p && 'Puertas ' + p.replace(/^0/, ''), premios && 'premios y sorteo ' + premios].filter(Boolean).join(' · ');
   });
   protected readonly diaSesiones = computed(() => { const s = this.data()?.sesiones[0]; return s ? dia(s.inicio).replace(/^\w/, (c) => c.toUpperCase()) : ''; });
   /** SSR markup: submitting is blocked until Angular takes over (no native submit with personal data). */
