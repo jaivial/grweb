@@ -72,11 +72,11 @@ export class Related {
         <p class="mt-2 text-body-s text-text-secondary md:text-body-m">{{ en() ? 'Watch the competition, chat and play the Pool and Fantasy.' : 'Mira la competición, comenta en el chat y juega a la Porra y al Fantasy.' }}</p>
       </div>
       <div class="mt-5 flex flex-col gap-3 md:mt-0 md:w-[340px] md:shrink-0">
-        <a grButton icon="play" class="w-full" routerLink="/en-directo">{{ en() ? 'Watch live' : 'Ver el directo' }}</a>
+        <a grButton variant="primary" icon="play" class="w-full" routerLink="/en-directo">{{ en() ? 'Watch live' : 'Ver el directo' }}</a>
         <nav class="grid grid-cols-3 gap-2" [attr.aria-label]="en() ? 'Live and games' : 'Directo y juegos'">
           @for (l of enlaces(); track l.ruta) {
-            <a [routerLink]="l.ruta" [queryParams]="l.query" class="flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-md border border-line-strong bg-black/20 px-2 text-label-s transition-colors hover:border-accent/60 hover:bg-black/30">
-              <gr-icon [name]="l.icono" [size]="16" class="shrink-0" /><span class="truncate">{{ l.texto }}</span>
+            <a [routerLink]="l.ruta" [queryParams]="l.query" class="flex h-11 min-w-0 items-center justify-center gap-1 rounded-md border border-line-strong bg-black/20 px-1.5 text-label-s transition-colors hover:border-accent/60 hover:bg-black/30">
+              <gr-icon [name]="l.icono" [size]="14" class="shrink-0" /><span class="truncate">{{ l.texto }}</span>
             </a>
           }
         </nav>
