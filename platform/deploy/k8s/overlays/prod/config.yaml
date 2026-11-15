@@ -10,8 +10,9 @@ metadata:
 data:
   DOMINIOS_CONFIRMADOS: "si"
   SERVICE_ENV: prod
-  # Jaime 15/11 20:46: payments simulated in production until the real keys are decided.
-  PAGOS_SIMULADOS: "true"
+  # Jaime 15/11: real Stripe Connect (platform Menustudioai, live key in Secret grcup-stripe).
+  PAGOS_SIMULADOS: "false"
+  STRIPE_CONNECT_ORIGINS: https://backoffice.grscup.com
   WHATSAPP_SIMULADO: "false"
   KEY_PREFIX: "grcup:prod:"
   REDIS_ADDR: redis:16380
