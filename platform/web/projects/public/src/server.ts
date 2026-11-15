@@ -129,6 +129,8 @@ const SHELL = (() => {
   }
 })();
 async function desconocida(path: string): Promise<boolean> {
+  // /en/... mounts the same pages (i18n): check the Spanish path
+  if (path === '/en' || path.startsWith('/en/')) path = path.slice(3) || '/';
   const segs = path.split('/').filter(Boolean);
   if (!segs.length || PATRONES.some((p) => p.length === segs.length && p.every((x, i) => x.startsWith(':') || x === segs[i]))) return false;
   if (segs.length > 1) return true;
