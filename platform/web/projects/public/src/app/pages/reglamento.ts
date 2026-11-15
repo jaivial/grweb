@@ -1,7 +1,7 @@
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { type GrIconName } from '@grcup/ui';
+import { type GrIconName, cdn } from '@grcup/ui';
 import { Cms } from '../core/cms';
 import { Seo } from '../core/seo';
 import { GrCabecera } from '../home/bloques';
@@ -18,13 +18,13 @@ const NIVELES = [
 ];
 const LUCES = [{ l: ['b', 'b', 'b'], t: 'Válido' }, { l: ['b', 'b', 'r'], t: 'Válido (2 de 3)' }, { l: ['b', 'r', 'r'], t: 'Nulo (2 de 3)' }, { l: ['r', 'r', 'r'], t: 'Nulo' }];
 const MOVIMIENTOS = [
-  { t: 'Sentadilla', foto: '/img/home/premio-sentadilla.webp', voces: ['«Squat»', '«Rack»'], reglas: [
+  { t: 'Sentadilla', foto: cdn('/img/home/premio-sentadilla.webp'), voces: ['«Squat»', '«Rack»'], reglas: [
     'Baja hasta que la cadera quede por debajo de la rodilla.',
     'Sube hasta bloquear las rodillas, sin rebotes, y espera «Rack».'] },
-  { t: 'Press de banca', foto: '/img/home/premio-banca.webp', voces: ['«Start»', '«Press»', '«Rack»'], reglas: [
+  { t: 'Press de banca', foto: cdn('/img/home/premio-banca.webp'), voces: ['«Start»', '«Press»', '«Rack»'], reglas: [
     'Barra al pecho, inmóvil hasta la orden «Press».',
     'Glúteos en el banco y pies en el suelo; bloquea y espera «Rack».'] },
-  { t: 'Peso muerto', foto: '/img/home/premio-muerto.webp', voces: ['«Down»'], reglas: [
+  { t: 'Peso muerto', foto: cdn('/img/home/premio-muerto.webp'), voces: ['«Down»'], reglas: [
     'Termina erguido: rodillas bloqueadas y hombros atrás.',
     'Sin apoyar la barra en los muslos; bájala controlada tras «Down».'] },
 ];

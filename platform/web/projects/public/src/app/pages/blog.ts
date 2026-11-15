@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, effect, PLATFORM_ID, Pe
 import { toSignal } from '@angular/core/rxjs-interop';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { GrButton, GrIcon, GrSkeleton, fmtLongDate } from '@grcup/ui';
+import { GrButton, GrIcon, GrSkeleton, fmtLongDate, cdn, CdnPipe } from '@grcup/ui';
 import { map } from 'rxjs';
 import { Cms, renderMarkdown, type BlogPagina, type Heading, type Pagina } from '../core/cms';
 import { Competition } from '../core/competition';
@@ -23,7 +23,7 @@ const etiqueta = (c?: string) => (c ? CATEGORIA[c]?.[0] ?? '' : '');
 /** Filter chips of Figma 34 (Todos + these four). */
 const CHIPS = ['calendario', 'guia', 'normativa', 'cronica'];
 /** Cover of posts without one (cards and featured). */
-const PORTADA = '/img/blog/trofeo-edicion.webp';
+const PORTADA = cdn('/img/blog/trofeo-edicion.webp');
 /** Spanish-only pages: hreflang es + x-default to themselves. */
 const ES = (path: string) => [{ hreflang: 'es', path }, { hreflang: 'x-default', path }];
 const fechaCorta = (iso?: string) => (iso ? new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Madrid' }).format(new Date(iso)).replace('.', '') : '');
@@ -199,7 +199,7 @@ export class BlogPage {
  */
 @Component({
   selector: 'gr-blog-post-page',
-  imports: [Page, GrIcon, GrButton, GrSkeleton, NoEncontrada, Navbar, Footer, RouterLink, Related, Community],
+  imports: [CdnPipe, Page, GrIcon, GrButton, GrSkeleton, NoEncontrada, Navbar, Footer, RouterLink, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let a = p();
@@ -255,7 +255,7 @@ export class BlogPage {
                 <!-- desktop only: Figma 34-post-390 has no edition card -->
                 <div class="hidden overflow-hidden rounded-xl border border-line-subtle bg-bg-card lg:block">
                   <div class="relative h-40 overflow-hidden bg-bg-deep md:h-[200px]">
-                    <img src="/img/blog/trofeo-edicion.webp" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" />
+                    <img [src]="'/img/blog/trofeo-edicion.webp' | cdn" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" />
                     <span class="absolute inset-0 bg-[linear-gradient(180deg,transparent_40%,rgb(14_12_13/0.9))]" aria-hidden="true"></span>
                     @if (c.fechaInicio) { <span class="absolute bottom-4 left-5 text-display-l text-white">{{ c.fechaInicio.slice(0, 4) }}</span> }
                   </div>

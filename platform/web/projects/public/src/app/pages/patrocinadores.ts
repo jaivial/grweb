@@ -1,6 +1,6 @@
 import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, signal } from '@angular/core';
-import { GrButton, GrSkeleton } from '@grcup/ui';
+import { GrButton, GrSkeleton, LOGO } from '@grcup/ui';
 import { Cms, type Patrocinador } from '../core/cms';
 import { Competition } from '../core/competition';
 import { Seo } from '../core/seo';
@@ -9,7 +9,7 @@ import { Page } from '../layout/page';
 import { applySeo } from './content';
 import { Related } from './landings';
 
-const LOGO_GR = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
+const LOGO_GR = LOGO;
 const NIVEL: Record<string, string> = { principal: 'Principal', oro: 'Oro', plata: 'Plata', colaborador: 'Colaborador', institucional: 'Federación', federacion: 'Federación', organizador: 'Organizador' };
 /** Levels shown with the organiser and the federation (backoffice «Organizadores y afiliaciones»). */
 const AFILIACION = ['institucional', 'federacion', 'organizador'];

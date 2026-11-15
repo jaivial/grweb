@@ -31,6 +31,10 @@ server {
     listen [::]:443 ssl;
     http2 on;
     server_name __WEB_HOST__;
+    # gzip of HTML/JS/CSS/JSON/SVG, proxied SSR included (cdn-20261115: the bundles went out uncompressed, ~2 MB per
+    # page). text/event-stream stays out so SSE is never buffered.
+    gzip on; gzip_vary on; gzip_proxied any; gzip_comp_level 5; gzip_min_length 1024;
+    gzip_types text/css application/javascript text/javascript application/json application/manifest+json image/svg+xml application/xml text/plain;
     ssl_certificate __CERT__/fullchain.pem;
     ssl_certificate_key __CERT__/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -61,6 +65,10 @@ server {
     listen [::]:443 ssl;
     http2 on;
     server_name __BO_HOST__;
+    # gzip of HTML/JS/CSS/JSON/SVG, proxied SSR included (cdn-20261115: the bundles went out uncompressed, ~2 MB per
+    # page). text/event-stream stays out so SSE is never buffered.
+    gzip on; gzip_vary on; gzip_proxied any; gzip_comp_level 5; gzip_min_length 1024;
+    gzip_types text/css application/javascript text/javascript application/json application/manifest+json image/svg+xml application/xml text/plain;
     ssl_certificate __CERT__/fullchain.pem;
     ssl_certificate_key __CERT__/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;

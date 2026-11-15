@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrAlert, GrButton, GrIcon, GrLogo, GrSkeleton, GrSelect, type GrLiveEstado } from '@grcup/ui';
+import { GrAlert, GrButton, GrIcon, GrLogo, GrSkeleton, GrSelect, type GrLiveEstado, cdn, CdnPipe } from '@grcup/ui';
 import { Cms, type Album, type Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, FalloApi, type CompeticionPublica } from '../core/competition';
 import { DirectoPublic, MOV, ORD, catCorta, catLarga, embed, gl, kg, type Categoria, type Directo, type Edicion, type EnPlataforma, type Fila, type Pantalla, type ResultadosPublicos } from '../core/directo';
@@ -25,7 +25,7 @@ import { ChatService } from '../core/chat';
 const TZ = 'Europe/Madrid';
 const PABELLON = 'https://jaimedigitalstudio.b-cdn.net/grcup/pabellon/pabellonentrada.webp';
 const FOTO_2025 = 'https://jaimedigitalstudio.b-cdn.net/grcup/images/club/alfonso-fernandez/img-3364.webp';
-const CARTEL_2025 = '/img/cartel-2025.jpg';
+const CARTEL_2025 = cdn('/img/cartel-2025.jpg');
 /** The eight photos of Figma 28 (2025 edition), in the design's order. */
 const FOTOS_2025: [string, string][] = [
   ['foto-1', 'Atleta delante de la barra antes de su peso muerto, con 275 kg en el marcador'],
@@ -192,8 +192,8 @@ export class EnDirectoPage {
   protected readonly diaHora = diaHora;
   protected readonly ics = ICS_URL;
   protected readonly pabellon = PABELLON;
-  protected readonly poster = '/img/home/org-publico-s.webp';
-  protected readonly posterL = '/img/home/org-publico-l.webp';
+  protected readonly poster = cdn('/img/home/org-publico-s.webp');
+  protected readonly posterL = cdn('/img/home/org-publico-l.webp');
   protected readonly conexion = signal<GrLiveEstado>('en-directo');
   protected readonly foto2025 = FOTO_2025;
   private readonly san = inject(DomSanitizer);
@@ -263,7 +263,7 @@ interface EdicionCard { e: Edicion; c: CompeticionPublica | null; publicado: boo
 /** /resultados (Figma page 25): every edition and how the rankings work. */
 @Component({
   selector: 'gr-resultados-index',
-  imports: [RouterLink, Page, GrSkeleton, GrIcon, GrButton, GrCabecera, Related, Community],
+  imports: [CdnPipe, RouterLink, Page, GrSkeleton, GrIcon, GrButton, GrCabecera, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="Resultados de la" accent="GRStrength Cup" crumb="Resultados" eyebrow="Clasificaciones" subtitle="Clasificaciones completas por categoría, podios y mejores levantadores de cada edición.">
@@ -278,7 +278,7 @@ interface EdicionCard { e: Edicion; c: CompeticionPublica | null; publicado: boo
                 <!-- Figma «Edition card»: 260 px photo with the year, badge, name, meta with icons and the action -->
                 <article class="flex flex-col overflow-hidden rounded-xl border border-line-subtle bg-bg-card">
                   <div class="relative h-[220px] overflow-hidden md:h-[260px]">
-                    <img [src]="fin ? '/img/home/edicion-2025.webp' : '/img/home/edicion-2026.webp'" [alt]="x.e.nombre" class="size-full object-cover" [class]="fin ? 'object-[50%_42%]' : 'object-[50%_30%]'" loading="lazy" />
+                    <img [src]="(fin ? '/img/home/edicion-2025.webp' : '/img/home/edicion-2026.webp') | cdn" [alt]="x.e.nombre" class="size-full object-cover" [class]="fin ? 'object-[50%_42%]' : 'object-[50%_30%]'" loading="lazy" />
                     <span class="absolute inset-0 bg-[linear-gradient(180deg,transparent_40%,rgb(20_17_18/0.85))]"></span>
                     <p class="absolute bottom-4 left-6 font-display text-[64px] leading-none italic drop-shadow-lg md:text-[72px]">{{ x.e.anio }}</p>
                   </div>
@@ -657,7 +657,7 @@ export class EdicionPage {
     const f = this.fotos();
     // eight at most (Figma 28): the whole album is in /galeria
     if (f.length || this.anio() !== '2025') return f.slice(0, 8);
-    return FOTOS_2025.map(([f, alt]) => ({ url: `/img/edicion-2025/${f}.webp`, alt, focalX: 50, focalY: 35 })) as Album['fotos'];
+    return FOTOS_2025.map(([f, alt]) => ({ url: cdn(`/img/edicion-2025/${f}.webp`), alt, focalX: 50, focalY: 35 })) as Album['fotos'];
   });
   /**
    * Optical weight per logo inside the common box (object-contain). Measured on the trimmed files: compact marks fill the

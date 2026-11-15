@@ -1,6 +1,6 @@
 import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { GrButton, GrCountdown } from '@grcup/ui';
+import { GrButton, GrCountdown, LOGO, cdn } from '@grcup/ui';
 import type { Patrocinador } from '../core/cms';
 import type { CompeticionPublica } from '../core/competition';
 import { GLOW, GrEyebrow } from './bloques';
@@ -99,17 +99,17 @@ export class Campeonato {
   readonly lugar = input('');
   /** Figma home R2: real organiser logos in black and white. */
   protected readonly organizadores = [
-    { nombre: 'AEP · Asociación Española de Powerlifting', logo: '/img/home/logo-aep-bn.webp' },
-    { nombre: 'GRS Strength', logo: '/img/home/logo-grs-strength-bn.webp' },
-    { nombre: 'GRS Powerlifting Coaching', logo: '/img/home/logo-grs-coaching-bn.webp' },
-    { nombre: "Ajuntament d'Almussafes", logo: '/img/home/logo-almussafes-bn.webp' },
+    { nombre: 'AEP · Asociación Española de Powerlifting', logo: cdn('/img/home/logo-aep-bn.webp') },
+    { nombre: 'GRS Strength', logo: cdn('/img/home/logo-grs-strength-bn.webp') },
+    { nombre: 'GRS Powerlifting Coaching', logo: cdn('/img/home/logo-grs-coaching-bn.webp') },
+    { nombre: "Ajuntament d'Almussafes", logo: cdn('/img/home/logo-almussafes-bn.webp') },
   ];
   protected readonly glow = GLOW;
   /** Doors time («08:30») from the BO; the countdown falls back to 08:30 when it is not a HH:MM. */
   protected horaPuertas(p?: string): string {
     return /^\d{1,2}:\d{2}$/.test(p ?? '') ? p! : '08:30';
   }
-  protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
+  protected readonly logo = LOGO;
   protected readonly nivel = computed(() => this.subtitulo() || this.comp()?.evento?.nivel || '');
   /** Times the logos repeat in each half: at least 16 logos per half (≥ 2 500 px with the 72 px gap), wider than the
    *  1200 px strip, so the loop never shows an empty end. */

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { LOGO } from './cdn';
 import { GrIcon, type GrIconName } from './icon';
 import { GR_SKIN } from './skin';
 
@@ -169,7 +170,7 @@ export class GrEmpty {
 export class GrLogo {
   readonly height = input(40);
   readonly width = input<number | null>(null);
-  protected readonly src = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
+  protected readonly src = LOGO;
 }
 
 /** Tiny trend line for KPI tiles. */

@@ -15,3 +15,4 @@ export * from './lib/format';
 export * from './lib/select';
 export * from './lib/video';
 export * from './lib/web';
+export * from './lib/cdn';

@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injectable, PLATFORM_ID, PendingTasks, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { GrButton, GrIcon, GrLogo } from '@grcup/ui';
+import { GrButton, GrIcon, GrLogo, LOGO } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import type { Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, Competition, type CompeticionPublica } from '../core/competition';
@@ -210,7 +210,7 @@ export class Navbar {
     if (k.shiftKey && document.activeElement === primero) { k.preventDefault(); ultimo.focus(); }
     else if (!k.shiftKey && document.activeElement === ultimo) { k.preventDefault(); primero.focus(); }
   }
-  protected readonly logo = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
+  protected readonly logo = LOGO;
   protected readonly links = computed(() => LINKS[this.lang()]);
   private readonly comp = inject(Competition);
   private readonly router = inject(Router);

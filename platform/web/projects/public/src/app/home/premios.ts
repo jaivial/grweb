@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { GrButton, GrIcon } from '@grcup/ui';
+import { GrButton, GrIcon, cdn, CdnPipe } from '@grcup/ui';
 import type { Seccion } from '../core/cms';
 import { CATEGORIAS_IPF } from '../core/atletas';
 import { ANCHO, GrCabecera, GrTitulo } from './bloques';
@@ -19,7 +19,7 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
  */
 @Component({
   selector: 'gr-sec-premios',
-  imports: [RouterLink, GrButton, GrIcon, GrCabecera, GrTitulo, MedallaFisica],
+  imports: [CdnPipe, RouterLink, GrButton, GrIcon, GrCabecera, GrTitulo, MedallaFisica],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'relative block overflow-hidden bg-bg-base px-5 pb-18 md:px-8 md:pb-24 xl:px-20 xl:pb-32' },
   styles: `
@@ -59,7 +59,7 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
             <li class="relative w-[300px] shrink-0 snap-start lg:flex lg:h-[480px] lg:w-[340px] lg:items-center lg:justify-center">
               <div class="relative aspect-[300/360] w-full overflow-hidden rounded-lg border shadow-card lg:aspect-[300/420] lg:w-[300px]"
                 [class]="(i === 1 ? 'border-accent shadow-glow-deep' : 'border-white/8') + ' ' + giro[i % 3]">
-                <img [src]="p.imagen" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" />
+                <img [src]="p.imagen | cdn" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" />
                 <div class="absolute inset-0 flex flex-col justify-end gap-2 bg-[linear-gradient(180deg,transparent_55%,rgb(14_12_13/0.92))] p-5">
                   <span class="text-display-s [text-shadow:0_2px_20px_rgb(0_0_0/0.8)]">{{ p.titulo }}</span>
                 </div>
@@ -124,7 +124,7 @@ const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefi
             <li class="flex flex-col overflow-hidden rounded-[24px] border md:rounded-[32px] border-[#d4af37]/35 bg-[#221d1f] bg-[radial-gradient(70%_60%_at_50%_45%,rgb(212_175_55/0.22),transparent)]">
               <!-- both start facing the camera (Figma); a small offset so they do not turn in lockstep -->
               <!-- Figma home R2: the trophy image (no 3D render) -->
-              <img src="/img/home/trofeo-gl.webp" [alt]="a.alt" class="mx-auto mt-4 h-[130px] w-full object-contain md:h-[300px] lg:mt-10 lg:h-[400px]" loading="lazy" decoding="async" />
+              <img [src]="'/img/home/trofeo-gl.webp' | cdn" [alt]="a.alt" class="mx-auto mt-4 h-[130px] w-full object-contain md:h-[300px] lg:mt-10 lg:h-[400px]" loading="lazy" decoding="async" />
               <div class="flex flex-col gap-1 p-3 text-center md:gap-2 md:p-6 lg:p-10">
                 <span class="text-body-xs text-[#d4af37] md:text-body-l">{{ a.titulo }}</span>
                 <span class="font-display text-[22px] leading-[28px] tracking-[0.06em] uppercase md:text-[48px] md:leading-[53px]">{{ a.label }}</span>
@@ -143,17 +143,17 @@ export class SecPremios {
   /** Figma: −4° · 0 · +4° (with their vertical offsets inside the 340 × 480 holders). */
   protected readonly giro = ['lg:-rotate-4 lg:-translate-y-2.5', 'lg:translate-y-0', 'lg:rotate-4 lg:translate-y-2.5'];
   protected readonly colgantesA = [
-    { src: '/img/home/medalla-oro-larga.webp', h: 784, t: '6.2s', d: '-1s', amp: 4.5, per: 3.2, fase: 0.33 },
-    { src: '/img/home/medalla-oro-corta.webp', h: 429, t: '5.4s', d: '-3s', amp: 3.5, per: 3.6, fase: 0 },
-    { src: '/img/home/medalla-oro-larga.webp', h: 784, t: '6.8s', d: '-2s', amp: 5, per: 3, fase: 0.66 },
+    { src: cdn('/img/home/medalla-oro-larga.webp'), h: 784, t: '6.2s', d: '-1s', amp: 4.5, per: 3.2, fase: 0.33 },
+    { src: cdn('/img/home/medalla-oro-corta.webp'), h: 429, t: '5.4s', d: '-3s', amp: 3.5, per: 3.6, fase: 0 },
+    { src: cdn('/img/home/medalla-oro-larga.webp'), h: 784, t: '6.8s', d: '-2s', amp: 5, per: 3, fase: 0.66 },
   ];
   /** Phone/tablet: the two long side medals of block A (their own layer next to the slider). */
   protected readonly colgantesLado = this.colgantesA.filter((m) => m.h > 500);
   /** B: silver 228 · gold 218 · bronze 228 (Figma 204:124907); swing, period and phase of page 79's table. */
   protected readonly podio = [
-    { src: '/img/home/medalla-plata.webp', w: 228, h: 617, t: '5.8s', d: '-2s', amp: 4.5, per: 3.2, fase: 0.33 },
-    { src: '/img/home/medalla-oro-cat.webp', w: 218, h: 665, t: '6.4s', d: '-4s', amp: 3.5, per: 3.6, fase: 0 },
-    { src: '/img/home/medalla-bronce.webp', w: 228, h: 597, t: '6s', d: '-1s', amp: 5, per: 3, fase: 0.66 },
+    { src: cdn('/img/home/medalla-plata.webp'), w: 228, h: 617, t: '5.8s', d: '-2s', amp: 4.5, per: 3.2, fase: 0.33 },
+    { src: cdn('/img/home/medalla-oro-cat.webp'), w: 218, h: 665, t: '6.4s', d: '-4s', amp: 3.5, per: 3.6, fase: 0 },
+    { src: cdn('/img/home/medalla-bronce.webp'), w: 228, h: 597, t: '6s', d: '-1s', amp: 5, per: 3, fase: 0.66 },
   ];
   protected readonly absolutos = [
     { titulo: 'Ganador Absoluto - GL points', label: 'Masculino', alt: 'Trofeo del ganador absoluto masculino' },
