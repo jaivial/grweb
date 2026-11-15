@@ -90,6 +90,7 @@ type Panel struct {
 	Avisos        []string      `json:"avisos"`
 	Referido      *ReferidoArea `json:"referido,omitempty" doc:"Invita y ahorra (inscripción propia con referidos)"`
 	Prueba        *PruebaArea   `json:"prueba,omitempty" doc:"Tu competición: AEP-2 o AEP-3"`
+	TienePassword bool          `json:"tienePassword" doc:"Ya puede entrar con email y contraseña"`
 }
 
 // ReferidoArea is the «Invita y ahorra» card of the athlete area.
@@ -136,6 +137,7 @@ func (s *Svc) panel(ctx context.Context, r row) (Panel, error) {
 		p.Referido = ra
 	}
 	p.Prueba = s.pruebaArea(ctx, r.CompetitionID, r.ID, r.Prueba)
+	p.TienePassword = s.tienePassword(ctx, r.ID)
 	if r.Estado == "reserva" {
 		p.Avisos = append(p.Avisos, fmt.Sprintf("Estás en la lista de reserva (puesto %d). Te avisaremos por email si queda una plaza libre.", deref(r.OrdenReserva)))
 	}

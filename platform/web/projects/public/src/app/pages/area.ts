@@ -24,6 +24,7 @@ interface Panel {
     perfil: { slug: string; fotoUrl: string; focalX: number; focalY: number; frase: string; bio: string; instagram: string; marcas: Marcas; visible: boolean; imagen?: { at: string; version: string } };
   };
   acreditacion: string;
+  tienePassword?: boolean;
   checklist: { clave: string; texto: string; hecho: boolean; accion?: 'pesaje' | 'perfil' }[];
   pesajeAbierto: boolean;
   avisos: string[];
@@ -60,12 +61,16 @@ const api = '/api/area-atleta';
               <span class="flex size-14 items-center justify-center rounded-lg bg-accent/16 text-accent-text"><gr-icon name="lock" [size]="26" /></span>
               <h1 class="mt-5 text-display-m md:text-display-l">Área de atleta</h1>
               <p class="mt-2 text-body-m text-text-tertiary">Para atletas inscritos en la {{ nombreComp() }}.</p>
-              <p class="mt-4 text-body-l text-text-secondary">Entra con el email con el que te inscribiste en la AEP. Te enviamos un enlace de acceso: sin contraseñas.</p>
+              <p class="mt-4 text-body-m text-text-secondary">{{ modoEnlace() ? 'Te enviamos un enlace de acceso al email de tu inscripción.' : 'Entra con el email de tu inscripción y tu contraseña.' }}</p>
               @if (errorEnlace()) { <gr-alert class="mt-6" tone="warning" title="El enlace no sirve">{{ errorEnlace() }}</gr-alert> }
-              <form class="mt-6 flex flex-col gap-4" (ngSubmit)="pedir()" novalidate>
-                <gr-field label="Email de tu inscripción" for="a-email"><input grInput id="a-email" name="email" type="email" autocomplete="email" inputmode="email" enterkeyhint="send" spellcheck="false" autocapitalize="none" [(ngModel)]="email" required [attr.aria-invalid]="error() ? true : null" [attr.aria-describedby]="error() ? 'a-email-err' : null" /></gr-field>
+              <form class="mt-6 flex flex-col gap-4" (ngSubmit)="modoEnlace() ? pedir() : entrar()" novalidate>
+                <gr-field label="Email de tu inscripción" for="a-email"><input grInput id="a-email" name="email" type="email" autocomplete="username" inputmode="email" spellcheck="false" autocapitalize="none" [(ngModel)]="email" required [attr.aria-invalid]="error() ? true : null" [attr.aria-describedby]="error() ? 'a-email-err' : null" /></gr-field>
+                @if (!modoEnlace()) {
+                  <gr-field label="Contraseña" for="a-pass"><input grInput id="a-pass" name="password" type="password" autocomplete="current-password" enterkeyhint="go" [(ngModel)]="password" required /></gr-field>
+                }
                 <p id="a-email-err" class="-mt-2 min-h-5 text-body-s text-accent-text" role="alert">{{ error() }}</p>
-                <button grButton variant="primary" size="l" type="submit" [block]="true" [loading]="busy()">Enviarme el enlace</button>
+                <button grButton variant="primary" size="l" type="submit" [block]="true" [loading]="busy()">{{ modoEnlace() ? 'Enviarme el enlace' : 'Entrar' }}</button>
+                <button type="button" class="h-11 text-label-m text-accent-text hover:underline" (click)="modoEnlace.set(!modoEnlace()); error.set('')">{{ modoEnlace() ? 'Entrar con contraseña' : 'Sin contraseña: enviarme un enlace por email' }}</button>
               </form>
               <div class="mt-6 flex items-center gap-3 text-label-xs text-text-tertiary uppercase" aria-hidden="true"><span class="h-px flex-1 bg-line-subtle"></span>¿Aún no tienes cuenta?<span class="h-px flex-1 bg-line-subtle"></span></div>
               <a grButton variant="glass" size="l" routerLink="/alta-atleta" [block]="true" class="mt-4">Crear cuenta de atleta</a>
@@ -158,6 +163,15 @@ const api = '/api/area-atleta';
                         </li>
                       }
                     </ul>
+                  </section>
+                  <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
+                    <div class="flex items-center gap-3"><span class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-accent-deep/40 text-accent-text"><gr-icon name="key" [size]="18" /></span><h2 class="text-[18px] leading-tight font-semibold">{{ p.tienePassword ? 'Cambiar contraseña' : 'Crea tu contraseña' }}</h2></div>
+                    <p class="text-body-s text-text-tertiary">{{ p.tienePassword ? 'Ya puedes entrar con tu email y contraseña.' : 'Para entrar con email y contraseña sin esperar al enlace.' }}</p>
+                    <form class="flex flex-col gap-3" (ngSubmit)="guardarPassword()" novalidate>
+                      <gr-field label="Nueva contraseña (mín. 10 caracteres)" for="a-newpass"><input grInput id="a-newpass" name="nueva" type="password" autocomplete="new-password" minlength="10" [(ngModel)]="nuevaPassword" /></gr-field>
+                      @if (errorPassword()) { <p class="text-body-s text-accent-text" role="alert">{{ errorPassword() }}</p> }
+                      <button grButton type="submit" [block]="true" [loading]="busy()">Guardar contraseña</button>
+                    </form>
                   </section>
                   <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
                     <div class="flex items-center justify-between"><h2 class="text-ui-h5">Perfil público</h2><span class="text-[14px] font-semibold text-accent-text">{{ p.atleta.completo }} %</span></div>
@@ -343,6 +357,37 @@ export class AreaAtletaPage {
   protected readonly ok = signal('');
   protected readonly espera = signal(0);
   protected email = '';
+  protected password = '';
+  protected nuevaPassword = '';
+  protected readonly modoEnlace = signal(false);
+  protected readonly errorPassword = signal('');
+  protected async entrar(): Promise<void> {
+    this.error.set('');
+    if (!this.email.trim() || !this.password) return this.error.set('Escribe tu email y tu contraseña.');
+    this.busy.set(true);
+    try {
+      await this.set(await firstValueFrom(this.http.post<Panel>(`${api}/login`, { competicion: COMPETITION_SLUG, email: this.email.trim(), password: this.password })));
+      this.password = '';
+    } catch (e) {
+      this.error.set(e instanceof HttpErrorResponse && e.status === 429 ? 'Demasiados intentos. Espera unos minutos.' : (e as { error?: { detail?: string } }).error?.detail ?? 'No hemos podido entrar. Inténtalo de nuevo.');
+    } finally {
+      this.busy.set(false);
+    }
+  }
+  protected async guardarPassword(): Promise<void> {
+    this.errorPassword.set('');
+    if (this.nuevaPassword.length < 10) return this.errorPassword.set('La contraseña debe tener al menos 10 caracteres.');
+    this.busy.set(true);
+    try {
+      await this.set(await firstValueFrom(this.http.put<Panel>(`${api}/password`, { password: this.nuevaPassword })));
+      this.nuevaPassword = '';
+      this.aviso('Contraseña guardada');
+    } catch (e) {
+      this.errorPassword.set(this.msg(e) || 'Tu sesión ha caducado.');
+    } finally {
+      this.busy.set(false);
+    }
+  }
   /** iOS opens Mail with message://; elsewhere mailto: opens the default client (UX3-R1-18). */
   protected abrirCorreo(): void {
     location.href = /iPhone|iPad|iPod/.test(navigator.userAgent) ? 'message://' : 'mailto:';
