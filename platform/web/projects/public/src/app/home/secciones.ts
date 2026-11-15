@@ -41,16 +41,16 @@ const FOTO = 'border border-white/8';
         <div #movil class="flex w-full shrink-0 flex-col items-center gap-4 lg:w-auto" role="region" aria-roledescription="carrusel" aria-label="Lo que tendrás como atleta" tabindex="0"
           (pointerenter)="pausa.set(true)" (pointerleave)="pausa.set(false)" (focusin)="pausa.set(true)" (focusout)="pausa.set(false)"
           (touchstart)="pausa.set(true)" (touchend)="pausa.set(false)">
-          <div class="relative aspect-[9/19.5] w-[min(86vw,360px)] rounded-[56px] border border-white/20 bg-[#0b0a0a] p-[12px] shadow-[0_30px_80px_rgb(0_0_0/0.6)] lg:w-[360px]">
-            <div class="relative flex size-full flex-col overflow-hidden rounded-[44px] bg-black">
+          <div class="relative aspect-[9/19.5] w-[min(64vw,270px)] rounded-[44px] border border-white/20 bg-[#0b0a0a] p-[9px] sm:w-[320px] sm:rounded-[50px] sm:p-[11px] lg:rounded-[56px] lg:p-[12px] shadow-[0_30px_80px_rgb(0_0_0/0.6)] lg:w-[360px]">
+            <div class="relative flex size-full flex-col overflow-hidden rounded-[35px] bg-black sm:rounded-[39px] lg:rounded-[44px]">
               <!-- status bar (safe area): the Dynamic Island never covers the screen content -->
-              <div class="flex h-[6.5%] shrink-0 items-center justify-between px-[9%] text-[13px] font-semibold text-white" aria-hidden="true"><span>9:41</span><span class="h-[9px] w-[20px] rounded-[3px] bg-white"></span></div>
+              <div class="flex h-[6.5%] shrink-0 items-center justify-between px-[9%] text-[11px] font-semibold text-white sm:text-[13px]" aria-hidden="true"><span>9:41</span><span class="h-[9px] w-[20px] rounded-[3px] bg-white"></span></div>
               <div class="relative min-h-0 flex-1">
               @for (p of pantallas(); track p.src; let i = $index) {
                 <img [src]="p.src" [alt]="p.alt" class="absolute inset-0 size-full transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none" [class]="(p.story ? 'object-contain ' : 'object-cover object-top ') + (i === slide() ? 'opacity-100 scale-100' : 'opacity-0 scale-[1.03]')" [attr.aria-hidden]="i !== slide() || null" [attr.loading]="i ? 'lazy' : null" decoding="async" />
               }
               </div>
-              <span class="absolute top-2.5 left-1/2 h-7 w-[96px] -translate-x-1/2 rounded-pill bg-black" aria-hidden="true"></span>
+              <span class="absolute top-2.5 left-1/2 h-[22px] w-[76px] -translate-x-1/2 sm:h-7 sm:w-[96px] rounded-pill bg-black" aria-hidden="true"></span>
               <span class="absolute bottom-2 left-1/2 h-1 w-[110px] -translate-x-1/2 rounded-pill bg-white/80" aria-hidden="true"></span>
             </div>
           </div>
@@ -61,7 +61,10 @@ const FOTO = 'border border-white/8';
             }
           </span>
         </div>
-        <a grButton variant="primary" size="l" routerLink="/alta-atleta" class="w-full lg:hidden">{{ s()?.['cta'] || 'Dar de alta mi atleta' }}</a>
+        <div class="flex w-full flex-col gap-3 sm:flex-row sm:justify-center lg:hidden">
+          <a grButton variant="primary" size="l" routerLink="/alta-atleta">Crear mi perfil de atleta</a>
+          <a grButton variant="glass" size="l" routerLink="/area-atleta" iconRight="arrow-right">Ir a mi área de atleta</a>
+        </div>
         <div class="flex w-full flex-col items-center gap-6 lg:w-[760px] lg:gap-10">
           <h3 class="text-center font-display text-[28px] leading-[1.25] tracking-[0.02em] md:text-[32px]">Por qué darte de alta como atleta</h3>
           <ul class="grid w-full grid-cols-2 gap-3 md:gap-5">
@@ -72,7 +75,10 @@ const FOTO = 'border border-white/8';
               </li>
             }
           </ul>
-          <a grButton variant="primary" size="l" routerLink="/alta-atleta" class="hidden lg:inline-flex">{{ s()?.['cta'] || 'Dar de alta mi atleta' }}</a>
+          <div class="hidden gap-3 lg:flex">
+            <a grButton variant="primary" size="l" routerLink="/alta-atleta">Crear mi perfil de atleta</a>
+            <a grButton variant="glass" size="l" routerLink="/area-atleta" iconRight="arrow-right">Ir a mi área de atleta</a>
+          </div>
         </div>
       </div>
     </div>

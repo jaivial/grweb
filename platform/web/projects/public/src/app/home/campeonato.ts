@@ -30,7 +30,7 @@ export const fechasHero = (ini?: string | null, fin?: string | null) => {
   changeDetection: ChangeDetectionStrategy.OnPush,
   // iOS Safari paints the hero's composited sticky layer (bottom fade, clouds) over a non-composited z-index sibling:
   // its own layer (translateZ) keeps the section above it (Jaime 15-nov: title, dates and «Reserva» hidden on iPhone).
-  host: { class: 'relative isolate z-10 -mt-[400px] block [transform:translateZ(0)] motion-reduce:mt-0', id: 'campeonato' },
+  host: { class: 'relative isolate z-10 -mt-[400px] block [transform:translate3d(0,0,0)] [will-change:transform] motion-reduce:mt-0', id: 'campeonato' },
   template: `
     <!-- «Relevo»: the last 400 px of the hero, fading into the section -->
     <div class="pointer-events-none h-[400px] bg-[linear-gradient(180deg,transparent,#141112)] motion-reduce:hidden" aria-hidden="true"></div>

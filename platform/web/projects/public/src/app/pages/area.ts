@@ -56,8 +56,9 @@ const api = '/api/area-atleta';
           @case ('cargando') { <div class="mx-auto max-w-md"><gr-skeleton class="h-64 rounded-lg" /></div> }
 
           @case ('acceso') {
-            <div class="mx-auto max-w-md">
-              <h1 class="text-display-m md:text-display-l">Área de atleta</h1>
+            <div class="mx-auto max-w-md rounded-2xl border border-white/8 bg-white/3 p-6 md:p-8">
+              <span class="flex size-14 items-center justify-center rounded-lg bg-accent/16 text-accent-text"><gr-icon name="lock" [size]="26" /></span>
+              <h1 class="mt-5 text-display-m md:text-display-l">Área de atleta</h1>
               <p class="mt-2 text-body-m text-text-tertiary">Para atletas inscritos en la {{ nombreComp() }}.</p>
               <p class="mt-4 text-body-l text-text-secondary">Entra con el email con el que te inscribiste en la AEP. Te enviamos un enlace de acceso: sin contraseñas.</p>
               @if (errorEnlace()) { <gr-alert class="mt-6" tone="warning" title="El enlace no sirve">{{ errorEnlace() }}</gr-alert> }
@@ -66,10 +67,8 @@ const api = '/api/area-atleta';
                 <p id="a-email-err" class="-mt-2 min-h-5 text-body-s text-accent-text" role="alert">{{ error() }}</p>
                 <button grButton variant="primary" size="l" type="submit" [block]="true" [loading]="busy()">Enviarme el enlace</button>
               </form>
-              <aside class="mt-6 rounded-lg border border-line-subtle bg-bg-card p-5">
-                <p class="text-label-m">¿Aún no tienes ficha?</p>
-                <p class="mt-1 text-body-s text-text-tertiary">Da de alta tu atleta con tu email y el equipo revisa tu ficha. <a routerLink="/alta-atleta" class="text-accent-text hover:underline">Alta de atleta</a></p>
-              </aside>
+              <div class="mt-6 flex items-center gap-3 text-label-xs text-text-tertiary uppercase" aria-hidden="true"><span class="h-px flex-1 bg-line-subtle"></span>¿Aún no tienes cuenta?<span class="h-px flex-1 bg-line-subtle"></span></div>
+              <a grButton variant="glass" size="l" routerLink="/alta-atleta" [block]="true" class="mt-4">Crear cuenta de atleta</a>
               <aside class="mt-4 rounded-lg border border-line-subtle bg-bg-card p-5">
                 <p class="text-label-m">¿No te llega?</p>
                 <p class="mt-1 text-body-s text-text-tertiary">Revisa spam@if (contacto()) { o escribe a <a [href]="'mailto:' + contacto()" class="text-accent-text underline">{{ contacto() }}</a>}. Por privacidad, no confirmamos si un email está inscrito.</p>
@@ -90,19 +89,34 @@ const api = '/api/area-atleta';
 
           @case ('panel') {
             @if (p) {
-              <header class="flex items-center gap-3 md:gap-4">
-                <span class="size-14 shrink-0 overflow-hidden rounded-full bg-bg-raised md:size-[72px]">
+              <!-- Jaime 15-nov: athlete hero (photo, name, weight class and sex) + four square shortcuts (icon and title only) -->
+              <header class="relative flex flex-col items-center gap-5 overflow-hidden rounded-2xl border border-white/8 bg-[linear-gradient(160deg,rgb(110_20_32/0.35),rgb(20_17_18/0.6)_55%)] px-5 pt-8 pb-6 text-center md:flex-row md:gap-8 md:p-8 md:text-left">
+                <span class="size-28 shrink-0 overflow-hidden rounded-full border-2 border-accent/60 bg-bg-raised shadow-[0_0_40px_rgb(196_43_62/0.35)] md:size-36">
                   @if (p.atleta.perfil.fotoUrl) { <img [src]="p.atleta.perfil.fotoUrl" alt="" class="size-full object-cover" [style.object-position]="p.atleta.perfil.focalX + '% ' + p.atleta.perfil.focalY + '%'" /> }
-                  @else { <span class="flex size-full items-center justify-center text-label-l">{{ ((p.atleta.nombre[0] ?? '') + (p.atleta.apellidos[0] ?? '')).toUpperCase() }}</span> }
+                  @else { <span class="flex size-full items-center justify-center font-display text-[40px]">{{ ((p.atleta.nombre[0] ?? '') + (p.atleta.apellidos[0] ?? '')).toUpperCase() }}</span> }
                 </span>
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <h1 class="line-clamp-2 break-words text-display-xs outline-none md:text-display-m" tabindex="-1">Hola, {{ p.atleta.nombre }}</h1>
-                  <p class="text-body-m text-text-tertiary"><span class="md:hidden">{{ p.competicion.nombre }} · {{ p.atleta.club || 'Independiente' }}</span><span class="hidden md:inline">Área de atleta · {{ p.competicion.nombre }}</span></p>
+                <div class="flex min-w-0 flex-1 flex-col items-center gap-3 md:items-start">
+                  <p class="text-label-xs tracking-[0.08em] text-text-tertiary uppercase">Área de atleta · {{ p.competicion.nombre }}</p>
+                  <h1 class="break-words font-display text-[32px] leading-[1.1] tracking-[0.04em] uppercase outline-none md:text-[48px]" tabindex="-1">{{ p.atleta.nombreCompleto || p.atleta.nombre + ' ' + p.atleta.apellidos }}</h1>
+                  <p class="flex flex-wrap justify-center gap-2 md:justify-start">
+                    <span class="inline-flex h-8 items-center gap-1.5 rounded-pill border border-white/12 bg-white/6 px-3 text-label-s"><gr-icon name="scale" [size]="14" />{{ p.atleta.categoria ? cat(p.atleta.categoria) + ' kg' : 'Categoría por publicar' }}</span>
+                    <span class="inline-flex h-8 items-center gap-1.5 rounded-pill border border-white/12 bg-white/6 px-3 text-label-s"><gr-icon name="user" [size]="14" />{{ p.atleta.sexo === 'F' ? 'Femenino' : 'Masculino' }}</span>
+                  </p>
                 </div>
-                <a [routerLink]="['/atletas', p.atleta.perfil.slug]" class="hidden h-11 shrink-0 items-center gap-2 rounded-sm border border-white/12 bg-white/5 px-5 text-label-m hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-accent md:inline-flex">Ver mi perfil público<gr-icon name="arrow-right" [size]="16" /></a>
-                <button type="button" class="hidden h-11 shrink-0 items-center gap-2 rounded-sm px-4 text-label-m text-text-tertiary hover:bg-white/5 hover:text-text-primary focus-visible:outline-2 focus-visible:outline-accent md:inline-flex" (click)="salir()"><gr-icon name="log-out" [size]="18" />Cerrar sesión</button>
-                <button type="button" class="flex size-11 shrink-0 items-center justify-center text-text-tertiary hover:text-text-primary md:hidden" aria-label="Cerrar sesión" (click)="salir()"><gr-icon name="log-out" [size]="20" /></button>
+                <div class="flex shrink-0 gap-2 md:flex-col md:self-start">
+                  <a [routerLink]="['/atletas', p.atleta.perfil.slug]" class="inline-flex h-11 items-center gap-2 rounded-sm border border-white/12 bg-white/5 px-4 text-label-m hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-accent">Perfil público<gr-icon name="arrow-right" [size]="16" /></a>
+                  <button type="button" class="inline-flex h-11 items-center gap-2 rounded-sm px-4 text-label-m text-text-tertiary hover:bg-white/5 hover:text-text-primary focus-visible:outline-2 focus-visible:outline-accent" (click)="salir()"><gr-icon name="log-out" [size]="18" />Salir</button>
+                </div>
               </header>
+              <nav class="mt-4 grid grid-cols-2 gap-3 md:mt-6 md:grid-cols-4 md:gap-4" aria-label="Accesos del área de atleta">
+                @for (t of accesos; track t.id) {
+                  @if (t.ruta) {
+                    <a [routerLink]="t.ruta" [class]="tile"><span [class]="tileIcono"><gr-icon [name]="t.icono" [size]="26" /></span><span class="text-[15px] leading-tight font-semibold md:text-[17px]">{{ t.texto }}</span></a>
+                  } @else {
+                    <button type="button" [class]="tile" (click)="acceso(t.id)"><span [class]="tileIcono"><gr-icon [name]="t.icono" [size]="26" /></span><span class="text-[15px] leading-tight font-semibold md:text-[17px]">{{ t.texto }}</span></button>
+                  }
+                }
+              </nav>
               @for (a of p.avisos; track a) { <gr-alert class="mt-6" tone="info" title="Importante">{{ a }}</gr-alert> }
               @if (p.prueba && !p.prueba.elegida && !p.prueba.cerrada) {
                 <div class="mt-6 flex flex-wrap items-center gap-3 rounded-md border border-warning/50 bg-warning/10 p-4" role="status">
@@ -114,7 +128,7 @@ const api = '/api/area-atleta';
               <div class="mt-6 grid grid-cols-[minmax(0,1fr)] items-start gap-6 md:mt-7 md:grid-cols-2 lg:grid-cols-[432fr_360fr_360fr]">
                 <div class="flex flex-col gap-6">
                   @if (p.prueba; as pr) { @if (!pr.elegida && !pr.cerrada) { <ng-container *ngTemplateOutlet="eleccionTpl; context: { $implicit: pr }" /> } }
-                  <section class="flex flex-col gap-3 rounded-lg border border-accent/40 bg-bg-card p-6">
+                  <section id="mis-horarios" class="flex scroll-mt-28 flex-col gap-3 rounded-lg border border-accent/40 bg-bg-card p-6">
                     <div class="flex flex-wrap items-center gap-x-2 gap-y-2">
                       <h2 class="mr-auto text-ui-h5 md:mr-0">Tu competición</h2>
                       <p class="inline-flex min-h-6 max-w-full items-center gap-1.5 rounded-pill border px-2.5 py-0.5 text-[12px] font-medium uppercase tracking-wide" [class]="p.atleta.estado === 'confirmado' ? 'border-success/40 bg-success/12 text-success' : 'border-info/40 bg-info/10 text-info'">
@@ -170,7 +184,6 @@ const api = '/api/area-atleta';
                       </dl>
                     </section>
                   }
-                  <a [routerLink]="['/atletas', p.atleta.perfil.slug]" class="inline-flex h-11 items-center justify-center gap-2 rounded-sm border border-white/12 bg-white/5 text-label-m md:hidden">Ver mi perfil público<gr-icon name="arrow-right" [size]="16" /></a>
                 </div>
                 @if (p.pesajeAbierto && p.atleta.estado === 'confirmado') {
                   <section class="hidden flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6 lg:flex">
@@ -307,6 +320,19 @@ export class AreaAtletaPage {
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly comp = inject(Competition);
   protected readonly hora = hora;
+  protected readonly cat = cat;
+  protected readonly tile = 'group flex aspect-square flex-col items-center justify-center gap-3 rounded-xl border border-white/8 bg-white/3 p-4 text-center transition-[background-color,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-accent/50 hover:bg-white/6 focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transition-none motion-reduce:hover:translate-y-0 md:gap-4';
+  protected readonly tileIcono = 'flex size-14 items-center justify-center rounded-lg bg-accent/16 text-accent-text transition-colors group-hover:bg-accent/24 md:size-16';
+  protected readonly accesos: { id: string; texto: string; icono: 'pencil' | 'calendar' | 'instagram' | 'trophy'; ruta?: string }[] = [
+    { id: 'perfil', texto: 'Editar mi perfil', icono: 'pencil' },
+    { id: 'horarios', texto: 'Ver mis horarios', icono: 'calendar' },
+    { id: 'post', texto: 'Post builder', icono: 'instagram', ruta: '/area-atleta/compartir' },
+    { id: 'resultados', texto: 'Ver mis resultados', icono: 'trophy', ruta: '/resultados' },
+  ];
+  protected acceso(id: string): void {
+    if (id === 'perfil') return this.abrir('perfil');
+    document.getElementById('mis-horarios')?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+  }
   protected readonly vista = signal<Vista>('cargando');
   protected readonly panel = signal<Panel | null>(null);
   protected readonly qr = signal('');
