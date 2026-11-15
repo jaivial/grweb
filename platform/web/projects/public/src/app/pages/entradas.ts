@@ -177,9 +177,9 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
       <!-- UX8-R1-13: only the background layers are clipped; the text reflows at 200 % text size -->
       <section class="relative flex lg:min-h-[920px] lg:items-center">
         <div class="absolute inset-0 overflow-hidden" aria-hidden="true">
-        <img src="/img/home/org-publico-l.webp" srcset="/img/home/org-publico-s.webp 640w, /img/home/org-publico-l.webp 1300w" sizes="100vw" alt="" class="absolute inset-0 size-full object-cover grayscale" fetchpriority="high" />
+        <img src="/img/home/org-publico-l.webp" srcset="/img/home/org-publico-s.webp 640w, /img/home/org-publico-l.webp 1300w" sizes="100vw" alt="" class="absolute inset-0 size-full object-cover brightness-75 grayscale" fetchpriority="high" />
         <div class="absolute inset-0 bg-[linear-gradient(180deg,rgb(14_12_13/0.72),rgb(14_12_13/0.8)_60%,var(--color-bg-base))]" aria-hidden="true"></div>
-        <div class="pointer-events-none absolute -top-40 -right-40 size-[780px] rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.5),transparent)]" aria-hidden="true"></div>
+        <div class="pointer-events-none absolute -top-40 -right-40 size-[780px] rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.3),transparent)]" aria-hidden="true"></div>
         </div>
         <div class="relative mx-auto grid w-full max-w-[1200px] items-center gap-10 px-5 pt-[104px] pb-12 md:px-8 md:pt-40 md:pb-20 lg:grid-cols-[minmax(0,700px)_350px] lg:justify-between lg:pt-24 lg:pb-16 xl:px-0">
           <div class="flex min-w-0 flex-col items-start gap-4 [overflow-wrap:anywhere] md:gap-5">
@@ -190,8 +190,8 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
             </nav>
             <p class="sr-only">Entradas · GRS Cup 2</p>
             @if (todasAgotadas()) { <p class="inline-flex min-h-7 items-center rounded-full border border-line-strong bg-white/5 px-3 text-label-xs text-text-secondary uppercase">Entradas agotadas</p> }
-            <h1 class="text-display-m hyphens-auto max-md:text-[clamp(2.25rem,9vw,4.5rem)] md:text-display-hero" lang="es">
-              @if (todasAgotadas()) { Hasta aquí <span class="whitespace-nowrap bg-[linear-gradient(100deg,#C42B3E,#6E2020)] bg-clip-text text-transparent">el aforo</span> } @else { Vive la GRS Cup 2 <span class="whitespace-nowrap bg-[linear-gradient(100deg,#C42B3E,#6E2020)] bg-clip-text text-transparent">en directo</span> }
+            <h1 class="text-display-m hyphens-auto [filter:drop-shadow(0_2px_20px_rgb(0_0_0/0.8))] max-md:text-[clamp(2.25rem,9vw,4.5rem)] md:text-display-hero" lang="es">
+              @if (todasAgotadas()) { Hasta aquí <span class="whitespace-nowrap bg-[linear-gradient(90deg,#C42B3E,#8E2530)] bg-clip-text text-transparent">el aforo</span> } @else { Vive la GRS Cup 2 <span class="whitespace-nowrap bg-[linear-gradient(90deg,#C42B3E,#8E2530)] bg-clip-text text-transparent">en directo</span> }
             </h1>
             @if (todasAgotadas()) {
               <p class="max-w-[640px] text-body-m text-text-secondary md:text-body-l">Se han reservado todas las entradas. Apúntate a la lista de espera: si alguien anula, te avisamos por email y tienes un plazo para confirmar.</p>
