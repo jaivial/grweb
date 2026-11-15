@@ -12,19 +12,12 @@ export interface Recorte {
   selector: 'gr-story-movil',
   imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: `.gr-progreso{width:0;animation:gr-progreso linear forwards} @keyframes gr-progreso{to{width:100%}} @media (prefers-reduced-motion:reduce){.gr-progreso{animation:none;width:100%}}`,
   host: { class: 'block w-[236px] md:w-[280px] lg:w-[300px]' },
   template: `
     <div class="rounded-[44px] border-[6px] border-[#2a2a2e] bg-black p-2 shadow-2xl">
       <div class="relative aspect-[9/16] overflow-hidden rounded-[34px]" [style.background]="fondo() || '#000'">
         @if (fondo()) { <div class="absolute inset-0 bg-cover bg-center grayscale" [style.background-image]="'url(' + fondo() + ')'"></div> }
-        @if (capas().length) {
-          <!-- stacked screens (home «Crea tu perfil»): crossfade + slight zoom, fixed 9:16 box so nothing shifts -->
-          @for (c of capas(); track c; let i = $index) {
-            <img [src]="c" alt="" class="absolute inset-0 h-full w-full object-cover transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none" [class]="i === activa() ? 'opacity-100 scale-100' : 'opacity-0 scale-[1.04]'" [attr.loading]="i ? 'lazy' : null" decoding="async" />
-          }
-        }
-        @else if (src()) { <img [src]="src()" [alt]="alt()" class="absolute inset-0 h-full w-full object-cover" [class.blur-[6px]]="borroso()" /> }
+        @if (src()) { <img [src]="src()" [alt]="alt()" class="absolute inset-0 h-full w-full object-cover" [class.blur-[6px]]="borroso()" /> }
         @else { <div class="absolute inset-0 animate-pulse bg-white/5"></div> }
         @if (hueco()) {
           <div class="absolute inset-x-0 top-[28%] flex flex-col items-center gap-1 text-white/60" aria-hidden="true"><gr-icon name="image" [size]="16" /><span class="font-mono text-[7px] tracking-[0.12em] uppercase">Tu foto aquí</span></div>
@@ -33,16 +26,7 @@ export interface Recorte {
         <div class="pointer-events-none absolute inset-x-0 top-0 px-4 pt-2 text-white" aria-hidden="true">
           <div class="flex items-center justify-between text-[12px] font-semibold"><span>9:41</span><span class="h-5 w-16 rounded-full bg-black"></span><span class="h-2.5 w-5 rounded-[3px] bg-white"></span></div>
           @if (!borroso()) {
-            @if (capas().length > 1) {
-              <!-- story progress = carousel indicator: one bar per screen, the current one fills in «intervalo» ms -->
-              <div class="mt-2 flex gap-1">
-                @for (c of capas(); track c; let i = $index) {
-                  <div class="h-0.5 flex-1 overflow-hidden rounded bg-white/30"><div class="h-full rounded bg-white" [class]="i < activa() ? 'w-full' : i === activa() ? 'gr-progreso' : 'w-0'" [style.animation-duration.ms]="intervalo()" [style.animation-play-state]="pausado() ? 'paused' : 'running'"></div></div>
-                }
-              </div>
-            } @else {
-              <div class="mt-2 h-0.5 rounded bg-white/30"><div class="h-full w-1/3 rounded bg-white"></div></div>
-            }
+            <div class="mt-2 h-0.5 rounded bg-white/30"><div class="h-full w-1/3 rounded bg-white"></div></div>
             <div class="mt-2 flex items-center gap-1.5 text-[9px] font-semibold"><span class="size-4 rounded-full border border-white/60 bg-white/20"></span>{{ usuario() }} · 1 min<gr-icon class="ml-auto" name="x" [size]="12" /></div>
           }
         </div>
@@ -64,11 +48,6 @@ export class StoryMovil {
   readonly hueco = input(false);
   /** Background photo behind a transparent sticker. */
   readonly fondo = input('');
-  /** Several screens shown one at a time (crossfade); the story bars become the indicator. */
-  readonly capas = input<string[]>([]);
-  readonly activa = input(0);
-  readonly intervalo = input(1500);
-  readonly pausado = input(false);
 }
 
 /** «Recorta tu foto» (Figma 83 · 06): 9:16 frame, drag to move, wheel / pinch / slider to zoom (1×–4×). */
