@@ -2,17 +2,19 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 import { GrButton } from './button';
 import { GrIcon } from './icon';
 
-/** Figma 17 «Page loader»: 64 px dashed accent ring and «Cargando...» centred on bg/base (covers the viewport). */
+/**
+ * Page loader = the hero's preload bar (hero-trophy.ts «gr-precarga», Jaime 15-nov 13:25): a 2 px track on top with the red
+ * gradient pulsing while the next page loads. It never covers the page, so the current page stays readable until the new
+ * one is ready (no full-screen flash between pages). Same component in the public web and the backoffice.
+ */
 @Component({
   selector: 'gr-page-loader',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'fixed inset-0 z-[70] flex flex-col items-center justify-center gap-4 bg-bg-base', role: 'status' },
-  template: `
-    <svg class="size-16 animate-spin [animation-duration:1.2s] motion-reduce:animate-none" viewBox="0 0 64 64" aria-hidden="true">
-      <circle cx="32" cy="32" r="30" fill="none" stroke="var(--color-accent)" stroke-width="4" stroke-dasharray="32 15.1" />
-    </svg>
-    <p class="text-body-m text-text-tertiary">{{ texto() }}</p>
-  `,
+  host: {
+    class: 'pointer-events-none fixed inset-x-0 top-0 z-[70] block h-0.5 bg-white/8',
+    role: 'progressbar', '[attr.aria-label]': 'texto()', 'aria-busy': 'true',
+  },
+  template: `<div class="h-full w-full animate-pulse bg-[linear-gradient(90deg,#6e1420,#a82334)] motion-reduce:animate-none"></div>`,
 })
 export class GrPageLoader {
   readonly texto = input('Cargando...');
