@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
-	"runtime"
 	"strings"
 	"time"
 
@@ -37,13 +36,12 @@ func ConnectMax(ctx context.Context, url string, max int32) (*pgxpool.Pool, erro
 		return nil, fmt.Errorf("DATABASE_URL: %w", err)
 	}
 	if max <= 0 && !strings.Contains(url, "pool_max_conns") {
-		// perf-20261115: pgx defaults to max(4, NumCPU) — the host CPUs (16 here, 12 on the node) per pod, whatever
-		// its CPU limit. GOMAXPROCS follows the cgroup limit (Go ≥1.25); machine rule: ≤10 per service.
-		cfg.MaxConns = int32(min(10, 2*runtime.GOMAXPROCS(0)))
-		if cfg.MaxConns < 4 {
-			cfg.MaxConns = 4
-		}
+		// perf-20261115: pgx defaults to max(4, NumCPU) — the host CPUs (16 here, 12 on the node) per pod. The pool
+		// waits on I/O, so it does not follow the CPU limit (with cpus=1 a GOMAXPROCS-based pool of 4 queued the bets
+		// to p95 0.5 s); machine rule: 10 per service.
+		cfg.MaxConns = 10
 	}
+
 	if max > 0 {
 		cfg.MaxConns, cfg.MinConns = max, 0
 	} else if !strings.Contains(url, "pool_min_conns") {
