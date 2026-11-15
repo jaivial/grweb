@@ -172,6 +172,7 @@ func (s *Svc) registerArea() {
 			Competicion string `json:"competicion" pattern:"^[a-z0-9-]{2,41}$" doc:"Slug de la competición"`
 			Email       string `json:"email" format:"email" maxLength:"254"`
 			Next        string `json:"next,omitempty" pattern:"^(/area-atleta/compartir)?$" doc:"Página a la que vuelve el enlace"`
+			Motivo      string `json:"motivo,omitempty" enum:"acceso,contrasena" doc:"contrasena = «¿Has olvidado tu contraseña?» (mismo enlace, email para cambiarla)"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "area-enlace", Method: http.MethodPost, Path: base + "/enlace", Summary: "Pedir un enlace de acceso (siempre 202: no se revela si el email está inscrito)", Tags: tagArea, DefaultStatus: http.StatusAccepted},
@@ -205,7 +206,11 @@ func (s *Svc) registerArea() {
 					if in.Body.Next != "" {
 						link += "&next=" + url.QueryEscape(in.Body.Next)
 					}
-					return email(bg, tx, cid, e, "atleta-enlace-area", map[string]string{"nombre": nombre, "enlace": link})
+					plantilla := "atleta-enlace-area"
+					if in.Body.Motivo == "contrasena" {
+						plantilla = "atleta-contrasena"
+					}
+					return email(bg, tx, cid, e, plantilla, map[string]string{"nombre": nombre, "enlace": link})
 				}); err != nil {
 					s.a.Log.Warn("enlace del área no enviado", "err", err)
 				}
