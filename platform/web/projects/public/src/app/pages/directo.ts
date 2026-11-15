@@ -627,19 +627,45 @@ export class ResultadosEdicionPage {
 
 // ============================================================ /ediciones/:anio ===
 
+const TD = {
+  es: {
+    eyebrow: 'Edición anterior', seccion: 'Ediciones', fuente: (a: string) => 'Fuente: cartel oficial de la edición ' + a, cartel: (n: string) => 'Cartel de la ' + n,
+    verResultados: 'Ver resultados', verGaleria: 'Ver galería', galEyebrow: 'Galería', galTitulo: (a: string) => 'Así fue *la edición ' + a + '*', ampliar: 'Ampliar: ',
+    patro: (a: string) => 'Patrocinadores ' + a, patroTitulo: 'Gracias a *nuestros colaboradores*', logos: (a: string) => 'Logos del cartel de la edición ' + a + '.',
+    compite: 'Compite en la GRS Cup 2', compiteD: 'Plazas limitadas. La inscripción se hace a través de la AEP.', inscribirse: 'Inscribirse',
+    notFoundT: 'Página no encontrada · GRS Cup', notFoundD: 'La página que buscas no existe.', fotos: FOTOS_2025.map(([, a]) => a),
+    resumen: (nivel: string, f: string, dos: boolean, ciudad: string) => 'Campeonato de powerlifting ' + nivel + ', celebrado ' + (dos ? 'los días ' + f.replace('–', ' y ') : 'el ' + f) + ' en ' + ciudad + '.',
+    datos: ['Fecha', 'Sede', 'Nivel', 'Organiza'],
+    rel: (a: string, sig: number) => [{ titulo: 'Resultados ' + a, texto: 'Podios y clasificación', ruta: '/resultados/' + a }, { titulo: 'Galería', texto: 'Todas las fotos', ruta: '/galeria' }, { titulo: 'Edición ' + sig, texto: 'Próxima competición', ruta: '/' }] as RelatedLink[],
+    seoT: (n: string, c: string) => n + ' · ' + c + ' · Edición anterior', seoD: (f: string, c: string, d: string) => f + ' en ' + c + '. ' + d,
+  },
+  en: {
+    eyebrow: 'Past edition', seccion: 'Editions', fuente: (a: string) => 'Source: official poster of the ' + a + ' edition', cartel: (n: string) => 'Poster of ' + n,
+    verResultados: 'See results', verGaleria: 'See gallery', galEyebrow: 'Gallery', galTitulo: (a: string) => 'How *the ' + a + ' edition* went', ampliar: 'Enlarge: ',
+    patro: (a: string) => a + ' sponsors', patroTitulo: 'Thanks to *our partners*', logos: (a: string) => 'Logos from the ' + a + ' edition poster.',
+    compite: 'Compete in GRS Cup 2', compiteD: 'Limited places. Registration is done through the AEP.', inscribirse: 'Register',
+    notFoundT: 'Page not found · GRS Cup', notFoundD: 'The page you’re looking for doesn’t exist.',
+    fotos: ['Athlete in front of the bar before his deadlift, with 275 kg on the scoreboard', 'Focused athlete wearing headphones before her attempt', 'Squat on the platform, with the loaders at the sides', 'Athlete on the bench press under the competition banner', 'Deadlift locked out under the stage lights', 'Belt and wrist wraps hanging from a bar in the warm-up area', 'A teammate adjusts an athlete’s belt before he goes out', 'Focused athlete before stepping onto the platform'],
+    resumen: (nivel: string, f: string, dos: boolean, ciudad: string) => nivel + ' powerlifting championship, held ' + (dos ? 'on ' + f.replace('–', ' and ') : 'on ' + f) + ' in ' + ciudad + '.',
+    datos: ['Date', 'Venue', 'Level', 'Organiser'],
+    rel: (a: string, sig: number) => [{ titulo: a + ' results', texto: 'Podiums and standings', ruta: '/resultados/' + a }, { titulo: 'Gallery', texto: 'All the photos', ruta: '/galeria' }, { titulo: sig + ' edition', texto: 'Next competition', ruta: '/' }] as RelatedLink[],
+    seoT: (n: string, c: string) => n + ' · ' + c + ' · Past edition', seoD: (f: string, c: string, d: string) => f + ' in ' + c + '. ' + d,
+  },
+};
+
 /** /ediciones/:anio (Figma page 28): the archive of a past edition: poster, facts, gallery and sponsors. */
 @Component({
   selector: 'gr-edicion',
-  imports: [CdnPipe, RouterLink, Page, GrSkeleton, GrIcon, GrButton, GrCabecera, Lightbox, Related, Navbar, Footer, NoEncontrada],
+  imports: [LocPipe, CdnPipe, RouterLink, Page, GrSkeleton, GrIcon, GrButton, GrCabecera, Lightbox, Related, Navbar, Footer, NoEncontrada],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = comp();
     <!-- Figma 17 «404»: an edition that does not exist -->
     @if (noExiste()) { <gr-navbar /><main><gr-no-encontrada /></main><gr-footer /> } @else {
-    <gr-page title="GRS Cup" [accent]="anio()" eyebrow="Edición anterior" section="Ediciones" [crumb]="anio()" [subtitle]="resumen()">
+    <gr-page title="GRS Cup" [accent]="anio()" [eyebrow]="t().eyebrow" [section]="t().seccion" [crumb]="anio()" [subtitle]="resumen()">
       @if (c) {
         <div pageStamps class="flex flex-wrap gap-2">
-          <span class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />Fuente: cartel oficial de la edición {{ anio() }}</span>
+          <span class="inline-flex items-center gap-2 rounded-sm border border-line-subtle px-3 py-2 text-body-xs text-text-tertiary"><gr-icon name="clock" [size]="14" />{{ t().fuente(anio()) }}</span>
           <span class="inline-flex h-7 items-center rounded-full border border-text-muted bg-text-muted/12 px-3 text-label-xs text-text-tertiary uppercase">Celebrada</span>
         </div>
       }
@@ -648,7 +674,7 @@ export class ResultadosEdicionPage {
         <!-- Figma «Ficha»: the poster (360 × 480) and the facts in one column, the story and the actions -->
         <div class="flex flex-col gap-12 md:gap-20">
         <div class="grid gap-6 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)] md:gap-10">
-          @if (cartel()) { <img [src]="cartel()" [alt]="'Cartel de la ' + c.nombre" class="mx-auto w-full max-w-[300px] rounded-lg border border-line-subtle md:max-w-[360px]" width="360" height="480" /> }
+          @if (cartel()) { <img [src]="cartel()" [alt]="t().cartel(c.nombre)" class="mx-auto w-full max-w-[300px] rounded-lg border border-line-subtle md:max-w-[360px]" width="360" height="480" /> }
           <div class="flex flex-col gap-5">
             <dl class="flex flex-col gap-4">
               @for (x of datos(); track x.l) {
@@ -659,19 +685,19 @@ export class ResultadosEdicionPage {
             @if (historia()) { <p class="text-body-m text-text-secondary">{{ historia() }}</p> }
             <!-- full-width stacked buttons on mobile (Figma 28 mobile) -->
             <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-2">
-              <a grButton variant="primary" class="max-sm:h-12 max-sm:w-full" [routerLink]="'/resultados/' + anio()">Ver resultados</a>
-              <a grButton variant="outline" class="max-sm:h-12 max-sm:w-full" routerLink="/galeria" iconRight="arrow-right">Ver galería</a>
+              <a grButton variant="primary" class="max-sm:h-12 max-sm:w-full" [routerLink]="'/resultados/' + anio() | loc">{{ t().verResultados }}</a>
+              <a grButton variant="outline" class="max-sm:h-12 max-sm:w-full" [routerLink]="'/galeria' | loc" iconRight="arrow-right">{{ t().verGaleria }}</a>
             </div>
           </div>
         </div>
 
         @if (galeria().length) {
           <section class="flex flex-col gap-5 md:gap-7">
-            <gr-cabecera eyebrow="Galería" [titulo]="'Así fue *la edición ' + anio() + '*'" [centro]="false" tam="m" />
+            <gr-cabecera [eyebrow]="t().galEyebrow" [titulo]="t().galTitulo(anio())" [centro]="false" tam="m" />
             <div class="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
               @for (f of galeria(); track f.url; let i = $index) {
                 <!-- mobile shows six (Figma 28 mobile), desktop eight -->
-                <button type="button" class="group relative aspect-[285/379] overflow-hidden rounded-md border border-white/8 cursor-zoom-in" [class.max-md:hidden]="i >= 6" [attr.aria-label]="'Ampliar: ' + f.alt" (click)="ver.set(i)">
+                <button type="button" class="group relative aspect-[285/379] overflow-hidden rounded-md border border-white/8 cursor-zoom-in" [class.max-md:hidden]="i >= 6" [attr.aria-label]="t().ampliar + f.alt" (click)="ver.set(i)">
                   <img [src]="mini(f.url)" [alt]="f.alt" loading="lazy" class="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" [style.object-position]="f.focalX + '% ' + f.focalY + '%'" />
                 </button>
               }
@@ -681,19 +707,19 @@ export class ResultadosEdicionPage {
         }
         @if (sponsors().length) {
           <section class="flex flex-col gap-5 md:gap-7">
-            <gr-cabecera [eyebrow]="'Patrocinadores ' + anio()" titulo="Gracias a *nuestros colaboradores*" [centro]="false" tam="m" />
+            <gr-cabecera [eyebrow]="t().patro(anio())" [titulo]="t().patroTitulo" [centro]="false" tam="m" />
             <!-- Figma 80:189922 / 80:190214: one common box per logo (120×40 mobile, 140×48 desktop), optical scale per logo -->
             <ul class="flex flex-wrap gap-3 md:gap-4">
               @for (p of sponsors(); track p.nombre) { <li class="flex items-center justify-center rounded-lg border border-line-subtle bg-bg-card px-4 py-3 md:px-5"><span class="flex h-10 w-[120px] items-center justify-center md:h-12 md:w-[140px]"><img [src]="p.logoUrl | cdn" [alt]="p.nombre" class="max-h-full max-w-full object-contain" [style.transform]="escalaLogo(p)" loading="lazy" /></span></li> }
             </ul>
-            <p class="text-body-xs text-text-tertiary">Logos del cartel de la edición {{ anio() }}.</p>
+            <p class="text-body-xs text-text-tertiary">{{ t().logos(anio()) }}</p>
           </section>
         }
         <gr-related [items]="rel()" />
         <section class="overflow-hidden rounded-2xl border border-accent/40 bg-[linear-gradient(120deg,#3a0f17,#1b1112_60%)] p-6 md:flex md:items-center md:justify-between md:p-10">
           <div><p class="flex items-center gap-2.5 text-label-xs text-text-tertiary uppercase">Edición {{ siguiente() }}</p>
-            <h2 class="mt-3 text-display-xs md:text-display-m">Compite en la GRS Cup 2</h2><p class="mt-2 text-body-s text-text-secondary">Plazas limitadas. La inscripción se hace a través de la AEP.</p></div>
-          <a grButton variant="primary" size="l" routerLink="/inscripcion" class="mt-5 max-sm:w-full md:mt-0">Inscribirse</a>
+            <h2 class="mt-3 text-display-xs md:text-display-m">{{ t().compite }}</h2><p class="mt-2 text-body-s text-text-secondary">{{ t().compiteD }}</p></div>
+          <a grButton variant="primary" size="l" [routerLink]="'/inscripcion' | loc" class="mt-5 max-sm:w-full md:mt-0">{{ t().inscribirse }}</a>
         </section>
         </div>
       }
@@ -703,10 +729,12 @@ export class ResultadosEdicionPage {
 })
 export class EdicionPage {
   protected readonly noExiste = signal(false);
+  private readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(TD);
   private noEncontrada(seo: Seo): void {
     this.noExiste.set(true);
     this.cms.notFound();
-    seo.set({ title: 'Página no encontrada · GRS Cup', description: 'La página que buscas no existe.', path: '/404', robots: 'noindex' });
+    seo.set({ title: this.t().notFoundT, description: this.t().notFoundD, path: '/404', robots: 'noindex' });
   }
   private readonly api = inject(DirectoPublic);
   private readonly http = inject(HttpClient);
@@ -723,7 +751,7 @@ export class EdicionPage {
     const f = this.fotos();
     // eight at most (Figma 28): the whole album is in /galeria
     if (f.length || this.anio() !== '2025') return f.slice(0, 8);
-    return FOTOS_2025.map(([f, alt]) => ({ url: cdn(`/img/edicion-2025/${f}.webp`), alt, focalX: 50, focalY: 35 })) as Album['fotos'];
+    return FOTOS_2025.map(([f], i) => ({ url: cdn(`/img/edicion-2025/${f}.webp`), alt: this.t().fotos[i], focalX: 50, focalY: 35 })) as Album['fotos'];
   });
   /**
    * Optical weight per logo inside the common box (object-contain). Measured on the trimmed files: compact marks fill the
@@ -743,25 +771,21 @@ export class EdicionPage {
     const c = this.comp();
     if (!c) return '';
     const dos = c.fechaFin && c.fechaFin !== c.fechaInicio;
-    const cuando = dos ? 'los días ' + fechas(c.fechaInicio, c.fechaFin).replace('–', ' y ') : 'el ' + fechas(c.fechaInicio, c.fechaFin);
-    return `Campeonato de powerlifting ${c.evento.nivel || ''}, celebrado ${cuando} en ${c.sede.ciudad}${c.sede.provincia ? ' (' + c.sede.provincia + ')' : ''}.`.replace(/\s+,/g, ',');
+    const f = fechas(c.fechaInicio, c.fechaFin, this.i18n.locale());
+    return this.t().resumen(c.evento.nivel || '', f, !!dos, c.sede.ciudad + (c.sede.provincia ? ' (' + c.sede.provincia + ')' : '')).replace(/\s+,/g, ',');
   });
   protected readonly historia = computed(() => this.comp()?.evento?.descripcion ?? '');
   protected readonly datos = computed(() => {
     const c = this.comp();
     if (!c) return [];
     return [
-      { l: 'Fecha', v: fechasCortas(c.fechaInicio, c.fechaFin), i: 'calendar' as const },
-      { l: 'Sede', v: [c.sede.ciudad, c.sede.provincia].filter(Boolean).join(' (') + (c.sede.provincia ? ')' : ''), i: 'map-pin' as const },
-      { l: 'Nivel', v: c.evento.nivel, i: 'trophy' as const },
-      { l: 'Organiza', v: c.evento.organizador, i: 'user' as const },
+      { l: this.t().datos[0], v: fechasCortas(c.fechaInicio, c.fechaFin, this.i18n.locale()), i: 'calendar' as const },
+      { l: this.t().datos[1], v: [c.sede.ciudad, c.sede.provincia].filter(Boolean).join(' (') + (c.sede.provincia ? ')' : ''), i: 'map-pin' as const },
+      { l: this.t().datos[2], v: c.evento.nivel, i: 'trophy' as const },
+      { l: this.t().datos[3], v: c.evento.organizador, i: 'user' as const },
     ];
   });
-  protected readonly rel = computed<RelatedLink[]>(() => [
-    { titulo: `Resultados ${this.anio()}`, texto: 'Podios y clasificación', ruta: `/resultados/${this.anio()}` },
-    { titulo: 'Galería', texto: 'Todas las fotos', ruta: '/galeria' },
-    { titulo: `Edición ${this.siguiente()}`, texto: 'Próxima competición', ruta: '/' },
-  ]);
+  protected readonly rel = computed<RelatedLink[]>(() => this.t().rel(this.anio(), this.siguiente()));
   constructor() {
     const seo = inject(Seo);
     void inject(PendingTasks).run(async () => {
@@ -781,7 +805,7 @@ export class EdicionPage {
       this.sponsors.set((pats ?? []).filter((p, i, a) => p.logoUrl && a.findIndex((x) => x.logoUrl === p.logoUrl || x.nombre === p.nombre) === i
         && !(this.anio() === '2025' && /almussafes/i.test(p.nombre))));
       if (c) {
-        await applySeo(this.cms, seo, `/ediciones/${this.anio()}`, `${c.nombre} · ${c.sede.ciudad} · Edición anterior`, `${fechas(c.fechaInicio, c.fechaFin)} en ${c.sede.ciudad}. ${c.evento.descripcion}`, this.cartel() || undefined, {
+        await applySeo(this.cms, seo, '/ediciones/' + this.anio(), this.t().seoT(c.nombre, c.sede.ciudad), this.t().seoD(fechas(c.fechaInicio, c.fechaFin, this.i18n.locale()), c.sede.ciudad, c.evento.descripcion), this.cartel() || undefined, {
           jsonLd: { '@context': 'https://schema.org', '@type': 'SportsEvent', name: c.nombre, sport: 'Powerlifting', startDate: c.fechaInicio, endDate: c.fechaFin, eventStatus: 'https://schema.org/EventScheduled',
             location: { '@type': 'Place', name: c.sede.nombre, address: c.sede.ciudad }, organizer: { '@type': 'Organization', name: c.evento.organizador } },
         });
