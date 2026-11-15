@@ -1,0 +1,12 @@
+# prod-20261115: chat with a 512Mi limit (patched in kustomization.yaml) keeps the GC ahead of it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat
+spec:
+  template:
+    spec:
+      containers:
+        - name: chat
+          env:
+            - { name: GOMEMLIMIT, value: "420MiB" }

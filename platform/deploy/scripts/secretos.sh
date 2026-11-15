@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Generates (once) and applies the Secrets of a namespace: deploy/scripts/secretos.sh <qa|prod>
 # Values live only on this machine in ~/.config/grcup-<env>/ (0600) and travel to kraken over ssh stdin. Never printed.
-# Production: the first run needs ROOT_EMAIL (and ROOT_NOMBRE) in the environment, and SMTP_USER / SMTP_PASSWORD
-# written in ~/.config/grcup-prod/secrets.env for the Secret grcup-smtp (the deploy refuses production without it).
+# Production: ROOT_EMAIL is QA's unless ROOT_EMAIL is given (Jaime 15/11 20:46). Google OAuth of production: write
+# GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in ~/.config/grcup-prod/secrets.env (from the vault) → Secret grcup-google.
 # KEEP A COPY of ~/.config/grcup-prod/ outside this machine (CRYPTO_KEY encrypts the integrations' secrets).
 set -euo pipefail
 ENTORNO="${1:-}"
@@ -35,11 +35,13 @@ if [ "$ENTORNO" = qa ]; then
   grep -q '^ROOT_NOMBRE=' "$F" || echo 'ROOT_NOMBRE="Jaime (QA)"' >>"$F"
 else
   if ! grep -q '^ROOT_EMAIL=' "$F"; then
-    [ -n "${ROOT_EMAIL:-}" ] || { echo "producción: la primera vez hace falta ROOT_EMAIL=… (y ROOT_NOMBRE=…) en el entorno" >&2; exit 1; }
-    echo "ROOT_EMAIL=$ROOT_EMAIL" >>"$F"
+    qa_root=$(grep -E '^ROOT_EMAIL=' "${GRCUP_QA_DIR:-$HOME/.config/grcup-qa}/secrets.env" 2>/dev/null | head -1 | cut -d= -f2- || true)
+    r="${ROOT_EMAIL:-$qa_root}"
+    [ -n "$r" ] || { echo "producción: falta ROOT_EMAIL (ni en el entorno ni en el secrets.env de QA)" >&2; exit 1; }
+    echo "ROOT_EMAIL=$r" >>"$F"
   fi
-  grep -q '^ROOT_NOMBRE=' "$F" || echo "ROOT_NOMBRE=\"${ROOT_NOMBRE:-Root}\"" >>"$F"
-  grep -q '^SMTP_USER=' "$F" || printf '# SMTP of the platform (host in overlays/prod/config.yaml)\nSMTP_USER=\nSMTP_PASSWORD=\n' >>"$F"
+  grep -q '^ROOT_NOMBRE=' "$F" || echo "ROOT_NOMBRE=\"${ROOT_NOMBRE:-Jaime}\"" >>"$F"
+  grep -q '^GOOGLE_CLIENT_ID=' "$F" || printf '# Google OAuth client of PRODUCTION (vault; not the QA client)\nGOOGLE_CLIENT_ID=\nGOOGLE_CLIENT_SECRET=\n' >>"$F"
 fi
 [ -f "$DIR/jwt.pem" ] || openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt -out "$DIR/jwt.pem"
 # MiniMax (AI service): copied from ~/.env when available.
@@ -72,6 +74,10 @@ kv() { printf '  %s: "%s"\n' "$1" "$2"; }
   kv ROOT_EMAIL "$ROOT_EMAIL"; kv ROOT_PASSWORD "$ROOT_PASSWORD"; kv ROOT_NOMBRE "$ROOT_NOMBRE"
   echo "---"; echo "apiVersion: v1"; echo "kind: Secret"; echo "metadata: { name: grcup-jwt, namespace: $NS }"; echo "stringData:"
   echo "  private.pem: |"; sed 's/^/    /' "$DIR/jwt.pem"
+  if [ "$ENTORNO" = prod ] && [ -n "${GOOGLE_CLIENT_ID:-}" ] && [ -n "${GOOGLE_CLIENT_SECRET:-}" ]; then
+    echo "---"; echo "apiVersion: v1"; echo "kind: Secret"; echo "metadata: { name: grcup-google, namespace: $NS }"; echo "stringData:"
+    kv GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID"; kv GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
+  fi
   if [ -n "${SMTP_USER:-}" ] && [ -n "${SMTP_PASSWORD:-}" ]; then
     echo "---"; echo "apiVersion: v1"; echo "kind: Secret"; echo "metadata: { name: grcup-smtp, namespace: $NS }"; echo "stringData:"
     kv SMTP_USER "$SMTP_USER"; kv SMTP_PASSWORD "$SMTP_PASSWORD"

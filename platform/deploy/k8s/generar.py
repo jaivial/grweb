@@ -164,7 +164,7 @@ def manifest(name, spec):
 {SEC}
           resources:
             requests: {{ cpu: 20m, memory: 32Mi }}
-            limits: {{ cpu: 500m, memory: 128Mi }}
+            limits: {{ cpu: 200m, memory: 128Mi }}
 """
     vols = spec.get("volumes", [])
     if vols:

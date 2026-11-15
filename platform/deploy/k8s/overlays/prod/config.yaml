@@ -1,7 +1,8 @@
-# Production values over base/common/config.yaml (QA). Domains (decided 30/10/2026): subdomains of menustudioai.com,
-# like QA (grcup-qa*), with DNS in Cloudflare (DNS only, A → kraken's public IP: deploy/scripts/dns-cloudflare.sh prod)
-# and one Let's Encrypt certificate for the three (DNS-01). webPublica() derives the web from «<x>-bo.». The previous
-# domain (grcup.jaimedigitalstudio.com) redirects here at the cutover (deploy/scripts/nginx-prod.sh redirigir).
+# Production values over base/common/config.yaml (QA). Domains (Jaime, 15/11/2026 20:38): grscup.com (web, and the API
+# on the same origin: grscup.com/api) and backoffice.grscup.com. DNS in Bunny (A → kraken's public IP, www CNAME to the
+# apex); one Let's Encrypt certificate for the three names by HTTP-01 (deploy/scripts/nginx-prod.sh instalar).
+# webPublica() derives the web from «backoffice.». The previous domain (grcup.jaimedigitalstudio.com) redirects here at
+# the cutover (deploy/scripts/nginx-prod.sh redirigir).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,25 +10,31 @@ metadata:
 data:
   DOMINIOS_CONFIRMADOS: "si"
   SERVICE_ENV: prod
-  PAGOS_SIMULADOS: "false"
+  # Jaime 15/11 20:46: payments simulated in production until the real keys are decided.
+  PAGOS_SIMULADOS: "true"
   WHATSAPP_SIMULADO: "false"
   KEY_PREFIX: "grcup:prod:"
   REDIS_ADDR: redis:16380
   REDIS_USERNAME: grcup-prod
-  WEB_HOST: grcup.menustudioai.com
-  PUBLIC_WEB_URL: https://grcup.menustudioai.com
-  PUBLIC_API_URL: https://grcup-api.menustudioai.com
-  # The webhook of evo-weai goes out to the public API (the internal one is only for QA).
-  WHATSAPP_WEBHOOK_URL: https://grcup-api.menustudioai.com
-  BACKOFFICE_URL: https://grcup-bo.menustudioai.com
-  API_URL: https://grcup-api.menustudioai.com
-  CORS_ORIGINS: https://grcup.menustudioai.com,https://grcup-bo.menustudioai.com
+  WEB_HOST: grscup.com
+  PUBLIC_WEB_URL: https://grscup.com
+  PUBLIC_API_URL: https://grscup.com
+  # The webhook of evo-weai goes out to the public API, same origin as the web (the internal one is only for QA).
+  WHATSAPP_WEBHOOK_URL: https://grscup.com
+  BACKOFFICE_URL: https://backoffice.grscup.com
+  API_URL: https://grscup.com
+  CORS_ORIGINS: https://grscup.com,https://backoffice.grscup.com
   # The previous web's domain: redirected to WEB_HOST at the cutover (FER's Stripe webhook excepted).
   DOMINIO_ANTERIOR: grcup.jaimedigitalstudio.com
-  # Platform SMTP (backoffice access, invitations, competitions without their own SMTP). Host here, user and
-  # password in the Secret grcup-smtp (SMTP_USER, SMTP_PASSWORD). The sender domain needs SPF, DKIM and DMARC.
-  SMTP_HOST: smtp.por-confirmar.invalid
+  # Email: the competitions send with Google OAuth (their Gmail, «Sistema e integraciones»), Jaime 15/11 20:46. The
+  # Google client of PRODUCTION (not QA's) lives in the Secret grcup-google (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET:
+  # deploy/scripts/secretos.sh prod); the backoffice origin it returns to (redirect URI registered in Google:
+  # https://backoffice.grscup.com/api/oauth/google/callback):
+  GOOGLE_OAUTH_ORIGINS: https://backoffice.grscup.com
+  # Legacy platform SMTP (only mail without a competition, e.g. platform-level notices): not used in production; the
+  # host stays a non-resolvable placeholder so nothing is sent through a guessed server.
+  SMTP_HOST: smtp.no-usado.invalid
   SMTP_PORT: "587"
   SMTP_TLS: auto
-  MAIL_FROM: no-responder@menustudioai.com
+  MAIL_FROM: no-responder@grscup.com
   MAIL_FROM_NAME: GR Strength Cup
