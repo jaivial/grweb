@@ -10,6 +10,7 @@ import { Cms } from '../../core/cms';
 import { FanSession, codigoError } from '../../core/fan';
 import { FantasyStore, Juegos, JuegosEnVivo, JuegosEstado, recargaAgrupada, type AtletaDetalle, type AtletaMercado, mensajeError, nota2 } from '../../core/juegos';
 import { monedas } from '../porra/formato';
+import { I18n } from '../../core/i18n';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
@@ -17,14 +18,86 @@ import { HojaJugador, PistaFutsal, type AtletaPista } from './pista';
 import { JuegosNav } from '../porra/componentes';
 import { AvisoConexion, BarraSala, FantasyCabecera, GrAviso, SinSala, colorNota } from './componentes';
 
+const T = {
+  es: {
+    titulo: 'GRS Fantasy · Mi equipo',
+    miga: 'Mi equipo',
+    desc: 'Tu alineación de fútbol sala: exactamente 5 atletas, sin suplentes. Cada atleta tiene una nota de 0,0 a 10,0 y tu nota es la media de los 5.',
+    errorOp: 'No hemos podido completar la operación',
+    monta: 'Monta tu equipo',
+    montaTxt: 'Entra con tu cuenta del directo, únete a una sala y ficha a tus 5 atletas con 1.000.000 de monedas fantasy.',
+    entrar: 'Entrar para jugar',
+    tuJornadaAria: 'Tu jornada',
+    notaMedia: 'Nota media',
+    saldo: 'Saldo',
+    verMenos: 'Ver menos',
+    verMas: 'Ver puesto y valor del equipo',
+    tuPuesto: 'Tu puesto',
+    valorEquipo: 'Valor del equipo',
+    alineacion: 'Alineación',
+    toca: 'Toca un jugador para ver su ficha',
+    tuJornada: 'Tu jornada',
+    quedan: (n: number, m: string) => `Te quedan ${n} ${n === 1 ? 'plaza' : 'plazas'} y ${m} monedas`,
+    fichaLibres: 'Ficha libres a su valor o paga un clausulazo al dueño.',
+    completa: (m: string) => `Alineación completa · te quedan ${m} monedas`,
+    vende: 'Vende a un atleta para liberar plaza o paga un clausulazo para cambiarlo.',
+    irMercado: 'Ir al mercado',
+    tocaVender: 'Toca un jugador para ver su ficha o venderlo. Las posiciones son solo visuales.',
+    conNota: (n: number, p: number) => `${n}/${p} con nota`,
+    puesto: (n: number) => n + '.º',
+    deJugadores: (n: number) => `de ${n} ${n === 1 ? 'jugador' : 'jugadores'}`,
+    saldoFantasy: 'Saldo fantasy',
+    nAtletas: (n: number, incompleta: boolean) => `${n} ${n === 1 ? 'atleta' : 'atletas'} · ${incompleta ? 'alineación incompleta' : 'alineación completa'}`,
+    jugando: 'jugando',
+    seoTitulo: 'GRS Fantasy · GR Strength Cup',
+    seoDesc: 'Ficha atletas con monedas virtuales en la GR Strength Cup: salas entre amigos, 5 atletas por alineación, cláusulas en vivo y una nota de 0 a 10 por rendimiento.',
+  },
+  en: {
+    titulo: 'GRS Fantasy · My team',
+    miga: 'My team',
+    desc: "Your futsal line-up: exactly 5 athletes, no substitutes. Each athlete has a score from 0.0 to 10.0 and your score is the average of the 5.",
+    errorOp: "We couldn't complete the operation",
+    monta: 'Build your team',
+    montaTxt: 'Sign in with your live stream account, join a league and sign your 5 athletes with 1,000,000 fantasy coins.',
+    entrar: 'Sign in to play',
+    tuJornadaAria: 'Your day',
+    notaMedia: 'Average score',
+    saldo: 'Balance',
+    verMenos: 'See less',
+    verMas: 'See place and team value',
+    tuPuesto: 'Your place',
+    valorEquipo: 'Team value',
+    alineacion: 'Line-up',
+    toca: 'Tap a player to see their profile',
+    tuJornada: 'Your day',
+    quedan: (n: number, m: string) => `You have ${n} ${n === 1 ? 'place' : 'places'} and ${m} coins left`,
+    fichaLibres: 'Sign free athletes at their value or pay a buy-out to the owner.',
+    completa: (m: string) => `Line-up complete · you have ${m} coins left`,
+    vende: 'Sell an athlete to free a place or pay a buy-out to swap them.',
+    irMercado: 'Go to the market',
+    tocaVender: 'Tap a player to see their profile or sell them. Positions are only visual.',
+    conNota: (n: number, p: number) => `${n}/${p} with a score`,
+    puesto: (n: number) => {
+      const r = n % 100;
+      return n + (r >= 11 && r <= 13 ? 'th' : n % 10 === 1 ? 'st' : n % 10 === 2 ? 'nd' : n % 10 === 3 ? 'rd' : 'th');
+    },
+    deJugadores: (n: number) => `of ${n} ${n === 1 ? 'player' : 'players'}`,
+    saldoFantasy: 'Fantasy balance',
+    nAtletas: (n: number, incompleta: boolean) => `${n} ${n === 1 ? 'athlete' : 'athletes'} · ${incompleta ? 'line-up incomplete' : 'line-up complete'}`,
+    jugando: 'playing',
+    seoTitulo: 'GRS Fantasy · GR Strength Cup',
+    seoDesc: 'Sign athletes with virtual coins at the GR Strength Cup: leagues among friends, 5 athletes per line-up, live release clauses and a 0 to 10 performance score.',
+  },
+};
+
 @Component({
   selector: 'gr-mi-equipo-page',
   imports: [RouterLink, Page, GrButton, GrIcon, GrSkeleton, AvisoConexion, BarraSala, FantasyCabecera, GrAviso, HojaJugador, JuegosNav, PistaFutsal, SinSala],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page title="GRS Fantasy · Mi equipo" [juego]="true">
-      <gr-fantasy-cabecera titulo="GRS Fantasy · Mi equipo" [migas]="['Mi equipo']"
-        descripcion="Tu alineación de fútbol sala: exactamente 5 atletas, sin suplentes. Cada atleta tiene una nota de 0,0 a 10,0 y tu nota es la media de los 5." />
+    <gr-page [title]="t().titulo" [juego]="true">
+      <gr-fantasy-cabecera [titulo]="t().titulo" [migas]="[t().miga]"
+        [descripcion]="t().desc" />
       <gr-juegos-nav juego="fantasy" activa="equipo" />
 
       @if (sala(); as s) {
@@ -32,7 +105,7 @@ import { AvisoConexion, BarraSala, FantasyCabecera, GrAviso, SinSala, colorNota 
       }
       @if (vivo.caida()) { <gr-aviso-conexion /> }
       @if (error()) {
-        <gr-aviso tono="error" titulo="No hemos podido completar la operación">{{ error() }}</gr-aviso>
+        <gr-aviso tono="error" [titulo]="t().errorOp">{{ error() }}</gr-aviso>
       }
 
       @if (store.cargando()) {
@@ -44,9 +117,9 @@ import { AvisoConexion, BarraSala, FantasyCabecera, GrAviso, SinSala, colorNota 
       } @else if (!fan.conSesion()) {
         <div class="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line-strong bg-bg-card/40 px-6 py-14 text-center">
           <span class="flex size-14 items-center justify-center rounded-full border border-info/50 bg-info/12 text-info"><gr-icon name="users" [size]="24" /></span>
-          <p class="text-display-xs">Monta tu equipo</p>
-          <p class="max-w-md text-body-s text-text-tertiary">Entra con tu cuenta del directo, únete a una sala y ficha a tus 5 atletas con 1.000.000 de monedas fantasy.</p>
-          <button grButton variant="primary" icon="user-plus" (click)="entrar()">Entrar para jugar</button>
+          <p class="text-display-xs">{{ t().monta }}</p>
+          <p class="max-w-md text-body-s text-text-tertiary">{{ t().montaTxt }}</p>
+          <button grButton variant="primary" icon="user-plus" (click)="entrar()">{{ t().entrar }}</button>
         </div>
       } @else if (store.cargandoEquipo() && !equipo()) {
         <gr-skeleton class="block aspect-[358/500] rounded-2xl lg:aspect-[680/760] lg:max-w-[680px]" />
@@ -55,19 +128,19 @@ import { AvisoConexion, BarraSala, FantasyCabecera, GrAviso, SinSala, colorNota 
       } @else {
         <div class="grid gap-5 lg:grid-cols-[minmax(0,680px)_minmax(0,1fr)] lg:items-start lg:gap-8">
           <!-- Móvil: marcador compacto (nota media y saldo); el resto, en «ver más» -->
-          <section class="rounded-lg border border-line-subtle bg-bg-card lg:hidden" aria-label="Tu jornada">
+          <section class="rounded-lg border border-line-subtle bg-bg-card lg:hidden" [attr.aria-label]="t().tuJornadaAria">
             <div class="flex items-center gap-2 py-3 pr-2 pl-4">
-              <p class="min-w-0 flex-1"><span class="block text-meta text-text-tertiary">Nota media</span><span class="block font-mono text-[20px] leading-tight font-bold tabular-nums" [class]="kpis()[0].color">{{ kpis()[0].valor }}</span></p>
-              <p class="min-w-0 flex-1"><span class="block text-meta text-text-tertiary">Saldo</span><span class="block truncate font-mono text-[20px] leading-tight font-bold text-info tabular-nums">{{ kpis()[2].valor }}</span></p>
+              <p class="min-w-0 flex-1"><span class="block text-meta text-text-tertiary">{{ t().notaMedia }}</span><span class="block font-mono text-[20px] leading-tight font-bold tabular-nums" [class]="kpis()[0].color">{{ kpis()[0].valor }}</span></p>
+              <p class="min-w-0 flex-1"><span class="block text-meta text-text-tertiary">{{ t().saldo }}</span><span class="block truncate font-mono text-[20px] leading-tight font-bold text-info tabular-nums">{{ kpis()[2].valor }}</span></p>
               <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-sm border border-line-strong bg-bg-raised text-text-secondary" [attr.aria-expanded]="verMas()" aria-controls="mas-kpis"
-                [attr.aria-label]="verMas() ? 'Ver menos' : 'Ver puesto y valor del equipo'" (click)="verMas.set(!verMas())">
+                [attr.aria-label]="verMas() ? t().verMenos : t().verMas" (click)="verMas.set(!verMas())">
                 <gr-icon name="chevron-down" [size]="18" class="transition-transform motion-reduce:transition-none" [class.rotate-180]="verMas()" />
               </button>
             </div>
             @if (verMas()) {
               <dl id="mas-kpis" class="grid grid-cols-2 gap-3 border-t border-line-subtle px-4 py-3">
-                <div><dt class="text-meta text-text-tertiary">Tu puesto</dt><dd class="font-mono text-[18px] font-bold text-accent-text">{{ kpis()[1].valor }}</dd><dd class="text-body-s text-text-tertiary">{{ kpis()[1].nota }}</dd></div>
-                <div><dt class="text-meta text-text-tertiary">Valor del equipo</dt><dd class="font-mono text-[18px] font-bold text-text-primary">{{ kpis()[3].valor }}</dd><dd class="text-body-s text-text-tertiary">{{ kpis()[3].nota }}</dd></div>
+                <div><dt class="text-meta text-text-tertiary">{{ t().tuPuesto }}</dt><dd class="font-mono text-[18px] font-bold text-accent-text">{{ kpis()[1].valor }}</dd><dd class="text-body-s text-text-tertiary">{{ kpis()[1].nota }}</dd></div>
+                <div><dt class="text-meta text-text-tertiary">{{ t().valorEquipo }}</dt><dd class="font-mono text-[18px] font-bold text-text-primary">{{ kpis()[3].valor }}</dd><dd class="text-body-s text-text-tertiary">{{ kpis()[3].nota }}</dd></div>
               </dl>
             }
           </section>
@@ -75,15 +148,15 @@ import { AvisoConexion, BarraSala, FantasyCabecera, GrAviso, SinSala, colorNota 
           <!-- Figma «Pista · fútbol sala»: los 5 atletas en rombo -->
           <section class="min-w-0" aria-labelledby="pista-titulo">
             <div class="mb-3 flex items-end justify-between gap-3">
-              <h2 id="pista-titulo" class="text-display-xs">Alineación · {{ atletas().length }}/{{ plazas() }}</h2>
-              <p class="hidden text-body-s text-text-tertiary sm:block">Toca un jugador para ver su ficha</p>
+              <h2 id="pista-titulo" class="text-display-xs">{{ t().alineacion }} · {{ atletas().length }}/{{ plazas() }}</h2>
+              <p class="hidden text-body-s text-text-tertiary sm:block">{{ t().toca }}</p>
             </div>
             <gr-pista-futsal [titulares]="atletas()" [mercado]="rutaMercado()" (abrir)="abrirJugador($event.atleta, $event.origen)" />
           </section>
 
           <aside class="flex min-w-0 flex-col gap-4 lg:pt-10">
             <section class="hidden rounded-lg border border-line-subtle bg-bg-card p-5 lg:block" aria-labelledby="jornada-titulo">
-              <h2 id="jornada-titulo" class="text-display-2xs">Tu jornada {{ jornadaTxt() }}</h2>
+              <h2 id="jornada-titulo" class="text-display-2xs">{{ t().tuJornada }} {{ jornadaTxt() }}</h2>
               <dl class="mt-4 grid grid-cols-2 gap-4">
                 @for (k of kpis(); track k.label) {
                   <div class="flex min-w-0 flex-col gap-1"><dt class="text-meta text-text-tertiary">{{ k.label }}</dt><dd class="truncate font-mono text-[26px] leading-[1.3] font-bold tabular-nums" [class]="k.color">{{ k.valor }}</dd><dd class="truncate text-body-s text-text-tertiary">{{ k.nota }}</dd></div>
@@ -93,16 +166,16 @@ import { AvisoConexion, BarraSala, FantasyCabecera, GrAviso, SinSala, colorNota 
 
             <section class="flex flex-col gap-3 rounded-lg border border-accent/45 bg-accent-deep/25 p-5">
               @if (plazasLibres() > 0) {
-                <p class="text-label-m text-text-primary">Te quedan {{ plazasLibres() }} {{ plazasLibres() === 1 ? 'plaza' : 'plazas' }} y {{ monedas(saldo() ?? 0) }} monedas</p>
-                <p class="text-body-s text-text-secondary">Ficha libres a su valor o paga un clausulazo al dueño.</p>
+                <p class="text-label-m text-text-primary">{{ t().quedan(plazasLibres(), monedas(saldo() ?? 0)) }}</p>
+                <p class="text-body-s text-text-secondary">{{ t().fichaLibres }}</p>
               } @else {
-                <p class="text-label-m text-text-primary">Alineación completa · te quedan {{ monedas(saldo() ?? 0) }} monedas</p>
-                <p class="text-body-s text-text-secondary">Vende a un atleta para liberar plaza o paga un clausulazo para cambiarlo.</p>
+                <p class="text-label-m text-text-primary">{{ t().completa(monedas(saldo() ?? 0)) }}</p>
+                <p class="text-body-s text-text-secondary">{{ t().vende }}</p>
               }
-                <a grButton variant="primary" [routerLink]="rutaMercado()" iconRight="arrow-right" class="w-full lg:w-auto lg:self-start">Ir al mercado</a>
+                <a grButton variant="primary" [routerLink]="rutaMercado()" iconRight="arrow-right" class="w-full lg:w-auto lg:self-start">{{ t().irMercado }}</a>
             </section>
 
-            <p class="text-body-s text-text-tertiary">Toca un jugador para ver su ficha o venderlo. Las posiciones son solo visuales.</p>
+            <p class="text-body-s text-text-tertiary">{{ t().tocaVender }}</p>
           </aside>
         </div>
       }
@@ -115,7 +188,9 @@ import { AvisoConexion, BarraSala, FantasyCabecera, GrAviso, SinSala, colorNota 
   `,
 })
 export class MiEquipoPage {
-  protected readonly monedas = monedas;
+  private readonly i18n = inject(I18n);
+  protected readonly t = this.i18n.dict(T);
+  protected readonly monedas = (v: number | null | undefined) => monedas(v, this.i18n.locale());
   protected readonly store = inject(FantasyStore);
   protected readonly estado = inject(JuegosEstado);
   protected readonly vivo = inject(JuegosEnVivo);
@@ -138,7 +213,7 @@ export class MiEquipoPage {
   protected readonly atletas = computed<AtletaPista[]>(() => this.equipo()?.atletas ?? []);
   protected readonly plazas = computed(() => this.equipo()?.alineacion || this.estado.plantillaMax());
   protected readonly plazasLibres = computed(() => Math.max(0, this.plazas() - this.atletas().length));
-  protected readonly rutaMercado = computed(() => (this.sala() ? `/fantasy/salas/${this.sala()!.id}/mercado` : '/fantasy/mercado'));
+  protected readonly rutaMercado = computed(() => this.i18n.path(this.sala() ? `/fantasy/salas/${this.sala()!.id}/mercado` : '/fantasy/mercado'));
   protected readonly seleccionado = computed<AtletaPista | null>(() => this.atletas().find((a) => a.atletaId === this.idHoja()) ?? null);
   protected readonly detalleHoja = computed(() => {
     const id = this.idHoja();
@@ -150,11 +225,12 @@ export class MiEquipoPage {
     const e = this.equipo();
     const c = this.store.clas();
     const puesto = c?.miPuesto ?? 0;
+    const d = this.t();
     return [
-      { label: 'Nota media', valor: e ? nota2(e.nota) : '—', color: e ? colorNota(e.nota, e.conNota > 0) : 'text-text-tertiary', nota: e ? `${e.conNota}/${this.plazas()} con nota` : '' },
-      { label: 'Tu puesto', valor: puesto > 0 ? puesto + '.º' : '—', color: 'text-accent-text', nota: c?.filas.length ? `de ${c.filas.length} ${c.filas.length === 1 ? 'jugador' : 'jugadores'}` : '' },
-      { label: 'Saldo fantasy', valor: e ? monedas(e.saldo) : '—', color: 'text-info', nota: this.jugandoCaption() },
-      { label: 'Valor del equipo', valor: e ? monedas(e.valor) : '—', color: 'text-text-primary', nota: e ? `${e.atletas.length} ${e.atletas.length === 1 ? 'atleta' : 'atletas'} · ${this.plazasLibres() ? 'alineación incompleta' : 'alineación completa'}` : '' },
+      { label: d.notaMedia, valor: e ? nota2(e.nota) : '—', color: e ? colorNota(e.nota, e.conNota > 0) : 'text-text-tertiary', nota: e ? d.conNota(e.conNota, this.plazas()) : '' },
+      { label: d.tuPuesto, valor: puesto > 0 ? d.puesto(puesto) : '—', color: 'text-accent-text', nota: c?.filas.length ? d.deJugadores(c.filas.length) : '' },
+      { label: d.saldoFantasy, valor: e ? this.monedas(e.saldo) : '—', color: 'text-info', nota: this.jugandoCaption() },
+      { label: d.valorEquipo, valor: e ? this.monedas(e.valor) : '—', color: 'text-text-primary', nota: e ? d.nAtletas(e.atletas.length, !!this.plazasLibres()) : '' },
     ];
   });
   protected readonly jornadaTxt = computed(() => {
@@ -163,7 +239,7 @@ export class MiEquipoPage {
   });
   protected readonly jugandoCaption = computed(() => {
     const j = this.store.jornada() ?? this.estado.jornada();
-    return j ? 'jugando ' + j.nombre.replace(/\s*\(.*\)$/, '') : 'jugando';
+    return j ? this.t().jugando + ' ' + j.nombre.replace(/\s*\(.*\)$/, '') : this.t().jugando;
   });
 
   constructor() {
@@ -174,7 +250,7 @@ export class MiEquipoPage {
     void inject(PendingTasks).run(async () => {
       await this.estado.cargar();
       await this.store.cargar();
-      await applySeo(cms, seo, '/fantasy', 'GRS Fantasy · GR Strength Cup', 'Ficha atletas con monedas virtuales en la GR Strength Cup: salas entre amigos, 5 atletas por alineación, cláusulas en vivo y una nota de 0 a 10 por rendimiento.');
+      await applySeo(cms, seo, '/fantasy', this.t().seoTitulo, this.t().seoDesc);
     });
     if (browser) {
       this.vivo.conectar();
@@ -213,7 +289,7 @@ export class MiEquipoPage {
   }
 
   protected entrar(): void {
-    this.fan.abrirAcceso('fantasy', '/fantasy');
+    this.fan.abrirAcceso('fantasy', this.i18n.path('/fantasy'));
   }
   protected delta(a: AtletaMercado): number {
     return this.vivo.clausulas().get(a.atletaId)?.pct ?? 0;
