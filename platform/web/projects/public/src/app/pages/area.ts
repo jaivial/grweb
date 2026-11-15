@@ -58,10 +58,8 @@ const api = '/api/area-atleta';
 
           @case ('acceso') {
             <div class="mx-auto max-w-md rounded-2xl border border-white/8 bg-white/3 p-6 md:p-8">
-              <span class="flex size-14 items-center justify-center rounded-lg bg-accent/16 text-accent-text"><gr-icon name="lock" [size]="26" /></span>
-              <h1 class="mt-5 text-display-m md:text-display-l">Área de atleta</h1>
-              <p class="mt-2 text-body-m text-text-tertiary">Para atletas inscritos en la {{ nombreComp() }}.</p>
-              <p class="mt-4 text-body-m text-text-secondary">{{ modoEnlace() ? 'Te enviamos un enlace de acceso al email de tu inscripción.' : 'Entra con el email de tu inscripción y tu contraseña.' }}</p>
+              <span class="mx-auto flex size-14 items-center justify-center rounded-lg bg-accent/16 text-accent-text"><gr-icon name="lock" [size]="26" /></span>
+              <h1 class="mt-4 text-center text-display-xs md:text-display-s">Área de atleta</h1>
               @if (errorEnlace()) { <gr-alert class="mt-6" tone="warning" title="El enlace no sirve">{{ errorEnlace() }}</gr-alert> }
               <form class="mt-6 flex flex-col gap-4" (ngSubmit)="modoEnlace() ? pedir() : entrar()" novalidate>
                 <gr-field label="Email de tu inscripción" for="a-email"><input grInput id="a-email" name="email" type="email" autocomplete="username" inputmode="email" spellcheck="false" autocapitalize="none" [(ngModel)]="email" required [attr.aria-invalid]="error() ? true : null" [attr.aria-describedby]="error() ? 'a-email-err' : null" /></gr-field>
