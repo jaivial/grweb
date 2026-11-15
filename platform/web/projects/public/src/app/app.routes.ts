@@ -13,7 +13,7 @@ import { FantasyClasificacionPage } from './pages/fantasy/clasificacion';
 import { ComoSeJuegaPage } from './pages/fantasy/como-se-juega';
 import type { Routes } from '@angular/router';
 import { HomePage, NotFoundPage } from './home/home';
-import { EnPage, PublicoPage } from './pages/landings';
+import { PublicoPage } from './pages/landings';
 import { AreaAtletaPage } from './pages/area';
 import { InscripcionEstadoPage, InscripcionPage, PagoSimuladoPage } from './pages/inscripcion';
 import { AtletaPage, AtletasPage, ParticipantesPage } from './pages/atletas';
@@ -32,7 +32,8 @@ import { ReglamentoPage } from './pages/reglamento';
 import { AltaAtletaPage } from './pages/alta-atleta';
 import { StyleguidePage } from './pages/styleguide';
 
-export const routes: Routes = [
+/** Pages (Spanish paths); the same tree is mounted again under /en (one UI, texts from core/i18n dictionaries). */
+const paginas: Routes = [
   { path: '', component: HomePage },
   { path: 'preguntas-frecuentes', component: FaqPage },
   { path: 'patrocinadores', component: PatrocinadoresPage },
@@ -92,7 +93,6 @@ export const routes: Routes = [
   { path: 'pago/simulado', component: PagoSimuladoPage },
   { path: 'publico', component: PublicoPage },
   { path: 'clubs', redirectTo: '/', pathMatch: 'full' }, // página retirada (Jaime 14-nov): solo queda el campo «club» del atleta
-  { path: 'en', component: EnPage },
   { path: 'blog', component: BlogPage },
   { path: 'blog/:pslug', component: BlogPostPage },
   { path: 'privacidad', component: LegalPage, data: { tipo: 'privacidad', titulo: 'Política de privacidad' } },
@@ -107,7 +107,11 @@ export const routes: Routes = [
   { path: '_componentes', loadComponent: () => import('./pages/componentes').then((m) => m.ComponentesPage) },
   // Internal overlay / global state sheet for visual QA (Figma 17); noindex and not in the sitemap.
   { path: '_overlays', loadComponent: () => import('./pages/overlays').then((m) => m.OverlaysPage) },
-  // CMS content pages (reglamento, categorias-de-peso, marcas-minimas…); unknown slugs answer 404.
+];
+// CMS content pages (reglamento, categorias-de-peso, marcas-minimas…); unknown slugs answer 404.
+const cola: Routes = [
   { path: ':pslug', component: ContentPage },
   { path: '**', component: NotFoundPage },
 ];
+
+export const routes: Routes = [{ path: 'en', children: [...paginas, ...cola] }, ...paginas, ...cola];

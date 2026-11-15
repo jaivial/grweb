@@ -1,6 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { Injectable, RESPONSE_INIT, inject, signal } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
+import { I18n, sinPrefijo } from './i18n';
 
 export interface SeoData {
   title: string;
@@ -31,7 +32,14 @@ export class Seo {
   /** Ruta de la página que se está renderizando (la fija `set`). */
   readonly path = signal('');
 
+  private readonly i18n = inject(I18n);
+
+  /** Pages pass their Spanish path: in EN the canonical is the /en one, <html lang> follows the URL and every page
+   *  gets its es / en / x-default hreflang pair unless it gives its own. */
   set(d: SeoData): void {
+    const lang = d.lang ?? this.i18n.lang();
+    const es = sinPrefijo(d.path);
+    d = { ...d, lang, path: this.i18n.path(es, lang), alternates: d.alternates ?? [{ hreflang: 'es', path: es }, { hreflang: 'en', path: this.i18n.path(es, 'en') }, { hreflang: 'x-default', path: es }] };
     const url = this.origin + d.path;
     this.path.set(d.path);
     const image = d.image ?? this.defaultImage;
