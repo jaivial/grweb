@@ -129,6 +129,10 @@ services:
       # White list of Origin hosts for the WebSocket handshake (the gateway rewrites the Host): in dev the web
       # runs in localhost (4200/4201).
       CHAT_ORIGENES: "localhost:*,127.0.0.1:*"
+    # perf-20261115: WS directo del chat (sin pasar por el gateway). nginx enruta solo
+    # /api/competiciones/<slug>/chat/ws aquí (deploy/k8s/propuestas/nginx-chat-ws-directo.conf).
+    ports:
+      - "127.0.0.1:18302:8080"
 
   donaciones:
     <<: *svc
