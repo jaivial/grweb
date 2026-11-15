@@ -94,7 +94,7 @@ type ResultadosAdmin struct {
 	Absoluta     map[string][]Fila  `json:"absoluta" doc:"Mejores por puntos GL (F, M)"`
 	PublicarAuto bool               `json:"publicarAuto"`
 	Programado   *time.Time         `json:"programado,omitempty" doc:"Publicación programada de todas las categorías"`
-	Flights      int                `json:"flights"`
+	Sesiones     int                `json:"sesiones"`
 	Cerrados     int                `json:"cerrados"`
 	Archivo      bool               `json:"archivo,omitempty" doc:"Edición celebrada sin horarios publicados (p. ej. importada de la web anterior): solo sus resultados publicados, de lectura"`
 }
@@ -175,7 +175,7 @@ type avisoAtleta struct {
 	SinTotal bool      `json:"sinTotal,omitempty"`
 }
 
-// publicarAuto: «Publicación programada al cerrar el flight». When every athlete of a category has finished, it is
+// publicarAuto: «Publicación programada al cerrar el sesion». When every athlete of a category has finished, it is
 // published (also over a provisional publication made by hand); corrections after that are published by hand from
 // «Resultados».
 func (s *Svc) publicarAuto(ctx context.Context, cid uuid.UUID, p *plan, t tabla, e Estado) {
@@ -234,8 +234,8 @@ func (s *Svc) resultadosAdmin(ctx context.Context, cid uuid.UUID, sel string) (*
 	if err != nil {
 		return nil, err
 	}
-	o := &ResultadosAdmin{Categorias: []CategoriaResumen{}, Absoluta: map[string][]Fila{"F": {}, "M": {}}, PublicarAuto: e.PublicarAuto, Programado: e.PublicarAt, Flights: len(p.Flights)}
-	if len(p.Flights) == 0 && len(pubs) > 0 {
+	o := &ResultadosAdmin{Categorias: []CategoriaResumen{}, Absoluta: map[string][]Fila{"F": {}, "M": {}}, PublicarAuto: e.PublicarAuto, Programado: e.PublicarAt, Sesiones: len(p.Sesiones)}
+	if len(p.Sesiones) == 0 && len(pubs) > 0 {
 		// a held edition without a published schedule (imported from the previous web): what was published
 		o.Archivo = true
 		cats := make([]Categoria, 0, len(pubs))
@@ -256,8 +256,8 @@ func (s *Svc) resultadosAdmin(ctx context.Context, cid uuid.UUID, sel string) (*
 		o.Absoluta["F"], o.Absoluta["M"] = absoluta(cats, "F", 10), absoluta(cats, "M", 10)
 		return o, nil
 	}
-	for i := range p.Flights {
-		if flightCompleto(&p.Flights[i], t) {
+	for i := range p.Sesiones {
+		if sesionCompleta(&p.Sesiones[i], t) {
 			o.Cerrados++
 		}
 	}
@@ -530,7 +530,7 @@ func (s *Svc) registerResultados() {
 			for _, k := range p.categorias() {
 				cats = append(cats, clasificar(p, t, recs, k, false))
 			}
-			if len(p.Flights) == 0 {
+			if len(p.Sesiones) == 0 {
 				// archive (a held edition without a published schedule, e.g. imported): its published results
 				pubs, err := cargarPublicados(ctx, s.a.DB, in.CID)
 				if err != nil {

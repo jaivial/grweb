@@ -32,7 +32,7 @@ type Pantalla struct {
 type Estado struct {
 	Version       int        `json:"version"`
 	Fase          string     `json:"fase" enum:"antes,en_directo,finalizado"`
-	FlightID      *uuid.UUID `json:"flightId,omitempty"`
+	SesionID      *uuid.UUID `json:"sesionId,omitempty"`
 	Movimiento    string     `json:"movimiento" enum:"sq,bp,dl"`
 	Pausa         bool       `json:"pausa"`
 	RetrasoMin    int        `json:"retrasoMin"`
@@ -47,11 +47,11 @@ type Estado struct {
 	UpdatedAt     time.Time  `json:"updatedAt"`
 }
 
-const selEstado = `SELECT version, fase, flight_id, movimiento, pausa, retraso_min, stream_url, replay_url, stream_visible, stream_home, pantalla, publicar_auto, publicar_at, turno_at, updated_at FROM estado WHERE competition_id = $1`
+const selEstado = `SELECT version, fase, sesion_id, movimiento, pausa, retraso_min, stream_url, replay_url, stream_visible, stream_home, pantalla, publicar_auto, publicar_at, turno_at, updated_at FROM estado WHERE competition_id = $1`
 
 func scanEstado(r pgx.Row) (Estado, error) {
 	var e Estado
-	err := r.Scan(&e.Version, &e.Fase, &e.FlightID, &e.Movimiento, &e.Pausa, &e.RetrasoMin, &e.StreamURL, &e.ReplayURL, &e.StreamVisible, &e.StreamHome, &e.Pantalla, &e.PublicarAuto, &e.PublicarAt, &e.TurnoAt, &e.UpdatedAt)
+	err := r.Scan(&e.Version, &e.Fase, &e.SesionID, &e.Movimiento, &e.Pausa, &e.RetrasoMin, &e.StreamURL, &e.ReplayURL, &e.StreamVisible, &e.StreamHome, &e.Pantalla, &e.PublicarAuto, &e.PublicarAt, &e.TurnoAt, &e.UpdatedAt)
 	return e, err
 }
 
@@ -121,34 +121,33 @@ type Turno struct {
 	Frase     string     `json:"frase,omitempty"`
 }
 
-// FlightMesa is a published flight with its progress.
-type FlightMesa struct {
-	ID         uuid.UUID `json:"id"`
-	Codigo     string    `json:"codigo"`
-	Titulo     string    `json:"titulo"`
-	Plataforma int       `json:"plataforma"`
-	Dia        string    `json:"dia"`
-	Inicio     time.Time `json:"inicio"`
-	Atletas    int       `json:"atletas"`
-	Hechos     int       `json:"hechos" doc:"Intentos resueltos"`
-	Estado     string    `json:"estado" enum:"programado,en_curso,finalizado"`
+// SesionMesa is a published sesion with its progress.
+type SesionMesa struct {
+	ID      uuid.UUID `json:"id"`
+	Hora    string    `json:"hora" doc:"Hora de inicio (HH:MM, Europe/Madrid)"`
+	Titulo  string    `json:"titulo"`
+	Dia     string    `json:"dia"`
+	Inicio  time.Time `json:"inicio"`
+	Atletas int       `json:"atletas"`
+	Hechos  int       `json:"hechos" doc:"Intentos resueltos"`
+	Estado  string    `json:"estado" enum:"programado,en_curso,finalizado"`
 }
 
-// Mesa is the desk: state, flights and the current flight table.
+// Mesa is the desk: state, sesiones and the current sesion table.
 type Mesa struct {
 	Estado              Estado       `json:"estado"`
 	HorariosPublicados  bool         `json:"horariosPublicados"`
 	Espectadores        int          `json:"espectadores"`
 	PantallaPing        *time.Time   `json:"pantallaPing,omitempty"`
-	Flights             []FlightMesa `json:"flights"`
-	Flight              *FlightMesa  `json:"flight,omitempty"`
+	Sesiones            []SesionMesa `json:"sesiones"`
+	Sesion              *SesionMesa  `json:"sesion,omitempty"`
 	Ronda               int          `json:"ronda" doc:"1-3; 4 = el movimiento ha terminado"`
 	Atletas             []FilaMesa   `json:"atletas"`
 	Actual              *Turno       `json:"actual,omitempty"`
 	Siguientes          []Turno      `json:"siguientes"`
 	MovimientoCompleto  bool         `json:"movimientoCompleto"`
 	SiguienteMovimiento string       `json:"siguienteMovimiento,omitempty"`
-	FlightCompleto      bool         `json:"flightCompleto"`
+	SesionCompleta      bool         `json:"sesionCompleta"`
 }
 
 func turnoDe(t turno) Turno {
@@ -161,8 +160,8 @@ func turnoDe(t turno) Turno {
 	return x
 }
 
-func progreso(f *flight, t tabla, e Estado) FlightMesa {
-	fm := FlightMesa{ID: f.ID, Codigo: f.Codigo, Titulo: f.Titulo, Plataforma: f.Plataforma, Dia: f.Dia, Inicio: f.Inicio, Atletas: len(f.Atletas), Estado: "programado"}
+func progreso(f *sesion, t tabla, e Estado) SesionMesa {
+	fm := SesionMesa{ID: f.ID, Hora: f.Hora, Titulo: f.Titulo, Dia: f.Dia, Inicio: f.Inicio, Atletas: len(f.Atletas), Estado: "programado"}
 	for _, x := range f.Atletas {
 		for _, m := range movs {
 			for n := 1; n <= 3; n++ {
@@ -173,9 +172,9 @@ func progreso(f *flight, t tabla, e Estado) FlightMesa {
 		}
 	}
 	switch {
-	case flightCompleto(f, t):
+	case sesionCompleta(f, t):
 		fm.Estado = "finalizado"
-	case e.FlightID != nil && *e.FlightID == f.ID && e.Fase == "en_directo":
+	case e.SesionID != nil && *e.SesionID == f.ID && e.Fase == "en_directo":
 		fm.Estado = "en_curso"
 	}
 	return fm
@@ -196,9 +195,9 @@ func (s *Svc) mesa(ctx context.Context, cid uuid.UUID) (*Mesa, error) {
 	if err != nil {
 		return nil, err
 	}
-	// A late weigh-in (openers entered after the flight started) is picked up here, only when one is missing.
-	if e.FlightID != nil && e.Fase == "en_directo" {
-		if f := p.flight(*e.FlightID); f != nil && faltaApertura(p, f, t, e.Movimiento) {
+	// A late weigh-in (openers entered after the sesion started) is picked up here, only when one is missing.
+	if e.SesionID != nil && e.Fase == "en_directo" {
+		if f := p.sesion(*e.SesionID); f != nil && faltaApertura(p, f, t, e.Movimiento) {
 			if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error { return abrir(ctx, tx, cid, p, f, e.Movimiento) }); err != nil {
 				return nil, err
 			}
@@ -207,24 +206,24 @@ func (s *Svc) mesa(ctx context.Context, cid uuid.UUID) (*Mesa, error) {
 			}
 		}
 	}
-	m := &Mesa{Estado: e, HorariosPublicados: len(p.Flights) > 0, Espectadores: s.espectadores(ctx, cid), Flights: []FlightMesa{}, Atletas: []FilaMesa{}, Siguientes: []Turno{}}
+	m := &Mesa{Estado: e, HorariosPublicados: len(p.Sesiones) > 0, Espectadores: s.espectadores(ctx, cid), Sesiones: []SesionMesa{}, Atletas: []FilaMesa{}, Siguientes: []Turno{}}
 	if v, err := s.a.Redis.Get(ctx, s.a.Keys.Of("live", "pantalla-ping", cid.String())).Int64(); err == nil {
 		at := time.Unix(v, 0)
 		m.PantallaPing = &at
 	}
-	for i := range p.Flights {
-		m.Flights = append(m.Flights, progreso(&p.Flights[i], t, e))
+	for i := range p.Sesiones {
+		m.Sesiones = append(m.Sesiones, progreso(&p.Sesiones[i], t, e))
 	}
-	if e.FlightID == nil {
+	if e.SesionID == nil {
 		return m, nil
 	}
-	f := p.flight(*e.FlightID)
+	f := p.sesion(*e.SesionID)
 	if f == nil {
-		return m, nil // the flight left the published schedule: the desk picks another one
+		return m, nil // the sesion left the published schedule: the desk picks another one
 	}
 	fm := progreso(f, t, e)
-	m.Flight = &fm
-	m.FlightCompleto = fm.Estado == "finalizado"
+	m.Sesion = &fm
+	m.SesionCompleta = fm.Estado == "finalizado"
 	ronda, cola := orden(p, f, t, e.Movimiento)
 	m.Ronda = ronda
 	m.MovimientoCompleto = ronda > 3
@@ -290,8 +289,8 @@ func (s *Svc) mesa(ctx context.Context, cid uuid.UUID) (*Mesa, error) {
 	return m, nil
 }
 
-// faltaApertura: an athlete of the flight has an opener for the lift but no first attempt yet.
-func faltaApertura(p *plan, f *flight, t tabla, mov string) bool {
+// faltaApertura: an athlete of the sesion has an opener for the lift but no first attempt yet.
+func faltaApertura(p *plan, f *sesion, t tabla, mov string) bool {
 	for _, x := range f.Atletas {
 		if a := p.Atletas[x.ID]; a != nil && a.Primeros.de(mov) != nil && t.get(x.ID, mov, 1) == nil {
 			return true
@@ -301,13 +300,13 @@ func faltaApertura(p *plan, f *flight, t tabla, mov string) bool {
 }
 
 // abrir creates the first attempts of a lift from the openers declared at the weigh-in (idempotent).
-func abrir(ctx context.Context, tx pgx.Tx, cid uuid.UUID, p *plan, f *flight, mov string) error {
+func abrir(ctx context.Context, tx pgx.Tx, cid uuid.UUID, p *plan, f *sesion, mov string) error {
 	for _, x := range f.Atletas {
 		a := p.Atletas[x.ID]
 		if a == nil || a.Primeros.de(mov) == nil {
 			continue
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO intentos (id, competition_id, atleta_id, flight_id, movimiento, numero, peso) VALUES ($1,$2,$3,$4,$5,1,$6)
+		if _, err := tx.Exec(ctx, `INSERT INTO intentos (id, competition_id, atleta_id, sesion_id, movimiento, numero, peso) VALUES ($1,$2,$3,$4,$5,1,$6)
 			ON CONFLICT (competition_id, atleta_id, movimiento, numero) DO NOTHING`, newID(), cid, a.ID, f.ID, mov, *a.Primeros.de(mov)); err != nil {
 			return err
 		}
@@ -346,24 +345,24 @@ func validarPeso(peso float64, record bool, prev *intento) error {
 	return nil
 }
 
-// ---- schedule sync (the public /horarios shows the live flight and the delay; athletes times the 30-min notice) ----
+// ---- schedule sync (the public /horarios shows the live sesion and the delay; athletes times the 30-min notice) ----
 
 func (s *Svc) sincronizarHorarios(ctx context.Context, cid uuid.UUID, p *plan, e Estado, t tabla) {
-	if e.FlightID == nil {
+	if e.SesionID == nil {
 		return
 	}
-	cur := p.flight(*e.FlightID)
+	cur := p.sesion(*e.SesionID)
 	if cur == nil {
 		return
 	}
 	key := s.a.Keys.Of("live", "horarios", cid.String())
-	// Every flight (also other days: a flight left «en curso» on Sunday goes back to «programado» if the desk returns
-	// to Saturday); the delay only moves the current flight and the later ones of its day.
-	for i := range p.Flights {
-		f := &p.Flights[i]
+	// Every sesion (also other days: a sesion left «en curso» on Sunday goes back to «programado» if the desk returns
+	// to Saturday); the delay only moves the current sesion and the later ones of its day.
+	for i := range p.Sesiones {
+		f := &p.Sesiones[i]
 		estado, retraso := "programado", 0
 		switch {
-		case flightCompleto(f, t) || (f.ID == cur.ID && e.Fase == "finalizado"):
+		case sesionCompleta(f, t) || (f.ID == cur.ID && e.Fase == "finalizado"):
 			estado = "finalizado"
 		case f.ID == cur.ID && e.Fase == "en_directo":
 			estado = "en_curso"
@@ -373,12 +372,12 @@ func (s *Svc) sincronizarHorarios(ctx context.Context, cid uuid.UUID, p *plan, e
 		}
 		v := estado + "|" + itoa(retraso)
 		old, _ := s.a.Redis.HGet(ctx, key, f.ID.String()).Result()
-		if old == v || (old == "" && v == "programado|0") { // a flight never touched is already «programado» on time
+		if old == v || (old == "" && v == "programado|0") { // a sesion never touched is already «programado» on time
 			continue
 		}
-		if err := s.schedule.Do(ctx, http.MethodPut, "/internal/competiciones/"+cid.String()+"/horarios/flights/"+f.ID.String()+"/directo",
+		if err := s.schedule.Do(ctx, http.MethodPut, "/internal/competiciones/"+cid.String()+"/horarios/sesiones/"+f.ID.String()+"/directo",
 			map[string]any{"estado": estado, "retrasoMin": retraso}, nil); err != nil {
-			s.a.Log.Warn("estado del flight en horarios", "flight", f.Codigo, "err", err)
+			s.a.Log.Warn("estado de la sesión en horarios", "sesion", f.ID, "err", err)
 			continue
 		}
 		s.a.Redis.HSet(ctx, key, f.ID.String(), v)
@@ -426,7 +425,7 @@ func (s *Svc) registerMesa() {
 		return out(m), nil
 	}
 
-	huma.Register(api, huma.Operation{OperationID: "directo-mesa", Method: http.MethodGet, Path: base, Summary: "Mesa: estado, flights y tabla del flight en curso", Tags: tagDirecto, Security: bearer},
+	huma.Register(api, huma.Operation{OperationID: "directo-mesa", Method: http.MethodGet, Path: base, Summary: "Mesa: estado, sesiones y tabla de la sesión en curso", Tags: tagDirecto, Security: bearer},
 		func(ctx context.Context, in *cidIn) (*mesaOut, error) {
 			if err := leer(ctx, in.CID); err != nil {
 				return nil, err
@@ -443,7 +442,7 @@ func (s *Svc) registerMesa() {
 		IfMatch string    `header:"If-Match" required:"true"`
 		Body    struct {
 			Fase         string     `json:"fase" enum:"antes,en_directo,finalizado"`
-			FlightID     *uuid.UUID `json:"flightId,omitempty"`
+			SesionID     *uuid.UUID `json:"sesionId,omitempty"`
 			Movimiento   string     `json:"movimiento" enum:"sq,bp,dl"`
 			Pausa        bool       `json:"pausa"`
 			RetrasoMin   int        `json:"retrasoMin" minimum:"0" maximum:"600"`
@@ -453,7 +452,7 @@ func (s *Svc) registerMesa() {
 			PublicarAuto bool       `json:"publicarAuto"`
 		}
 	}
-	huma.Register(api, huma.Operation{OperationID: "directo-estado", Method: http.MethodPut, Path: base + "/estado", Summary: "Cambiar flight, movimiento, pausa, retraso, emisión o pantalla", Tags: tagDirecto, Security: bearer},
+	huma.Register(api, huma.Operation{OperationID: "directo-estado", Method: http.MethodPut, Path: base + "/estado", Summary: "Cambiar sesión, movimiento, pausa, retraso, emisión o pantalla", Tags: tagDirecto, Security: bearer},
 		func(ctx context.Context, in *estadoIn) (*mesaOut, error) {
 			if err := operar(ctx, in.CID); err != nil {
 				return nil, err
@@ -463,14 +462,14 @@ func (s *Svc) registerMesa() {
 			if err != nil {
 				return nil, err
 			}
-			var f *flight
-			if b.FlightID != nil {
-				if f = p.flight(*b.FlightID); f == nil {
-					return nil, problem.Unprocessable("FLIGHT_NO_VALIDO", "Ese flight no está en los horarios publicados.")
+			var f *sesion
+			if b.SesionID != nil {
+				if f = p.sesion(*b.SesionID); f == nil {
+					return nil, problem.Unprocessable("SESION_NO_VALIDA", "Esa sesión no está en los horarios publicados.")
 				}
 			}
 			if b.Fase == "en_directo" && f == nil {
-				return nil, problem.Unprocessable("FLIGHT_NO_VALIDO", "Elige el flight que empieza.")
+				return nil, problem.Unprocessable("SESION_NO_VALIDA", "Elige la sesión que empieza.")
 			}
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 				e, err := s.estado(ctx, tx, in.CID, true)
@@ -485,13 +484,13 @@ func (s *Svc) registerMesa() {
 					return problem.Unprocessable("URL_NO_VALIDA", msgVideo)
 				}
 				fase := b.Fase
-				if fase == "antes" && f != nil && (e.FlightID == nil || *e.FlightID != f.ID) {
-					fase = "en_directo" // choosing a flight starts the live
+				if fase == "antes" && f != nil && (e.SesionID == nil || *e.SesionID != f.ID) {
+					fase = "en_directo" // choosing a sesion starts the live
 				}
-				cambiaTurno := !eqID(e.FlightID, b.FlightID) || e.Movimiento != b.Movimiento || (e.Pausa && !b.Pausa)
+				cambiaTurno := !eqID(e.SesionID, b.SesionID) || e.Movimiento != b.Movimiento || (e.Pausa && !b.Pausa)
 				// A new day starts on time: the delay of the previous day must not move Sunday's schedule and notices.
-				if f != nil && e.FlightID != nil && b.RetrasoMin == e.RetrasoMin {
-					if prev := p.flight(*e.FlightID); prev != nil && prev.Dia != f.Dia {
+				if f != nil && e.SesionID != nil && b.RetrasoMin == e.RetrasoMin {
+					if prev := p.sesion(*e.SesionID); prev != nil && prev.Dia != f.Dia {
 						b.RetrasoMin = 0
 					}
 				}
@@ -502,22 +501,22 @@ func (s *Svc) registerMesa() {
 				}
 				pan := b.Pantalla
 				pan.Ver = max(e.Pantalla.Ver, 1)
-				if _, err := tx.Exec(ctx, `UPDATE estado SET fase=$2, flight_id=$3, movimiento=$4, pausa=$5, retraso_min=$6, stream_url=$7, replay_url=$8, pantalla=$9,
+				if _, err := tx.Exec(ctx, `UPDATE estado SET fase=$2, sesion_id=$3, movimiento=$4, pausa=$5, retraso_min=$6, stream_url=$7, replay_url=$8, pantalla=$9,
 					publicar_auto=$10, turno_at = CASE WHEN $11 THEN now() ELSE turno_at END, version = version + 1, updated_at = now() WHERE competition_id = $1`,
-					in.CID, fase, b.FlightID, b.Movimiento, b.Pausa, b.RetrasoMin, b.StreamURL, b.ReplayURL, pan, b.PublicarAuto, cambiaTurno); err != nil {
+					in.CID, fase, b.SesionID, b.Movimiento, b.Pausa, b.RetrasoMin, b.StreamURL, b.ReplayURL, pan, b.PublicarAuto, cambiaTurno); err != nil {
 					return err
 				}
 				d := map[string]any{"fase": fase, "movimiento": b.Movimiento, "pausa": b.Pausa, "retrasoMin": b.RetrasoMin}
 				sub := "directo"
 				if f != nil {
-					d["flightId"], d["flight"] = f.ID, f.Codigo
-					sub = "flight " + f.Codigo
+					d["sesionId"], d["hora"] = f.ID, f.Hora
+					sub = "sesión de las " + f.Hora
 				}
 				if err := evento(ctx, tx, in.CID, "directo.estado", d, events.Subject(sub)); err != nil {
 					return err
 				}
 				// The audit log keeps who started, paused or ended the live and changed the delay.
-				if fase != e.Fase || e.Pausa != b.Pausa || e.RetrasoMin != b.RetrasoMin || !eqID(e.FlightID, b.FlightID) {
+				if fase != e.Fase || e.Pausa != b.Pausa || e.RetrasoMin != b.RetrasoMin || !eqID(e.SesionID, b.SesionID) {
 					return events.Enqueue(ctx, tx, events.New(ctx, "directo.cambio", map[string]any{"antes": map[string]any{"fase": e.Fase, "pausa": e.Pausa, "retrasoMin": e.RetrasoMin},
 						"despues": d, "por": actor(ctx)}, events.Competition(in.CID.String()), events.ForPermission("directo.operar"), events.Subject(sub)))
 				}
@@ -550,7 +549,7 @@ func (s *Svc) registerMesa() {
 				return nil, err
 			}
 			a := p.Atletas[b.AtletaID]
-			if a == nil || a.Flight == uuid.Nil {
+			if a == nil || a.Sesion == uuid.Nil {
 				return nil, problem.Unprocessable("ATLETA_NO_VALIDO", "Ese atleta no está en los horarios publicados.")
 			}
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
@@ -574,12 +573,12 @@ func (s *Svc) registerMesa() {
 				if err := validarPeso(b.Peso, b.Record, prev); err != nil {
 					return err
 				}
-				if _, err := tx.Exec(ctx, `INSERT INTO intentos (id, competition_id, atleta_id, flight_id, movimiento, numero, peso) VALUES ($1,$2,$3,$4,$5,$6,$7)
+				if _, err := tx.Exec(ctx, `INSERT INTO intentos (id, competition_id, atleta_id, sesion_id, movimiento, numero, peso) VALUES ($1,$2,$3,$4,$5,$6,$7)
 					ON CONFLICT (competition_id, atleta_id, movimiento, numero) DO UPDATE SET peso = EXCLUDED.peso, updated_at = now() WHERE intentos.resultado = 'pendiente'`,
-					newID(), in.CID, a.ID, a.Flight, b.Movimiento, b.Numero, b.Peso); err != nil {
+					newID(), in.CID, a.ID, a.Sesion, b.Movimiento, b.Numero, b.Peso); err != nil {
 					return err
 				}
-				return evento(ctx, tx, in.CID, "directo.intento", map[string]any{"flightId": a.Flight, "movimiento": b.Movimiento, "numero": b.Numero, "peso": b.Peso})
+				return evento(ctx, tx, in.CID, "directo.intento", map[string]any{"sesionId": a.Sesion, "movimiento": b.Movimiento, "numero": b.Numero, "peso": b.Peso})
 			})
 			if err != nil {
 				return nil, err
@@ -617,8 +616,8 @@ func (s *Svc) registerMesa() {
 					return err
 				}
 				var it intento
-				err := tx.QueryRow(ctx, `SELECT atleta_id, flight_id, movimiento, numero, peso::float8, votos, resultado FROM intentos WHERE competition_id = $1 AND id = $2`, in.CID, in.ID).
-					Scan(&it.AtletaID, &it.FlightID, &it.Mov, &it.Numero, &it.Peso, &it.Votos, &it.Resultado)
+				err := tx.QueryRow(ctx, `SELECT atleta_id, sesion_id, movimiento, numero, peso::float8, votos, resultado FROM intentos WHERE competition_id = $1 AND id = $2`, in.CID, in.ID).
+					Scan(&it.AtletaID, &it.SesionID, &it.Mov, &it.Numero, &it.Peso, &it.Votos, &it.Resultado)
 				if errors.Is(err, pgx.ErrNoRows) {
 					return problem.NotFound("Intento no encontrado.")
 				}
@@ -640,15 +639,15 @@ func (s *Svc) registerMesa() {
 					if res == "valido" {
 						sig += 2.5
 					}
-					if _, err := tx.Exec(ctx, `INSERT INTO intentos (id, competition_id, atleta_id, flight_id, movimiento, numero, peso) VALUES ($1,$2,$3,$4,$5,$6,$7)
-						ON CONFLICT (competition_id, atleta_id, movimiento, numero) DO NOTHING`, newID(), in.CID, it.AtletaID, it.FlightID, it.Mov, it.Numero+1, sig); err != nil {
+					if _, err := tx.Exec(ctx, `INSERT INTO intentos (id, competition_id, atleta_id, sesion_id, movimiento, numero, peso) VALUES ($1,$2,$3,$4,$5,$6,$7)
+						ON CONFLICT (competition_id, atleta_id, movimiento, numero) DO NOTHING`, newID(), in.CID, it.AtletaID, it.SesionID, it.Mov, it.Numero+1, sig); err != nil {
 						return err
 					}
 				}
 				if _, err := tx.Exec(ctx, `UPDATE estado SET turno_at = now() WHERE competition_id = $1`, in.CID); err != nil {
 					return err
 				}
-				return evento(ctx, tx, in.CID, "directo.veredicto", map[string]any{"flightId": it.FlightID, "movimiento": it.Mov, "numero": it.Numero, "peso": it.Peso,
+				return evento(ctx, tx, in.CID, "directo.veredicto", map[string]any{"sesionId": it.SesionID, "movimiento": it.Mov, "numero": it.Numero, "peso": it.Peso,
 					"votos": votos, "resultado": res})
 			})
 			if err != nil && !errors.Is(err, errYaHecho) {
@@ -678,8 +677,8 @@ func (s *Svc) registerMesa() {
 					return err
 				}
 				var it intento
-				err := tx.QueryRow(ctx, `SELECT atleta_id, flight_id, movimiento, numero, peso::float8, votos, resultado FROM intentos WHERE competition_id = $1 AND id = $2`, in.CID, in.ID).
-					Scan(&it.AtletaID, &it.FlightID, &it.Mov, &it.Numero, &it.Peso, &it.Votos, &it.Resultado)
+				err := tx.QueryRow(ctx, `SELECT atleta_id, sesion_id, movimiento, numero, peso::float8, votos, resultado FROM intentos WHERE competition_id = $1 AND id = $2`, in.CID, in.ID).
+					Scan(&it.AtletaID, &it.SesionID, &it.Mov, &it.Numero, &it.Peso, &it.Votos, &it.Resultado)
 				if errors.Is(err, pgx.ErrNoRows) {
 					return problem.NotFound("Intento no encontrado.")
 				}
@@ -715,7 +714,7 @@ func (s *Svc) registerMesa() {
 				}
 				antes := map[string]any{"resultado": it.Resultado, "votos": it.Votos, "peso": it.Peso}
 				despues := map[string]any{"resultado": res, "votos": votos, "peso": peso}
-				if err := evento(ctx, tx, in.CID, "directo.correccion", map[string]any{"flightId": it.FlightID, "movimiento": it.Mov, "numero": it.Numero}); err != nil {
+				if err := evento(ctx, tx, in.CID, "directo.correccion", map[string]any{"sesionId": it.SesionID, "movimiento": it.Mov, "numero": it.Numero}); err != nil {
 					return err
 				}
 				return events.Enqueue(ctx, tx, events.New(ctx, "directo.correccion_registrada", map[string]any{"intentoId": in.ID, "movimiento": movNombre[it.Mov], "numero": it.Numero,

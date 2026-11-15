@@ -127,7 +127,7 @@ func edicion2025() (*plan, tabla) {
 	}
 	p := &plan{Atletas: map[uuid.UUID]*atleta{}}
 	t := tabla{}
-	fl := map[string]*flight{}
+	fl := map[string]*sesion{}
 	r25 := func(v float64) float64 { return math.Round(v/2.5) * 2.5 }
 	for i, x := range list {
 		id := uuid.NewSHA1(uuid.NameSpaceURL, []byte("grcup-2025/"+x.nombre))
@@ -136,7 +136,7 @@ func edicion2025() (*plan, tabla) {
 		k := clave(x.sexo, x.cat)
 		f := fl[k]
 		if f == nil {
-			f = &flight{ID: uuid.NewSHA1(uuid.NameSpaceURL, []byte("grcup-2025/flight/"+k))}
+			f = &sesion{ID: uuid.NewSHA1(uuid.NameSpaceURL, []byte("grcup-2025/flight/"+k))}
 			fl[k] = f
 		}
 		f.Atletas = append(f.Atletas, snapAtleta{ID: id, Lote: i + 1})
@@ -168,7 +168,7 @@ func edicion2025() (*plan, tabla) {
 		}
 	}
 	for _, f := range fl {
-		p.Flights = append(p.Flights, *f)
+		p.Sesiones = append(p.Sesiones, *f)
 	}
 	p.index()
 	return p, t

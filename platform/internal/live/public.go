@@ -42,18 +42,17 @@ type Directo struct {
 	ReplayURL    string `json:"replayUrl,omitempty"`
 	StreamHome   bool   `json:"streamHome,omitempty" doc:"La home muestra la emisión (solo en directo)"`
 	Espectadores int    `json:"espectadores"`
-	Flight       *struct {
-		Codigo     string `json:"codigo"`
-		Titulo     string `json:"titulo"`
-		Plataforma int    `json:"plataforma"`
-	} `json:"flight,omitempty"`
+	Sesion       *struct {
+		Hora   string `json:"hora" doc:"Hora de inicio (HH:MM, Europe/Madrid)"`
+		Titulo string `json:"titulo"`
+	} `json:"sesion,omitempty"`
 	Movimiento string         `json:"movimiento"`
 	Ronda      int            `json:"ronda"`
 	TurnoAt    *time.Time     `json:"turnoAt,omitempty"`
 	Actual     *EnPlataforma  `json:"actual,omitempty"`
-	Ultimo     *EnPlataforma  `json:"ultimo,omitempty" doc:"Último intento juzgado del flight"`
+	Ultimo     *EnPlataforma  `json:"ultimo,omitempty" doc:"Último intento juzgado de la sesión"`
 	Siguientes []EnPlataforma `json:"siguientes"`
-	// The provisional ranking of the categories of the current flight.
+	// The provisional ranking of the categories of the current sesion.
 	Clasificacion []Categoria `json:"clasificacion"`
 	// Before the event: the first block (and the time it starts).
 	Proximo *struct {
@@ -103,10 +102,10 @@ func (s *Svc) directoPublico(ctx context.Context, c compref.Comp) (*Directo, err
 	var n int
 	_ = s.a.DB.QueryRow(ctx, `SELECT count(*) FROM resultados WHERE competition_id = $1`, c.ID).Scan(&n)
 	d.ResultadosPublicados = n > 0
-	// First block: the earliest flight not finished (before the event, what /en-directo counts down to).
-	for i := range p.Flights {
-		f := &p.Flights[i]
-		if flightCompleto(f, t) {
+	// First block: the earliest sesion not finished (before the event, what /en-directo counts down to).
+	for i := range p.Sesiones {
+		f := &p.Sesiones[i]
+		if sesionCompleta(f, t) {
 			continue
 		}
 		if d.Proximo == nil || f.Inicio.Before(d.Proximo.Inicio) {
@@ -116,13 +115,12 @@ func (s *Svc) directoPublico(ctx context.Context, c compref.Comp) (*Directo, err
 			}{f.Titulo, f.Inicio}
 		}
 	}
-	if e.FlightID != nil && e.Fase != "antes" {
-		if f := p.flight(*e.FlightID); f != nil {
-			d.Flight = &struct {
-				Codigo     string `json:"codigo"`
-				Titulo     string `json:"titulo"`
-				Plataforma int    `json:"plataforma"`
-			}{f.Codigo, f.Titulo, f.Plataforma}
+	if e.SesionID != nil && e.Fase != "antes" {
+		if f := p.sesion(*e.SesionID); f != nil {
+			d.Sesion = &struct {
+				Hora   string `json:"hora" doc:"Hora de inicio (HH:MM, Europe/Madrid)"`
+				Titulo string `json:"titulo"`
+			}{f.Hora, f.Titulo}
 			ronda, cola := orden(p, f, t, e.Movimiento)
 			d.Ronda = ronda
 			d.TurnoAt = e.TurnoAt
@@ -135,7 +133,7 @@ func (s *Svc) directoPublico(ctx context.Context, c compref.Comp) (*Directo, err
 					d.Siguientes = append(d.Siguientes, *enPlataforma(x.Atleta, e.Movimiento, x.Numero, x.Peso))
 				}
 			}
-			// last judged attempt of this flight (lights on the screen)
+			// last judged attempt of this sesion (lights on the screen)
 			var last *intento
 			for _, x := range f.Atletas {
 				for _, m := range movs {
