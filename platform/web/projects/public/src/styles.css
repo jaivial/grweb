@@ -37,6 +37,23 @@ html {
 /* Hero preload overlay: only when JS runs (index.html adds «js» to <html>). */
 html:not(.js) .gr-precarga { display: none !important; }
 
+/* iOS data detectors: if Safari still links a date/address, keep the design colour. */
+a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !important; font: inherit !important; }
+
+/* Red gradient text that survives WebKit: inline-block (clip-text on a plain inline span inside a composited layer
+   paints transparent/solid on iOS), no SVG-grain layer (feTurbulence + blend in clip-text fails on iOS), and the parent's
+   solid accent colour as fallback when background-clip:text is unsupported. */
+.gr-texto-acento { display: inline-block; }
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .gr-texto-acento {
+    background-image: linear-gradient(100deg, var(--color-accent-text) 0%, var(--color-accent) 55%, var(--color-accent-700) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+}
+
 /* R005 (Jaime 14-nov): en TODOS los títulos, la parte roja usa el rojo del botón fijo «Reservar» con su grano
    (= utilidad bg-accent-grain) y no se parte a mitad: es un bloque en línea que baja entero a la línea siguiente. */
 :where(h1, h2, h3) .text-accent-text,

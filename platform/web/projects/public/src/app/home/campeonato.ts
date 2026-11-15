@@ -48,14 +48,14 @@ export const fechasHero = (ini?: string | null, fin?: string | null) => {
       </ul>
       <div class="flex flex-col items-center gap-3 md:gap-4">
         <!-- The hero already says «Campeonato de powerlifting»: it stays as the red eyebrow; the h2 shows the level -->
-        <p class="font-display text-[20px] leading-[1.25] tracking-[0.04em] uppercase md:text-[24px]"><span class="bg-accent-grain bg-clip-text text-transparent">{{ titulo() }}</span></p>
-        <h2 class="max-w-[1024px] font-display text-[32px] leading-[1.25] tracking-[0.06em] md:text-[48px]">
+        <p class="font-display text-[20px] leading-[1.25] tracking-[0.04em] text-accent-text uppercase md:text-[24px]"><span class="gr-texto-acento">{{ titulo() }}</span></p>
+        <h2 class="max-w-[1024px] font-display text-[32px] leading-[1.25] tracking-[0.06em] text-text-primary [-webkit-text-fill-color:currentColor] md:text-[48px]">
           @if (nivel()) { <span class="sr-only">{{ titulo() }}: </span>{{ nivel() }} } @else { {{ titulo() }} }
         </h2>
         @if (fechas() || lugar()) {
           <p class="flex flex-col items-center gap-1">
-            @if (fechas()) { <span class="font-archivo text-[14px] leading-[18px] font-extrabold tracking-[0.08em] uppercase md:text-[16px] md:leading-5">{{ fechas() }}</span> }
-            @if (lugar()) { <span class="font-archivo text-[11px] leading-[14px] font-medium tracking-[0.08em] text-text-secondary uppercase md:text-[14px] md:leading-5">{{ lugar() }}</span> }
+            @if (fechas()) { <span class="font-archivo text-[14px] leading-[18px] font-extrabold tracking-[0.08em] text-text-primary [-webkit-text-fill-color:currentColor] uppercase md:text-[16px] md:leading-5">{{ fechas() }}</span> }
+            @if (lugar()) { <span class="font-archivo text-[11px] leading-[14px] font-medium tracking-[0.08em] text-text-secondary [-webkit-text-fill-color:currentColor] uppercase md:text-[14px] md:leading-5">{{ lugar() }}</span> }
           </p>
         }
       </div>
