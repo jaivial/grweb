@@ -5,6 +5,7 @@ namespace: grcup-qa
 resources:
   - namespace.yaml
   - ../../base
+  - chat-ws.yaml # perf-20261115 §8: fixed ClusterIP for the direct chat WebSocket (host nginx)
 # Fixed ClusterIPs that the host nginx proxies to (no NodePorts: kraken has no firewall).
 patches:
   # ST1-R1-2: authorised load tests send X-GrCup-Carga: <LOADTEST_SECRET> and skip the per-IP bucket (QA only;
