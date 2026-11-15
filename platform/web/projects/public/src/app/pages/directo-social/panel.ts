@@ -37,7 +37,7 @@ export function escritorio(): Signal<boolean> {
  *
  * Connections per tab (contract with perf-20261115): each tab only talks to its own service and closes it on leaving.
  * - chat: chat service (WS `/chat/ws`, SSE fallback, `/chat/estado`, `/chat/mensajes`); opened only while the tab is shown.
- * - donantes: donaciones (ranking/totals) + juegos `/jornadas` (ids of the days); no chat socket.
+ * - donantes: donaciones (ranking/totals) + juegos `/jornadas` and `/premios` (its own, once); no chat socket.
  * - porra: juegos (`/jornadas`, `/porra/mercados` every 20 s, cartera, mis-apuestas); no chat socket.
  * - tarima: the page's live data (competition SSE + `/directo`), shared by the whole page; nothing else.
  * Tab bodies are `@defer`red: their code and requests load when the tab is opened and die with it.
@@ -138,11 +138,11 @@ export class PanelSocial {
         const t = this.tab();
         untracked(() => (t === 'chat' ? this.chat.conectar(this.hoy) : this.chat.desconectar()));
       });
-      // The jornadas (juegos service) are only needed by «Donantes» and «Porra»: loaded the first time one opens
+      // The jornadas (juegos service) are only needed by «Porra» («Donantes» loads its own): loaded the first time it opens
       let pedidas = false;
       effect(() => {
         const t = this.tab();
-        if (pedidas || (t !== 'porra' && t !== 'donantes')) return;
+        if (pedidas || t !== 'porra') return;
         pedidas = true;
         void this.juegos
           .jornadas()
