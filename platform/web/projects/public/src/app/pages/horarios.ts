@@ -246,7 +246,8 @@ export class HorariosPage {
     if (this.vista() === 'favs') hs = hs.filter((f) => this.lista(f).some((a) => favs.has(a.slug)));
     else if (q.length > 1) hs = hs.filter((f) => this.lista(f).some((a) => norm(a.nombre + ' ' + a.club).includes(q)));
     const rows: Fila[] = hs.map((f) => ({ t: hora(f.inicio), h: f }));
-    if (this.vista() !== 'favs' && q.length < 2) rows.push(...d.agenda.map((a) => ({ t: a.hora, item: { hora: a.hora, titulo: a.titulo, icono: ICONOS[a.icono ?? ''] ?? ('clock' as GrIconName) } })));
+    // the doors line is already shown on top («Puertas 08:30», short text): skip its agenda twin
+    if (this.vista() !== 'favs' && q.length < 2) rows.push(...d.agenda.filter((a) => !(d.puertas && a.icono === 'door')).map((a) => ({ t: a.hora, item: { hora: a.hora, titulo: a.titulo, icono: ICONOS[a.icono ?? ''] ?? ('clock' as GrIconName) } })));
     return rows.sort((a, b) => a.t.localeCompare(b.t));
   });
 
