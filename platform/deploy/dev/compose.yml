@@ -40,7 +40,9 @@ services:
   redis:
     image: redis:6.0-alpine
     mem_limit: 128m
-    command: ["redis-server", "--requirepass", "dev-redis", "--appendonly", "no"]
+    # perf-20261115: maxmemory under the 128m limit; volatile-lru evicts keys with a TTL (per-fan counters, rate
+    # buckets, dedup) instead of the kernel OOM-killing Redis (happened 13:06 under k6). Streams have no TTL: kept.
+    command: ["redis-server", "--requirepass", "dev-redis", "--appendonly", "no", "--maxmemory", "100mb", "--maxmemory-policy", "volatile-lru"]
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "dev-redis", "ping"]
       interval: 3s

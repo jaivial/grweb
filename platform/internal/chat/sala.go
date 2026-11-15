@@ -50,6 +50,10 @@ type item struct {
 type frame struct {
 	it   item
 	json []byte
+	// perf-20261115 (#8): a window of the room reader travels as ONE frame per subscriber: lote holds the
+	// frames in order and loteJSON their {"t":"lote","items":[…]} encoding, shared by every ?lote=1 client.
+	lote     []frame
+	loteJSON []byte
 }
 
 // publica is the public view of an item: the UUID of the fan is replaced by its pseudonym (a short HMAC with
@@ -224,8 +228,10 @@ func (s *sala) unsub(ch chan frame) {
 // publicar fans the item out to the local subscribers. The JSON is encoded once (not once per client). A full
 // buffer means a slow client: it is dropped (its connection ends with 1008 and it reconnects with its last id)
 // instead of blocking the room.
-func (s *sala) publicar(it item) {
-	fr := nuevaFrame(it.publica(s.hub.hashFan))
+func (s *sala) publicar(it item) { s.enviarFrame(nuevaFrame(it.publica(s.hub.hashFan))) }
+
+// enviarFrame fans an encoded frame (or a batch) out to the local subscribers.
+func (s *sala) enviarFrame(fr frame) {
 	s.mu.Lock()
 	var lentos []chan frame
 	for ch := range s.subs {
@@ -261,6 +267,15 @@ func (s *sala) leer(ctx context.Context) {
 			time.Sleep(time.Second)
 			continue
 		}
+		// perf-20261115 (#8): gather what arrives during one window and fan it out once: each client wakes up and
+		// writes once per window, not once per message (selectgo/sellock were 26 % of the pod at 600 clients).
+		if loteVentana > 0 {
+			time.Sleep(loteVentana)
+			if mas, err := s.hub.a.Redis.XRead(ctx, &redis.XReadArgs{Streams: []string{s.nombre, ultimoDe(res, last)}, Count: 1000, Block: -1}).Result(); err == nil {
+				res = append(res, mas...)
+			}
+		}
+		var frs []frame
 		for _, st := range res {
 			for _, m := range st.Messages {
 				s.mu.Lock()
@@ -270,11 +285,33 @@ func (s *sala) leer(ctx context.Context) {
 				raw, _ := m.Values["d"].(string)
 				if json.Unmarshal([]byte(raw), &it) == nil && it.T != "" {
 					it.ID = m.ID
-					s.publicar(it)
+					frs = append(frs, nuevaFrame(it.publica(s.hub.hashFan)))
 				}
 			}
 		}
+		switch {
+		case len(frs) == 1:
+			s.enviarFrame(frs[0])
+		case len(frs) > 1:
+			js := make([][]byte, 0, len(frs))
+			for _, f := range frs {
+				if f.json != nil {
+					js = append(js, f.json)
+				}
+			}
+			s.enviarFrame(frame{lote: frs, loteJSON: unirLote(js)})
+		}
 	}
+}
+
+// ultimoDe is the id of the last entry read (the position for the next read).
+func ultimoDe(res []redis.XStream, last string) string {
+	for _, st := range res {
+		if n := len(st.Messages); n > 0 {
+			last = st.Messages[n-1].ID
+		}
+	}
+	return last
 }
 
 // salasVivas lists the rooms worth reporting presence for.
@@ -290,7 +327,8 @@ func (h *hub) salasVivas() []*sala {
 	return out
 }
 
-// perf-20261115: WS batching (?lote=1). A window collects at most loteMax frames; the batch is the already
+// perf-20261115: the room reader gathers one window (CHAT_LOTE_MS) and sends it as one batch; loteMax bounds the
+// SSE drain. The batch is the already
 // encoded frames joined as {"t":"lote","items":[…]} (no re-encoding).
 var loteVentana = time.Duration(config.Int("CHAT_LOTE_MS", 100)) * time.Millisecond
 
