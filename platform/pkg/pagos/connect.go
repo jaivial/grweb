@@ -20,14 +20,23 @@ import (
 // Checkouts are direct charges on the connected account and the platform keeps STRIPE_PLATFORM_FEE_PERCENT.
 //
 // Env (never in the repo):
-//   STRIPE_CONNECT_SANDBOX_KEY     platform key (sk_test_/rk_test_; live keys are refused: test mode only for now)
+//   STRIPE_CONNECT_SANDBOX_KEY     platform key outside production (sk_test_/rk_test_ only: QA never charges)
+//   STRIPE_CONNECT_PRODUCTION_KEY  platform key with SERVICE_ENV=prod (sk_live_/rk_live_ only)
 //   STRIPE_CONNECT_WEBHOOK_SECRET  whsec_ of the Connect webhook endpoints (comma-separated)
 //   STRIPE_PLATFORM_FEE_PERCENT    platform commission, 0–30 (default 0)
 
-// PlatformKey returns the Connect platform key, or "" when Connect is not configured (or the key is not a test key).
+// Live is true in production: real charges with the live platform key.
+func Live() bool { return config.Str("SERVICE_ENV", "dev") == "prod" }
+
+// PlatformKey returns the Connect platform key, or "" when Connect is not configured or the key's mode does not match
+// the environment (a live key outside production, or a test key in production).
 func PlatformKey() string {
-	k := strings.TrimSpace(config.Str("STRIPE_CONNECT_SANDBOX_KEY", ""))
-	if !strings.HasPrefix(k, "sk_test_") && !strings.HasPrefix(k, "rk_test_") {
+	name, mode := "STRIPE_CONNECT_SANDBOX_KEY", "_test_"
+	if Live() {
+		name, mode = "STRIPE_CONNECT_PRODUCTION_KEY", "_live_"
+	}
+	k := strings.TrimSpace(config.Str(name, ""))
+	if !strings.HasPrefix(k, "sk"+mode) && !strings.HasPrefix(k, "rk"+mode) {
 		return ""
 	}
 	return k
