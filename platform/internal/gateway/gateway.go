@@ -171,6 +171,9 @@ func (g *gw) setup(_ context.Context, a *app.App) error {
 	wsT := transport.Clone()
 	wsT.ResponseHeaderTimeout = 5 * time.Second
 	wsT.DialContext = (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext
+	// perf-20261115: an upgraded WS keeps the transport's bufio buffers for its whole life; chat frames (batched
+	// every 100 ms) are a few KB, so 4 KB like SSE. 2.000 WS OOM-killed a 256 Mi gateway with 32 KB buffers.
+	wsT.WriteBufferSize, wsT.ReadBufferSize = 4<<10, 4<<10
 	// ST2-R4-1: an open SSE held 64 KB of transport buffers for its whole life (500 SSE ≈ 32 MB per replica just
 	// idling); events are < 1 KB, so SSE get their own transport with 4 KB buffers.
 	sseT := transport.Clone()
