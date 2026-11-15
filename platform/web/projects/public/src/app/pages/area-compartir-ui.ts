@@ -1,5 +1,25 @@
-import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, computed, input, output, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, computed, inject, input, output, signal, viewChild } from '@angular/core';
 import { GrButton, GrIcon } from '@grcup/ui';
+import { I18n } from '../core/i18n';
+
+const T = {
+  es: {
+    tuFoto: 'Tu foto aquí', usuario: 'tu.usuario', mensaje: 'Enviar mensaje',
+    titulo: 'Recorta tu foto', cancelar: 'Cancelar',
+    ayuda: 'Arrastra la foto para encuadrarla y usa el zoom. Lo que queda dentro del marco 9:16 es lo que verás en la vista previa y lo que usaremos en la imagen final.',
+    escenario: 'Foto: arrastra o usa las flechas para moverla, + y − para el zoom', mover: 'Arrastra para mover',
+    menosZoom: 'Menos zoom', zoom: 'Zoom', masZoom: 'Más zoom', min: '1× · cubre el marco', max: '4× · máximo',
+    restablecer: 'Restablecer', aplicar: 'Aplicar recorte', coma: ',',
+  },
+  en: {
+    tuFoto: 'Your photo here', usuario: 'your.username', mensaje: 'Send message',
+    titulo: 'Crop your photo', cancelar: 'Cancel',
+    ayuda: 'Drag the photo to frame it and use the zoom. Whatever stays inside the 9:16 frame is what you will see in the preview and what we will use in the final image.',
+    escenario: 'Photo: drag or use the arrow keys to move it, + and − to zoom', mover: 'Drag to move',
+    menosZoom: 'Zoom out', zoom: 'Zoom', masZoom: 'Zoom in', min: '1× · fills the frame', max: '4× · maximum',
+    restablecer: 'Reset', aplicar: 'Apply crop', coma: '.',
+  },
+};
 
 export interface Recorte {
   focalX: number;
@@ -20,19 +40,19 @@ export interface Recorte {
         @if (src()) { <img [src]="src()" [alt]="alt()" class="absolute inset-0 h-full w-full object-cover" [class.blur-[6px]]="borroso()" /> }
         @else { <div class="absolute inset-0 animate-pulse bg-white/5"></div> }
         @if (hueco()) {
-          <div class="absolute inset-x-0 top-[28%] flex flex-col items-center gap-1 text-white/60" aria-hidden="true"><gr-icon name="image" [size]="16" /><span class="font-mono text-[7px] tracking-[0.12em] uppercase">Tu foto aquí</span></div>
+          <div class="absolute inset-x-0 top-[28%] flex flex-col items-center gap-1 text-white/60" aria-hidden="true"><gr-icon name="image" [size]="16" /><span class="font-mono text-[7px] tracking-[0.12em] uppercase">{{ t().tuFoto }}</span></div>
         }
         <!-- status bar, story progress and Instagram header -->
         <div class="pointer-events-none absolute inset-x-0 top-0 px-4 pt-2 text-white" aria-hidden="true">
           <div class="flex items-center justify-between text-[12px] font-semibold"><span>9:41</span><span class="h-5 w-16 rounded-full bg-black"></span><span class="h-2.5 w-5 rounded-[3px] bg-white"></span></div>
           @if (!borroso()) {
             <div class="mt-2 h-0.5 rounded bg-white/30"><div class="h-full w-1/3 rounded bg-white"></div></div>
-            <div class="mt-2 flex items-center gap-1.5 text-[9px] font-semibold"><span class="size-4 rounded-full border border-white/60 bg-white/20"></span>{{ usuario() }} · 1 min<gr-icon class="ml-auto" name="x" [size]="12" /></div>
+            <div class="mt-2 flex items-center gap-1.5 text-[9px] font-semibold"><span class="size-4 rounded-full border border-white/60 bg-white/20"></span>{{ usuario() || t().usuario }} · 1 min<gr-icon class="ml-auto" name="x" [size]="12" /></div>
           }
         </div>
         @if (!borroso()) {
           <div class="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-2 px-3 pb-5 text-white" aria-hidden="true">
-            <span class="flex-1 rounded-full border border-white/70 px-3 py-1 text-[8px]">Enviar mensaje</span><gr-icon name="heart" [size]="14" /><gr-icon name="send" [size]="14" />
+            <span class="flex-1 rounded-full border border-white/70 px-3 py-1 text-[8px]">{{ t().mensaje }}</span><gr-icon name="heart" [size]="14" /><gr-icon name="send" [size]="14" />
           </div>
         }
         <span class="pointer-events-none absolute bottom-1.5 left-1/2 h-1 w-1/3 -translate-x-1/2 rounded-full bg-white/80" aria-hidden="true"></span>
@@ -43,7 +63,8 @@ export interface Recorte {
 export class StoryMovil {
   readonly src = input('');
   readonly alt = input('');
-  readonly usuario = input('tu.usuario');
+  protected readonly t = inject(I18n).dict(T);
+  readonly usuario = input('');
   readonly borroso = input(false);
   readonly hueco = input(false);
   /** Background photo behind a transparent sticker. */
@@ -59,11 +80,11 @@ export class StoryMovil {
   template: `
     <dialog #dlg class="m-auto w-full max-w-[610px] rounded-lg border border-line-subtle bg-bg-card p-5 text-text-primary shadow-2xl max-sm:h-dvh max-sm:max-h-none max-sm:max-w-none max-sm:rounded-none max-sm:pt-[max(16px,env(safe-area-inset-top))] max-sm:pb-[max(12px,env(safe-area-inset-bottom))] max-sm:open:flex max-sm:open:flex-col"
       aria-labelledby="recorte-titulo" (cancel)="$event.preventDefault(); cancelar.emit()" (keydown)="tecla($event)">
-      <div class="flex items-center justify-between"><h2 id="recorte-titulo" class="text-[18px] font-semibold">Recorta tu foto</h2>
-        <button type="button" class="-mr-2 flex size-11 items-center justify-center rounded-xs text-text-tertiary hover:text-text-primary" aria-label="Cancelar" (click)="cancelar.emit()"><gr-icon name="x" [size]="20" /></button></div>
-      <p class="mt-3 text-body-s text-text-secondary max-sm:mt-1 max-sm:line-clamp-2">Arrastra la foto para encuadrarla y usa el zoom. Lo que queda dentro del marco 9:16 es lo que verás en la vista previa y lo que usaremos en la imagen final.</p>
+      <div class="flex items-center justify-between"><h2 id="recorte-titulo" class="text-[18px] font-semibold">{{ t().titulo }}</h2>
+        <button type="button" class="-mr-2 flex size-11 items-center justify-center rounded-xs text-text-tertiary hover:text-text-primary" [attr.aria-label]="t().cancelar" (click)="cancelar.emit()"><gr-icon name="x" [size]="20" /></button></div>
+      <p class="mt-3 text-body-s text-text-secondary max-sm:mt-1 max-sm:line-clamp-2">{{ t().ayuda }}</p>
       <div #stage class="relative mt-4 h-[300px] touch-none overflow-hidden rounded-md bg-black select-none sm:h-[476px] max-sm:mt-3 max-sm:h-auto max-sm:min-h-0 max-sm:flex-1" tabindex="0"
-        aria-label="Foto: arrastra o usa las flechas para moverla, + y − para el zoom"
+        [attr.aria-label]="t().escenario"
         (pointerdown)="down($event)" (pointermove)="move($event)" (pointerup)="up($event)" (pointercancel)="up($event)" (wheel)="rueda($event)">
         @if (marco(); as m) {
           <img [src]="src()" alt="" draggable="false" class="pointer-events-none absolute max-w-none grayscale"
@@ -71,26 +92,27 @@ export class StoryMovil {
           <div class="pointer-events-none absolute border-2 border-white shadow-[0_0_0_9999px_rgb(0_0_0/.6)]" [style.left.px]="m.x" [style.top.px]="m.y" [style.width.px]="m.w" [style.height.px]="m.h">
             <div class="absolute inset-0 grid grid-cols-3 grid-rows-3">@for (i of [0,1,2,3,4,5,6,7,8]; track i) { <span class="border border-white/25"></span> }</div>
             <span class="absolute top-2 left-2 rounded-xs bg-black/70 px-2 py-0.5 font-mono text-[10px] tracking-[0.08em]">9:16 · 1080 × 1920</span>
-            <span class="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-black/70 px-3 py-1 text-[10px] font-semibold tracking-[0.06em] whitespace-nowrap uppercase"><gr-icon name="grip" [size]="12" />Arrastra para mover</span>
+            <span class="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-black/70 px-3 py-1 text-[10px] font-semibold tracking-[0.06em] whitespace-nowrap uppercase"><gr-icon name="grip" [size]="12" />{{ t().mover }}</span>
           </div>
         }
       </div>
       <div class="mt-4 flex items-center gap-3 max-sm:mt-2">
-        <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-xs" aria-label="Menos zoom" (click)="zoomA(zoom() - 0.1)"><gr-icon name="minus" [size]="18" /></button>
-        <input type="range" class="flex-1" min="1" max="4" step="0.1" [value]="zoom()" aria-label="Zoom" (input)="zoomA(+$any($event.target).value)" />
-        <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-xs" aria-label="Más zoom" (click)="zoomA(zoom() + 0.1)"><gr-icon name="plus" [size]="18" /></button>
+        <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-xs" [attr.aria-label]="t().menosZoom" (click)="zoomA(zoom() - 0.1)"><gr-icon name="minus" [size]="18" /></button>
+        <input type="range" class="flex-1" min="1" max="4" step="0.1" [value]="zoom()" [attr.aria-label]="t().zoom" (input)="zoomA(+$any($event.target).value)" />
+        <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-xs" [attr.aria-label]="t().masZoom" (click)="zoomA(zoom() + 0.1)"><gr-icon name="plus" [size]="18" /></button>
         <span class="w-10 text-label-s" aria-live="polite">{{ zoomTxt() }}</span>
       </div>
-      <div class="mt-1 flex justify-between px-14 text-[11px] text-text-tertiary max-sm:hidden"><span>1× · cubre el marco</span><span>4× · máximo</span></div>
+      <div class="mt-1 flex justify-between px-14 text-[11px] text-text-tertiary max-sm:hidden"><span>{{ t().min }}</span><span>{{ t().max }}</span></div>
       <div class="mt-5 flex shrink-0 items-center gap-3 max-sm:mt-3"><!-- UX3-R2-2: one row; on mobile cancel is the top-right x -->
-        <button type="button" class="mr-auto h-11 min-w-11 text-label-s text-accent-text hover:underline" (click)="iniciar({ focalX: 50, focalY: 35, zoom: 1 })">Restablecer</button>
-        <button grButton type="button" class="max-sm:hidden" (click)="cancelar.emit()">Cancelar</button>
-        <button grButton variant="primary" type="button" (click)="aplicarRecorte()">Aplicar recorte</button>
+        <button type="button" class="mr-auto h-11 min-w-11 text-label-s text-accent-text hover:underline" (click)="iniciar({ focalX: 50, focalY: 35, zoom: 1 })">{{ t().restablecer }}</button>
+        <button grButton type="button" class="max-sm:hidden" (click)="cancelar.emit()">{{ t().cancelar }}</button>
+        <button grButton variant="primary" type="button" (click)="aplicarRecorte()">{{ t().aplicar }}</button>
       </div>
     </dialog>
   `,
 })
 export class StoryRecorte {
+  protected readonly t = inject(I18n).dict(T);
   readonly src = input.required<string>();
   readonly ancho = input.required<number>();
   readonly alto = input.required<number>();
@@ -106,7 +128,7 @@ export class StoryRecorte {
   private readonly base = computed(() => { const m = this.marco(); return m ? Math.max(m.w / this.ancho(), m.h / this.alto()) : 1; });
   protected readonly dw = computed(() => this.ancho() * this.base() * this.zoom());
   protected readonly dh = computed(() => this.alto() * this.base() * this.zoom());
-  protected readonly zoomTxt = computed(() => this.zoom().toFixed(1).replace('.', ',') + '×');
+  protected readonly zoomTxt = computed(() => this.zoom().toFixed(1).replace('.', this.t().coma) + '×');
   private readonly punteros = new Map<number, { x: number; y: number }>();
 
   constructor() {
