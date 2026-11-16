@@ -18,7 +18,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, afterRenderEffect, inpu
       role="tablist" [attr.aria-label]="etiqueta() || null">
       @for (o of opciones(); track o.id) {
         @if (o.href) {
-          <a [href]="o.href" role="tab" [attr.aria-selected]="o.id === valor()" [attr.data-state]="o.id === valor() ? 'active' : 'inactive'" [attr.data-id]="o.id"
+          <a [href]="o.href" role="tab" [attr.aria-selected]="o.id === valor()" [attr.aria-current]="o.id === valor() ? 'page' : null" [attr.data-state]="o.id === valor() ? 'active' : 'inactive'" [attr.data-id]="o.id"
             [class]="clase(o.id === valor())">{{ o.t }}</a>
         } @else {
           <button type="button" role="tab" [attr.aria-selected]="o.id === valor()" [attr.data-state]="o.id === valor() ? 'active' : 'inactive'" [attr.data-id]="o.id"
