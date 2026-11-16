@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injectable, PLATFORM_ID, PendingTasks, computed, effect, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { GrButton, GrIcon, GrLogo, LOGO, CdnPipe } from '@grcup/ui';
+import { GrButton, GrIcon, GrLogo, LOGO, LOGO_SRCSET, srcsetLogo, CdnPipe } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import type { Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, Competition, type CompeticionPublica } from '../core/competition';
@@ -134,7 +134,7 @@ const T = {
     <nav class="@container relative mx-auto flex min-h-16 max-w-[1200px] items-center gap-2 overflow-hidden md:gap-4 lg:gap-6 rounded-md border border-accent-deep/35 bg-bg-deep/72 px-3 max-[239px]:px-1.5 backdrop-blur-[10px] md:min-h-[72px] md:px-6" [attr.aria-label]="t().principal">
       <span class="pointer-events-none absolute -top-20 -left-10 size-40 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]" aria-hidden="true"></span>
       <span class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(90deg,transparent,rgb(196_43_62/0.6),transparent)]" aria-hidden="true"></span>
-      <a [routerLink]="'/' | loc" class="relative shrink-0" [attr.aria-label]="t().home"><img [src]="logo" alt="GRS Cup 2" class="h-[36px] w-24 object-contain max-[239px]:w-20 md:h-[40px] md:w-[116px]" /></a>
+      <a [routerLink]="'/' | loc" class="relative shrink-0" [attr.aria-label]="t().home"><img [attr.srcset]="logoSrcset" sizes="116px" [src]="logo" alt="GRS Cup 2" class="h-[36px] w-24 object-contain max-[239px]:w-20 md:h-[40px] md:w-[116px]" /></a>
       <!-- Figma «Navbar»: tablet keeps the first three links (the rest is in «Competición ▾»), desktop all five -->
       <ul class="relative -mr-2 ml-auto hidden items-center md:flex lg:gap-2">
         @for (l of links(); track l.href; let i = $index) {
@@ -185,7 +185,7 @@ const T = {
            a compositor-only transform; scroll lock and hiding the page happen at transitionend (styles.css «gr-menu»). -->
       <div id="menu-movil" class="gr-menu fixed inset-0 z-50 flex flex-col overflow-y-auto overscroll-contain bg-bg-base pt-[max(12px,env(safe-area-inset-top))] pr-[max(20px,env(safe-area-inset-right))] pl-[max(20px,env(safe-area-inset-left))] md:hidden" [class.abierto]="open()" [attr.inert]="open() ? null : ''" [attr.aria-hidden]="open() ? null : 'true'" (transitionend)="finTransicion($event)" role="dialog" aria-modal="true" (keydown.tab)="atrapar($event)" (keydown.shift.tab)="atrapar($event)" [attr.aria-label]="t().menu">
         <div class="flex shrink-0 items-center justify-between pt-2 pb-4">
-          <a [routerLink]="'/' | loc" (click)="open.set(false)" [attr.aria-label]="t().home" class="flex h-11 items-center"><img [src]="logo" alt="GRS Cup 2" class="h-[34px] w-[92px] object-contain" /></a>
+          <a [routerLink]="'/' | loc" (click)="open.set(false)" [attr.aria-label]="t().home" class="flex h-11 items-center"><img [attr.srcset]="logoSrcset" sizes="92px" [src]="logo" alt="GRS Cup 2" class="h-[34px] w-[92px] object-contain" /></a>
           <div class="flex items-center gap-2">
             <a [routerLink]="otra()" [attr.hreflang]="otraLang()" [attr.aria-label]="t().otherLabel" class="flex h-11 items-center gap-1 rounded-xl border border-white/10 px-3 text-label-s">
               <span>{{ lang() === 'en' ? 'EN' : 'ES' }}</span><span class="text-text-muted">/ {{ otraLang().toUpperCase() }}</span></a>
@@ -266,6 +266,7 @@ export class Navbar {
     else if (!k.shiftKey && document.activeElement === ultimo) { k.preventDefault(); primero.focus(); }
   }
   protected readonly logo = LOGO;
+  protected readonly logoSrcset = LOGO_SRCSET;
   protected readonly links = computed(() => this.t().links);
   private readonly comp = inject(Competition);
   private readonly router = inject(Router);
@@ -350,10 +351,10 @@ export class Navbar {
   selector: 'gr-overlays',
   imports: [AccesoModal],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<gr-acceso-modal />`,
+  template: `@defer (when fan.accesoAbierto()) { <gr-acceso-modal /> }`,
 })
 export class Overlays {
-  private readonly fan = inject(FanSession);
+  protected readonly fan = inject(FanSession);
 
   constructor() {
     // The session of the fan is the cookie httpOnly `grcup_fan`: the browser asks once and everyone la usa.
@@ -395,7 +396,8 @@ const FT = {
   template: `
     <!-- Figma «Footer»: mobile 48/20/32 with 28 between blocks, desktop 72/80/32 with 48 -->
     <div class="mx-auto flex max-w-[1440px] flex-col gap-7 px-5 pt-12 pb-8 md:gap-12 md:px-8 md:pt-[72px] xl:px-[120px]">
-      <gr-newsletter [nivel]="nivelNewsletter()" />
+      <!-- deferred: its form pulls @angular/forms (~45 KB) out of the first load; SSR still renders it (hydrate) -->
+      @defer (on viewport; hydrate on viewport) { <gr-newsletter [nivel]="nivelNewsletter()" /> } @placeholder { <div></div> }
       <div class="grid md:grid-cols-4 md:gap-x-4 lg:grid-cols-[300px_repeat(4,minmax(0,1fr))] lg:gap-x-10 xl:gap-x-14">
         <div class="mb-6 flex flex-col gap-4 md:col-span-4 md:mb-8 lg:col-span-1 lg:mb-0">
           <gr-logo [height]="56" [width]="150" />
@@ -423,7 +425,7 @@ const FT = {
         <ul class="flex flex-wrap items-center justify-center gap-x-5 gap-y-4 md:gap-x-10 md:gap-y-5 md:py-2" [attr.aria-label]="t().patrocinadores">
           @for (p of logos(); track p.nombre) {
             <li><a [href]="p.url || ('/patrocinadores' | loc)" [attr.target]="p.url ? '_blank' : null" rel="noopener" class="flex min-h-11 items-center opacity-60 grayscale transition hover:opacity-100 hover:grayscale-0">
-              <img [src]="p.logoUrl | cdn" [alt]="p.nombre" class="h-8 w-auto max-w-[150px] object-contain md:h-7" loading="lazy" /></a></li>
+              <img [attr.srcset]="srcsetLogo(p.logoUrl)" [src]="p.logoUrl | cdn" [alt]="p.nombre" class="h-8 w-auto max-w-[150px] object-contain md:h-7" loading="lazy" /></a></li>
           }
         </ul>
       }
@@ -480,6 +482,7 @@ export class Footer {
   /** Mobile CTA bar (Figma Mobile, every public page; UX7-R1-7: not on the event-day lookup pages): on the home only once the trophy intro is over; not on flows with their own bottom action. */
   protected readonly barra = computed(() => this.scrolled() && this.comp.data()?.modulos?.['entradas'] !== false &&
     !/^\/(inscripcion|pago|entradas|area-atleta|alta-atleta|novedades|baja|en-directo|porra|fantasy|horarios|atletas|resultados|mi-entrada|sorteo\/confirmacion)(\/|$|\?|#)/.test(sinPrefijo(this.url())));
+  protected readonly srcsetLogo = srcsetLogo;
   protected readonly tabsPorra = computed(() => /^\/porra(\/|$)/.test(sinPrefijo(this.seo.path())));
   constructor() {
     // Same source on every page (cached per render and transferred to the browser): the event's data.

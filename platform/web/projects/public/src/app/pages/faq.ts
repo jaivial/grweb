@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GrIcon, GrSkeleton } from '@grcup/ui';
-import { Cms, renderMarkdown, type Faq } from '../core/cms';
+import { Cms, type Faq } from '../core/cms';
+import { renderMarkdown } from '../core/markdown';
 import { Competition } from '../core/competition';
 import { Seo } from '../core/seo';
 import { GrEyebrow } from '../home/bloques';

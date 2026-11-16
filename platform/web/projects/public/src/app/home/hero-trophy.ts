@@ -3,7 +3,7 @@ import {
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { GrButton, GrIcon, LOGO, cdn, CdnPipe } from '@grcup/ui';
+import { GrButton, GrIcon, LOGO, LOGO_SRCSET, cdn, CdnPipe } from '@grcup/ui';
 import { VideoScrub } from '../core/video-scrub';
 import { MenuMovil } from '../layout/layout';
 // Inline (8 KB) so the preload trophy paints with the server HTML instead of waiting for a CDN round trip
@@ -18,8 +18,9 @@ const TXT = {
 const FRAMES = 313;
 export interface HeroCms { eyebrow?: string; fecha?: string; ctaTexto?: string; ctaDestino?: string; imagen?: string; focalX?: number; focalY?: number }
 const FPS = 24;
-const VIDEO_MOBILE = cdn('/media/copa-horneada-600x900.mp4');
-const VIDEO_DESKTOP = cdn('/media/copa-horneada-720x1080.mp4');
+// v2: same 313 frames at 24 fps, x264 veryslow crf 27, GOP 8, aq-mode 3 (−46 %, SSIM 0.992 against v1; same seek time)
+const VIDEO_MOBILE = cdn('/media/copa-horneada-v2-600x900.mp4');
+const VIDEO_DESKTOP = cdn('/media/copa-horneada-v2-720x1080.mp4');
 const frameUrl = (i: number) => `https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp_horneado/frame_${String(i + 1).padStart(4, '0')}.webp`;
 
 /** Scroll timeline of Figma page 04 «Hero · Storyboard scroll» (the previous web's animation, same thresholds). */
@@ -78,8 +79,15 @@ const PUFFS = [
       <div class="pointer-events-none absolute inset-0" [style.opacity]="trofeo()">
         <div class="absolute top-1/2 left-1/2 aspect-square h-[90%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]"></div>
         <div class="absolute top-[6.4%] left-1/2 aspect-[2/3] h-[80%] max-w-[92vw] -translate-x-1/2 [transform:translateZ(0)]">
-          <video #video muted playsinline preload="auto" disablepictureinpicture disableremoteplayback aria-hidden="true" class="size-full object-cover"></video>
-          <img [src]="imagenTrofeo()" alt="" fetchpriority="high" class="absolute inset-0 size-full object-cover" [class.hidden]="!imagenFija()" />
+          <!-- LCP: Chrome counts the video's first frame as the page's LCP even at opacity 0 or visibility:hidden (it
+               came ~4 s late, after the whole download). Shrunk while the trophy is fully transparent (behind the loader,
+               scroll 0), it never qualifies: the LCP is the h1. It still decodes and seeks (only its painted box shrinks). -->
+          <video #video muted playsinline preload="auto" [style.transform]="trofeo() ? null : 'scale(0.1)'" disablepictureinpicture disableremoteplayback aria-hidden="true" class="size-full object-cover"></video>
+          <!-- WebP frame only when needed (loader gone before the first seek, video failed, reduced motion): the
+               trophy is hidden behind the loader and at opacity 0 at scroll 0, so it is never downloaded up front -->
+          @if (imagenTrofeo(); as src) {
+            <img [src]="src" alt="" class="absolute inset-0 size-full object-cover" [class.hidden]="!imagenFija()" />
+          }
         </div>
       </div>
       <!-- U30 · Figma 54: background image with focal point; with motion it fades out with the intro text (U31-R1-15) -->
@@ -107,7 +115,7 @@ const PUFFS = [
       <div class="pointer-events-none absolute inset-x-0 bottom-0 h-[300px] bg-[linear-gradient(180deg,transparent,#141112)]"></div>
       <!-- Intro (Figma home R2): GRS CUP 2 logo and tagline; dates, place and organiser logos moved to «Campeonato» -->
       <div class="gr-intro pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-5 pb-[12dvh] text-center" [style.opacity]="texto()">
-        <img [src]="logo" alt="GRS Cup 2" class="h-[clamp(80px,30vw,125px)] w-auto select-none md:h-[198px]" draggable="false" fetchpriority="high" />
+        <img [attr.srcset]="logoSrcset" sizes="(min-width: 768px) 318px, 201px" [src]="logo" alt="GRS Cup 2" class="h-[clamp(80px,30vw,125px)] w-auto select-none md:h-[198px]" draggable="false" fetchpriority="high" />
         @if (hero().eyebrow) { <p class="gr-intro-extra mt-10 text-label-xs tracking-[0.12em] text-accent-text uppercase">{{ hero().eyebrow }}</p> }
         <h1 class="max-w-[1000px] font-display text-[clamp(22px,8vw,30px)] leading-[1.05] tracking-[-0.01em] uppercase [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-[56px]" [class]="hero().eyebrow ? 'mt-3' : 'mt-3 md:mt-1'">{{ titulo() || t().titulo }}</h1>
         @if (hero().ctaTexto && hero().ctaDestino) {
@@ -185,9 +193,10 @@ export class HeroTrophy {
   /** Video download progress; without Content-Length the bar is indeterminate. */
   protected readonly criticoPct = signal(0);
   protected readonly progresoIndeterminado = signal(false);
-  protected readonly imagenTrofeo = signal(frameUrl(0));
+  protected readonly imagenTrofeo = signal<string | null>(null);
   protected readonly imagenFija = signal(true);
   protected readonly logo = LOGO;
+  protected readonly logoSrcset = LOGO_SRCSET;
   protected readonly trofeoPrecarga = TROFEO_PRECARGA;
   /** Preload overlay: shown until the first seek completes (never longer than 4 s), then fades out. */
   protected readonly precarga = signal(true);
@@ -378,6 +387,8 @@ export class HeroTrophy {
   }
 
   private finPrecarga(): void {
+    // the 4 s cap ended the loader before the first video frame (or the video failed): frame 0's WebP covers meanwhile
+    if (this.imagenFija() && !this.imagenTrofeo()) this.imagenTrofeo.set(frameUrl(0));
     if (this.precargaFuera()) return;
     this.precargaFuera.set(true);
     clearTimeout(this.tope);

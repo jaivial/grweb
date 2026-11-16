@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { LOGO } from './cdn';
+import { LOGO, LOGO_SRCSET } from './cdn';
 import { GrIcon, type GrIconName } from './icon';
 import { GR_SKIN } from './skin';
 import { grDict } from './lang';
@@ -167,12 +167,15 @@ export class GrEmpty {
   selector: 'gr-logo',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'inline-flex' },
-  template: `<img [src]="src" alt="GRS Cup 2" [style.height.px]="height()" [style.width.px]="width()" class="object-contain select-none" [class.w-auto]="!width()" draggable="false" fetchpriority="high" />`,
+  template: `<img [attr.sizes]="sizes()" [attr.srcset]="srcset" [src]="src" alt="GRS Cup 2" [style.height.px]="height()" [style.width.px]="width()" class="object-contain select-none" [class.w-auto]="!width()" draggable="false" fetchpriority="high" />`,
 })
 export class GrLogo {
   readonly height = input(40);
   readonly width = input<number | null>(null);
   protected readonly src = LOGO;
+  protected readonly srcset = LOGO_SRCSET;
+  /** Rendered width: the 588 × 366 logo fitted in height × width. */
+  protected readonly sizes = computed(() => Math.round(Math.min(this.width() ?? Infinity, (this.height() * 588) / 366)) + 'px');
 }
 
 /** Tiny trend line for KPI tiles. */
