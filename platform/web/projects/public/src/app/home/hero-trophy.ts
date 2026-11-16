@@ -5,6 +5,8 @@ import { isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { GrButton, GrIcon, LOGO, cdn, CdnPipe } from '@grcup/ui';
 import { VideoScrub } from '../core/video-scrub';
+// Inline (8 KB) so the preload trophy paints with the server HTML instead of waiting for a CDN round trip
+import TROFEO_PRECARGA from '../../../public/img/home/trofeo.webp' with { loader: 'dataurl' };
 import { I18n, LocPipe } from '../core/i18n';
 
 const TXT = {
@@ -116,7 +118,7 @@ const PUFFS = [
           <!-- also in the server HTML; it leaves by itself after 4 s if the script never runs (and at once without JS) -->
           <div class="gr-precarga absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-bg-base transition-opacity duration-500" [style.opacity]="precargaFuera() ? 0 : null"
             role="progressbar" [attr.aria-label]="t().cargando" [attr.aria-valuenow]="progresoIndeterminado() ? null : criticoPct()" aria-valuemin="0" aria-valuemax="100">
-            <img [src]="'/img/home/trofeo.webp' | cdn" alt="" class="h-[70px] w-20 animate-pulse object-contain" />
+            <img [src]="trofeoPrecarga" alt="" class="h-[70px] w-20 animate-pulse object-contain" />
             <div class="h-2 w-64 overflow-hidden rounded-pill bg-bg-surface"><div class="h-full rounded-pill bg-[linear-gradient(90deg,#0e0c0d,#a82334)] transition-[width] duration-300" [class.animate-pulse]="progresoIndeterminado()" [style.width.%]="progresoIndeterminado() ? 100 : criticoPct()"></div></div>
             <p class="text-body-s text-text-tertiary">@if (progresoIndeterminado()) { {{ t().cargandoVideo }} } @else { {{ criticoPct() }} % }</p>
           </div>
@@ -181,6 +183,7 @@ export class HeroTrophy {
   protected readonly imagenTrofeo = signal(frameUrl(0));
   protected readonly imagenFija = signal(true);
   protected readonly logo = LOGO;
+  protected readonly trofeoPrecarga = TROFEO_PRECARGA;
   /** Preload overlay: shown until the first seek completes (never longer than 4 s), then fades out. */
   protected readonly precarga = signal(true);
   protected readonly precargaFuera = signal(false);
@@ -223,6 +226,8 @@ export class HeroTrophy {
     const destroy = inject(DestroyRef);
     afterNextRender(() => {
       if (!this.browser) return;
+      // index.html's copy of the preload overlay: ours (identical, same place) is on screen now and shows the progress
+      document.getElementById('gr-precarga-inicial')?.remove();
       const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       this.reduced.set(reduced);
       if (reduced) {
