@@ -8,7 +8,7 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 COPY . .
-RUN pnpm ng build public && pnpm ng build backoffice
+RUN pnpm ng build public && node scripts/precomprimir.mjs dist/public/browser && pnpm ng build backoffice
 
 FROM node:24-alpine AS public
 WORKDIR /app
