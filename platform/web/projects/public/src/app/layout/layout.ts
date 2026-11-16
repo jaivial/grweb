@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injectable, PLATFORM_ID, PendingTasks, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injectable, PLATFORM_ID, PendingTasks, computed, effect, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { GrButton, GrIcon, GrLogo, LOGO, CdnPipe } from '@grcup/ui';
@@ -20,6 +20,10 @@ export interface NavLink {
 /** UX1-R1-3: whether the mobile bottom «Reservar» bar is on screen (the navbar then drops its own CTA on phones). */
 @Injectable({ providedIn: 'root' })
 export class BarraCta { readonly visible = signal(false); }
+
+/** The mobile menu is on screen (from the tap until it has slid out): the hero idles its scroll/video loop meanwhile. */
+@Injectable({ providedIn: 'root' })
+export class MenuMovil { readonly enPantalla = signal(false); }
 
 /** «Navbar / Mega menú» of Figma: the three columns of «Competición ▾» and the highlighted booking card. */
 interface MegaItem { label: string; desc: string; href: string }
@@ -125,7 +129,7 @@ const T = {
   imports: [RouterLink, LocPipe, GrButton, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   // UX1-R1-1: on phones the navbar stays visible during the intro (hidden only from md). UX1-R1-5: above the bottom bar and FAB while the menu is open.
-  host: { class: 'fixed inset-x-0 top-0 pr-[max(20px,env(safe-area-inset-right))] pl-[max(20px,env(safe-area-inset-left))] pt-[max(12px,env(safe-area-inset-top))] max-[239px]:px-2 transition-[opacity,transform,translate] duration-300 ease-[cubic-bezier(.22,1,.36,1)] md:pr-[max(32px,env(safe-area-inset-right))] md:pl-[max(32px,env(safe-area-inset-left))] md:pt-[max(16px,env(safe-area-inset-top))] xl:px-[120px]', '(document:click)': 'fuera($event)', '(document:keydown.escape)': 'mega.set(false); open.set(false)', '[class.z-40]': '!open()', '[class.z-60]': 'open()', '[class.md:opacity-0]': 'hidden()', '[class.md:-translate-y-4]': 'hidden()', '[class.md:pointer-events-none]': 'hidden()', '[attr.aria-hidden]': '(hidden() && ancho()) || null', '[style.translate]': "oculta() && !open() ? '0 calc(-100% - 8px)' : null", '(window:scroll)': 'alScroll()' },
+  host: { class: 'fixed inset-x-0 top-0 pr-[max(20px,env(safe-area-inset-right))] pl-[max(20px,env(safe-area-inset-left))] pt-[max(12px,env(safe-area-inset-top))] max-[239px]:px-2 transition-[opacity,transform,translate] duration-300 ease-[cubic-bezier(.22,1,.36,1)] md:pr-[max(32px,env(safe-area-inset-right))] md:pl-[max(32px,env(safe-area-inset-left))] md:pt-[max(16px,env(safe-area-inset-top))] xl:px-[120px]', '(document:click)': 'fuera($event)', '(document:keydown.escape)': 'mega.set(false); open.set(false)', '[class.z-40]': '!capa()', '[class.z-60]': 'capa()', '[class.md:opacity-0]': 'hidden()', '[class.md:-translate-y-4]': 'hidden()', '[class.md:pointer-events-none]': 'hidden()', '[attr.aria-hidden]': '(hidden() && ancho()) || null', '[style.translate]': "oculta() && !open() ? '0 calc(-100% - 8px)' : null", '(window:scroll)': 'alScroll()' },
   template: `
     <nav class="@container relative mx-auto flex min-h-16 max-w-[1200px] items-center gap-2 overflow-hidden md:gap-4 lg:gap-6 rounded-md border border-accent-deep/35 bg-bg-deep/72 px-3 max-[239px]:px-1.5 backdrop-blur-[10px] md:min-h-[72px] md:px-6" [attr.aria-label]="t().principal">
       <span class="pointer-events-none absolute -top-20 -left-10 size-40 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]" aria-hidden="true"></span>
@@ -174,10 +178,12 @@ const T = {
         </div>
       </div>
     }
-    @if (open()) {
+    @if (montado()) {
       <!-- Figma «Mobile menu v3»: logo, ES / EN and close; the four main links; the groups as an accordion (the first one
-           open); the edition line and the booking button at the bottom -->
-      <div id="menu-movil" animate.leave="gr-hoja-out" class="fixed inset-0 z-50 flex flex-col overflow-y-auto overscroll-contain bg-bg-base pt-[max(12px,env(safe-area-inset-top))] pr-[max(20px,env(safe-area-inset-right))] pl-[max(20px,env(safe-area-inset-left))] md:hidden" role="dialog" aria-modal="true" (keydown.tab)="atrapar($event)" (keydown.shift.tab)="atrapar($event)" [attr.aria-label]="t().menu">
+           open); the edition line and the booking button at the bottom.
+           Always mounted once the page is idle (never in SSR): opening only toggles a class on this panel, so the slide is
+           a compositor-only transform; scroll lock and hiding the page happen at transitionend (styles.css «gr-menu»). -->
+      <div id="menu-movil" class="gr-menu fixed inset-0 z-50 flex flex-col overflow-y-auto overscroll-contain bg-bg-base pt-[max(12px,env(safe-area-inset-top))] pr-[max(20px,env(safe-area-inset-right))] pl-[max(20px,env(safe-area-inset-left))] md:hidden" [class.abierto]="open()" [attr.inert]="open() ? null : ''" [attr.aria-hidden]="open() ? null : 'true'" (transitionend)="finTransicion($event)" role="dialog" aria-modal="true" (keydown.tab)="atrapar($event)" (keydown.shift.tab)="atrapar($event)" [attr.aria-label]="t().menu">
         <div class="flex shrink-0 items-center justify-between pt-2 pb-4">
           <a [routerLink]="'/' | loc" (click)="open.set(false)" [attr.aria-label]="t().home" class="flex h-11 items-center"><img [src]="logo" alt="GRS Cup 2" class="h-[34px] w-[92px] object-contain" /></a>
           <div class="flex items-center gap-2">
@@ -223,6 +229,17 @@ export class Navbar {
   /** md+ viewport: only there does `hidden` apply (UX1-R1-1). */
   protected readonly ancho = signal(false);
   protected readonly open = signal(false);
+  /** The menu panel exists in the DOM (browser only, after the first idle or the first tap). */
+  protected readonly montado = signal(false);
+  /** The navbar stays above the bottom bar while the menu is open or sliding out. */
+  protected readonly capa = inject(MenuMovil).enPantalla;
+  /** Open and fully slid in: only then the page behind is locked and hidden (layout + style work off the animation). */
+  private readonly cubierto = signal(false);
+  protected finTransicion(e: TransitionEvent): void {
+    if (e.target !== e.currentTarget || e.propertyName !== 'transform') return;
+    this.cubierto.set(this.open());
+    if (!this.open()) this.capa.set(false);
+  }
   /** UX4-R1-4: on phones in /en-directo the bar hides while scrolling down and comes back on scroll up (iOS). */
   protected readonly oculta = signal(false);
   private ultimoY = 0;
@@ -282,26 +299,46 @@ export class Navbar {
       onMq();
       mq.addEventListener('change', onMq);
       inject(DestroyRef).onDestroy(() => mq.removeEventListener('change', onMq));
+      // Mount the (hidden) panel once the page is idle, so the first tap only flips a class.
+      const ric = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+      const montar = () => this.montado.set(true);
+      if (ric) ric(montar, { timeout: 3000 }); else setTimeout(montar, 1500);
+      const reducido = window.matchMedia('(prefers-reduced-motion: reduce)');
       let estaba = false;
+      let respaldo = 0;
       effect(() => {
         const abierto = this.open();
-        document.body.style.overflow = abierto ? 'hidden' : '';
-        // iOS: the page behind the menu (above all the hero's scroll video, blend and blur layers) kept being painted
-        // every frame and the menu stuttered or froze mid-fade. The sheet is opaque from its first frame (only its content
-        // fades in, styles.css), so the page and the hero's rAF loop stop in that same frame.
-        document.documentElement.classList.toggle('gr-menu-abierto', abierto);
-        // R091: the menu opens with the group of the current route unfolded (e.g. /galeria → «El evento»), the rest folded.
-        if (abierto) untracked(() => this.grupo.set(this.t().grupos.findIndex((g) => g.items.some((i) => this.activo(i.href)))));
-        if (abierto) setTimeout(() => (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-cerrar-menu]')?.focus());
-        else if (estaba) (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('button[data-menu]')?.focus();
+        clearTimeout(respaldo);
+        if (abierto) { this.montado.set(true); this.capa.set(true); }
+        // iOS: toggling the page's scroll lock / visibility and the hero's rAF loop in the tap frame (style recalc and relayout
+        // of the whole 300-460vh page, plus the hero repaint) froze the slide mid-way. Now they happen only once the opaque
+        // panel covers the screen (transitionend); on close the page is restored before the panel slides out.
+        if (!abierto) this.cubierto.set(false);
+        else if (reducido.matches) this.cubierto.set(true);
+        // fallback if transitionend never fires (tab hidden, interrupted transition)
+        respaldo = window.setTimeout(() => { this.cubierto.set(this.open()); if (!this.open()) this.capa.set(false); }, 450);
+        if (abierto) setTimeout(() => (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-cerrar-menu]')?.focus({ preventScroll: true }));
+        else if (estaba) (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('button[data-menu]')?.focus({ preventScroll: true });
         estaba = abierto;
+      });
+      effect(() => {
+        const cubierto = this.cubierto();
+        document.body.style.overflow = cubierto ? 'hidden' : '';
+        // the page behind (above all the hero's video, blend and blur layers) is not painted and the hero's loop idles
+        document.documentElement.classList.toggle('gr-menu-abierto', cubierto);
       });
       const sub = this.router.events.subscribe(() => { this.open.set(false); this.alNavegar(); });
       inject(DestroyRef).onDestroy(() => { sub.unsubscribe(); document.body.style.overflow = ''; document.documentElement.classList.remove('gr-menu-abierto'); });
     }
   }
   /** Active link by the Spanish path (the same tree under /en). */
-  private alNavegar(): void { this.url.set(this.router.url); this.actual.set(sinPrefijo(this.router.url.split(/[?#]/)[0])); }
+  private alNavegar(): void {
+    this.url.set(this.router.url);
+    this.actual.set(sinPrefijo(this.router.url.split(/[?#]/)[0]));
+    // R091: the menu opens with the group of the current route unfolded (e.g. /galeria → «El evento»), the rest folded;
+    // set on navigation (the menu is closed then), not in the tap frame.
+    this.grupo.set(this.t().grupos.findIndex((g) => g.items.some((i) => this.activo(i.href))));
+  }
   protected readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
 }
 
