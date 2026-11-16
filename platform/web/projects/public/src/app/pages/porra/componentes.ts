@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
  * juego, aviso legal, saldo de monedas, chips de filtro, botón de cuota, tarjeta de mercado, boleto de apuesta, gancho
  * de premios, podio y fila de clasificación.
  */
-import { ChangeDetectionStrategy, Component, computed, ElementRef, effect, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GrButton, GrIcon, GrSelect } from '@grcup/ui';
 import { FanSession } from '../../core/fan';
@@ -12,6 +12,7 @@ import { I18n, LocPipe } from '../../core/i18n';
 import { type Mercado, type OpcionMercado, type Premio, cuota } from '../../core/juegos';
 import { monedas } from './formato';
 import { sexoTxt } from './ranking';
+import { Pestanas } from '../../layout/pestanas';
 
 const T = {
   es: {
@@ -250,67 +251,30 @@ export interface OpcionSelector {
   href?: string;
 }
 
-let selectorSeq = 0;
-
 /**
- * Selector con desplegable (Figma «Selector · …» y «Desplegable»): en móvil sustituye a toda barra de pestañas (de
- * juego, de sala, filtros con pestañas y días del palmarés): un campo con la opción activa y el chevron. Se cierra
- * con Escape o al pulsar fuera.
+ * Pestañas de juego, de sala, filtros y días del palmarés en móvil y tablet (Jaime 16-nov): pestañas tipo pill en una
+ * fila con scroll horizontal (gr-pestanas), en lugar del selector con desplegable.
  */
 @Component({
   selector: 'gr-selector',
-  imports: [GrIcon],
+  imports: [Pestanas],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'relative block', '(document:keydown.escape)': 'abierto.set(false)', '(document:click)': 'fuera($event)' },
-  template: `
-    <button type="button" class="flex h-12 w-full items-center gap-3 rounded-md border bg-bg-field px-4 text-left text-label-s text-text-primary"
-      [class]="abierto() ? 'border-line-accent' : 'border-line-strong'" [attr.aria-expanded]="abierto()" [attr.aria-controls]="id"
-      [attr.aria-label]="(etiqueta() ? etiqueta() + ': ' : '') + actual()" (click)="abierto.set(!abierto())">
-      <span class="min-w-0 flex-1 truncate">{{ actual() }}</span>
-      <gr-icon name="chevron-down" [size]="20" class="transition-transform motion-reduce:transition-none" [class.rotate-180]="abierto()" />
-    </button>
-    @if (abierto()) {
-      <ul [id]="id" class="absolute inset-x-0 top-full z-30 mt-2 flex flex-col gap-1 rounded-md border border-line-strong bg-bg-raised p-2 shadow-card">
-        @for (o of opciones(); track o.v) {
-          <li>
-            @if (o.href) {
-              <a [href]="o.href" class="flex h-11 items-center gap-3 rounded-sm px-3 text-label-s" [class]="o.v === valor() ? 'bg-bg-field text-text-primary' : 'text-text-secondary'" [attr.aria-current]="o.v === valor() ? 'page' : null">
-                <span class="min-w-0 flex-1 truncate">{{ o.l }}</span>@if (o.v === valor()) { <gr-icon name="check" [size]="20" /> }
-              </a>
-            } @else {
-              <button type="button" class="flex h-11 w-full items-center gap-3 rounded-sm px-3 text-left text-label-s" [class]="o.v === valor() ? 'bg-bg-field text-text-primary' : 'text-text-secondary'" [attr.aria-pressed]="o.v === valor()" (click)="elige(o.v)">
-                <span class="min-w-0 flex-1 truncate">{{ o.l }}</span>@if (o.v === valor()) { <gr-icon name="check" [size]="20" /> }
-              </button>
-            }
-          </li>
-        }
-      </ul>
-    }
-  `,
+  host: { class: 'block' },
+  template: `<gr-pestanas [etiqueta]="etiqueta()" [opciones]="pestanas()" [valor]="valor()" (elegir)="elegir.emit($event)" />`,
 })
 export class GrSelector {
   readonly opciones = input.required<OpcionSelector[]>();
   readonly valor = input('');
-  /** Para qué es el selector (lo lee el lector de pantalla). */
+  /** Para qué son las pestañas (lo lee el lector de pantalla). */
   readonly etiqueta = input('');
   readonly elegir = output<string>();
-  protected readonly abierto = signal(false);
-  protected readonly id = 'gr-selector-' + ++selectorSeq;
-  private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
-  protected readonly actual = computed(() => this.opciones().find((o) => o.v === this.valor())?.l ?? this.opciones()[0]?.l ?? '');
-  protected elige(v: string): void {
-    this.abierto.set(false);
-    this.elegir.emit(v);
-  }
-  protected fuera(e: Event): void {
-    if (this.abierto() && !this.el.nativeElement.contains(e.target as Node)) this.abierto.set(false);
-  }
+  protected readonly pestanas = computed(() => this.opciones().map((o) => ({ id: o.v, t: o.l, href: o.href })));
 }
 
 /**
  * La barra del juego (Figma «Barra de juego»): las pestañas de la porra o de GRS Fantasy y el aviso legal. Son
- * enlaces normales (SSR y SEO). En GRS Fantasy, en móvil las pestañas son un selector con desplegable (sin scroll
- * horizontal); la pestaña activa no lleva punto.
+ * enlaces normales (SSR y SEO). En GRS Fantasy, en móvil y tablet las pestañas son pills con scroll
+ * horizontal; la pestaña activa no lleva punto.
  */
 @Component({
   selector: 'gr-juegos-nav',
