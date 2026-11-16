@@ -18,9 +18,9 @@ const TXT = {
 const FRAMES = 313;
 export interface HeroCms { eyebrow?: string; fecha?: string; ctaTexto?: string; ctaDestino?: string; imagen?: string; focalX?: number; focalY?: number }
 const FPS = 24;
-const VIDEO_MOBILE = cdn('/media/copa-600x900.mp4');
-const VIDEO_DESKTOP = cdn('/media/copa-720x1080.mp4');
-const frameUrl = (i: number) => `https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp/frame_${String(i + 1).padStart(4, '0')}.webp`;
+const VIDEO_MOBILE = cdn('/media/copa-horneada-600x900.mp4');
+const VIDEO_DESKTOP = cdn('/media/copa-horneada-720x1080.mp4');
+const frameUrl = (i: number) => `https://jaimedigitalstudio.b-cdn.net/grcup/frames/trophy_frames_webp_horneado/frame_${String(i + 1).padStart(4, '0')}.webp`;
 
 /** Scroll timeline of Figma page 04 «Hero · Storyboard scroll» (the previous web's animation, same thresholds). */
 // Jaime 14-nov: the intro text fades with the smoke (same span), and the closing clouds end covering the trophy.
@@ -68,14 +68,16 @@ const PUFFS = [
   template: `
     <!-- contain:paint: WebKit does not clip blurred, transformed puffs with overflow alone -->
     <div class="sticky top-0 h-dvh overflow-hidden bg-bg-base [contain:paint]">
-      <!-- «Fondo»: grey at the top while the smoke is on screen (Figma intro), base later -->
-      <div class="absolute inset-0 bg-[linear-gradient(180deg,#3a3435_0%,#252021_65%,#141112_100%)]" [style.opacity]="humo()"></div>
-      <!-- Trophy: 2:3 box, 80 % of the height, red glow behind. The frames' near-black lightens into the glow (blend
-           «lighten», as in Figma) and every edge fades out (mask), so the box never shows on wide screens. Perf (iPhone):
-           glow + video in their own isolated group, so the blend never makes WebKit recompose the whole sticky layer. -->
-      <div class="pointer-events-none absolute inset-0 isolate" [style.opacity]="trofeo()">
+      <!-- «Fondo»: grey at the top while the smoke is on screen (Figma intro), base later. It leaves while the trophy is
+           shown, so the trophy's baked edges (faded to #141112) meet a flat bg-base and never show a box. -->
+      <div class="absolute inset-0 bg-[linear-gradient(180deg,#3a3435_0%,#252021_65%,#141112_100%)]" [style.opacity]="humo() * (1 - trofeo())"></div>
+      <!-- Trophy: 2:3 box, 80 % of the height, red glow behind. Perf (iPhone): the video/WebP frames already carry the
+           Figma look baked in (blend «lighten» over the glow, edges faded 20 % top/bottom and 24 % sides to #141112), so
+           they are a plain opaque layer: no mask-image nor mix-blend-mode recomposited on every decoded frame. The glow
+           stays only for the part that spills past the box (its inside is baked with the same geometry). -->
+      <div class="pointer-events-none absolute inset-0" [style.opacity]="trofeo()">
         <div class="absolute top-1/2 left-1/2 aspect-square h-[90%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]"></div>
-        <div class="gr-trofeo-fundido absolute top-[6.4%] left-1/2 aspect-[2/3] h-[80%] max-w-[92vw] -translate-x-1/2 mix-blend-lighten">
+        <div class="absolute top-[6.4%] left-1/2 aspect-[2/3] h-[80%] max-w-[92vw] -translate-x-1/2 [transform:translateZ(0)]">
           <video #video muted playsinline preload="auto" disablepictureinpicture disableremoteplayback aria-hidden="true" class="size-full object-cover"></video>
           <img [src]="imagenTrofeo()" alt="" fetchpriority="high" class="absolute inset-0 size-full object-cover" [class.hidden]="!imagenFija()" />
         </div>
@@ -139,13 +141,6 @@ const PUFFS = [
     @media (prefers-reduced-motion: reduce) { :host { height: 100dvh; } }
     /* Was radial(32 % → 12 % at 60 % → 0) + blur(80px): the blur spread the falloff, so the stops ease out instead */
     .gr-puff { background: radial-gradient(closest-side, rgb(138 138 138 / 0.2), rgb(120 120 120 / 0.16) 25%, rgb(100 100 100 / 0.09) 55%, rgb(90 90 90 / 0.03) 80%, transparent); }
-    /* Figma «Fundido · arriba/abajo/izquierda/derecha»: 20 % at the top and bottom, 24 % at the sides */
-    .gr-trofeo-fundido {
-      -webkit-mask-image: linear-gradient(90deg, transparent, #000 24%, #000 76%, transparent), linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
-      -webkit-mask-composite: source-in;
-      mask-image: linear-gradient(90deg, transparent, #000 24%, #000 76%, transparent), linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
-      mask-composite: intersect;
-    }
     /* UX1-R1-7 / R2-2: short viewports (iPhone SE, zoom 200 %, landscape): compact intro so «Saltar intro» never sits on the text */
     @media (max-width: 767px) and (max-height: 700px) {
       .gr-intro { top: 72px; justify-content: flex-start; padding-bottom: 0; }
