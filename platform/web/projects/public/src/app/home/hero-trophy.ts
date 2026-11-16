@@ -29,7 +29,7 @@ const frameUrl = (i: number) => `https://jaimedigitalstudio.b-cdn.net/grcup/fram
 // the same timeline in vh now ends at 100 % (6-180vh of a 180vh span on phones, 12-360vh of 360vh on md).
 const T = { frames: [0.0333, 1], finNubes: 1 } as const;
 // Fades in scroll pixels (not fractions), so they are equally gradual on phones (300vh) and desktop (500vh):
-// the intro text + smoke clear over the first 600 px and the closing clouds rise over the 700 px before 90 %.
+// the intro text + smoke clear over the first 600 px and the closing clouds rise over the last 700 px.
 const PX = { introIni: 10, intro: 600, nubes: 700 } as const;
 /** Frame fallback (video failed or stalled): every 3rd WebP, loaded progressively, shown as the nearest loaded frame. */
 const PASO_FRAMES = 3;
