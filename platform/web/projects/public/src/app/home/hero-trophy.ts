@@ -1,5 +1,5 @@
 import {
-  ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, afterNextRender, computed, inject, input, output, signal, viewChild,
+  ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, afterNextRender, computed, effect, inject, input, output, signal, viewChild,
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -70,21 +70,25 @@ const PUFFS = [
     <div class="sticky top-0 h-dvh overflow-hidden bg-bg-base [contain:paint]">
       <!-- «Fondo»: grey at the top while the smoke is on screen (Figma intro), base later -->
       <div class="absolute inset-0 bg-[linear-gradient(180deg,#3a3435_0%,#252021_65%,#141112_100%)]" [style.opacity]="humo()"></div>
-      <!-- Trophy: 2:3 box, 80 % of the height, red glow behind. The frames' near-black lightens into whatever is behind
-           (blend «lighten», as in Figma) and every edge fades out (mask), so the box never shows on wide screens. -->
-      <div class="pointer-events-none absolute top-1/2 left-1/2 aspect-square h-[90%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]" [style.opacity]="trofeo()"></div>
-      <div class="gr-trofeo-fundido absolute top-[6.4%] left-1/2 aspect-[2/3] h-[80%] max-w-[92vw] -translate-x-1/2 mix-blend-lighten" [style.opacity]="trofeo()">
-        <video #video muted playsinline preload="auto" disablepictureinpicture disableremoteplayback aria-hidden="true" class="size-full object-cover"></video>
-        <img [src]="imagenTrofeo()" alt="" fetchpriority="high" class="absolute inset-0 size-full object-cover" [class.hidden]="!imagenFija()" />
+      <!-- Trophy: 2:3 box, 80 % of the height, red glow behind. The frames' near-black lightens into the glow (blend
+           «lighten», as in Figma) and every edge fades out (mask), so the box never shows on wide screens. Perf (iPhone):
+           glow + video in their own isolated group, so the blend never makes WebKit recompose the whole sticky layer. -->
+      <div class="pointer-events-none absolute inset-0 isolate" [style.opacity]="trofeo()">
+        <div class="absolute top-1/2 left-1/2 aspect-square h-[90%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]"></div>
+        <div class="gr-trofeo-fundido absolute top-[6.4%] left-1/2 aspect-[2/3] h-[80%] max-w-[92vw] -translate-x-1/2 mix-blend-lighten">
+          <video #video muted playsinline preload="auto" disablepictureinpicture disableremoteplayback aria-hidden="true" class="size-full object-cover"></video>
+          <img [src]="imagenTrofeo()" alt="" fetchpriority="high" class="absolute inset-0 size-full object-cover" [class.hidden]="!imagenFija()" />
+        </div>
       </div>
       <!-- U30 · Figma 54: background image with focal point; with motion it fades out with the intro text (U31-R1-15) -->
       @if (hero().imagen) {
         <img [src]="hero().imagen | cdn" alt="" class="absolute inset-0 size-full object-cover" [style.opacity]="reduced() ? 0.6 : 0.6 * texto()" [style.object-position]="(hero().focalX ?? 50) + '% ' + (hero().focalY ?? 50) + '%'" />
       }
-      <!-- Smoke of the intro (clears and drifts away) -->
+      <!-- Smoke of the intro (clears and drifts away). Perf (iPhone): no filter:blur, the gradient's extra stops give the
+           same soft edge; 12 blurred ~1000 px layers cost 200+ ms per frame on a weak GPU even with the hero still. -->
       <div class="pointer-events-none absolute inset-0" aria-hidden="true" [style.opacity]="humo()">
         @for (p of puffs; track $index) {
-          <span class="absolute rounded-full bg-[radial-gradient(closest-side,rgb(138_138_138/0.32),rgb(90_90_90/0.12)_60%,transparent)] blur-[80px] will-change-transform"
+          <span class="gr-puff absolute rounded-full"
             [style.left.%]="p.left" [style.top.%]="p.top" [style.width.%]="p.width" [style.height.%]="p.height"
             [style.transform]="'translate(' + p.dx * desvio() * 30 + '%, ' + -desvio() * 35 + '%)'"></span>
         }
@@ -92,7 +96,7 @@ const PUFFS = [
       <!-- Clouds and fog entering from below (56.7 → 66.7 %) and the next section's title -->
       <div class="pointer-events-none absolute inset-0 will-change-[transform,opacity]" aria-hidden="true" [style.opacity]="nubes()" [style.transform]="'translateY(' + (1 - nubes()) * 40 + '%)'">
         @for (p of puffs; track $index) {
-          <span class="absolute rounded-full bg-[radial-gradient(closest-side,rgb(138_138_138/0.32),rgb(90_90_90/0.12)_60%,transparent)] blur-[80px]"
+          <span class="gr-puff absolute rounded-full"
             [style.left.%]="p.left" [style.top.%]="p.top + 30" [style.width.%]="p.width" [style.height.%]="p.height"></span>
         }
       </div>
@@ -110,10 +114,10 @@ const PUFFS = [
       </div>
       @if (!reduced()) {
         <div class="gr-desliza absolute inset-x-0 bottom-[110px] flex flex-col items-center gap-2 text-label-xs text-text-tertiary transition-opacity duration-500 md:inset-x-auto md:bottom-9 md:left-[120px] md:h-11 md:flex-row" [style.opacity]="pista()">
-          {{ t().desliza }}<gr-icon name="arrow-down" [size]="18" class="animate-bounce text-text-muted" />
+          {{ t().desliza }}<gr-icon name="arrow-down" [size]="18" class="animate-bounce text-text-muted [animation-iteration-count:3]" />
         </div>
         <button type="button" (click)="skip()" [class.invisible]="finished()"
-          class="absolute bottom-[calc(24px+env(safe-area-inset-bottom))] left-1/2 inline-flex h-11 -translate-x-1/2 items-center gap-2 rounded-pill border border-white/15 bg-white/8 px-4 text-label-s backdrop-blur-[20px] hover:border-white/30 md:right-[120px] md:bottom-9 md:left-auto md:translate-x-0">
+          class="absolute bottom-[calc(24px+env(safe-area-inset-bottom))] left-1/2 inline-flex h-11 -translate-x-1/2 items-center gap-2 rounded-pill border border-white/15 bg-[rgb(44_40_41/0.85)] px-4 text-label-s hover:border-white/30 md:right-[120px] md:bottom-9 md:left-auto md:translate-x-0">
           {{ t().saltar }}<gr-icon name="arrow-down" [size]="16" />
         </button>
         <!-- «Hero preload»: trophy icon and download progress until the first video seek completes -->
@@ -133,6 +137,8 @@ const PUFFS = [
     :host { height: 280vh; }
     @media (min-width: 768px) { :host { height: 460vh; } }
     @media (prefers-reduced-motion: reduce) { :host { height: 100dvh; } }
+    /* Was radial(32 % → 12 % at 60 % → 0) + blur(80px): the blur spread the falloff, so the stops ease out instead */
+    .gr-puff { background: radial-gradient(closest-side, rgb(138 138 138 / 0.2), rgb(120 120 120 / 0.16) 25%, rgb(100 100 100 / 0.09) 55%, rgb(90 90 90 / 0.03) 80%, transparent); }
     /* Figma «Fundido · arriba/abajo/izquierda/derecha»: 20 % at the top and bottom, 24 % at the sides */
     .gr-trofeo-fundido {
       -webkit-mask-image: linear-gradient(90deg, transparent, #000 24%, #000 76%, transparent), linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
@@ -214,6 +220,8 @@ export class HeroTrophy {
   private scrub?: VideoScrub;
   private videoFallido = false;
   private raf = 0;
+  private visible = false;
+  private wake: () => void = () => {};
   private tope = 0;
   private fade = 0;
   private wasDone = false;
@@ -279,11 +287,11 @@ export class HeroTrophy {
       const url = window.innerWidth < 768 || conn?.saveData ? VIDEO_MOBILE : VIDEO_DESKTOP;
       void scrub.load(url);
       const loop = () => {
+        this.raf = 0;
         // while the mobile menu slides in, covers the page and slides out (layout.ts) the scroll does not move: no
-        // measuring, style updates nor video seeks/decodes competing with its animation; jump on return
+        // measuring, style updates nor video seeks/decodes competing with its animation; jump on return (effect below)
         if (this.menu.enPantalla()) {
           this.saltar = true;
-          this.raf = requestAnimationFrame(loop);
           return;
         }
         this.measure();
@@ -294,19 +302,35 @@ export class HeroTrophy {
         this.saltar = false;
         this.p.set(this.shown);
         this.updateTarget();
-        this.raf = requestAnimationFrame(loop);
+        // Perf (iPhone): settled = no frame scheduled; scroll/resize/menu close wake it up again
+        if (this.shown !== this.progress) this.raf = requestAnimationFrame(loop);
       };
+      this.wake = () => {
+        if (this.visible && !this.raf) this.raf = requestAnimationFrame(loop);
+      };
+      const opts = { passive: true } as const;
+      window.addEventListener('scroll', this.wake, opts);
+      window.addEventListener('resize', this.wake, opts);
+      destroy.onDestroy(() => {
+        window.removeEventListener('scroll', this.wake);
+        window.removeEventListener('resize', this.wake);
+      });
       // The loop only runs while the hero is on screen (no work while reading the rest of the page).
       this.io = new IntersectionObserver(([entry]) => {
         cancelAnimationFrame(this.raf);
+        this.raf = 0;
+        this.visible = entry.isIntersecting;
         if (entry.isIntersecting) {
           this.saltar = true;
-          this.raf = requestAnimationFrame(loop);
+          this.wake();
         } else {
           this.measure(); // settle the intro state (navbar) for the position we left it at
         }
       });
       this.io.observe(this.host.nativeElement);
+    });
+    effect(() => {
+      if (!this.menu.enPantalla()) this.wake();
     });
   }
 
