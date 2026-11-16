@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, PendingTasks, computed,
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { GrButton, GrIcon, GrSelect } from '@grcup/ui';
+import { Pestanas } from '../layout/pestanas';
 import { Cms } from '../core/cms';
 import { Seo } from '../core/seo';
 import { GrCabecera } from '../home/bloques';
@@ -127,7 +128,7 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
 /** /categorias-de-peso (Figma page 21): category finder, the 18 classes, age divisions and the weigh-in. */
 @Component({
   selector: 'gr-categorias-page',
-  imports: [RouterLink, LocPipe, Page, FormsModule, GrButton, GrIcon, GrSelect, GrCabecera, GrCallout, GrHechos, Related, Community],
+  imports: [RouterLink, LocPipe, Page, FormsModule, GrButton, GrIcon, GrSelect, GrCabecera, GrCallout, GrHechos, Related, Community, Pestanas],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page [title]="t().titulo" [accent]="t().acento" [eyebrow]="t().eyebrow" [section]="t().eyebrow" [crumb]="t().crumb"
@@ -135,7 +136,9 @@ const nombre = (k: string) => k.replace('-', '−') + ' kg';
       <!-- Figma 46:15 (Jaime 14-nov): a dropdown, not sticky chips that scroll. Each option is its own view (?vista=…), so
            the page is shorter. All views are rendered (SSR / SEO, canonical without query); the inactive ones are hidden. -->
       <!-- <label for>, not a wrapping label: wrapping would add the hidden <option> texts to the control's accessible name -->
-      <div class="mb-8 flex max-w-sm flex-col gap-2 md:mb-12"><label for="categorias-vista" class="text-label-s text-text-secondary">{{ t().seccion }}</label>
+      <!-- Jaime 16-nov: on phones and tablets the sections are tabs in a row that scrolls sideways (no dropdown + bottom sheet) -->
+      <gr-pestanas class="mb-8 md:mb-12 lg:hidden" [etiqueta]="t().seccion" [opciones]="opcionesVista()" [valor]="vista()" (elegir)="irA($event)" />
+      <div class="mb-12 hidden max-w-sm flex-col gap-2 lg:flex"><label for="categorias-vista" class="text-label-s text-text-secondary">{{ t().seccion }}</label>
         <gr-select id="categorias-vista" tipo="campo" [ngModel]="vista()" (ngModelChange)="irA($event)">
           @for (v of vistas; track v) { <option [value]="v">{{ t().vistas[v] }}</option> }
         </gr-select>
@@ -249,6 +252,7 @@ export class CategoriasPage {
   protected readonly kgTxt = (n: number, dec = 1) => kg(n, dec, this.i18n.locale());
   protected readonly generos = [{ k: 'M' as const, id: 'hombres' as const }, { k: 'F' as const, id: 'mujeres' as const }];
   protected readonly vistas = VISTAS;
+  protected readonly opcionesVista = computed(() => this.vistas.map((v) => ({ id: v, t: this.t().vistas[v] })));
   /** ?vista= (default «calculadora»); unknown values fall back to the calculator. */
   protected readonly vista = signal<Vista>('calculadora');
   protected readonly tabla = computed<'M' | 'F'>(() => (this.vista() === 'mujeres' ? 'F' : 'M'));
