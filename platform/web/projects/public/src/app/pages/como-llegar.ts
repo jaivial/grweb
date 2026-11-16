@@ -1,8 +1,6 @@
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
-import { GrButton, GrIcon, GrSelect, type GrIconName, cdn, CdnPipe } from '@grcup/ui';
+import { GrButton, GrIcon, type GrIconName, cdn, CdnPipe } from '@grcup/ui';
 import { Cms } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { I18n, LocPipe } from '../core/i18n';
@@ -14,13 +12,12 @@ import { applySeo } from './content';
 import { Community, Related, type RelatedLink } from './landings';
 import { GIMNASIOS, detalleDe, mapaDe, type Sitio } from './donde-dormir-y-comer';
 
-type Vista = 'mapa' | 'transporte' | 'aparcamiento' | 'fotos' | 'alojamiento';
 
 const T = {
   es: {
     titulo: 'Cómo llegar al', pabellonDe: (ciudad: string) => 'Pabellón de ' + ciudad, pabellon: 'pabellón', sede: 'Sede', crumb: 'Cómo llegar',
     subtitulo: 'Dirección, mapa, transporte desde Valencia y todo lo práctico para el día de la competición.', ubicacionOsm: 'Ubicación: OpenStreetMap · ',
-    vista: 'Vista', ubicacion: 'Ubicación', direccionMapa: 'Dirección y *mapa*', mapaDe: (n: string) => 'Mapa de ' + n,
+    ubicacion: 'Ubicación', direccionMapa: 'Dirección y *mapa*', mapaDe: (n: string) => 'Mapa de ' + n,
     abrirMaps: 'Abrir en Google Maps', copiada: 'Dirección copiada', copiar: 'Copiar dirección',
     direccion: 'Dirección', coordenadas: 'Coordenadas', distancia: 'Distancia', puertas: 'Apertura de puertas',
     transporte: 'Transporte', comoLlegar: 'Cómo *llegar*', porConfirmar: 'Por confirmar',
@@ -28,7 +25,6 @@ const T = {
     alojamiento: 'Alojamiento', dormirComer: 'Dónde *dormir y comer*', alojGim: 'Alojamientos y gimnasios cerca',
     alojTexto: 'Infórmate acerca de los mejores alojamientos y gimnasios para entrenar cerca del lugar de competición.', verAloj: 'Ver alojamientos cerca',
     entrenar: 'Entrenar', dondeEntrenar: 'Dónde *entrenar*', verWeb: 'Ver web', verMapa: 'Ver en el mapa',
-    vMapa: 'Mapa', vTransporte: 'Transporte', vAparcamiento: 'Aparcamiento y accesibilidad', vFotos: 'Fotos del pabellón', vAlojamiento: 'Alojamiento',
     relacionados: [
       { titulo: 'Público', texto: 'Entrada y normas', ruta: '/publico' },
       { titulo: 'Horarios', texto: 'Bloques por categoría', ruta: '/horarios' },
@@ -43,7 +39,7 @@ const T = {
   en: {
     titulo: 'Getting to the', pabellonDe: (ciudad: string) => ciudad + ' Sports Hall', pabellon: 'sports hall', sede: 'Venue', crumb: 'Getting there',
     subtitulo: 'Address, map, transport from Valencia and everything practical for competition day.', ubicacionOsm: 'Location: OpenStreetMap · ',
-    vista: 'View', ubicacion: 'Location', direccionMapa: 'Address and *map*', mapaDe: (n: string) => 'Map of ' + n,
+    ubicacion: 'Location', direccionMapa: 'Address and *map*', mapaDe: (n: string) => 'Map of ' + n,
     abrirMaps: 'Open in Google Maps', copiada: 'Address copied', copiar: 'Copy address',
     direccion: 'Address', coordenadas: 'Coordinates', distancia: 'Distance', puertas: 'Doors open',
     transporte: 'Transport', comoLlegar: 'Getting *there*', porConfirmar: 'To be confirmed',
@@ -51,7 +47,6 @@ const T = {
     alojamiento: 'Accommodation', dormirComer: 'Where to *stay and eat*', alojGim: 'Accommodation and gyms nearby',
     alojTexto: 'Find out about the best places to stay and gyms to train at near the competition venue.', verAloj: 'See accommodation nearby',
     entrenar: 'Train', dondeEntrenar: 'Where to *train*', verWeb: 'Visit website', verMapa: 'View on the map',
-    vMapa: 'Map', vTransporte: 'Transport', vAparcamiento: 'Parking and accessibility', vFotos: 'Photos of the sports hall', vAlojamiento: 'Accommodation',
     relacionados: [
       { titulo: 'Spectators', texto: 'Tickets and rules', ruta: '/publico' },
       { titulo: 'Schedule', texto: 'Sessions by category', ruta: '/horarios' },
@@ -68,30 +63,17 @@ const T = {
 /** /como-llegar (Figma page 11, «ampliada»): address and map, transport, parking and accessibility, venue photos, where to stay. */
 @Component({
   selector: 'gr-como-llegar-page',
-  imports: [CdnPipe, RouterLink, LocPipe, FormsModule, Page, GrIcon, GrButton, GrSelect, GrCabecera, Related, Community, Lightbox],
+  imports: [CdnPipe, RouterLink, LocPipe, Page, GrIcon, GrButton, GrCabecera, Related, Community, Lightbox],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: `
-    .vista { animation: vista-in 180ms ease-out; }
-    @keyframes vista-in { from { opacity: 0; } to { opacity: 1; } }
-    @media (prefers-reduced-motion: reduce) { .vista { animation: none; } }
-  `,
   template: `
     @let c = comp();
     <gr-page [title]="t().titulo" [accent]="c ? t().pabellonDe(c.sede.ciudad) : t().pabellon" [eyebrow]="t().sede" [crumb]="t().crumb"
       [subtitle]="t().subtitulo" [stamp]="c ? t().ubicacionOsm + c.sede.nombre : ''">
       @if (c) {
-        <!-- Figma «Vista» selector (393:129069): not sticky, one ?vista= per view -->
-        <div class="mb-8 flex max-w-sm flex-col gap-2 md:mb-12">
-          <label class="text-label-s text-text-secondary" for="vista-como-llegar">{{ t().vista }}</label>
-          <gr-select id="vista-como-llegar" [attr.aria-label]="t().vista" [ngModel]="vista()" (ngModelChange)="cambiar($event)">
-            @for (s of vistas(); track s.id) { <option [value]="s.id">{{ s.t }}</option> }
-          </gr-select>
-        </div>
+        <!-- Jaime 16-nov: every section on one page (no «Vista» selector) -->
         <div class="flex flex-col gap-12 md:gap-20">
-          @switch (vista()) {
-          @case ('mapa') {
           <!-- 01 · Dirección y mapa -->
-          <section id="mapa" class="vista flex flex-col gap-5 md:gap-7">
+          <section id="mapa" class="flex flex-col gap-5 md:gap-7">
             <gr-cabecera [eyebrow]="t().ubicacion" [titulo]="t().direccionMapa" [centro]="false" tam="m" />
             <div class="grid gap-6 lg:grid-cols-2">
               <article class="flex flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
@@ -122,11 +104,10 @@ const T = {
               </dl>
             </div>
           </section>
-          }
 
           <!-- 02 · Cómo llegar -->
-          @case ('transporte') {
-            <section id="transporte" class="vista flex flex-col gap-5 md:gap-7">
+          @if (transporte().length) {
+            <section id="transporte" class="flex flex-col gap-5 md:gap-7">
               <gr-cabecera [eyebrow]="t().transporte" [titulo]="t().comoLlegar" [centro]="false" tam="m" />
               <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 @for (t of transporte(); track $index) {
@@ -146,8 +127,8 @@ const T = {
           }
 
           <!-- 03 · Aparcamiento y accesibilidad -->
-          @case ('aparcamiento') {
-          <section id="aparcamiento" class="vista flex flex-col gap-5 md:gap-7">
+          @if (practica().length) {
+          <section id="aparcamiento" class="flex flex-col gap-5 md:gap-7">
             <gr-cabecera [eyebrow]="t().practica" [titulo]="t().aparcamiento" [centro]="false" tam="m" />
             <div class="grid gap-4 lg:grid-cols-2">
               @for (t of practica(); track $index) {
@@ -166,8 +147,7 @@ const T = {
           }
 
           <!-- 04 · Fotos del pabellón -->
-          @case ('fotos') {
-          <section id="fotos" class="vista flex flex-col gap-5 md:gap-7">
+          <section id="fotos" class="flex flex-col gap-5 md:gap-7">
             <gr-cabecera [eyebrow]="t().laSede" [titulo]="t().fotosPabellon" [centro]="false" tam="m" />
             <ul class="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible md:px-0" (scroll)="alDesplazar($event)">
               @for (f of fotos(); track f.imagen; let i = $index) {
@@ -183,11 +163,8 @@ const T = {
               @for (f of fotos(); track f.imagen; let i = $index) { <span class="h-1.5 rounded-pill transition-all" [class]="i === foto() ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong'"></span> }
             </div>
           </section>
-          }
 
           <!-- 05 · Alojamiento (Figma 393:130556) -->
-          @case ('alojamiento') {
-          <div class="vista flex flex-col gap-12 md:gap-20">
           <section id="alojamiento" class="flex flex-col gap-5 md:gap-7">
             <gr-cabecera [eyebrow]="t().alojamiento" [titulo]="t().dormirComer" [centro]="false" tam="m" />
             <article class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-5 md:p-6">
@@ -214,9 +191,6 @@ const T = {
               }
             </ul>
           </section>
-          </div>
-          }
-          }
 
           <gr-related [items]="t().relacionados" />
           <gr-community />
@@ -235,25 +209,10 @@ export class ComoLlegarPage {
   protected readonly foto = signal(0);
   /** Photo open in the lightbox (−1: closed). */
   protected readonly ver = signal(-1);
-  private readonly router = inject(Router);
-  private readonly ruta = inject(ActivatedRoute);
-  private readonly qp = toSignal(this.ruta.queryParamMap);
   protected readonly gimnasios = GIMNASIOS;
   protected readonly mapa = mapaDe;
   protected readonly detalle = (s: Sitio) => detalleDe(s, this.i18n.lang());
   protected readonly enc = encodeURIComponent;
-  /** Views of the «Vista» selector (one without data is hidden). */
-  protected readonly vistas = computed(() => [
-    { id: 'mapa', t: this.t().vMapa },
-    ...(this.transporte().length ? [{ id: 'transporte', t: this.t().vTransporte }] : []),
-    ...(this.practica().length ? [{ id: 'aparcamiento', t: this.t().vAparcamiento }] : []),
-    { id: 'fotos', t: this.t().vFotos },
-    { id: 'alojamiento', t: this.t().vAlojamiento },
-  ]);
-  protected readonly vista = computed<Vista>(() => {
-    const v = this.qp()?.get('vista');
-    return (this.vistas().some((x) => x.id === v) ? v : 'mapa') as Vista;
-  });
   private readonly fotosCms = signal<{ imagen: string; alt?: string }[]>([]);
   protected readonly fotos = computed(() =>
     this.fotosCms().length
@@ -293,10 +252,6 @@ export class ComoLlegarPage {
       this.fotosCms.set(imgs.filter((x) => x?.imagen).map((x) => ({ imagen: x.imagen!, alt: x.alt })).slice(0, 4));
       await applySeo(cms, seo, '/como-llegar', this.t().seoTitulo, this.t().seoDesc(c?.sede.nombre ?? this.t().pabellon, c?.sede.ciudad ?? 'Almussafes'));
     });
-  }
-  /** Same URL with ?vista= (replaceUrl, no scroll jump); the canonical stays on the base URL. */
-  protected cambiar(v: string): void {
-    void this.router.navigate([], { relativeTo: this.ruta, queryParams: { vista: v === 'mapa' ? null : v }, replaceUrl: true, preserveFragment: false });
   }
   protected icono(tipo: string): GrIconName {
     return ({ coche: 'car', tren: 'train', metro: 'train', avion: 'plane', bus: 'bus', bici: 'bike', parking: 'parking', accesibilidad: 'accessibility' } as Record<string, GrIconName>)[tipo] ?? 'map-pin';

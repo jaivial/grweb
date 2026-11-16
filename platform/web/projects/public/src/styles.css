@@ -37,6 +37,9 @@ html {
 /* Mobile menu open (layout.ts): the page behind the opaque menu is not painted (iOS stuttered over the hero video). */
 html.gr-menu-abierto main { visibility: hidden; }
 html.gr-menu-abierto #menu-movil { visibility: visible; } /* a navbar inside <main> (styleguide demo) */
+/* the mobile menu sheet is opaque at once (the page behind is hidden in the same frame); only its content fades in */
+#menu-movil > * { animation: gr-hoja-in 280ms cubic-bezier(.22,1,.36,1) backwards; }
+@media (prefers-reduced-motion: reduce) { #menu-movil > * { animation: none; } }
 
 /* Hero preload overlay: only when JS runs (index.html adds «js» to <html>). */
 html:not(.js) .gr-precarga { display: none !important; }

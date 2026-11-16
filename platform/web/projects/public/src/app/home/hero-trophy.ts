@@ -5,6 +5,8 @@ import { isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { GrButton, GrIcon, LOGO, cdn, CdnPipe } from '@grcup/ui';
 import { VideoScrub } from '../core/video-scrub';
+// Inline (8 KB) so the preload trophy paints with the server HTML instead of waiting for a CDN round trip
+import TROFEO_PRECARGA from '../../../public/img/home/trofeo.webp' with { loader: 'dataurl' };
 import { I18n, LocPipe } from '../core/i18n';
 
 const TXT = {
@@ -25,9 +27,11 @@ const frameUrl = (i: number) => `https://jaimedigitalstudio.b-cdn.net/grcup/fram
 // 40 % idle hold. Now (300vh / 500vh): the trophy turns until 90 %, the clouds cover in its last part.
 // Jaime 15-nov 11:40: the clouds rose too fast at 85-90 % (10vh phone, 20vh md): 82.5-90 % = 15vh / 30vh, still shorter
 // than the original 48-60 % (12vh within a 100vh hero on phones, 48vh md) relative to the trophy turn.
-const T = { frames: [0.03, 0.9], finNubes: 0.9 } as const;
+// Jaime 16-nov: no idle hold of covered clouds after 90 % (20vh phone / 40vh md): the host is that much shorter and
+// the same timeline in vh now ends at 100 % (6-180vh of a 180vh span on phones, 12-360vh of 360vh on md).
+const T = { frames: [0.0333, 1], finNubes: 1 } as const;
 // Fades in scroll pixels (not fractions), so they are equally gradual on phones (300vh) and desktop (500vh):
-// the intro text + smoke clear over the first 600 px and the closing clouds rise over the 700 px before 90 %.
+// the intro text + smoke clear over the first 600 px and the closing clouds rise over the last 700 px.
 const PX = { introIni: 10, intro: 600, nubes: 700 } as const;
 /** Frame fallback (video failed or stalled): every 3rd WebP, loaded progressively, shown as the nearest loaded frame. */
 const PASO_FRAMES = 3;
@@ -85,13 +89,13 @@ const PUFFS = [
         }
       </div>
       <!-- Clouds and fog entering from below (56.7 → 66.7 %) and the next section's title -->
-      <div class="pointer-events-none absolute inset-0" aria-hidden="true" [style.opacity]="nubes()" [style.transform]="'translateY(' + (1 - nubes()) * 40 + '%)'">
+      <div class="pointer-events-none absolute inset-0 will-change-[transform,opacity]" aria-hidden="true" [style.opacity]="nubes()" [style.transform]="'translateY(' + (1 - nubes()) * 40 + '%)'">
         @for (p of puffs; track $index) {
           <span class="absolute rounded-full bg-[radial-gradient(closest-side,rgb(138_138_138/0.32),rgb(90_90_90/0.12)_60%,transparent)] blur-[80px]"
             [style.left.%]="p.left" [style.top.%]="p.top + 30" [style.width.%]="p.width" [style.height.%]="p.height"></span>
         }
       </div>
-      <div class="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(42_42_42/0.55)_0%,rgb(36_32_33/0.92)_45%,#141112_100%)]" [style.opacity]="nubes()" [style.transform]="'translateY(' + (1 - nubes()) * 60 + '%)'"></div>
+      <div class="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(42_42_42/0.55)_0%,rgb(36_32_33/0.92)_45%,#141112_100%)] will-change-[transform,opacity]" [style.opacity]="nubes()" [style.transform]="'translateY(' + (1 - nubes()) * 60 + '%)'"></div>
       <!-- Bottom fade (300 px, base) -->
       <div class="pointer-events-none absolute inset-x-0 bottom-0 h-[300px] bg-[linear-gradient(180deg,transparent,#141112)]"></div>
       <!-- Intro (Figma home R2): GRS CUP 2 logo and tagline; dates, place and organiser logos moved to «Campeonato» -->
@@ -116,7 +120,7 @@ const PUFFS = [
           <!-- also in the server HTML; it leaves by itself after 4 s if the script never runs (and at once without JS) -->
           <div class="gr-precarga absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-bg-base transition-opacity duration-500" [style.opacity]="precargaFuera() ? 0 : null"
             role="progressbar" [attr.aria-label]="t().cargando" [attr.aria-valuenow]="progresoIndeterminado() ? null : criticoPct()" aria-valuemin="0" aria-valuemax="100">
-            <img [src]="'/img/home/trofeo.webp' | cdn" alt="" class="h-[70px] w-20 animate-pulse object-contain" />
+            <img [src]="trofeoPrecarga" alt="" class="h-[70px] w-20 animate-pulse object-contain" />
             <div class="h-2 w-64 overflow-hidden rounded-pill bg-bg-surface"><div class="h-full rounded-pill bg-[linear-gradient(90deg,#0e0c0d,#a82334)] transition-[width] duration-300" [class.animate-pulse]="progresoIndeterminado()" [style.width.%]="progresoIndeterminado() ? 100 : criticoPct()"></div></div>
             <p class="text-body-s text-text-tertiary">@if (progresoIndeterminado()) { {{ t().cargandoVideo }} } @else { {{ criticoPct() }} % }</p>
           </div>
@@ -125,8 +129,8 @@ const PUFFS = [
     </div>
   `,
   styles: [`
-    :host { height: 300vh; }
-    @media (min-width: 768px) { :host { height: 500vh; } }
+    :host { height: 280vh; }
+    @media (min-width: 768px) { :host { height: 460vh; } }
     @media (prefers-reduced-motion: reduce) { :host { height: 100dvh; } }
     /* Figma «Fundido · arriba/abajo/izquierda/derecha»: 20 % at the top and bottom, 24 % at the sides */
     .gr-trofeo-fundido {
@@ -181,6 +185,7 @@ export class HeroTrophy {
   protected readonly imagenTrofeo = signal(frameUrl(0));
   protected readonly imagenFija = signal(true);
   protected readonly logo = LOGO;
+  protected readonly trofeoPrecarga = TROFEO_PRECARGA;
   /** Preload overlay: shown until the first seek completes (never longer than 4 s), then fades out. */
   protected readonly precarga = signal(true);
   protected readonly precargaFuera = signal(false);
@@ -223,6 +228,8 @@ export class HeroTrophy {
     const destroy = inject(DestroyRef);
     afterNextRender(() => {
       if (!this.browser) return;
+      // index.html's copy of the preload overlay: ours (identical, same place) is on screen now and shows the progress
+      document.getElementById('gr-precarga-inicial')?.remove();
       const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       this.reduced.set(reduced);
       if (reduced) {

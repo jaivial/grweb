@@ -1,6 +1,7 @@
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, input, signal } from '@angular/core';
 import { GrButton, GrIcon, GrSelect, GrSkeleton, type GrIconName, CdnPipe } from '@grcup/ui';
+import { Pestanas } from '../layout/pestanas';
 import { Cms, type Landing, type Seccion } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { Seo } from '../core/seo';
@@ -126,7 +127,7 @@ export class Community {
 /** /publico (Figma page 29): what spectators will see, how an attempt is judged and the stand rules. All sections come from the CMS. */
 @Component({
   selector: 'gr-publico-page',
-  imports: [CdnPipe, RouterLink, LocPipe, Page, GrIcon, GrSkeleton, GrCabecera, GrSelect, Related, Community],
+  imports: [CdnPipe, RouterLink, LocPipe, Page, GrIcon, GrSkeleton, GrCabecera, GrSelect, Related, Community, Pestanas],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     .gr-vista { animation: gr-vista-in 180ms ease-out; }
@@ -152,7 +153,9 @@ export class Community {
         </ul>
       </nav>
       <!-- Figma 46:23: the page tabs are one dropdown (not sticky); each view has its own ?vista= -->
-      <div class="mb-8 flex flex-col gap-2 md:mb-12 md:max-w-80">
+      <!-- Jaime 16-nov: on phones and tablets the sections are tabs in a row that scrolls sideways (no dropdown + bottom sheet) -->
+      <gr-pestanas class="mb-8 md:mb-12 lg:hidden" [etiqueta]="tp().seccion" [opciones]="anchors" [valor]="vista()" (elegir)="verVista($event)" />
+      <div class="mb-12 hidden max-w-80 flex-col gap-2 lg:flex">
         <label class="text-label-s text-text-secondary" for="publico-vista">{{ tp().seccion }}</label>
         <gr-select id="publico-vista" tam="l" [value]="vista()" (valorChange)="verVista($event)">
           @for (a of anchors; track a.id) { <option [value]="a.id">{{ a.t }}</option> }

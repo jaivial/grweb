@@ -1,6 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { Injectable, InjectionToken, RESPONSE_INIT, inject, signal } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
+import { cdn } from '@grcup/ui';
 import { I18n, sinPrefijo } from './i18n';
 
 /** Public origin of the web. The server provides PUBLIC_ORIGIN (app.config.server.ts); the browser uses its own. */
@@ -35,7 +36,8 @@ export class Seo {
   private readonly res = inject(RESPONSE_INIT, { optional: true });
   /** Public origin of the web (canonical, hreflang, JSON-LD): PUBLIC_ORIGIN on the server, location.origin in the browser. */
   readonly origin = inject(ORIGEN_PUBLICO);
-  readonly defaultImage = 'https://jaimedigitalstudio.b-cdn.net/grcup/logos/grcuplogo-2026.png';
+  /** Share image (og/twitter): copy of the logo PNG on black, 1200×630; absolute CDN URL once published. */
+  readonly defaultImage = cdn('/img/og/grscup-og.png');
   /** Ruta de la página que se está renderizando (la fija `set`). */
   readonly path = signal('');
 
@@ -50,6 +52,7 @@ export class Seo {
     const url = this.origin + d.path;
     this.path.set(d.path);
     const image = d.image ?? this.defaultImage;
+    const imageAbs = image.startsWith('/') ? this.origin + image : image;
     this.title.setTitle(d.title);
     const tags: [string, string, string][] = [
       ['name', 'description', d.description],
@@ -59,11 +62,11 @@ export class Seo {
       ['property', 'og:title', d.title],
       ['property', 'og:description', d.description],
       ['property', 'og:url', url],
-      ['property', 'og:image', image],
+      ['property', 'og:image', imageAbs],
       ['name', 'twitter:card', 'summary_large_image'],
       ['name', 'twitter:title', d.title],
       ['name', 'twitter:description', d.description],
-      ['name', 'twitter:image', image],
+      ['name', 'twitter:image', imageAbs],
     ];
     for (const [attr, key, content] of tags) this.meta.updateTag({ [attr]: key, content }, `${attr}="${key}"`);
     if (d.robots) this.meta.updateTag({ name: 'robots', content: d.robots }, 'name="robots"');

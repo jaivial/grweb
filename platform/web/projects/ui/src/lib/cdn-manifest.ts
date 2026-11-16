@@ -65,6 +65,7 @@ export const CDN_MANIFEST: { base: string; files: Record<string, string> } = {
     "/img/home/trofeo.webp": "static/ea9da33342a3/trofeo.webp",
     "/img/logo/grcuplogo-2026.webp": "static/747d0f0bd918/grcuplogo-2026.webp",
     "/img/logo/grcuplogo.webp": "static/634c1cb6509f/grcuplogo.webp",
+    "/img/og/grscup-og.png": "static/a1ecde9bf82f/grscup-og.png",
     "/media/cinturon-960x540.mp4": "static/ead6d999fa2e/cinturon-960x540.mp4",
     "/media/copa-600x900.mp4": "static/60c7c07521a7/copa-600x900.mp4",
     "/media/copa-720x1080.mp4": "static/0100175b5e8a/copa-720x1080.mp4"
