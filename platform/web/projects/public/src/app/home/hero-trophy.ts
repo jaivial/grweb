@@ -5,6 +5,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { GrButton, GrIcon, LOGO, cdn, CdnPipe } from '@grcup/ui';
 import { VideoScrub } from '../core/video-scrub';
+import { MenuMovil } from '../layout/layout';
 // Inline (8 KB) so the preload trophy paints with the server HTML instead of waiting for a CDN round trip
 import TROFEO_PRECARGA from '../../../public/img/home/trofeo.webp' with { loader: 'dataurl' };
 import { I18n, LocPipe } from '../core/i18n';
@@ -175,6 +176,7 @@ export class HeroTrophy {
 
   private readonly video = viewChild.required<ElementRef<HTMLVideoElement>>('video');
   private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly menu = inject(MenuMovil);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   protected readonly puffs = PUFFS;
   protected readonly reduced = signal(false);
@@ -277,14 +279,17 @@ export class HeroTrophy {
       const url = window.innerWidth < 768 || conn?.saveData ? VIDEO_MOBILE : VIDEO_DESKTOP;
       void scrub.load(url);
       const loop = () => {
-        // under the open mobile menu (layout.ts) nothing is visible: no measuring nor seeking; jump on return
-        if (document.documentElement.classList.contains('gr-menu-abierto')) {
+        // while the mobile menu slides in, covers the page and slides out (layout.ts) the scroll does not move: no
+        // measuring, style updates nor video seeks/decodes competing with its animation; jump on return
+        if (this.menu.enPantalla()) {
           this.saltar = true;
           this.raf = requestAnimationFrame(loop);
           return;
         }
         this.measure();
-        if (this.saltar || Math.abs(this.progress - this.shown) > 0.25) this.shown = this.progress;
+        // snap the last ~0.05 %: the easing never settled exactly, so a still hero kept repainting its blur layers every frame
+        const d = Math.abs(this.progress - this.shown);
+        if (this.saltar || d > 0.25 || d < 0.0005) this.shown = this.progress;
         else this.shown += (this.progress - this.shown) * 0.15; // smoothing (same as the previous web)
         this.saltar = false;
         this.p.set(this.shown);
