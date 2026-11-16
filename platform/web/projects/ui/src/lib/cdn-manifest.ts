@@ -68,6 +68,8 @@ export const CDN_MANIFEST: { base: string; files: Record<string, string> } = {
     "/img/og/grscup-og.png": "static/a1ecde9bf82f/grscup-og.png",
     "/media/cinturon-960x540.mp4": "static/ead6d999fa2e/cinturon-960x540.mp4",
     "/media/copa-600x900.mp4": "static/60c7c07521a7/copa-600x900.mp4",
-    "/media/copa-720x1080.mp4": "static/0100175b5e8a/copa-720x1080.mp4"
+    "/media/copa-720x1080.mp4": "static/0100175b5e8a/copa-720x1080.mp4",
+    "/media/copa-horneada-600x900.mp4": "static/fe428195935d/copa-horneada-600x900.mp4",
+    "/media/copa-horneada-720x1080.mp4": "static/6b38873c43ae/copa-horneada-720x1080.mp4"
   }
 };
