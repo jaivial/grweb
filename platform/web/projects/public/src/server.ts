@@ -5,8 +5,9 @@ import {
   writeResponseToNodeResponse,
 } from '@angular/ssr/node';
 import express from 'express';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, readdirSync } from 'node:fs';
+import { extname, join } from 'node:path';
+import { brotliCompressSync, constants as zlib } from 'node:zlib';
 import { routes } from './app/app.routes';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
@@ -104,6 +105,26 @@ app.get('/healthz', (_req, res) => {
 });
 
 /**
+ * Brotli (kraken's nginx only has gzip, and skips responses that already carry a Content-Encoding): the bundles are
+ * precompressed at build time (scripts/precomprimir.mjs → «x.js.br»), served here when the browser accepts br.
+ */
+const aceptaBr = (req: express.Request) => /\bbr\b/.test(String(req.headers['accept-encoding'] ?? ''));
+const BR = new Set((() => {
+  try {
+    return readdirSync(browserDistFolder, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('.br')).map((f) => '/' + f.slice(0, -3).replaceAll('\\', '/'));
+  } catch {
+    return [];
+  }
+})());
+app.use((req, res, next) => {
+  if ((req.method !== 'GET' && req.method !== 'HEAD') || !BR.has(req.path)) return next();
+  res.vary('Accept-Encoding');
+  if (!aceptaBr(req)) return next();
+  res.type(extname(req.path)).set({ 'Content-Encoding': 'br', 'Cache-Control': 'public, max-age=31536000' });
+  res.sendFile(req.path.slice(1) + '.br', { root: browserDistFolder }, (err) => err && next(err));
+});
+
+/**
  * Serve static files from /browser
  */
 app.use(
@@ -150,7 +171,7 @@ app.use(async (req, res, next) => {
  * render, and only plain 200s without Set-Cookie/no-store are kept (429/503/404 always render again).
  */
 const TTL = Number(process.env['SSR_CACHE_TTL_MS'] ?? 5000);
-interface Pagina { at: number; status: number; headers: [string, string][]; body: Buffer }
+interface Pagina { at: number; status: number; headers: [string, string][]; body: Buffer; br?: Buffer }
 const paginas = new Map<string, Pagina>();
 const enCurso = new Map<string, Promise<Pagina | null>>();
 async function render(req: express.Request): Promise<Pagina | null> {
@@ -197,6 +218,15 @@ app.use((req, res, next) => {
     if (!pg) return next();
     res.status(pg.status);
     for (const [k, v] of pg.headers) res.append(k, v);
+    // Brotli of the rendered HTML (quality 5: ~5 ms for 300 KB), kept with the cached page
+    const html = pg.body.length > 1024 && pg.headers.some(([k, v]) => k === 'content-type' && v.startsWith('text/html'));
+    if (html) res.vary('Accept-Encoding');
+    if (html && aceptaBr(req)) {
+      pg.br ??= brotliCompressSync(pg.body, { params: { [zlib.BROTLI_PARAM_QUALITY]: 5, [zlib.BROTLI_PARAM_SIZE_HINT]: pg.body.length } });
+      res.removeHeader('Content-Length');
+      res.set('Content-Encoding', 'br');
+      return res.end(req.method === 'HEAD' ? undefined : pg.br);
+    }
     res.end(req.method === 'HEAD' ? undefined : pg.body);
   }).catch(next);
 });

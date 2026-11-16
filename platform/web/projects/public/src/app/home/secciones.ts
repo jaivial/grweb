@@ -1,8 +1,9 @@
 import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, afterNextRender, computed, inject, input, signal, viewChild } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { GrButton, GrIcon, type GrIconName, LOGO, cdn, cdnSrcset, CdnPipe } from '@grcup/ui';
-import { renderMarkdown, type Faq, type Seccion } from '../core/cms';
+import { GrButton, GrIcon, type GrIconName, LOGO, LOGO_SRCSET, cdn, cdnSrcset, cdnSrcsetW, CdnPipe } from '@grcup/ui';
+import { type Faq, type Seccion } from '../core/cms';
+import { renderMarkdown } from '../core/markdown';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { CATEGORIAS_IPF, Favoritos } from '../core/atletas';
 import { hora, qrDataURL, type Entradas, type SesionPub } from '../core/entradas';
@@ -69,7 +70,7 @@ const TA = {
               <div class="flex h-[6.5%] shrink-0 items-center justify-between px-[9%] text-[11px] font-semibold text-white sm:text-[13px]" aria-hidden="true"><span>9:41</span><span class="h-[9px] w-[20px] rounded-[3px] bg-white"></span></div>
               <div class="relative min-h-0 flex-1">
               @for (p of pantallas(); track p.src; let i = $index) {
-                <img [src]="p.src" [alt]="p.alt" loading="lazy" decoding="async" class="absolute inset-0 size-full transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none" [class]="(p.story ? 'object-contain ' : 'object-cover object-top ') + (i === slide() ? 'opacity-100 scale-100' : 'opacity-0 scale-[1.03]')" [attr.aria-hidden]="i !== slide() || null" [attr.loading]="i ? 'lazy' : null" decoding="async" />
+                <img [attr.srcset]="p.srcset ?? null" sizes="(min-width: 1024px) 336px, (min-width: 640px) 298px, min(calc(64vw - 18px), 252px)" [src]="p.src" [alt]="p.alt" loading="lazy" decoding="async" class="absolute inset-0 size-full transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none" [class]="(p.story ? 'object-contain ' : 'object-cover object-top ') + (i === slide() ? 'opacity-100 scale-100' : 'opacity-0 scale-[1.03]')" [attr.aria-hidden]="i !== slide() || null" />
               }
               </div>
               <span class="absolute top-2.5 left-1/2 h-[22px] w-[76px] -translate-x-1/2 sm:h-7 sm:w-[96px] rounded-pill bg-black" aria-hidden="true"></span>
@@ -111,11 +112,11 @@ export class SecAlta {
   protected readonly ta = inject(I18n).dict(TA);
   protected readonly intervalo = 1500;
   /** Real screens: @3x captures of the public profile, the schedule and the Fantasy; the story is prepended once composed. */
-  protected readonly pantallas = signal<{ src: string; alt: string; story?: boolean }[]>([
-    { src: cdn('/img/home/alta-pantalla-perfil.webp'), alt: this.ta().altPerfil },
-    { src: cdn('/img/home/alta-pantalla-horarios.webp'), alt: this.ta().altHorarios },
-    { src: cdn('/img/home/alta-pantalla-fantasy-campo.webp'), alt: this.ta().altFantasy },
-  ]);
+  protected readonly pantallas = signal<{ src: string; srcset?: string; alt: string; story?: boolean }[]>([
+    { src: '/img/home/alta-pantalla-perfil.webp', alt: this.ta().altPerfil },
+    { src: '/img/home/alta-pantalla-horarios.webp', alt: this.ta().altHorarios },
+    { src: '/img/home/alta-pantalla-fantasy-campo.webp', alt: this.ta().altFantasy },
+  ].map((p) => ({ ...p, src: cdn(p.src), srcset: cdnSrcsetW(p.src, [360, 540], 720) })));
   protected readonly slide = signal(0);
   /** Hover / focus / touch on the phone. */
   protected readonly pausa = signal(false);
@@ -276,7 +277,7 @@ const TX = {
         <div class="w-full max-w-[400px] overflow-hidden rounded-xl border border-accent/55 bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] shadow-card" aria-hidden="true">
           <div class="flex flex-col gap-3 px-5 pt-6 pb-4">
             <div class="flex items-center justify-between">
-              <img [src]="logo" alt="" loading="lazy" decoding="async" class="h-8 w-auto" />
+              <img [attr.srcset]="logoSrcset" sizes="52px" [src]="logo" alt="" loading="lazy" decoding="async" class="h-8 w-auto" />
               <span class="inline-flex h-6 items-center rounded-pill border border-white/25 bg-white/6 px-2.5 text-label-xs text-text-secondary">{{ te().gratis }}</span>
             </div>
             <p class="text-display-xs">{{ nombreTicket() }}</p>
@@ -316,6 +317,7 @@ export class SecEntradas {
   protected readonly glow = GLOW;
   protected readonly ancho = ANCHO;
   protected readonly logo = LOGO;
+  protected readonly logoSrcset = LOGO_SRCSET;
   protected readonly icons: GrIconName[] = ['ticket', 'users', 'trophy'];
   protected readonly avatares = ['LG', 'CS', 'MR', 'JT'];
   protected readonly num = num;
@@ -382,7 +384,7 @@ export class SecEntradas {
             <span class="h-0.5 w-24" [class]="i % 2 === 1 ? 'bg-[linear-gradient(270deg,#c42b3e,transparent)]' : 'bg-[linear-gradient(90deg,#c42b3e,transparent)]'"></span>
           </div>
           <figure class="relative aspect-[350/440] w-full overflow-hidden rounded-lg md:aspect-[4/5] md:w-[320px] md:shrink-0 lg:w-[520px]" [class]="foto">
-            <img [src]="r.imagen | cdn" [attr.srcset]="srcset(r.imagen)" sizes="(min-width: 768px) 520px, 100vw" [alt]="r.alt" class="absolute inset-0 size-full object-cover" loading="lazy" />
+            <img [attr.srcset]="srcset(r.imagen)" sizes="(min-width: 768px) 520px, 100vw" [src]="r.imagen | cdn" [alt]="r.alt" class="absolute inset-0 size-full object-cover" loading="lazy" />
             <figcaption class="absolute inset-0 flex flex-col justify-end gap-2 bg-[linear-gradient(180deg,transparent_45%,rgb(14_12_13/0.92))] p-5 md:hidden">
               <span class="text-display-m"><gr-titulo [titulo]="r.titulo" [acento]="r.acento" /></span>
             </figcaption>
@@ -417,7 +419,7 @@ export class SecAtletas {
       <ul #pista class="-mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory gap-3 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:grid md:w-full md:grid-cols-2 md:gap-5 md:overflow-visible md:px-0" (scroll)="alDesplazar($event)">
         @for (f of fotos(); track f.imagen) {
           <li class="relative aspect-[290/380] w-[290px] shrink-0 snap-center overflow-hidden rounded-lg md:aspect-[590/420] md:w-auto" [class]="foto">
-            <img [src]="f.imagen | cdn" [attr.srcset]="srcset(f.imagen)" sizes="(min-width: 768px) 590px, 290px" [alt]="f.alt || f.titulo" class="absolute inset-0 size-full object-cover" loading="lazy" />
+            <img [attr.srcset]="srcset(f.imagen)" sizes="(min-width: 768px) 590px, 290px" [src]="f.imagen | cdn" [alt]="f.alt || f.titulo" class="absolute inset-0 size-full object-cover" loading="lazy" />
             @if (f.titulo) {
               <div class="absolute inset-0 flex flex-col justify-end gap-2 bg-[linear-gradient(180deg,transparent_50%,rgb(14_12_13/0.92))] p-5">
                 <span class="text-display-xs [text-shadow:0_2px_20px_rgb(0_0_0/0.8)]">{{ f.titulo }}</span>
@@ -797,7 +799,7 @@ export class SecHorarios {
             @for (f of fotos(); track f.imagen; let i = $index) {
               <li class="relative aspect-[300/210] w-[300px] shrink-0 snap-center overflow-hidden rounded-lg md:w-auto md:aspect-[4/3]" [class]="(i === 0 ? 'lg:col-span-3 lg:aspect-[648/380] lg:rounded-xl ' : 'lg:aspect-[205/140] ') + foto">
                 <button type="button" class="group absolute inset-0 cursor-zoom-in" [attr.aria-label]="tx().ampliar(f.alt)" (click)="ver.set(i)">
-                  <img [src]="f.imagen | cdn" [attr.srcset]="srcset(f.imagen)" [attr.sizes]="i === 0 ? '(min-width: 768px) 648px, 300px' : '(min-width: 768px) 205px, 300px'" [alt]="f.alt" class="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" loading="lazy" />
+                  <img [attr.srcset]="srcset(f.imagen)" [src]="f.imagen | cdn" [attr.sizes]="i === 0 ? '(min-width: 768px) 648px, 300px' : '(min-width: 768px) 205px, 300px'" [alt]="f.alt" class="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" loading="lazy" />
                 </button>
               </li>
             }
