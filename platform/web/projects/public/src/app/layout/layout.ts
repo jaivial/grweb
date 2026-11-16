@@ -350,10 +350,10 @@ export class Navbar {
   selector: 'gr-overlays',
   imports: [AccesoModal],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<gr-acceso-modal />`,
+  template: `@defer (when fan.accesoAbierto()) { <gr-acceso-modal /> }`,
 })
 export class Overlays {
-  private readonly fan = inject(FanSession);
+  protected readonly fan = inject(FanSession);
 
   constructor() {
     // The session of the fan is the cookie httpOnly `grcup_fan`: the browser asks once and everyone la usa.

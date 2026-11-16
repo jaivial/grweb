@@ -85,35 +85,35 @@ const T = {
         <!-- Sections in the order and visibility published from the backoffice («Web · home»). -->
         @for (k of h.orden; track k) {
           @switch (k) {
-            @case ('alta-atleta') { <gr-sec-alta [s]="h.secciones[k]" /> }
-            @case ('inscripciones') { @if (!h.orden.includes('alta-atleta')) { <gr-sec-alta [s]="h.secciones[k]" /> } }
-            @case ('entradas') { @if (c?.modulos?.['entradas']) { <gr-sec-entradas [s]="h.secciones[k]" [comp]="c" [entradas]="entradas()" /> } }
-            @case ('atletas') { <gr-sec-atletas [atletas]="h.secciones['atletas']" [dia]="h.orden.includes('dia') ? h.secciones['dia'] : undefined" /> }
-            @case ('dia') { @if (!h.orden.includes('atletas')) { <gr-sec-atletas [dia]="h.secciones['dia']" /> } }
+            @case ('alta-atleta') { @defer (on immediate; hydrate on viewport) { <gr-sec-alta [s]="h.secciones[k]" /> } }
+            @case ('inscripciones') { @if (!h.orden.includes('alta-atleta')) { @defer (on immediate; hydrate on viewport) { <gr-sec-alta [s]="h.secciones[k]" /> } } }
+            @case ('entradas') { @if (c?.modulos?.['entradas']) { @defer (on immediate; hydrate on viewport) { <gr-sec-entradas [s]="h.secciones[k]" [comp]="c" [entradas]="entradas()" /> } } }
+            @case ('atletas') { @defer (on immediate; hydrate on viewport) { <gr-sec-atletas [atletas]="h.secciones['atletas']" [dia]="h.orden.includes('dia') ? h.secciones['dia'] : undefined" /> } }
+            @case ('dia') { @if (!h.orden.includes('atletas')) { @defer (on immediate; hydrate on viewport) { <gr-sec-atletas [dia]="h.secciones['dia']" /> } } }
             @case ('premios') {
-              <gr-sec-premios [s]="h.secciones[k]" />
+              @defer (on immediate; hydrate on viewport) { <gr-sec-premios [s]="h.secciones[k]" /> }
               <!-- Figma 05-home-juegos: Porra and Fantasy right after «Premios v2» (hidden when the games service does not answer) -->
-              @if (porra()) { <gr-sec-porra [resumen]="porra()" /> }
-              @if (fantasy()) { <gr-sec-fantasy [resumen]="fantasy()" /> }
+              @if (porra()) { @defer (on immediate; hydrate on viewport) { <gr-sec-porra [resumen]="porra()" /> } }
+              @if (fantasy()) { @defer (on immediate; hydrate on viewport) { <gr-sec-fantasy [resumen]="fantasy()" /> } }
             }
             @case ('organizacion') {
               @if (!h.orden.includes('premios')) {
-                @if (porra()) { <gr-sec-porra [resumen]="porra()" /> }
-                @if (fantasy()) { <gr-sec-fantasy [resumen]="fantasy()" /> }
+                @if (porra()) { @defer (on immediate; hydrate on viewport) { <gr-sec-porra [resumen]="porra()" /> } }
+                @if (fantasy()) { @defer (on immediate; hydrate on viewport) { <gr-sec-fantasy [resumen]="fantasy()" /> } }
               }
-              <gr-sec-organizacion [s]="h.secciones[k]" />
+              @defer (on immediate; hydrate on viewport) { <gr-sec-organizacion [s]="h.secciones[k]" /> }
             }
-            @case ('afiliaciones') { <gr-sec-afiliaciones [s]="h.secciones[k]" /> }
-            @case ('sorteo') { @if (c?.modulos?.['sorteo']) { <gr-sec-sorteo [s]="h.secciones[k]" /> } }
-            @case ('categorias') { @if (!h.orden.includes('premios')) { <gr-sec-categorias [s]="h.secciones[k]" /> } }
-            @case ('horarios') { @if (horarios()?.publicado) { <gr-sec-horarios [s]="h.secciones[k]" [horarios]="horarios()" /> } }
-            @case ('localizacion') { <gr-sec-localizacion [s]="h.secciones[k]" [comp]="c" /> }
-            @case ('faq') { @if (h.faqDestacadas.length) { <gr-sec-faq [s]="h.secciones[k]" [items]="h.faqDestacadas" [contacto]="c?.evento?.emailContacto || ''" /> } }
+            @case ('afiliaciones') { @defer (on immediate; hydrate on viewport) { <gr-sec-afiliaciones [s]="h.secciones[k]" /> } }
+            @case ('sorteo') { @if (c?.modulos?.['sorteo']) { @defer (on immediate; hydrate on viewport) { <gr-sec-sorteo [s]="h.secciones[k]" /> } } }
+            @case ('categorias') { @if (!h.orden.includes('premios')) { @defer (on immediate; hydrate on viewport) { <gr-sec-categorias [s]="h.secciones[k]" /> } } }
+            @case ('horarios') { @if (horarios()?.publicado) { @defer (on immediate; hydrate on viewport) { <gr-sec-horarios [s]="h.secciones[k]" [horarios]="horarios()" /> } } }
+            @case ('localizacion') { @defer (on immediate; hydrate on viewport) { <gr-sec-localizacion [s]="h.secciones[k]" [comp]="c" /> } }
+            @case ('faq') { @if (h.faqDestacadas.length) { @defer (on immediate; hydrate on viewport) { <gr-sec-faq [s]="h.secciones[k]" [items]="h.faqDestacadas" [contacto]="c?.evento?.emailContacto || ''" /> } } }
           }
         }
       }
     </main>
-    <gr-footer />
+    @defer (on immediate; hydrate on viewport) { <gr-footer /> }
   `,
 })
 export class HomePage {
