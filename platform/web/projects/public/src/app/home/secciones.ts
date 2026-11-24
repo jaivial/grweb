@@ -269,9 +269,6 @@ const TX = {
         </div>
         @if (entradas()?.personas) {
           <div class="flex items-center gap-3">
-            <span class="flex items-center" aria-hidden="true">
-              @for (a of avatares; track a) { <span class="-ml-2.5 flex size-8 items-center justify-center rounded-full border-2 border-bg-base bg-[linear-gradient(135deg,#58202b,#1b1718)] text-label-xs first:ml-0">{{ a }}</span> }
-            </span>
             <span class="text-body-s">{{ te().personas(num(entradas()!.personas)) }}</span>
           </div>
         }
@@ -323,7 +320,6 @@ export class SecEntradas {
   protected readonly logo = LOGO;
   protected readonly logoSrcset = LOGO_SRCSET;
   protected readonly icons: GrIconName[] = ['ticket', 'users', 'trophy'];
-  protected readonly avatares = ['LG', 'CS', 'MR', 'JT'];
   protected readonly num = num;
   protected readonly qr = signal('');
   protected t = (k: string) => str(this.s(), k);
@@ -357,7 +353,8 @@ export class SecEntradas {
     const ss = (this.entradas()?.sesiones ?? []).filter((s) => s.aforo > 0);
     if (!ss.length) return null;
     const vivas = ss.filter((s) => s.libres > 0);
-    const s = (vivas.length ? vivas : ss).reduce((a, b) => (b.libres < a.libres ? b : a));
+    // BIZ-169: same session as the example ticket above, so the label matches it
+    const s = vivas.find((v) => v.id === this.primera()?.id) ?? (vivas.length ? vivas : ss).reduce((a, b) => (b.libres < a.libres ? b : a));
     const ultimas = s.libres > 0 && s.libres <= Math.max(10, s.aforo * 0.1);
     const nota = s.libres <= 0 ? this.te().agotadas : ultimas ? this.te().ultimas(s.libres) : this.te().quedan(num(s.libres));
     return { s, pct: Math.min(100, Math.round((s.ocupadas / s.aforo) * 100)), ultimas, nota };

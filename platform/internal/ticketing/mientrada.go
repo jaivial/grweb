@@ -123,6 +123,9 @@ func (s *Svc) miEntrada(ctx context.Context, c compref.Comp, id uuid.UUID) (MiEn
 		m.QR = s.qr(c.ID, m.Codigo)
 	}
 	m.Lugar = strings.Join(nonEmpty(c.Sede.Nombre, c.Sede.Ciudad), ", ")
+	if c.Sede.Ciudad != "" && strings.Contains(c.Sede.Nombre, c.Sede.Ciudad) {
+		m.Lugar = c.Sede.Nombre // BIZ-170: «Pabellón Municipal de Almussafes», no «…, Almussafes»
+	}
 	m.PuedeCambiar = m.Estado == "reservada" && now.Before(x.Inicio)
 	m.MaxPersonas = min(maxPor, m.Personas+libres)
 	m.Compartir = s.webURL + "/entradas?ref=" + m.Codigo
