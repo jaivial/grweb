@@ -126,10 +126,10 @@ const T = {
       }
       <!-- BIZ-178: Google brand verification — the home must state the app's purpose and its use of Google data -->
       <section id="sobre" class="mx-auto flex max-w-[1440px] flex-col gap-3 px-5 py-10 md:px-8 xl:px-[120px]" [attr.aria-label]="t().sobreTitulo">
-        <h2 class="text-display-label">{{ t().sobreTitulo }}</h2>
-        <p class="max-w-3xl text-gray-300">{{ t().sobreTexto }}</p>
-        <p class="max-w-3xl text-gray-300">{{ t().sobreGoogle }}</p>
-        <p class="flex gap-4 text-sm"><a class="underline" [routerLink]="'/privacidad' | loc">{{ t().sobrePrivacidad }}</a><a class="underline" [routerLink]="'/terminos' | loc">{{ t().sobreTerminos }}</a></p>
+        <h2 class="text-display-s text-text-primary">{{ t().sobreTitulo }}</h2>
+        <p class="max-w-3xl text-text-secondary">{{ t().sobreTexto }}</p>
+        <p class="max-w-3xl text-text-secondary">{{ t().sobreGoogle }}</p>
+        <p class="flex gap-4 text-sm text-text-tertiary"><a class="underline" [routerLink]="'/privacidad' | loc">{{ t().sobrePrivacidad }}</a><a class="underline" [routerLink]="'/terminos' | loc">{{ t().sobreTerminos }}</a></p>
       </section>
     </main>
     @defer (on immediate; hydrate on viewport) { <gr-footer /> }
