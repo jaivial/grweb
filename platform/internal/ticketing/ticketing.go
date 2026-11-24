@@ -233,7 +233,7 @@ func contacto(ctx context.Context, tx pgx.Tx, cid uuid.UUID, data map[string]any
 // aforoEvento announces the use of a session (public: no personal data) and refreshes the public cache.
 func (s *Svc) aforoEvento(ctx context.Context, tx pgx.Tx, cid, sesion uuid.UUID) error {
 	var usado, total int
-	if err := tx.QueryRow(ctx, `SELECT aforo, (SELECT COALESCE(sum(personas), 0) FROM entradas WHERE sesion_id = $1 AND estado <> 'anulada')::int FROM sesiones WHERE id = $1`, sesion).Scan(&total, &usado); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT aforo, (SELECT COALESCE(sum(personas), 0) FROM entradas WHERE (sesion_id = $1 OR sesion2_id = $1) AND estado <> 'anulada')::int FROM sesiones WHERE id = $1`, sesion).Scan(&total, &usado); err != nil {
 		return err
 	}
 	return events.Enqueue(ctx, tx, events.New(ctx, "aforo.actualizado", map[string]any{"sesionId": sesion, "usado": usado, "total": total},
@@ -241,6 +241,13 @@ func (s *Svc) aforoEvento(ctx context.Context, tx pgx.Tx, cid, sesion uuid.UUID)
 }
 
 // ---- formatting ----
+
+// dosDias presents a «both days» ticket as one span: «Sábado 19 · jornada + Domingo 20 · jornada», from the first doors to the last end.
+func dosDias(x, y sesionRow) sesionRow {
+	x.Nombre = x.Nombre + " + " + y.Nombre
+	x.Fin = y.Fin
+	return x
+}
 
 var madrid = func() *time.Location {
 	l, err := time.LoadLocation("Europe/Madrid")

@@ -121,16 +121,26 @@ func (s *Svc) escanear(ctx context.Context, cid uuid.UUID, in EscaneoIn) (Result
 	quien := actor(ctx)
 	err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 		var id, sid uuid.UUID
-		var nombre, ape, estado, sesion string
-		var personas, dentro int
-		err := tx.QueryRow(ctx, `SELECT e.id, e.sesion_id, e.nombre, e.apellidos, e.estado, s.nombre, e.personas, e.dentro FROM entradas e JOIN sesiones s ON s.id = e.sesion_id
-			WHERE e.competition_id = $1 AND e.codigo = $2 FOR UPDATE OF e`, cid, codigo).Scan(&id, &sid, &nombre, &ape, &estado, &sesion, &personas, &dentro)
+		var sid2 *uuid.UUID
+		var nombre, ape, estado, sesion, sesion2 string
+		var personas, dentro, dentro2 int
+		var fin1 time.Time
+		err := tx.QueryRow(ctx, `SELECT e.id, e.sesion_id, e.nombre, e.apellidos, e.estado, s.nombre, e.personas, e.dentro, s.fin, e.sesion2_id, e.dentro2, COALESCE(s2.nombre, '')
+			FROM entradas e JOIN sesiones s ON s.id = e.sesion_id LEFT JOIN sesiones s2 ON s2.id = e.sesion2_id
+			WHERE e.competition_id = $1 AND e.codigo = $2 FOR UPDATE OF e`, cid, codigo).Scan(&id, &sid, &nombre, &ape, &estado, &sesion, &personas, &dentro, &fin1, &sid2, &dentro2, &sesion2)
 		if db.IsNoRows(err) {
 			r.Resultado, r.Codigo, r.Mensaje = "invalida", codigo, "No hay ninguna entrada con ese código."
 			return s.registrarTx(ctx, tx, cid, nil, codigo, in, r.Resultado, 0, at, quien)
 		}
 		if err != nil {
 			return err
+		}
+		// «Both days» ticket: the door's session (or, without one, the clock) says which day is being entered.
+		dia2 := sid2 != nil && ((in.SesionID != nil && *in.SesionID == *sid2) || (in.SesionID == nil && at.After(fin1)))
+		otro := dentro2 // who has entered on the other day of a «both days» ticket
+		if dia2 {
+			otro = dentro
+			sid, sesion, dentro = *sid2, sesion2, dentro2
 		}
 		r.Codigo, r.Nombre, r.Personas, r.Dentro, r.Sesion, r.SesionID = codigo, strings.TrimSpace(nombre+" "+ape), personas, dentro, sesion, &sid
 		r.Pendientes = max(0, personas-dentro)
@@ -154,6 +164,9 @@ func (s *Svc) escanear(ctx context.Context, cid uuid.UUID, in EscaneoIn) (Result
 				r.Mensaje = "Ya ha entrado todo el grupo."
 			}
 		case in.SesionID != nil && *in.SesionID != sid && !in.Forzar:
+			if sid2 != nil {
+				sesion = sesion + " / " + sesion2
+			}
 			r.Resultado, r.Mensaje = "otra_sesion", "Su entrada es para «"+sesion+"»."
 		default:
 			r.Resultado = "valida"
@@ -173,10 +186,15 @@ func (s *Svc) escanear(ctx context.Context, cid uuid.UUID, in EscaneoIn) (Result
 		r.Pendientes -= n
 		r.Registrado = true
 		nuevo := "reservada"
-		if r.Pendientes == 0 {
+		// A «both days» ticket is used once the group has entered on both days.
+		if r.Pendientes == 0 && (sid2 == nil || otro >= personas) {
 			nuevo = "usada"
 		}
-		if _, err := tx.Exec(ctx, `UPDATE entradas SET dentro = $2, estado = $3, updated_at = now() WHERE id = $1`, id, r.Dentro, nuevo); err != nil {
+		col := "dentro"
+		if dia2 {
+			col = "dentro2"
+		}
+		if _, err := tx.Exec(ctx, `UPDATE entradas SET `+col+` = $2, estado = $3, updated_at = now() WHERE id = $1`, id, r.Dentro, nuevo); err != nil {
 			return err
 		}
 		res := "valida"
@@ -296,8 +314,11 @@ func (s *Svc) registerCheckin() {
 				}
 			}
 			// Only what a door needs offline: tickets of sessions that have not ended, first name + surname initial.
-			rows, err := s.a.DB.Query(ctx, `SELECT e.codigo, e.sesion_id, trim(e.nombre || ' ' || COALESCE(NULLIF(left(e.apellidos, 1), '') || '.', '')), e.personas, e.dentro, e.estado
-				FROM entradas e JOIN sesiones s ON s.id = e.sesion_id WHERE e.competition_id = $1 AND e.estado <> 'anulada' AND s.fin > now()`, in.CID)
+			// A «both days» ticket shows up as its second session once the first has ended.
+			rows, err := s.a.DB.Query(ctx, `SELECT e.codigo, CASE WHEN s2.id IS NOT NULL AND s.fin <= now() THEN s2.id ELSE e.sesion_id END,
+				trim(e.nombre || ' ' || COALESCE(NULLIF(left(e.apellidos, 1), '') || '.', '')), e.personas, CASE WHEN s2.id IS NOT NULL AND s.fin <= now() THEN e.dentro2 ELSE e.dentro END, e.estado
+				FROM entradas e JOIN sesiones s ON s.id = e.sesion_id LEFT JOIN sesiones s2 ON s2.id = e.sesion2_id
+				WHERE e.competition_id = $1 AND e.estado <> 'anulada' AND COALESCE(s2.fin, s.fin) > now()`, in.CID)
 			if err != nil {
 				return nil, err
 			}

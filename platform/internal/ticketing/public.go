@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/mail"
+	"slices"
 	"strings"
 	"time"
 
@@ -58,11 +59,11 @@ type sesionRow struct {
 }
 
 const selSesion = `SELECT s.id, s.nombre, s.detalle, s.inicio, s.fin, s.puertas, s.aforo, s.max_por_reserva, s.orden, s.apertura_at, s.cierre_at, s.publicada, s.lista_espera,
-	(SELECT COALESCE(sum(personas), 0) FROM entradas e WHERE e.sesion_id = s.id AND e.estado <> 'anulada')::int,
+	(SELECT COALESCE(sum(personas), 0) FROM entradas e WHERE (e.sesion_id = s.id OR e.sesion2_id = s.id) AND e.estado <> 'anulada')::int,
 	(SELECT COALESCE(sum(personas), 0) FROM lista_espera l WHERE l.sesion_id = s.id AND l.estado = 'oferta' AND l.oferta_expira_at > now())::int,
 	(SELECT count(*) FROM lista_espera l WHERE l.sesion_id = s.id AND l.estado IN ('en_espera', 'oferta'))::int,
-	(SELECT COALESCE(sum(dentro), 0) FROM entradas e WHERE e.sesion_id = s.id AND e.estado <> 'anulada')::int,
-	(SELECT count(*) FROM entradas e WHERE e.sesion_id = s.id AND e.estado <> 'anulada')::int,
+	(SELECT COALESCE(sum(CASE WHEN e.sesion2_id = s.id THEN e.dentro2 ELSE e.dentro END), 0) FROM entradas e WHERE (e.sesion_id = s.id OR e.sesion2_id = s.id) AND e.estado <> 'anulada')::int,
+	(SELECT count(*) FROM entradas e WHERE (e.sesion_id = s.id OR e.sesion2_id = s.id) AND e.estado <> 'anulada')::int,
 	s.version FROM sesiones s`
 
 func scanSesion(r pgx.CollectableRow) (sesionRow, error) {
@@ -118,6 +119,7 @@ type Entradas struct {
 // ReservaIn is the public form.
 type ReservaIn struct {
 	SesionID         uuid.UUID         `json:"sesionId"`
+	Sesion2ID        *uuid.UUID        `json:"sesion2Id,omitempty" doc:"Segunda sesión (los dos días): una sola entrada y un QR para ambas"`
 	Nombre           string            `json:"nombre" minLength:"1" maxLength:"80"`
 	Apellidos        string            `json:"apellidos" minLength:"1" maxLength:"120"`
 	Email            string            `json:"email" maxLength:"254"`
@@ -223,35 +225,58 @@ func (s *Svc) registerPublic() {
 			out := Reservada{}
 			var antes uuid.UUID
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				x, err := s.bloquearSesion(ctx, tx, c.ID, b.SesionID)
-				if err != nil {
-					return err
-				}
-				if !x.Publicada {
-					return problem.NotFound("Esa sesión no existe.")
-				}
-				switch x.estado(time.Now()) {
-				case "proximamente":
-					return problem.Conflict("RESERVAS_CERRADAS", "Las reservas de esta sesión aún no han abierto.")
-				case "cerrada":
-					return problem.Conflict("RESERVAS_CERRADAS", "Las reservas de esta sesión están cerradas.")
-				}
-				if b.Personas > x.MaxPorReserva {
-					return problem.Unprocessable("DEMASIADAS_PERSONAS", fmt.Sprintf("Como mucho %d personas por reserva.", x.MaxPorReserva))
-				}
-				// One ticket per address and session: a repeated reservation re-sends the link instead (after this
-				// transaction, so the email is not rolled back with it).
-				if err := tx.QueryRow(ctx, `SELECT id FROM entradas WHERE sesion_id = $1 AND email = $2 AND estado <> 'anulada'`, x.ID, e).Scan(&antes); err == nil {
-					return errYaTiene
-				}
-				if libres := x.Aforo - x.Usadas - x.Ofertas; b.Personas > libres {
-					if libres <= 0 {
-						return problem.Conflict("AGOTADA", "Esta sesión está completa. Apúntate a la lista de espera.")
+				ids := []uuid.UUID{b.SesionID}
+				if b.Sesion2ID != nil {
+					if *b.Sesion2ID == b.SesionID {
+						return problem.Unprocessable("SESIONES_IGUALES", "Elige dos sesiones distintas.")
 					}
-					return problem.Conflict("AGOTADA", fmt.Sprintf("Solo quedan %d plazas en esta sesión.", libres))
+					ids = append(ids, *b.Sesion2ID)
 				}
-				id, cod, tok, err := s.crearEntrada(ctx, tx, c, x, nuevaEntrada{nombre: b.Nombre, apellidos: b.Apellidos, email: e, telefono: b.Telefono, personas: b.Personas,
-					origen: b.Origen, utm: b.Utm, cons: map[string]any{"privacidad": s.legalVersion(ctx, c.ID), "novedades": b.Novedades, "ip": anonIP(ip), "at": time.Now()}})
+				// Lock in a stable order so two «both days» bookings never deadlock.
+				orden := slices.Clone(ids)
+				slices.SortFunc(orden, func(a, b uuid.UUID) int { return strings.Compare(a.String(), b.String()) })
+				bloq := map[uuid.UUID]sesionRow{}
+				for _, sid := range orden {
+					x, err := s.bloquearSesion(ctx, tx, c.ID, sid)
+					if err != nil {
+						return err
+					}
+					bloq[sid] = x
+				}
+				for _, sid := range ids {
+					x := bloq[sid]
+					if !x.Publicada {
+						return problem.NotFound("Esa sesión no existe.")
+					}
+					switch x.estado(time.Now()) {
+					case "proximamente":
+						return problem.Conflict("RESERVAS_CERRADAS", "Las reservas de esta sesión aún no han abierto.")
+					case "cerrada":
+						return problem.Conflict("RESERVAS_CERRADAS", "Las reservas de esta sesión están cerradas.")
+					}
+					if b.Personas > x.MaxPorReserva {
+						return problem.Unprocessable("DEMASIADAS_PERSONAS", fmt.Sprintf("Como mucho %d personas por reserva.", x.MaxPorReserva))
+					}
+					// One ticket per address and session: a repeated reservation re-sends the link instead (after this
+					// transaction, so the email is not rolled back with it).
+					if err := tx.QueryRow(ctx, `SELECT id FROM entradas WHERE (sesion_id = $1 OR sesion2_id = $1) AND email = $2 AND estado <> 'anulada'`, x.ID, e).Scan(&antes); err == nil {
+						return errYaTiene
+					}
+					if libres := x.Aforo - x.Usadas - x.Ofertas; b.Personas > libres {
+						if libres <= 0 {
+							return problem.Conflict("AGOTADA", "«"+x.Nombre+"» está completa. Apúntate a la lista de espera.")
+						}
+						return problem.Conflict("AGOTADA", fmt.Sprintf("Solo quedan %d plazas en «%s».", libres, x.Nombre))
+					}
+				}
+				x := bloq[b.SesionID]
+				n := nuevaEntrada{nombre: b.Nombre, apellidos: b.Apellidos, email: e, telefono: b.Telefono, personas: b.Personas,
+					origen: b.Origen, utm: b.Utm, cons: map[string]any{"privacidad": s.legalVersion(ctx, c.ID), "novedades": b.Novedades, "ip": anonIP(ip), "at": time.Now()}}
+				if b.Sesion2ID != nil {
+					y := bloq[*b.Sesion2ID]
+					n.sesion2 = &y
+				}
+				id, cod, tok, err := s.crearEntrada(ctx, tx, c, x, n)
 				if err != nil {
 					return err
 				}
@@ -267,7 +292,12 @@ func (s *Svc) registerPublic() {
 					return err
 				}
 				_ = id
-				return s.aforoEvento(ctx, tx, c.ID, x.ID)
+				for _, sid := range ids {
+					if err := s.aforoEvento(ctx, tx, c.ID, sid); err != nil {
+						return err
+					}
+				}
+				return nil
 			})
 			if errors.Is(err, errYaTiene) {
 				if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "entrada-reenvio", hashToken(e)), 3, time.Hour); r.Allowed {
@@ -519,6 +549,7 @@ type nuevaEntrada struct {
 	cons                                             map[string]any
 	manual                                           bool
 	sinEmail                                         bool
+	sesion2                                          *sesionRow // «both days»: the same ticket also counts for this session
 }
 
 // crearEntrada stores a ticket with a unique code and a «Mi entrada» token and queues its confirmation email.
@@ -532,15 +563,20 @@ func (s *Svc) crearEntrada(ctx context.Context, tx pgx.Tx, c compref.Comp, x ses
 		n.cons = map[string]any{}
 	}
 	var cod string
+	var sid2 *uuid.UUID
+	if n.sesion2 != nil {
+		sid2 = &n.sesion2.ID
+		x = dosDias(x, *n.sesion2)
+	}
 	for range 8 {
 		cod = nuevoCodigo()
 		_, err := tx.Exec(ctx, `SAVEPOINT cod`)
 		if err != nil {
 			return id, "", "", err
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO entradas (id, competition_id, sesion_id, codigo, nombre, apellidos, email, telefono, personas, origen, utm, consentimientos, manual, nota, token_hash)
-			VALUES ($1,$2,$3,$4,$5,$6,NULLIF($7,''),$8,$9,$10,$11,$12,$13,$14,$15)`,
-			id, c.ID, x.ID, cod, strings.TrimSpace(n.nombre), strings.TrimSpace(n.apellidos), n.email, strings.TrimSpace(n.telefono), n.personas, orDefault(n.origen, "web"), n.utm, n.cons, n.manual, n.nota, hashToken(tok))
+		_, err = tx.Exec(ctx, `INSERT INTO entradas (id, competition_id, sesion_id, codigo, nombre, apellidos, email, telefono, personas, origen, utm, consentimientos, manual, nota, token_hash, sesion2_id)
+			VALUES ($1,$2,$3,$4,$5,$6,NULLIF($7,''),$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+			id, c.ID, x.ID, cod, strings.TrimSpace(n.nombre), strings.TrimSpace(n.apellidos), n.email, strings.TrimSpace(n.telefono), n.personas, orDefault(n.origen, "web"), n.utm, n.cons, n.manual, n.nota, hashToken(tok), sid2)
 		if err == nil {
 			break
 		}
