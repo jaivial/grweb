@@ -10,6 +10,10 @@
 
 map $http_upgrade $grcup_connection { default upgrade; '' ''; }
 
+# BIZ-178: HTML pages must never be served from a stale cache (Google's brand-verification review kept evaluating a
+# copy of the home fetched before the fixes). Only text/html gets the header; hashed JS/CSS/fonts keep their caching.
+map $upstream_http_content_type $grcup_html_cache { ~^text/html "no-cache"; default ""; }
+
 # Keep-alive pools to the ClusterIPs (one TCP connection per request saturated TIME_WAIT/conntrack under load, ST1-R8-1).
 upstream grcup_gateway { server 10.43.241.10:8080; keepalive 256; keepalive_requests 10000; keepalive_timeout 60s; }
 upstream grcup_web { server 10.43.241.11:80; keepalive 64; }
@@ -33,6 +37,7 @@ server {
     listen [::]:443 ssl;
     http2 on;
     server_name __WEB_HOST__;
+    add_header Cache-Control $grcup_html_cache always;
     # gzip of HTML/JS/CSS/JSON/SVG, proxied SSR included (cdn-20261115: the bundles went out uncompressed, ~2 MB per
     # page). text/event-stream stays out so SSE is never buffered.
     gzip on; gzip_vary on; gzip_proxied any; gzip_comp_level 5; gzip_min_length 1024;
