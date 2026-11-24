@@ -66,7 +66,7 @@ export class Seo {
     const tags: [string, string, string][] = [
       ['name', 'description', d.description],
       ['property', 'og:type', 'website'],
-      ['property', 'og:site_name', 'GRS Cup 2'],
+      ['property', 'og:site_name', 'GRS Cup'],
       ['property', 'og:locale', d.lang === 'en' ? 'en_GB' : 'es_ES'],
       ['property', 'og:title', d.title],
       ['property', 'og:description', d.description],
