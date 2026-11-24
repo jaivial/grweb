@@ -69,7 +69,7 @@ const BackgroundImage: FC<{ src: string }> = ({ src }) => {
         />
         <img
           src={src}
-          alt=""
+          alt="Atletas compitiendo en la tarima de la GRS Cup 2 en Almussafes"
           className="w-full h-auto object-cover"
           data-ui="background-image"
           style={{

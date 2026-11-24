@@ -200,7 +200,7 @@ const BackgroundImage: FC<{ src: string }> = ({ src }) => {
         />
         <img
           src={resolvedSrc}
-          alt=""
+          alt="Atleta de powerlifting levantando en la GRS Cup 2"
           className="w-full h-auto object-cover"
           data-ui="background-image"
           style={{

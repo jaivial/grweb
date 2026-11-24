@@ -7,57 +7,57 @@ export interface PageMeta {
 
 export const pageMetaConfig: Record<string, PageMeta> = {
   '/': {
-    title: 'GR Cup 2026 — Copa de Powerlifting en España',
+    title: 'GRS Cup 2 · Campeonato de powerlifting en Almussafes',
     description: 'GR Cup 2026: la mayor competición de powerlifting en España. Participa en el sorteo de cinturones SBD y A7. Información sobre categorías, horarios e inscripciones.',
     canonicalPath: '/',
   },
   '/inscripcion': {
-    title: 'Inscripción GR Cup 2026 — Powerlifting España',
+    title: 'Inscripción · GRS Cup 2',
     description: 'Inscríbete en el GR Cup 2026. Copa de powerlifting en España. Participa y opta a los sorteos de material SBD, A7 y cinturones de Nico GR.',
     canonicalPath: '/inscripcion',
   },
   '/horarios': {
-    title: 'Horarios GR Cup 2026 — Competición de Powerlifting',
+    title: 'Horarios · GRS Cup 2',
     description: 'Consulta los horarios completos del GR Cup 2026. Competición de powerlifting con categorías por peso y movimientos. Sábado y domingo.',
     canonicalPath: '/horarios',
   },
   '/como-llegar': {
-    title: 'Ubicación GR Cup 2026 — Sede de la Competición',
+    title: 'Cómo llegar · GRS Cup 2',
     description: 'Cómo llegar al GR Cup 2026. Ubicación de la sede de la competición de powerlifting en Madrid, España.',
     canonicalPath: '/como-llegar',
   },
   '/raffle': {
-    title: 'Sorteo GR Cup 2026 — Cinturón de Powerlifting',
+    title: 'Sorteo · GRS Cup 2',
     description: 'Sorteo del GR Cup 2026. Descubre el ganador del sorteo del cinturón de powerlifting. Puedes verificar el resultado del sorteo aquí.',
     canonicalPath: '/raffle',
   },
   '/privacy': {
-    title: 'Política de Privacidad — GR Cup',
+    title: 'Política de privacidad · GRS Cup 2',
     description: 'Política de privacidad de GR Cup 2026. Cómo tratamos tus datos personales en la inscripción y participación.',
     canonicalPath: '/privacy',
   },
   '/terms': {
-    title: 'Términos y Condiciones — GR Cup',
+    title: 'Términos y condiciones · GRS Cup 2',
     description: 'Términos y condiciones del GR Cup 2026. Normas del sorteo, participación y competición de powerlifting.',
     canonicalPath: '/terms',
   },
   '/consentimiento-datos': {
-    title: 'Consentimiento de Datos — GR Cup',
+    title: 'Consentimiento de datos · GRS Cup 2',
     description: 'Consentimiento para el tratamiento de datos personales. GR Cup 2026, competición de powerlifting en España.',
     canonicalPath: '/consentimiento-datos',
   },
   '/politica-concurso': {
-    title: 'Política del Concurso — GR Cup',
+    title: 'Política del concurso · GRS Cup 2',
     description: 'Política del concurso GR Cup 2026. Normas, categorías de powerlifting y reglas de la competición.',
     canonicalPath: '/politica-concurso',
   },
   '/checkout': {
-    title: 'Checkout — GR Cup 2026',
+    title: 'Pago · GRS Cup 2',
     description: 'Completa tu inscripción en el GR Cup 2026. Powerlifting España.',
     canonicalPath: '/checkout',
   },
   '/success': {
-    title: 'Inscripción Confirmada — GR Cup 2026',
+    title: 'Inscripción confirmada · GRS Cup 2',
     description: 'Tu inscripción en el GR Cup 2026 ha sido confirmada. Competición de powerlifting en España.',
     canonicalPath: '/success',
   },

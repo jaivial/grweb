@@ -8,7 +8,7 @@ interface HeadProps {
   children?: ReactNode;
 }
 
-const DEFAULT_TITLE = 'GR Cup 2026 — Copa de Powerlifting en España';
+const DEFAULT_TITLE = 'GRS Cup 2 · Campeonato de powerlifting en Almussafes';
 const DEFAULT_DESCRIPTION = 'GR Cup 2026: la mayor competición de powerlifting en España. Participa en el sorteo de cinturones SBD y A7.';
 const DEFAULT_OG_IMAGE = '/og-image.png';
 
