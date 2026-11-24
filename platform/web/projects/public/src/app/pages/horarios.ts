@@ -232,12 +232,14 @@ const T = {
             }
           </div>
 
-          <!-- Figma «Calendario»: the .ics follows changes of the schedule -->
+          <!-- Figma «Calendario»: the .ics follows changes of the schedule (BIZ-167: nothing to save on Sunday yet) -->
+          @if (!domingo()) {
           <section class="mt-3 flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-5">
             <h2 class="text-ui-h5">{{ vista() === 'favs' && fav.slugs().length ? t().calFavs : t().calTodos }}</h2>
             <p class="text-body-s text-text-secondary">{{ t().ics(vista() === 'favs' && !!fav.slugs().length) }}</p>
             <a [href]="vista() === 'favs' && fav.slugs().length ? icsFavs() : icsTodos" class="flex h-11 items-center justify-center gap-2 rounded-sm bg-accent-grain text-label-s text-white"><gr-icon name="calendar-plus" [size]="16" />{{ t().anadir }}</a>
           </section>
+          }
         </div>
       }
 

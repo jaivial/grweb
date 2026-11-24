@@ -74,7 +74,8 @@ func sesionesDePrueba(ctx context.Context, tx pgx.Tx, cid uuid.UUID, p string, a
 		for _, a := range as {
 			todos = todos && suyos[a]
 		}
-		if todos || f.Prueba == p {
+		// BIZ-168: a legacy sesion without competition is always replaced; keeping it pushed the new plan to another day.
+		if todos || f.Prueba == p || f.Prueba == "" {
 			out = append(out, f.ID)
 		} else {
 			quedan = append(quedan, f)

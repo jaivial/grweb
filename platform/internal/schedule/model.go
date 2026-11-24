@@ -282,7 +282,13 @@ func (s *Svc) cargar(ctx context.Context, cid uuid.UUID) (Borrador, map[uuid.UUI
 	sort.SliceStable(b.SinSesion, func(i, j int) bool {
 		return catLess(b.SinSesion[i].Sexo, b.SinSesion[i].Categoria, b.SinSesion[j].Sexo, b.SinSesion[j].Categoria)
 	})
-	b.Conflictos = conflictos(cfg, loc, b.Sesiones, len(b.SinSesion))
+	sinCat := 0
+	for _, a := range b.SinSesion {
+		if catKey(a.Categoria) == 999 {
+			sinCat++
+		}
+	}
+	b.Conflictos = conflictos(cfg, loc, b.Sesiones, len(b.SinSesion), sinCat)
 	for i := range b.Sesiones {
 		b.Sesiones[i].Avisos = []string{}
 		for _, c := range b.Conflictos {
@@ -441,7 +447,7 @@ func dayTime(fecha, hm string, loc *time.Location) time.Time {
 	return t
 }
 
-func conflictos(cfg Config, loc *time.Location, fl []Sesion, sinSesion int) []Conflicto {
+func conflictos(cfg Config, loc *time.Location, fl []Sesion, sinSesion, sinCategoria int) []Conflicto {
 	out := []Conflicto{}
 	add := func(f *Sesion, tipo string, bloquea bool, titulo, detalle string) {
 		c := Conflicto{Tipo: tipo, Bloquea: bloquea, Titulo: titulo, Detalle: detalle}
@@ -507,7 +513,12 @@ func conflictos(cfg Config, loc *time.Location, fl []Sesion, sinSesion int) []Co
 				con = append(con, &fl[j])
 			}
 		}
-		if len(con)+1 <= cfg.MesasPesaje {
+		var otras []ventana
+		for _, c := range con {
+			otras = append(otras, ventana{c.PesajeInicio, c.PesajeFin})
+		}
+		// BIZ-168: what counts is how many windows are open at the same time, not how many touch this one.
+		if picoPesaje(fl[i].PesajeInicio, fl[i].PesajeFin, otras)+1 <= cfg.MesasPesaje {
 			continue
 		}
 		o := con[0]
@@ -524,6 +535,9 @@ func conflictos(cfg Config, loc *time.Location, fl []Sesion, sinSesion int) []Co
 	}
 	if sinSesion > 0 {
 		add(nil, "sin_sesion", false, plural(sinSesion, "atleta sin sesión", "atletas sin sesión"), "No aparecerán en los horarios hasta que los asignes.")
+	}
+	if sinCategoria > 0 {
+		add(nil, "sin_sesion", false, plural(sinCategoria, "atleta sin categoría", "atletas sin categoría"), "«Generar» no los coloca: ponles categoría o asígnalos a mano.")
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Bloquea && !out[j].Bloquea })
 	return out
@@ -559,4 +573,27 @@ func plural(n int, uno, varios string) string {
 		return "1 " + uno
 	}
 	return fmt.Sprintf("%d %s", n, varios)
+}
+
+type ventana struct{ ini, fin time.Time }
+
+// picoPesaje is the most windows of otras open at the same instant inside [ini, fin) (BIZ-168).
+func picoPesaje(ini, fin time.Time, otras []ventana) int {
+	pico := 0
+	for _, w := range otras {
+		t := maxT(w.ini, ini) // the peak starts where some window starts
+		if !t.Before(fin) {
+			continue
+		}
+		n := 0
+		for _, o := range otras {
+			if !t.Before(o.ini) && t.Before(o.fin) {
+				n++
+			}
+		}
+		if n > pico {
+			pico = n
+		}
+	}
+	return pico
 }
