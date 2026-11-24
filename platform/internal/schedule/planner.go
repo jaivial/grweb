@@ -25,14 +25,17 @@ type planSesion struct {
 //     class in the schedule); only a class bigger than maxPorSesion is split, balanced (41 → 14 + 14 + 13);
 //   - each session lasts minPorAtleta × athletes (rounded up to 5 min), starts when the previous one ends, skips the
 //     lunch break, waits for a free weigh-in table (at most mesasPesaje windows at once) and moves to the next day
-//     when it would end after the day's end. Sesiones that fit nowhere go after
-//     the last one (the planner flags them «fuera de horario»).
+//     when it would end after the day's end. Sesiones that fit nowhere are not created (their athletes stay
+//     «sin sesión»); athletes without a weight class are left out too.
 //
 // ocupado are the sessions that stay (the other competition): their time and weigh-in tables are taken.
 func generar(cfg Config, loc *time.Location, ats []atleta, ocupado []sesionRow) []planSesion {
 	var grupos [][]atleta
 	var f, m []atleta
 	for _, a := range ats {
+		if catKey(a.Categoria) == 999 {
+			continue // BIZ-168: no class → no session (stays «sin sesión» for a manual pick)
+		}
 		if a.Sexo == "F" {
 			f = append(f, a)
 		} else {
@@ -172,6 +175,7 @@ func colocar(cfg Config, loc *time.Location, trozos [][]atleta, ocupado []sesion
 		dur := (len(t)*cfg.MinPorAtleta + 4) / 5 * 5
 		var ini time.Time
 		plat := 0
+		cabeHoy := true
 		for {
 			plat = 0
 			for p := range libre {
@@ -183,11 +187,18 @@ func colocar(cfg Config, loc *time.Location, trozos [][]atleta, ocupado []sesion
 			ini = cabe(dia, libre[plat], dur)
 			// The earliest platform is the only candidate: if it does not fit today, no other platform does.
 			fin := dayTime(dia.Fecha, dia.Fin, loc)
-			if fin.IsZero() || !ini.Add(time.Duration(dur)*time.Minute).After(fin) || d == len(dias)-1 {
-				break // fits (on the last day it goes anyway and the planner flags it «fuera de horario»)
+			if fin.IsZero() || !ini.Add(time.Duration(dur)*time.Minute).After(fin) {
+				break // fits
+			}
+			if d == len(dias)-1 {
+				cabeHoy = false // BIZ-168: never past the end of the last day; its athletes stay «sin sesión»
+				break
 			}
 			d++
 			reset()
+		}
+		if !cabeHoy {
+			continue
 		}
 		ids := make([]uuid.UUID, len(t))
 		for i, a := range t {
