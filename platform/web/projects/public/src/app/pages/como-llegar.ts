@@ -186,7 +186,10 @@ const T = {
                     <h3 class="text-label-m">{{ g.nombre }}</h3>
                   </div>
                   <p class="text-body-s text-text-tertiary">{{ detalle(g) }}</p>
-                  <a [href]="g.web || mapa(g)" target="_blank" rel="noopener nofollow" class="mt-auto inline-flex items-center gap-1.5 pt-1 text-label-s text-accent-text hover:underline">{{ g.web ? t().verWeb : t().verMapa }}<gr-icon name="external-link" [size]="14" /></a>
+                  <div class="mt-auto flex flex-wrap gap-x-4 gap-y-1 pt-1">
+                    @if (g.web) { <a [href]="g.web" target="_blank" rel="noopener nofollow" class="inline-flex items-center gap-1.5 text-label-s text-accent-text hover:underline">{{ t().verWeb }}<gr-icon name="external-link" [size]="14" /></a> }
+                    <a [href]="mapa(g)" target="_blank" rel="noopener nofollow" class="inline-flex items-center gap-1.5 text-label-s text-accent-text hover:underline">{{ t().verMapa }}<gr-icon name="external-link" [size]="14" /></a>
+                  </div>
                 </li>
               }
             </ul>

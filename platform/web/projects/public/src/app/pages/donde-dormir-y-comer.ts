@@ -191,7 +191,7 @@ export const GIMNASIOS: Sitio[] = [
   { nombre: 'Valhalla Gym Almussafes', detalle: 'Carrer Sant Cristòfol, 61, Bajo, 46440 Almussafes', web: 'https://valhallagymalmussafes.es', maps: 'https://maps.app.goo.gl/7KYWNZ6vU88cCVJL8',
     descripcion: 'Gimnasio reciente con mucha variedad de máquinas.',
     descripcionEn: 'Recently opened gym with a wide variety of machines.' },
-  { nombre: 'Pabellón Municipal de Almusafes', detalle: 'Avda. Laura Méndez, s/n, 46440 Almussafes', web: 'https://almussafes.es', maps: 'https://maps.app.goo.gl/aidcANg9ngd7qvoz7',
+  { nombre: 'Pabellón Municipal de Almussafes', detalle: 'Avda. Laura Méndez, s/n, 46440 Almussafes', web: 'https://almussafes.es', maps: 'https://maps.app.goo.gl/aidcANg9ngd7qvoz7',
     descripcion: 'Centro deportivo municipal: pabellón cubierto con acceso por la CV-42 desde la AP-7.',
     descripcionEn: 'Municipal sports centre: indoor hall reached via the CV-42 from the AP-7.' },
   { nombre: 'The Factory Workout', detalle: 'Carrer Montroi, 10, 46450 Benifaió', web: 'https://mimpalawellness.com/tfw', maps: 'https://maps.app.goo.gl/yGipVmFfo4M9G4Dt9',
