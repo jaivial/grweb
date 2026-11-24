@@ -18,8 +18,8 @@ const T = {
     marcasTitulo: 'Consulta las marcas mínimas', marcasTexto: 'Para clasificar para otras competiciones AEP (PDF oficial).', verMarcas: 'Ver marcas mínimas',
     absEyebrow: 'Clasificación absoluta', absTitulo: 'Ganadores absolutos|*GL Points*', absTexto: 'Mejor atleta masculino y mejor atleta femenina por puntos GL.',
     absolutos: [
-      { titulo: 'Ganador Absoluto - GL points', label: 'Masculino', alt: 'Trofeo del ganador absoluto masculino' },
-      { titulo: 'Ganadora Absoluta - GL points', label: 'Femenino', alt: 'Trofeo de la ganadora absoluta femenina' },
+      { titulo: 'Ganador Absoluto - GL points', label: 'Masculino', alt: 'Trofeo dorado alado de la GRS Cup para el ganador absoluto masculino por GL Points' },
+      { titulo: 'Ganadora Absoluta - GL points', label: 'Femenino', alt: 'Trofeo dorado alado de la GRS Cup para la ganadora absoluta femenina por GL Points' },
     ],
     generos: [{ k: 'M' as const, l: 'Hombres' }, { k: 'F' as const, l: 'Mujeres' }] as { k: 'M' | 'F'; l: string }[],
   },
@@ -29,8 +29,8 @@ const T = {
     marcasTitulo: 'Check the qualifying totals', marcasTexto: 'To qualify for other AEP competitions (official PDF).', verMarcas: 'See qualifying totals',
     absEyebrow: 'Overall standings', absTitulo: 'Overall winners|*GL Points*', absTexto: 'Best male lifter and best female lifter by GL points.',
     absolutos: [
-      { titulo: 'Overall winner - GL points', label: 'Men', alt: 'Trophy of the overall men’s winner' },
-      { titulo: 'Overall winner - GL points', label: 'Women', alt: 'Trophy of the overall women’s winner' },
+      { titulo: 'Overall winner - GL points', label: 'Men', alt: 'Winged gold GRS Cup trophy for the overall men’s GL Points winner' },
+      { titulo: 'Overall winner - GL points', label: 'Women', alt: 'Winged gold GRS Cup trophy for the overall women’s GL Points winner' },
     ],
     generos: [{ k: 'M' as const, l: 'Men' }, { k: 'F' as const, l: 'Women' }] as { k: 'M' | 'F'; l: string }[],
   },
@@ -150,7 +150,7 @@ const T = {
             <li class="flex flex-col overflow-hidden rounded-[24px] border md:rounded-[32px] border-[#d4af37]/35 bg-[#221d1f] bg-[radial-gradient(70%_60%_at_50%_45%,rgb(212_175_55/0.22),transparent)]">
               <!-- both start facing the camera (Figma); a small offset so they do not turn in lockstep -->
               <!-- Figma home R2: the trophy image (no 3D render) -->
-              <img [src]="'/img/home/trofeo-gl.webp' | cdn" [alt]="a.alt" class="mx-auto mt-4 h-[130px] w-full object-contain md:h-[300px] lg:mt-10 lg:h-[400px]" loading="lazy" decoding="async" />
+              <img src="https://jaimedigitalstudio.b-cdn.net/grcup/images/Trofeo_dorado_alado_GRS_CUP_2-removebg-preview.webp" [alt]="a.alt" class="mx-auto mt-4 h-[130px] w-full object-contain md:h-[300px] lg:mt-10 lg:h-[400px]" loading="lazy" decoding="async" />
               <div class="flex flex-col gap-1 p-3 text-center md:gap-2 md:p-6 lg:p-10">
                 <span class="text-body-xs text-[#d4af37] md:text-body-l">{{ a.titulo }}</span>
                 <span class="font-display text-[22px] leading-[28px] tracking-[0.06em] uppercase md:text-[48px] md:leading-[53px]">{{ a.label }}</span>
