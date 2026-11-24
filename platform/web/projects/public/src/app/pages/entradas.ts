@@ -547,7 +547,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
       <!-- UX8-R1-13: only the background layers are clipped; the text reflows at 200 % text size -->
       <section class="relative flex lg:min-h-[920px] lg:items-center">
         <div class="absolute inset-0 overflow-hidden" aria-hidden="true">
-        <img [src]="'/img/home/org-publico-l.webp' | cdn" [attr.srcset]="('/img/home/org-publico-s.webp' | cdn) + ' 640w, ' + ('/img/home/org-publico-l.webp' | cdn) + ' 1300w'" sizes="100vw" alt="" class="absolute inset-0 size-full object-cover brightness-75 grayscale" fetchpriority="high" />
+        <img [src]="'/img/home/org-publico-l.webp' | cdn" [attr.srcset]="('/img/home/org-publico-s.webp' | cdn) + ' 640w, ' + ('/img/home/org-publico-l.webp' | cdn) + ' 1300w'" sizes="100vw" alt="Público en la grada de la GRS Cup" class="absolute inset-0 size-full object-cover brightness-75 grayscale" fetchpriority="high" />
         <div class="absolute inset-0 bg-[linear-gradient(180deg,rgb(14_12_13/0.72),rgb(14_12_13/0.8)_60%,var(--color-bg-base))]" aria-hidden="true"></div>
         <div class="pointer-events-none absolute -top-40 -right-40 size-[780px] rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.3),transparent)]" aria-hidden="true"></div>
         </div>

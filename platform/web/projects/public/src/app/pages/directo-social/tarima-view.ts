@@ -207,7 +207,7 @@ const PUESTO = ['', 'text-[#d4af37]', 'text-[#c0c4cc]', 'text-[#c8835a]'];
                       <button type="button" class="flex w-full items-center gap-2.5 text-left" (click)="abierto.set(abierto() === i ? -1 : i)" [attr.aria-expanded]="abierto() === i">
                         <span class="w-4 shrink-0 text-center font-mono text-[13px] font-medium" [class]="PUESTO[f.puesto ?? 0] || 'text-text-tertiary'">{{ f.puesto || '–' }}</span>
                         @if (f.fotoUrl && !sinFoto().has(f.fotoUrl)) {
-                          <img [src]="f.fotoUrl" alt="" class="size-9 shrink-0 rounded-full object-cover" loading="lazy" (error)="fotoRota(f.fotoUrl)" />
+                          <img [src]="f.fotoUrl" [alt]="f.nombre" class="size-9 shrink-0 rounded-full object-cover" loading="lazy" (error)="fotoRota(f.fotoUrl)" />
                         } @else {
                           <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-bg-raised"><gr-icon name="user" [size]="18" class="text-text-tertiary" /></span>
                         }

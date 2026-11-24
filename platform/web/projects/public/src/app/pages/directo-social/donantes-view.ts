@@ -83,7 +83,7 @@ const T = {
         @if (primero(); as p) {
           <article class="shrink-0 overflow-hidden rounded-lg border border-[#d4af37]/35 bg-bg-card">
             <div class="relative flex min-h-[184px] flex-col justify-between overflow-hidden bg-[linear-gradient(135deg,#4c111b,#281112_55%,#170c0e)] p-4">
-              @if (imagenPremio(p); as img) { <img [src]="img" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" (error)="falloImagen(p.id)" /> }
+              @if (imagenPremio(p); as img) { <img [src]="img" [alt]="p.titulo" class="absolute inset-0 size-full object-cover" loading="lazy" (error)="falloImagen(p.id)" /> }
               @else { <gr-icon name="gift" [size]="96" class="absolute top-1/2 right-5 -translate-y-1/2 text-accent-text/25" /> }
               <span class="absolute inset-0 bg-[linear-gradient(90deg,rgb(14_12_13/0.95),rgb(23_12_14/0.7)_50%,rgb(23_12_14/0.05))]" aria-hidden="true"></span>
               <span class="relative inline-flex h-6 w-fit items-center gap-1.5 rounded-pill border border-[#d4af37]/50 bg-[#d4af37]/15 pr-2.5 pl-2 font-mono text-[11px] leading-none font-medium tracking-[0.08em] text-[#e3c25a] uppercase">
