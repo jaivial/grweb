@@ -44,22 +44,22 @@ const CAMPO = 'h-12 w-full rounded-[10px] border border-line-strong bg-bg-field 
         <p class="mt-6 flex items-center gap-2 text-body-m" role="status"><gr-icon name="check" [size]="18" />{{ t().ok }}</p>
       } @else {
         <form class="mt-6 grid gap-4 sm:grid-cols-2" (ngSubmit)="enviar()" novalidate>
-          <div class="flex flex-col gap-2 sm:col-span-2"><label class="text-label-s" for="h-nombre">{{ t().nombre }}</label>
-            <input id="h-nombre" name="nombre" autocomplete="name" maxlength="140" required [class]="campo" [(ngModel)]="d.nombre" /></div>
-          <div class="flex flex-col gap-2"><label class="text-label-s" for="h-telefono">{{ t().telefono }}</label>
-            <input id="h-telefono" name="telefono" type="tel" autocomplete="tel" maxlength="20" required [class]="campo" [(ngModel)]="d.telefono" /></div>
-          <div class="flex flex-col gap-2"><label class="text-label-s" for="h-email">{{ t().email }}</label>
-            <input id="h-email" name="email" type="email" autocomplete="email" maxlength="254" required [class]="campo" [(ngModel)]="d.email" /></div>
-          <div class="flex flex-col gap-2"><label class="text-label-s" for="h-edad">{{ t().edad }}</label>
-            <input id="h-edad" name="edad" type="number" inputmode="numeric" min="10" max="99" required [class]="campo" [(ngModel)]="d.edad" /></div>
-          <div class="flex flex-col gap-2"><label class="text-label-s" for="h-prueba">{{ t().prueba }}</label>
-            <select id="h-prueba" name="prueba" required [class]="campo" [(ngModel)]="d.prueba"><option value="aep2">AEP-2</option><option value="aep3">AEP-3</option></select></div>
-          <div class="flex flex-col gap-2"><label class="text-label-s" for="h-categoria">{{ t().categoria }}</label>
-            <input id="h-categoria" name="categoria" maxlength="60" required [placeholder]="t().categoriaPh" [class]="campo" [(ngModel)]="d.categoria" /></div>
-          <div class="flex flex-col gap-2"><label class="text-label-s" for="h-entrenador">{{ t().entrenador }}</label>
-            <input id="h-entrenador" name="entrenador" maxlength="80" [placeholder]="t().entrenadorPh" [class]="campo" [(ngModel)]="d.entrenador" /></div>
-          <div class="flex flex-col gap-2 sm:col-span-2"><label class="text-label-s" for="h-idea">{{ t().idea }}</label>
-            <textarea id="h-idea" name="idea" rows="4" maxlength="1000" required class="w-full rounded-[10px] border border-line-strong bg-bg-field px-3.5 py-3 text-body-m focus:border-accent-text focus:outline-none" [(ngModel)]="d.idea"></textarea></div>
+          <div class="flex flex-col gap-2 sm:col-span-2"><label class="text-label-s" for="hg-nombre">{{ t().nombre }}</label>
+            <input id="hg-nombre" name="nombre" autocomplete="name" maxlength="140" required [class]="campo" [(ngModel)]="d.nombre" /></div>
+          <div class="flex flex-col gap-2"><label class="text-label-s" for="hg-telefono">{{ t().telefono }}</label>
+            <input id="hg-telefono" name="telefono" type="tel" autocomplete="tel" maxlength="20" required [class]="campo" [(ngModel)]="d.telefono" /></div>
+          <div class="flex flex-col gap-2"><label class="text-label-s" for="hg-email">{{ t().email }}</label>
+            <input id="hg-email" name="email" type="email" autocomplete="email" maxlength="254" required [class]="campo" [(ngModel)]="d.email" /></div>
+          <div class="flex flex-col gap-2"><label class="text-label-s" for="hg-edad">{{ t().edad }}</label>
+            <input id="hg-edad" name="edad" type="number" inputmode="numeric" min="10" max="99" required [class]="campo" [(ngModel)]="d.edad" /></div>
+          <div class="flex flex-col gap-2"><label class="text-label-s" for="hg-prueba">{{ t().prueba }}</label>
+            <select id="hg-prueba" name="prueba" required [class]="campo" [(ngModel)]="d.prueba"><option value="aep2">AEP-2</option><option value="aep3">AEP-3</option></select></div>
+          <div class="flex flex-col gap-2"><label class="text-label-s" for="hg-categoria">{{ t().categoria }}</label>
+            <input id="hg-categoria" name="categoria" maxlength="60" required [placeholder]="t().categoriaPh" [class]="campo" [(ngModel)]="d.categoria" /></div>
+          <div class="flex flex-col gap-2"><label class="text-label-s" for="hg-entrenador">{{ t().entrenador }}</label>
+            <input id="hg-entrenador" name="entrenador" maxlength="80" [placeholder]="t().entrenadorPh" [class]="campo" [(ngModel)]="d.entrenador" /></div>
+          <div class="flex flex-col gap-2 sm:col-span-2"><label class="text-label-s" for="hg-idea">{{ t().idea }}</label>
+            <textarea id="hg-idea" name="idea" rows="4" maxlength="1000" required class="w-full rounded-[10px] border border-line-strong bg-bg-field px-3.5 py-3 text-body-m focus:border-accent-text focus:outline-none" [(ngModel)]="d.idea"></textarea></div>
           <input class="sr-only" aria-hidden="true" name="web" tabindex="-1" autocomplete="off" [(ngModel)]="d.web" />
           @if (error(); as e) { <p class="flex items-center gap-1.5 text-body-s text-accent-text sm:col-span-2" role="alert"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
           <div class="sm:col-span-2"><button type="submit" grButton variant="primary" size="l" [loading]="enviando()">{{ t().enviar }}</button></div>

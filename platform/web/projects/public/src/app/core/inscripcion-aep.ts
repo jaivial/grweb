@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { GrIcon } from '@grcup/ui';
 import { I18n } from './i18n';
 
@@ -22,7 +22,7 @@ const T = {
   host: { class: 'block w-full' },
   template: `
     <div class="mx-auto flex w-full max-w-[760px] flex-col items-center gap-4 rounded-lg border border-accent/40 bg-accent/8 p-6 text-center">
-      <p class="inline-flex h-7 items-center rounded-pill border border-accent bg-accent/12 px-3 text-label-xs text-accent-text uppercase">{{ t().cerradas }}</p>
+      @if (chip()) { <p class="inline-flex h-7 items-center rounded-pill border border-accent bg-accent/12 px-3 text-label-xs text-accent-text uppercase">{{ t().cerradas }}</p> }
       <p class="flex items-end gap-2"><span class="font-display text-[48px] leading-none text-accent-text md:text-[60px]">{{ n }}</span><span class="pb-1 text-display-2xs text-text-tertiary">{{ t().atletas }}</span></p>
       <p class="max-w-[600px] text-body-m text-text-secondary">{{ t().txt(n) }}</p>
       <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
@@ -34,6 +34,8 @@ const T = {
   `,
 })
 export class GrInscripcionesCerradas {
+  /** /inscripcion already says it in its h1 (BIZ-160): no repeated chip there. */
+  readonly chip = input(true);
   protected readonly t = inject(I18n).dict(T);
   protected readonly n = INSCRITOS_AEP;
   protected readonly listas = LISTAS_AEP;

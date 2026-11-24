@@ -56,7 +56,7 @@ export class GrTitulo {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex items-center gap-2.5' },
   template: `
-    <span class="text-label-xs" [class]="tono() === 'claro' ? 'text-text-secondary' : 'text-text-tertiary'">{{ label() }}</span>
+    <span class="font-avant text-label-xs" [class]="tono() === 'claro' ? 'text-text-secondary' : 'text-text-tertiary'">{{ label() }}</span>
   `,
 })
 export class GrEyebrow {
