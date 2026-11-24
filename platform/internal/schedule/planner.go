@@ -139,7 +139,6 @@ func colocar(cfg Config, loc *time.Location, trozos [][]atleta, ocupado []sesion
 	}
 	reset()
 	var out []planSesion
-	type ventana struct{ ini, fin time.Time }
 	var pesajes []ventana
 	for _, o := range ocupado {
 		pesajes = append(pesajes, ventana{o.PesajeIni, o.PesajeFn})
@@ -153,12 +152,14 @@ func colocar(cfg Config, loc *time.Location, trozos [][]atleta, ocupado []sesion
 			}
 			wi, wf := pesaje(cfg, ini)
 			var libreAt []time.Time
+			var otras []ventana
 			for _, w := range pesajes {
 				if overlap(wi, wf, w.ini, w.fin) {
 					libreAt = append(libreAt, w.fin)
+					otras = append(otras, w)
 				}
 			}
-			if len(libreAt) < cfg.MesasPesaje {
+			if picoPesaje(wi, wf, otras) < cfg.MesasPesaje {
 				return ini
 			}
 			first := libreAt[0]
