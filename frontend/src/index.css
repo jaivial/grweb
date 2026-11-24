@@ -2,6 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
+/* BIZ-157: brand fonts (licensed files pending → falls back until added to public/fonts/brand/) */
+@font-face {
+  font-family: 'ITC Avant Garde Gothic Pro';
+  src: url('/fonts/brand/ITCAvantGardeGothicPro-Book.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ITC Avant Garde Gothic Pro';
+  src: url('/fonts/brand/ITCAvantGardeGothicPro-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Monster Bites';
+  src: url('/fonts/brand/MonsterBites.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
