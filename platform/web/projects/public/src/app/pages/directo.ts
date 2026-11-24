@@ -307,7 +307,7 @@ const TR = {
   imports: [CdnPipe, RouterLink, LocPipe, Page, GrSkeleton, GrIcon, GrButton, GrCabecera, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <gr-page [title]="t().titulo" accent="GRStrength Cup" [crumb]="t().crumb" [eyebrow]="t().eyebrow" [subtitle]="t().sub">
+    <gr-page [title]="t().titulo" accent="GRS Cup 2" [crumb]="t().crumb" [eyebrow]="t().eyebrow" [subtitle]="t().sub">
       <div class="flex flex-col gap-12 md:gap-20">
         <section class="flex flex-col gap-5 md:gap-7">
           <gr-cabecera [eyebrow]="t().edEyebrow" [titulo]="t().edTitulo" [centro]="false" tam="m" />
@@ -422,7 +422,7 @@ const TE = {
     @let r = res();
     <!-- Figma 17 «404»: an edition that does not exist -->
     @if (noExiste()) { <gr-navbar /><main><gr-no-encontrada /></main><gr-footer /> } @else {
-    <gr-page [title]="t().titulo" [accent]="r?.competicion?.nombre ?? 'GRStrength Cup ' + anio()" [section]="t().titulo" [crumb]="anio()" [eyebrow]="r ? ((comp()?.sede?.ciudad || r.competicion.sede) + ' · ' + fechas(r.competicion.fechaInicio, r.competicion.fechaFin)) : ''"
+    <gr-page [title]="t().titulo" [accent]="r?.competicion?.nombre ?? 'GRS Cup 2'" [section]="t().titulo" [crumb]="anio()" [eyebrow]="r ? ((comp()?.sede?.ciudad || r.competicion.sede) + ' · ' + fechas(r.competicion.fechaInicio, r.competicion.fechaFin)) : ''"
       [subtitle]="r?.publicado ? (comp()?.evento?.nivel ? (i18n.lang() === 'es' ? comp()!.evento.nivel.replace(/^(AEP-\d Regional) (?!de )/, '$1 de ') : comp()!.evento.nivel) + '. ' : '') + ((r.mejores['F'] || r.mejores['M']) ? t().subGl : t().sub) : ''">
       @if (r?.publicado) {
         <div pageStamps class="flex flex-wrap gap-2">
@@ -638,7 +638,7 @@ const TD = {
     resumen: (nivel: string, f: string, dos: boolean, ciudad: string) => 'Campeonato de powerlifting ' + nivel + ', celebrado ' + (dos ? 'los días ' + f.replace('–', ' y ') : 'el ' + f) + ' en ' + ciudad + '.',
     datos: ['Fecha', 'Sede', 'Nivel', 'Organiza'],
     rel: (a: string, sig: number) => [{ titulo: 'Resultados ' + a, texto: 'Podios y clasificación', ruta: '/resultados/' + a }, { titulo: 'Galería', texto: 'Todas las fotos', ruta: '/galeria' }, { titulo: 'Edición ' + sig, texto: 'Próxima competición', ruta: '/' }] as RelatedLink[],
-    seoT: (n: string, c: string) => n + ' · ' + c + ' · Edición anterior', seoD: (f: string, c: string, d: string) => f + ' en ' + c + '. ' + d,
+    seoT: (a: string) => 'Edición ' + a + ' · GRS Cup 2', seoD: (f: string, c: string, d: string) => f + ' en ' + c + '. ' + d,
   },
   en: {
     celebrada: 'Held',
@@ -651,7 +651,7 @@ const TD = {
     resumen: (nivel: string, f: string, dos: boolean, ciudad: string) => nivel + ' powerlifting championship, held ' + (dos ? 'on ' + f.replace('–', ' and ') : 'on ' + f) + ' in ' + ciudad + '.',
     datos: ['Date', 'Venue', 'Level', 'Organiser'],
     rel: (a: string, sig: number) => [{ titulo: a + ' results', texto: 'Podiums and standings', ruta: '/resultados/' + a }, { titulo: 'Gallery', texto: 'All the photos', ruta: '/galeria' }, { titulo: sig + ' edition', texto: 'Next competition', ruta: '/' }] as RelatedLink[],
-    seoT: (n: string, c: string) => n + ' · ' + c + ' · Past edition', seoD: (f: string, c: string, d: string) => f + ' in ' + c + '. ' + d,
+    seoT: (a: string) => a + ' edition · GRS Cup 2', seoD: (f: string, c: string, d: string) => f + ' in ' + c + '. ' + d,
   },
 };
 
@@ -807,7 +807,7 @@ export class EdicionPage {
       this.sponsors.set((pats ?? []).filter((p, i, a) => p.logoUrl && a.findIndex((x) => x.logoUrl === p.logoUrl || x.nombre === p.nombre) === i
         && !(this.anio() === '2025' && /almussafes/i.test(p.nombre))));
       if (c) {
-        await applySeo(this.cms, seo, '/ediciones/' + this.anio(), this.t().seoT(c.nombre, c.sede.ciudad), this.t().seoD(fechas(c.fechaInicio, c.fechaFin, this.i18n.locale()), c.sede.ciudad, c.evento.descripcion), this.cartel() || undefined, {
+        await applySeo(this.cms, seo, '/ediciones/' + this.anio(), this.t().seoT(this.anio()), this.t().seoD(fechas(c.fechaInicio, c.fechaFin, this.i18n.locale()), c.sede.ciudad, c.evento.descripcion), this.cartel() || undefined, {
           jsonLd: { '@context': 'https://schema.org', '@type': 'SportsEvent', name: c.nombre, sport: 'Powerlifting', startDate: c.fechaInicio, endDate: c.fechaFin, eventStatus: 'https://schema.org/EventScheduled',
             location: { '@type': 'Place', name: c.sede.nombre, address: c.sede.ciudad }, organizer: { '@type': 'Organization', name: c.evento.organizador } },
         });
