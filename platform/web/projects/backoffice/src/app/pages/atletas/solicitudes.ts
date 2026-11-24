@@ -8,7 +8,8 @@ import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { problemOf } from '../../core/api';
-import { BoPageHeader, errText } from '../../shared/ui';
+import { BoPageHeader, BoTabs, errText, type BoTab } from '../../shared/ui';
+import { SolicitudesContador } from '../../core/solicitudes';
 import {
   SolicitudesApi,
   type Candidato, type Consentimiento, type Diferencia, type EstadoSolicitud, type SolicitudDetalle, type SolicitudItem, type SolicitudLista, type TipoMatch,
@@ -27,7 +28,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
  */
 @Component({
   selector: 'bo-solicitudes',
-  imports: [A11yModule, FormsModule, RouterLink, SolicitudesLista, SolicitudesDialogo, SolicitudesCupos, BoPageHeader, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, GrSkeleton],
+  imports: [A11yModule, FormsModule, RouterLink, SolicitudesLista, SolicitudesDialogo, SolicitudesCupos, BoPageHeader, BoTabs, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'onEscape($event)' },
   template: `
@@ -39,6 +40,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
           <ng-container actions><button grButton icon="download" [loading]="exporting()" (click)="exportar()">Exportar CSV</button></ng-container>
         }
       </bo-page-header>
+      @if (puede()) { <bo-tabs label="Atletas" [tabs]="secciones()" /> }
 
       @if (!puede()) {
         <section class="mx-auto w-full max-w-2xl rounded-lg border border-line-subtle bg-bg-card p-8 text-center">
@@ -411,6 +413,12 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
   `,
 })
 export class SolicitudesPage {
+  private readonly pendientesSvc = inject(SolicitudesContador);
+  /** BIZ-183: same Atletas/Solicitudes tabs as /:comp/atletas (paths relative to this route). */
+  protected readonly secciones = computed<BoTab[]>(() => [
+    { label: 'Atletas', path: '..', exact: true },
+    { label: 'Solicitudes', path: '.', count: this.pendientesSvc.pendientes() || null },
+  ]);
   private readonly api = inject(SolicitudesApi);
   protected readonly comps = inject(Competitions);
   private readonly auth = inject(Auth);
