@@ -52,7 +52,7 @@ const ORDEN = ['principal', 'oro', 'plata', 'colaborador'];
 interface Tarjeta { nombre: string; insignia: string; logo: string; url: string; texto: string; nivel?: string }
 /** «Marcas y clubs» card by tier: principal full row with the organiser's accent card, oro half row, rest as Figma 31. */
 const TIER: Record<string, { li: string; a: string; logo: string }> = {
-  principal: { li: 'col-span-2 md:col-span-6', a: 'border-accent/30 bg-[linear-gradient(160deg,rgb(110_20_32/0.16),transparent_60%)]', logo: 'h-[120px]' },
+  principal: { li: 'col-span-2 md:col-span-3', a: 'border-accent/30 bg-[linear-gradient(160deg,rgb(110_20_32/0.16),transparent_60%)]', logo: 'h-[120px]' },
   oro: { li: 'col-span-2 md:col-span-3', a: 'border-accent/30', logo: 'h-24' },
 };
 const BASE = { li: 'md:col-span-2', a: 'border-line-subtle', logo: 'h-24' };
@@ -95,7 +95,10 @@ const mismo = (a: string, b: string) => a.toLowerCase().replace(/[^a-z0-9]/g, ''
                 @for (t of marcas(); track t.nombre) {
                   <li [class]="tier(t.nivel).li">
                     <a [attr.href]="t.url || null" target="_blank" rel="noopener sponsored" [class]="'flex h-full flex-col gap-3 rounded-lg border bg-bg-card p-6 transition-colors ' + tier(t.nivel).a" [class.hover:border-line-strong]="!!t.url">
-                      <span [class]="'flex items-center justify-center rounded-md bg-white/4 p-3 md:p-4 ' + tier(t.nivel).logo"><img [src]="t.logo | cdn" [alt]="t.nombre" class="max-h-full max-w-[80%] object-contain" loading="lazy" /></span>
+                      <span [class]="'flex items-center justify-center rounded-md bg-white/4 p-3 md:p-4 ' + tier(t.nivel).logo">
+                        @if (t.logo) { <img [src]="t.logo | cdn" [alt]="t.nombre" class="max-h-full max-w-[80%] object-contain" loading="lazy" /> }
+                        @else { <span class="text-center text-label-l text-text-secondary uppercase">{{ t.nombre }}</span> }
+                      </span>
                       <span class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                         <span class="text-label-m">{{ t.nombre }}</span>
                         <span class="hidden h-6 items-center rounded-full bg-white/6 px-2.5 text-label-xs text-text-tertiary uppercase md:inline-flex">{{ t.insignia }}</span>
