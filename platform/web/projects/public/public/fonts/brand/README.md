@@ -1,11 +1,6 @@
 # Brand fonts (BIZ-157)
 
-Licensed font files are pending. Place them here with these exact names:
+- ITCAvantGardeGothicPro-Book.woff2 (weight 300, real Book weight) and ITCAvantGardeGothicPro-Bold.woff2 (700) -> font-avant («POWERED BY», clean headlines).
+- MonsterBites.woff2 (400) and MonsterBites-Italic.woff2 (400 italic) -> font-monster (impact headlines). License: MonsterBites-license.txt (commercial use requires the author's paid licence).
 
-- `ITCAvantGardeGothicPro-Book.woff2` (weight 400)
-- `ITCAvantGardeGothicPro-Bold.woff2` (weight 700)
-- `MonsterBites.woff2`
-
-`@font-face` rules live in `projects/public/src/styles.css`. Tailwind classes: `font-avant`
-(«POWERED BY», clean headlines) and `font-monster` (impact headlines). Without files, the
-fallbacks Inter / Contrail One render.
+Converted from OTF with fontTools (woff2). @font-face rules live in projects/public/src/styles.css.
