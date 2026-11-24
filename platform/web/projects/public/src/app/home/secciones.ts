@@ -209,7 +209,7 @@ const TX = {
     alm: "Colabora el Ajuntament d'Almussafes, municipio anfitrión.", aepAlt: 'AEP · Asociación Española de Powerlifting',
     sexo: 'Sexo', hombres: 'Hombres', mujeres: 'Mujeres', verCat: ' · ver categorías de peso',
     ctaTitulo: 'Consulta las marcas mínimas', ctaTexto: 'Para clasificar para otras competiciones AEP (PDF oficial).', verMarcas: 'Ver marcas mínimas',
-    finalizado: 'Finalizado', en_curso: 'En curso', programado: 'Programado', horarios: 'Horarios', enDirecto: 'en directo',
+    horarios: 'Horarios', enDirecto: 'en directo',
     vista: 'Vista', dias: 'Días', buscaPh: '¿Cuándo compite…?', buscaAria: 'Buscar atleta o club', miHorario: 'Mi horario',
     atletas: (n: number): string => (n === 1 ? 'atleta' : 'atletas'), enTarima: 'En tarima', dejar: 'Dejar de seguir a ', seguir: 'Seguir a ',
     ics: 'Añadir mi horario al calendario', icsTxt: 'Archivo .ics con las horas de tus atletas; se actualiza si hay retrasos.',
@@ -225,7 +225,7 @@ const TX = {
     alm: "Supported by the Ajuntament d'Almussafes, the host town.", aepAlt: 'AEP · Spanish Powerlifting Association',
     sexo: 'Sex', hombres: 'Men', mujeres: 'Women', verCat: ' · see weight classes',
     ctaTitulo: 'Check the qualifying totals', ctaTexto: 'To qualify for other AEP competitions (official PDF).', verMarcas: 'See qualifying totals',
-    finalizado: 'Finished', en_curso: 'In progress', programado: 'Scheduled', horarios: 'Schedule', enDirecto: 'live',
+    horarios: 'Schedule', enDirecto: 'live',
     vista: 'View', dias: 'Days', buscaPh: 'When does … lift?', buscaAria: 'Search athlete or club', miHorario: 'My schedule',
     atletas: (n: number): string => (n === 1 ? 'athlete' : 'athletes'), enTarima: 'On the platform', dejar: 'Unfollow ', seguir: 'Follow ',
     ics: 'Add my schedule to the calendar', icsTxt: '.ics file with your athletes’ times; it updates if there are delays.',
@@ -634,22 +634,17 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
                 <span class="text-body-s text-text-secondary">{{ it.titulo }}</span>
               </li>
             } @else if (r.flight; as f) {
-              @let abierto = vista() === 'detallado' || abiertos().includes(f.id);
+              <!-- BIZ-179: «Todos» is a plain row (no accordion); the athletes only show in «Detallado» -->
+              @let abierto = vista() === 'detallado';
               <li class="overflow-hidden rounded-xl border bg-bg-card" [class]="f.estado === 'en_curso' ? 'border-accent/70' : 'border-line-subtle'" [class.opacity-60]="f.estado === 'finalizado'">
-                <button type="button" class="flex w-full items-center gap-4 p-4 text-left md:px-5" [attr.aria-expanded]="abierto" (click)="alternar(f.id)">
+                <div class="flex w-full items-center gap-4 p-4 md:px-5">
                   <span class="flex min-w-0 flex-1 flex-col gap-1">
                     <span class="flex items-center gap-2"><span class="text-label-xs tracking-[0.08em] uppercase">{{ f.sexo === 'F' ? tx().femenino : tx().masculino }}</span>@if (ep(f); as e) { <span class="inline-flex h-[22px] items-center rounded-[6px] border border-white/40 px-2 text-label-xs">{{ e }}</span> }</span>
                     <span class="text-ui-h5">{{ pesos(f) }}</span>
                     <span class="text-body-xs text-text-tertiary">{{ f.total }} atletas · Pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }}</span>
-                    @if (f.estado !== 'programado') {
-                      <span class="mt-1 inline-flex w-fit items-center gap-1.5 rounded-pill border px-2.5 py-0.5 text-label-xs uppercase" [class]="f.estado === 'en_curso' ? 'border-accent/60 bg-accent/12 text-accent-text' : 'border-line-strong text-text-tertiary'">
-                        @if (f.estado === 'en_curso') { <gr-icon name="radio" [size]="12" /> } @else if (f.estado === 'finalizado') { <gr-icon name="check" [size]="12" /> }{{ estado[f.estado] }}
-                      </span>
-                    }
                   </span>
                   <span class="flex items-center gap-2 font-mono text-[26px] font-semibold tabular-nums md:text-[30px]"><gr-icon name="clock" [size]="22" />{{ hora(f.inicioEstimado || f.inicio) }}</span>
-                  <gr-icon [name]="abierto ? 'chevron-up' : 'chevron-down'" [size]="18" class="shrink-0 text-text-tertiary" />
-                </button>
+                </div>
                 @if (abierto) {
                   @if (ats(f).length) {
                     <ul class="border-t border-line-subtle">
@@ -691,14 +686,12 @@ export class SecHorarios {
   protected readonly fav = inject(Favoritos);
   private readonly api = inject(HorariosPublic);
   protected readonly hora = hora;
-  protected get estado(): Record<string, string> { const x = this.tx(); return { finalizado: x.finalizado, en_curso: x.en_curso, programado: x.programado }; }
   protected readonly vistas: { k: Vista; l: string }[] = [{ k: 'todos', l: this.tx().todos }, { k: 'detallado', l: this.tx().detallado }, { k: 'mio', l: this.tx().miHorario }];
   protected readonly sexos = [{ k: 'F' as const, l: this.tx().femenino }, { k: 'M' as const, l: this.tx().masculino }, { k: '' as const, l: this.tx().todos }];
   protected readonly vista = signal<Vista>('todos');
   protected readonly sexo = signal<'F' | 'M' | ''>('');
   protected readonly diaSel = signal(0);
   protected readonly q = signal('');
-  protected readonly abiertos = signal<string[]>([]);
   /** Full schedule with the athletes (browser only, loaded once when a view needs it). */
   private readonly completo = signal<Horarios | null>(null);
   /** Athletes per time slot from GET …/horarios/{id}/atletas (the schedule JSON no longer carries them). */
@@ -757,11 +750,6 @@ export class SecHorarios {
   protected elegir(v: Vista): void {
     this.vista.set(v);
     if (v !== 'todos') this.cargar();
-  }
-  protected alternar(id: string): void {
-    if (this.vista() === 'detallado') return;
-    this.cargar();
-    this.abiertos.update((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
   }
   protected buscar(v: string): void {
     this.q.set(v);
