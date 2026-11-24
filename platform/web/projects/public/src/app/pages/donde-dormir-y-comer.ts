@@ -22,6 +22,10 @@ export interface Sitio {
   precio?: string;
   web?: string;
   imagen?: string;
+  /** Exact Google Maps link (overrides the search built by mapaDe). */
+  maps?: string;
+  descripcion?: string;
+  descripcionEn?: string;
 }
 interface Seccion {
   id: string;
@@ -34,7 +38,7 @@ interface Seccion {
 
 /** Google Maps search of a place (the «Mapa» link). */
 export function mapaDe(s: Sitio): string {
-  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(`${s.nombre}, ${s.detalle}`);
+  return s.maps || 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(`${s.nombre}, ${s.detalle}`);
 }
 
 /** The «detalle» of a place in the given language. */
@@ -97,6 +101,7 @@ const T = {
                       <h3 class="text-label-m">{{ s.nombre }}</h3>
                     </div>
                     <p class="text-body-s text-text-tertiary">{{ detalle(s) }}</p>
+                    @if (s.descripcion) { <p class="text-body-s text-text-secondary">{{ lang() === 'en' ? s.descripcionEn || s.descripcion : s.descripcion }}</p> }
                     @if (s.distancia || s.precio) {
                       <p class="flex flex-wrap items-center gap-x-1.5 text-body-xs text-text-secondary">
                         @if (s.distancia) { <span>{{ s.distancia }}</span> }
@@ -156,16 +161,31 @@ const RESTAURANTES: Sitio[] = [
   { nombre: 'Cervecería Enjoy', detalle: "Ronda de l'Historiador Lluís Duart Alabarta, Almussafes" },
   { nombre: 'Bar Polideportivo', detalle: 'Ronda Antoni Ludeña, Almussafes' },
 ];
+// BIZ-173: «Gimnasios de powerlifting» document + its Google Maps links (24 Nov 2026).
 export const GIMNASIOS: Sitio[] = [
-  { nombre: 'GR Strength Powerlifting Club', detalle: 'P. I. Canyada dels Codonyers, c/ 13, n.º 11, nave 9, Picassent', web: 'https://www.grteam.net/grs-powerlifting-club-valencia' },
-  { nombre: 'Anvil Strength', detalle: 'Club de powerlifting · Puerto de Sagunto', detalleEn: 'Powerlifting club · Puerto de Sagunto', web: 'https://anvilstrength.es/powerlifting-valencia' },
-  { nombre: 'Titan Fitness Valencia', detalle: 'Fuerza y alto rendimiento · Valencia', detalleEn: 'Strength and high performance · Valencia', web: 'https://www.instagram.com/titanfitnessvalencia' },
-  { nombre: 'Fitness Park Valencia', detalle: 'Musculación y culturismo · Valencia', detalleEn: 'Weight training and bodybuilding · Valencia', web: 'https://www.fitnesspark.es/valencia' },
+  { nombre: 'F.E.R Entrenamiento', detalle: 'Polígono Industrial Canyada dels Codonyers, calle 13, nº 11, nave 9, 46220 Picassent', web: 'https://ferentrenamiento.wodbuster.com', maps: 'https://maps.app.goo.gl/U6JRbXb7iw7wTuC78',
+    descripcion: 'Abierto 24 h. 400 m² de material, clases de crosstraining y sala de musculación. Tarifa «Open Powerlifting» de 40 €/mes con acceso a la zona de material de competición.',
+    descripcionEn: 'Open 24 h. 400 m² of equipment, crosstraining classes and a weights room. «Open Powerlifting» plan at €40/month with access to the competition equipment area.' },
+  { nombre: 'NewQ Almussafes Fitness', detalle: 'Ronda Síndic Antoni Albuixech, 123, 46440 Almussafes', web: 'https://newquo.es', maps: 'https://maps.app.goo.gl/T5FYoVatjRhNw5Y76',
+    descripcion: 'Gimnasio con clases colectivas variadas y monitores; máquinas nuevas tras una reforma.',
+    descripcionEn: 'Gym with a variety of group classes and instructors; new machines after a refurbishment.' },
+  { nombre: 'Valhalla Gym Almussafes', detalle: 'Carrer Sant Cristòfol, 61, Bajo, 46440 Almussafes', web: 'https://valhallagymalmussafes.es', maps: 'https://maps.app.goo.gl/7KYWNZ6vU88cCVJL8',
+    descripcion: 'Gimnasio reciente con mucha variedad de máquinas.',
+    descripcionEn: 'Recently opened gym with a wide variety of machines.' },
+  { nombre: 'Pabellón Municipal de Almusafes', detalle: 'Avda. Laura Méndez, s/n, 46440 Almussafes', web: 'https://almussafes.es', maps: 'https://maps.app.goo.gl/aidcANg9ngd7qvoz7',
+    descripcion: 'Centro deportivo municipal: pabellón cubierto con acceso por la CV-42 desde la AP-7.',
+    descripcionEn: 'Municipal sports centre: indoor hall reached via the CV-42 from the AP-7.' },
+  { nombre: 'The Factory Workout', detalle: 'Carrer Montroi, 10, 46450 Benifaió', web: 'https://mimpalawellness.com/tfw', maps: 'https://maps.app.goo.gl/yGipVmFfo4M9G4Dt9',
+    descripcion: 'Sala fitness con máquinas de musculación y peso libre, clases dirigidas y asesoramiento nutricional.',
+    descripcionEn: 'Fitness room with weight machines and free weights, group classes and nutrition advice.' },
+  { nombre: '3D Valencia Centro Deportivo', detalle: 'Calle Cofrentes, 5, 46010 Valencia (tranvía Primado Reig, líneas 4/6)', detalleEn: 'Calle Cofrentes, 5, 46010 Valencia (Primado Reig tram stop, lines 4/6)', web: 'https://3dvalencia.es', maps: 'https://maps.app.goo.gl/AnFsLHhz2YyLt9YeA',
+    descripcion: 'Gimnasio y entrenamiento personal, con asesoría online y amplia zona de máquinas.',
+    descripcionEn: 'Gym and personal training, with online coaching and a large machine area.' },
 ];
 
 const SECCIONES: Seccion[] = [
   { id: 'hoteles', eyebrow: { es: 'Dormir', en: 'Stay' }, titulo: { es: 'Hoteles *cerca*', en: 'Hotels *nearby*' }, texto: { es: 'A pocos minutos del pabellón. Reserva con tiempo: el fin de semana de la competición la zona se llena.', en: 'A few minutes from the sports hall. Book early: the area fills up on competition weekend.' }, icono: 'building', sitios: HOTELES },
   { id: 'apartamentos', eyebrow: { es: 'Dormir', en: 'Stay' }, titulo: { es: 'Apartamentos *turísticos*', en: 'Holiday *apartments*' }, texto: { es: 'Para equipos y grupos que vienen varios días.', en: 'For teams and groups staying several days.' }, icono: 'home', sitios: APARTAMENTOS },
   { id: 'comer', eyebrow: { es: 'Comer', en: 'Eat' }, titulo: { es: 'Dónde *comer*', en: 'Where to *eat*' }, texto: { es: 'Restaurantes y bares cerca del pabellón para antes y después de la competición.', en: 'Restaurants and bars near the sports hall for before and after the competition.' }, icono: 'star', sitios: RESTAURANTES },
-  { id: 'gimnasios', eyebrow: { es: 'Entrenar', en: 'Train' }, titulo: { es: 'Gimnasios *para entrenar*', en: 'Gyms *to train at*' }, texto: { es: 'Gimnasios de fuerza en Valencia y alrededores para entrenar los días previos.', en: 'Strength gyms in and around Valencia to train at in the days before.' }, icono: 'trophy', sitios: GIMNASIOS },
+  { id: 'gimnasios', eyebrow: { es: 'Entrenar', en: 'Train' }, titulo: { es: 'Gimnasios de powerlifting *donde entrenar*', en: 'Powerlifting gyms *to train at*' }, texto: { es: 'Gimnasios en Almussafes, Picassent, Benifaió y Valencia para entrenar los días previos.', en: 'Gyms in Almussafes, Picassent, Benifaió and Valencia to train at in the days before.' }, icono: 'trophy', sitios: GIMNASIOS },
 ];
