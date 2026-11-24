@@ -102,6 +102,9 @@ var Secciones = []SeccionDef{
 		{Clave: "imagenes", Etiqueta: "Fotos (la primera, grande)", Tipo: "lista", Max: 4, Campos: []Campo{{Clave: "imagen", Etiqueta: "Foto", Tipo: "imagen"}, {Clave: "alt", Etiqueta: "Texto alternativo", Tipo: "texto", Max: 120}}},
 		{Clave: "mapa", Etiqueta: "Imagen del mapa", Tipo: "imagen"}}},
 	{Clave: "faq", Nombre: "Preguntas frecuentes", Descripcion: "Muestra las FAQ destacadas", Campos: []Campo{cEyebrow, cTituloRico, cAcento}},
+	// BIZ-164 «What's next · Competiciones»: the mystery competition (April 2027) and its 40 € reservation.
+	{Clave: "competiciones", Nombre: "Competiciones", Descripcion: "Próxima competición incógnito con reserva de plaza", Campos: []Campo{cEyebrow, cTitulo,
+		{Clave: "reservaUrl", Etiqueta: "Stripe Payment Link (40 €)", Tipo: "texto", Max: 200, Ayuda: "https://buy.stripe.com/… · vacío: botón deshabilitado «próximamente»"}}},
 	{Clave: "patrocinadores", Nombre: "Patrocinadores", Descripcion: "Cinta de logos bajo «Campeonato» (se gestionan en Patrocinadores)", Campos: []Campo{cTitulo}},
 }
 
