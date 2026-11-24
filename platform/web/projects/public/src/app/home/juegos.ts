@@ -207,7 +207,7 @@ export class SecPorra {
   template: `
     <!-- Figma home R2 (393:144584 · 211:166129): centred stack — logo, title, pitch, text, CTAs -->
     <div [class]="ancho + ' flex flex-col items-center gap-6 text-center'">
-      <img [src]="'/img/home/logo-fantasy.webp' | cdn" alt="Logo de GRS Fantasy" width="280" height="132" class="h-auto w-[240px] md:w-[240px]" loading="lazy" decoding="async" />
+      <img src="https://jaimedigitalstudio.b-cdn.net/grcup/images/logo-fantasy-grs.webp" alt="Logo de GRS Fantasy, el juego fantasy de la GRS Cup" width="280" height="132" class="h-auto w-[240px] md:w-[240px]" loading="lazy" decoding="async" />
       <p class="sr-only">{{ t().fantasySr }}</p>
       <h2 class="sr-only">GRS Fantasy</h2>
       <div class="w-full max-w-[490px]">
