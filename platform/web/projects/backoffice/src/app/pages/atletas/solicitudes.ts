@@ -414,10 +414,10 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
 })
 export class SolicitudesPage {
   private readonly pendientesSvc = inject(SolicitudesContador);
-  /** BIZ-183: same Atletas/Solicitudes tabs as /:comp/atletas (paths relative to this route). */
+  /** BIZ-183: same Atletas/Solicitudes tabs as /:comp/atletas (route is one config segment 'atletas/solicitudes[/:id]', so '..' is the comp). */
   protected readonly secciones = computed<BoTab[]>(() => [
-    { label: 'Atletas', path: '..', exact: true },
-    { label: 'Solicitudes', path: '.', count: this.pendientesSvc.pendientes() || null },
+    { label: 'Atletas', path: '../atletas', exact: true },
+    { label: 'Solicitudes', path: '../atletas/solicitudes', count: this.pendientesSvc.pendientes() || null },
   ]);
   private readonly api = inject(SolicitudesApi);
   protected readonly comps = inject(Competitions);
