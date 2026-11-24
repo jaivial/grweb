@@ -402,7 +402,7 @@ const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
  */
 @Component({
   selector: 'gr-ticket',
-  imports: [CdnPipe, GrIcon],
+  imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
