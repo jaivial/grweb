@@ -372,12 +372,12 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
       <!-- Figma 06 «Completas» (and the closed registration, same layout) -->
       @if (v === 'completas' || v === 'cerrada') {
         <section class="flex flex-col items-center gap-6 pt-2 text-center md:gap-8 md:pt-8">
-          <p class="inline-flex h-7 items-center rounded-pill border border-text-tertiary bg-text-tertiary/12 px-3 text-label-xs text-text-tertiary uppercase">{{ v === 'completas' ? t().insCompletas : t().insCerradas }}</p>
+          @if (v === 'completas') { <p class="inline-flex h-7 items-center rounded-pill border border-text-tertiary bg-text-tertiary/12 px-3 text-label-xs text-text-tertiary uppercase">{{ t().insCompletas }}</p> }
           <h1 class="text-display-m [text-shadow:0_4px_24px_rgb(0_0_0/0.6)] md:text-display-xl">{{ v === 'completas' ? t().plazasCompletas : t().insCerrada }}</h1>
           @if (plazas() && v === 'completas') {
             <p class="flex items-end gap-2"><span class="font-display text-[60px] leading-none text-accent-text md:text-[72px]">{{ inscritos() }}</span><span class="pb-1 text-display-2xs text-text-tertiary md:text-display-xs">/ {{ plazas() }} atletas</span></p>
           }
-          @if (v === 'cerrada' && c?.modo !== 'propia') { <gr-inscripciones-cerradas /> }
+          @if (v === 'cerrada' && c?.modo !== 'propia') { <gr-inscripciones-cerradas [chip]="false" /> }
           @else {
           <p class="max-w-[640px] text-body-m text-text-secondary md:text-body-l">
             @if (v === 'completas' && c?.modo !== 'propia') { {{ t().completasAep(nombreComp()) }} }
