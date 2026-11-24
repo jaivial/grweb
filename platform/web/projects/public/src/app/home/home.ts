@@ -70,7 +70,7 @@ const T = {
     <gr-navbar [hidden]="!introDone()" />
     <main>
       <!-- BIZ-178: Google brand verification — above the fold (before the intro hero) the home must name the app, state its purpose and its use of Google data, without login -->
-      <section id="sobre" class="mx-auto flex max-w-[1440px] flex-col gap-3 px-5 py-4 md:px-8 xl:px-[120px]" [attr.aria-label]="t().sobreTitulo">
+      <section id="sobre" class="mx-auto flex max-w-[1440px] flex-col gap-3 px-5 pt-28 pb-4 md:px-8 xl:px-[120px]" [attr.aria-label]="t().sobreTitulo">
         <h1 class="text-xl font-semibold text-text-primary">GRS Cup 2</h1>
         <p class="text-sm font-semibold text-text-primary">{{ t().sobreTitulo }}</p>
         <p class="max-w-4xl text-sm text-text-secondary">{{ t().sobreTexto }}</p>
