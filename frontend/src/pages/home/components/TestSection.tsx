@@ -1,5 +1,5 @@
 import { FC } from 'react';
-import InfiniteSlider from '@components/InfiniteSlider';
+import { useCdnImage } from '@hooks/useCdnImage';
 import { InscripcionesSection } from './InscripcionesSection';
 
 export interface TestSectionProps {
@@ -14,75 +14,53 @@ export interface TestSectionProps {
  * - Championship information with staggered text reveal
  * - Horizontal separator lines
  * - Uses Contrail One font (same as Hero text)
- * - Social media logo loop
+ * - Sponsors & collaborators
  */
+interface Sponsor {
+  name: string;
+  logo: string | null;
+}
+
+const SponsorLogo: FC<{ src: string; name: string; height: number }> = ({ src, name, height }) => {
+  const resolvedSrc = useCdnImage(src);
+  return <img src={resolvedSrc} alt={name} title={name} style={{ height }} className="w-auto object-contain" />;
+};
+
+const SponsorItem: FC<{ sponsor: Sponsor; height: number; textClass: string }> = ({ sponsor, height, textClass }) => {
+  return (
+    <li className="flex items-center" data-ui="sponsor-item">
+      {sponsor.logo ? (
+        <SponsorLogo src={sponsor.logo} name={sponsor.name} height={height} />
+      ) : (
+        <span
+          className={`${textClass} uppercase text-white/90`}
+          style={{ fontFamily: '"Contrail One", sans-serif', letterSpacing: '0.04em' }}
+        >
+          {sponsor.name}
+        </span>
+      )}
+    </li>
+  );
+};
+
 export const TestSection: FC<TestSectionProps> = ({ className = '' }) => {
-  // Sponsor logo images from Bunny CDN
-  const socialLogos = [
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/compressedAEP.webp', alt: 'AEP Sponsor Logo' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp', alt: 'Sponsor Logo 1' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp', alt: 'Sponsor Logo 2' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_18.webp', alt: 'Sponsor Logo 3' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp', alt: 'Sponsor Logo 4' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp', alt: 'Sponsor Logo 5' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp', alt: 'Sponsor Logo 6' },
-     { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/compressedAEP.webp', alt: 'AEP Sponsor Logo' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp', alt: 'Sponsor Logo 1' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp', alt: 'Sponsor Logo 2' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_18.webp', alt: 'Sponsor Logo 3' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp', alt: 'Sponsor Logo 4' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp', alt: 'Sponsor Logo 5' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp', alt: 'Sponsor Logo 6' },
-  { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/compressedAEP.webp', alt: 'AEP Sponsor Logo' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp', alt: 'Sponsor Logo 1' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp', alt: 'Sponsor Logo 2' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_18.webp', alt: 'Sponsor Logo 3' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp', alt: 'Sponsor Logo 4' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp', alt: 'Sponsor Logo 5' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp', alt: 'Sponsor Logo 6' },
-  { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/compressedAEP.webp', alt: 'AEP Sponsor Logo' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp', alt: 'Sponsor Logo 1' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp', alt: 'Sponsor Logo 2' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_18.webp', alt: 'Sponsor Logo 3' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp', alt: 'Sponsor Logo 4' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp', alt: 'Sponsor Logo 5' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp', alt: 'Sponsor Logo 6' },
-  { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/compressedAEP.webp', alt: 'AEP Sponsor Logo' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp', alt: 'Sponsor Logo 1' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp', alt: 'Sponsor Logo 2' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_18.webp', alt: 'Sponsor Logo 3' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp', alt: 'Sponsor Logo 4' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp', alt: 'Sponsor Logo 5' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp', alt: 'Sponsor Logo 6' },
-  { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/compressedAEP.webp', alt: 'AEP Sponsor Logo' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp', alt: 'Sponsor Logo 1' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp', alt: 'Sponsor Logo 2' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_18.webp', alt: 'Sponsor Logo 3' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp', alt: 'Sponsor Logo 4' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp', alt: 'Sponsor Logo 5' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp', alt: 'Sponsor Logo 6' },
-  { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/compressedAEP.webp', alt: 'AEP Sponsor Logo' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp', alt: 'Sponsor Logo 1' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp', alt: 'Sponsor Logo 2' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_18.webp', alt: 'Sponsor Logo 3' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp', alt: 'Sponsor Logo 4' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp', alt: 'Sponsor Logo 5' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp', alt: 'Sponsor Logo 6' },
-  { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/compressedAEP.webp', alt: 'AEP Sponsor Logo' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp', alt: 'Sponsor Logo 1' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp', alt: 'Sponsor Logo 2' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_18.webp', alt: 'Sponsor Logo 3' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp', alt: 'Sponsor Logo 4' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp', alt: 'Sponsor Logo 5' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp', alt: 'Sponsor Logo 6' },
-  { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/compressedAEP.webp', alt: 'AEP Sponsor Logo' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp', alt: 'Sponsor Logo 1' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp', alt: 'Sponsor Logo 2' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_18.webp', alt: 'Sponsor Logo 3' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp', alt: 'Sponsor Logo 4' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp', alt: 'Sponsor Logo 5' },
-    { src: 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp', alt: 'Sponsor Logo 6' },
- 
+  // Patrocinadores y colaboradores oficiales (BIZ-159). Los 4 primeros van en la primera fila, más grandes.
+  // logo: null => aún no hay logo oficial en el CDN; se muestra el nombre hasta que se suba.
+  const CDN_SPONSORS = 'https://jaimedigitalstudio.b-cdn.net/grcup/sponsors/';
+  const featuredSponsors: Sponsor[] = [
+    { name: 'GR Strength Coaching', logo: null },
+    { name: 'GR Strength Club', logo: null },
+    { name: 'Ayuntamiento de Almussafes', logo: null },
+    { name: 'GR Strength Alicante', logo: null },
+  ];
+  const sponsors: Sponsor[] = [
+    { name: 'A7', logo: CDN_SPONSORS + 'ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp' },
+    { name: 'Silentworker', logo: null },
+    { name: 'AEP', logo: CDN_SPONSORS + 'compressedAEP.webp' },
+    { name: 'Eleiko', logo: null },
+    { name: 'ER Strength Club', logo: null },
+    { name: 'KGXLB', logo: null },
+    { name: 'FER Entrenamiento', logo: null },
   ];
 
   // Text styling matching HeroSection (Contrail One font)
@@ -203,22 +181,18 @@ export const TestSection: FC<TestSectionProps> = ({ className = '' }) => {
           data-ui="separator-line-4"
         />
 
-        {/* Social Media Logo Slider */}
-        <div
-          className="w-full mt-24 px-8"
-          data-ui="social-logo-slider"
-        >
-          <InfiniteSlider
-            images={socialLogos}
-            speed={160}
-            direction="left"
-            height={64}
-            gap={80}
-            fadeSize={100}
-            fadeColor="#0a0a0a"
-            pauseOnHover={false}
-            ariaLabel="Sponsor logos"
-          />
+        {/* Patrocinadores y colaboradores */}
+        <div className="w-full mt-24 px-4 flex flex-col items-center gap-12" data-ui="sponsors">
+          <ul className="flex flex-wrap justify-center items-center gap-x-14 gap-y-8" data-ui="sponsors-featured">
+            {featuredSponsors.map((s) => (
+              <SponsorItem key={s.name} sponsor={s} height={96} textClass="text-2xl md:text-3xl" />
+            ))}
+          </ul>
+          <ul className="flex flex-wrap justify-center items-center gap-x-12 gap-y-6" data-ui="sponsors-rest">
+            {sponsors.map((s) => (
+              <SponsorItem key={s.name} sponsor={s} height={56} textClass="text-lg md:text-xl" />
+            ))}
+          </ul>
         </div>
 
         {/* Inscripciones Section */}

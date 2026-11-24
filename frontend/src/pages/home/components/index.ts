@@ -13,4 +13,5 @@ export { WinnersSection } from './WinnersSection';
 export { Footer } from './Footer';
 export { RaffleSection } from './RaffleSection';
 export { HandlerSection } from './HandlerSection';
+export { IncognitoCompetitionSection } from './IncognitoCompetitionSection';
 export { NextEventSection } from './NextEventSection';

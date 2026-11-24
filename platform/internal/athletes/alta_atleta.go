@@ -203,6 +203,7 @@ type DatosAlta struct {
 	Club            string          `json:"club"`
 	Ciudad          string          `json:"ciudad"`
 	Entrenador      string          `json:"entrenador"`
+	AsignarHandler  bool            `json:"asignarHandler"` // «No tengo handler / Asignadme uno»: notified as a handler request
 	Prueba          string          `json:"prueba"`
 	Frase           string          `json:"frase"`
 	Bio             string          `json:"bio"`
@@ -736,6 +737,16 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 		}
 		if err := whatsapp(ctx, tx, c.ID, "", true, "atleta-solicitud-nueva", s.varsWANueva(d, matchTipo, menor, c.Slug), fotoURL); err != nil {
 			return err
+		}
+		// «Asignadme un handler»: the same email and WhatsApp as a handler request, so it is all in one place.
+		if d.AsignarHandler {
+			v := varsHandler(d, menor)
+			if err := email(ctx, tx, c.ID, handlerEmail, "handler-solicitud", v); err != nil {
+				return err
+			}
+			if err := whatsapp(ctx, tx, c.ID, handlerWhatsApp, false, "handler-solicitud", v, ""); err != nil {
+				return err
+			}
 		}
 		return nil
 	})
@@ -1551,6 +1562,25 @@ func (s *Svc) varsWARecibida(d DatosAlta) map[string]string {
 }
 
 // varsWANueva are the variables of the WhatsApp message to the organisers.
+// handlerEmail and handlerWhatsApp receive the handler requests (GRS Coaching).
+const (
+	handlerEmail    = "contactogr8@gmail.com"
+	handlerWhatsApp = "+34644179395"
+)
+
+// varsHandler are the variables of the handler request sent from the athlete sign-up form.
+func varsHandler(d DatosAlta, menor bool) map[string]string {
+	entrenador := d.Entrenador
+	if entrenador == "" {
+		entrenador = "No"
+	}
+	return map[string]string{
+		"nombre": d.Nombre, "apellidos": d.Apellidos, "email": d.Email, "telefono": telTexto(d.Telefono),
+		"edad": edadAnios(d.FechaNacimiento, menor), "prueba": pruebaTexto(d.Prueba), "entrenador": entrenador,
+		"origen": "Alta de atleta (casilla «No tengo handler / Asignadme uno»)",
+	}
+}
+
 func (s *Svc) varsWANueva(d DatosAlta, match string, menor bool, slug string) map[string]string {
 	return map[string]string{
 		"nombre": d.Nombre, "apellidos": d.Apellidos, "email": d.Email, "telefono": telTexto(d.Telefono), "licencia": d.Licencia,
