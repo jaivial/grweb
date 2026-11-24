@@ -53,7 +53,7 @@ const T = {
       { titulo: 'Preguntas frecuentes', texto: 'Resolvemos tus dudas', ruta: '/preguntas-frecuentes' },
     ] as RelatedLink[],
     seoTitulo: 'Alojamientos cerca del pabellón · GRS Cup 2',
-    seoDesc: 'Hoteles, apartamentos y restaurantes cerca del pabellón de Almussafes y gimnasios de fuerza en Valencia para atletas y público de la GRS Cup 2.',
+    seoDesc: 'Hoteles, apartamentos y restaurantes cerca del Pabellón Municipal de Almussafes y gimnasios de fuerza en Valencia para atletas y público de la GRS Cup 2.',
   },
   en: {
     titulo: 'Accommodation near', acento: 'the sports hall', visita: 'Visit', seccion: 'Getting there',

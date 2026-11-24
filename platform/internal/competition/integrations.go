@@ -507,7 +507,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 	} else {
 		id = newID()
 		lat, lng := 39.3253, -0.4127
-		sede := Sede{Nombre: "Pavelló Municipal d'Almussafes", Direccion: "Avda. Laura Méndez, s/n", CP: "46440", Ciudad: "Almussafes", Provincia: "Valencia", Lat: &lat, Lng: &lng,
+		sede := Sede{Nombre: "Pabellón Municipal de Almussafes", Direccion: "Avda. Laura Méndez, s/n", CP: "46440", Ciudad: "Almussafes", Provincia: "Valencia", Lat: &lat, Lng: &lng,
 			MapsURL: "https://www.google.com/maps?daddr=Avda+Laura+M%C3%A9ndez,+s/n,+46440+Almussafes,+Valencia"}
 		evento := Evento{Descripcion: "La competición de powerlifting más esperada del año", Nivel: "AEP-2 · AEP-3", Organizador: "GR Strength",
 			EmailContacto: "admin@grstrength.com", Puertas: "08:30", AforoPabellon: 1200, Instagram: "https://instagram.com/grstrength"}

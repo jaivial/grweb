@@ -56,7 +56,7 @@ const T = {
       ] },
       { titulo: 'Visita y comunidad', items: [
         { label: 'Entradas', desc: 'Gratis con reserva', href: '/entradas' },
-        { label: 'Cómo llegar', desc: 'Pabellón de Almussafes', href: '/como-llegar' },
+        { label: 'Cómo llegar', desc: 'Pabellón Municipal de Almussafes', href: '/como-llegar' },
         { label: 'Público', desc: 'Normas y servicios', href: '/publico' },
         { label: 'Preguntas frecuentes', desc: 'Resolvemos tus dudas', href: '/preguntas-frecuentes' },
         { label: 'Edición 2025', desc: 'Llíria · 1–2 marzo 2025', href: '/ediciones/2025' },
