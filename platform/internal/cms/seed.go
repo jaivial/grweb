@@ -83,16 +83,16 @@ var yes = true
 
 var seedPatro = []patroIn{
 	// BIZ-159: the 11 official sponsors; the four «principal» go first, bigger and in the hero. Empty logo = name as text.
-	{"GR Strength Coaching", "principal", "/img/home/patro-coa.webp", "", &yes, "", &enHero, "", 50, 50, "", enField{}},
-	{"GR Strength Club", "principal", "/img/home/patro-str.webp", "https://grstrength.com", &yes, "", &enHero, "", 50, 50, "", enField{}},
-	{"Ayuntamiento de Almussafes", "principal", "/img/home/patro-alm.webp", "https://www.almussafes.net", &yes, "", &enHero, "", 50, 50, "", enField{}},
-	{"GR Strength Alicante", "principal", "", "", &yes, "", &enHero, "", 50, 50, "", enField{}},
+	{"GR Strength Coaching", "principal", bcdn + "logos/10_GRS_Powerlifting_Coaching.webp", "", &yes, "", &enHero, "", 50, 50, "", enField{}},
+	{"GR Strength Club", "principal", bcdn + "logos/08_GRStrength.webp", "https://grstrength.com", &yes, "", &enHero, "", 50, 50, "", enField{}},
+	{"Ayuntamiento de Almussafes", "principal", bcdn + "logos/09_Ajuntament_Almussafes.webp", "https://www.almussafes.net", &yes, "", &enHero, "", 50, 50, "", enField{}},
+	{"GR Strength Alicante", "principal", bcdn + "logos/gr-strength-alicante-v2.webp", "", &yes, "", &enHero, "", 50, 50, "", enField{}},
 	{"A7", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
-	{"Silentworker", "colaborador", "", "", &yes, "", nil, "", 50, 50, "", enField{}},
-	{"AEP", "institucional", bcdn + "sponsors/compressedAEP.webp", "https://powerliftingspain.es/", &yes, "Asociación Española de Powerlifting: avala la competición y aporta los jueces.", nil, "", 50, 50, "", enField{}},
-	{"Eleiko", "colaborador", "", "", &yes, "", nil, "", 50, 50, "", enField{}},
-	{"ER Strength Club", "colaborador", "", "", &yes, "", nil, "", 50, 50, "", enField{}},
-	{"KGXLB", "colaborador", "", "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"Silentworker", "colaborador", bcdn + "logos/02_SW.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"AEP", "institucional", bcdn + "logos/03_AEP.webp", "https://powerliftingspain.es/", &yes, "Asociación Española de Powerlifting: avala la competición y aporta los jueces.", nil, "", 50, 50, "", enField{}},
+	{"Eleiko", "colaborador", bcdn + "logos/05_ELEIKO.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"ER Strength Club", "colaborador", bcdn + "logos/06_ER.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"KGXLB", "colaborador", bcdn + "logos/01_KGxLB_Anabolik_Wear.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
 	{"FER Entrenamiento", "colaborador", "", "", &yes, "", nil, "", 50, 50, "", enField{}},
 }
 
