@@ -11,6 +11,7 @@ import {
   LocalizacionSection,
   RaffleSection,
   HandlerSection,
+  IncognitoCompetitionSection,
 } from './components';
 import { fetchParticipantCount } from './lib/api';
 import { participantCount } from './atoms/state';
@@ -128,6 +129,9 @@ export function Home(): JSX.Element {
 
       {/* Localización Section - Venue information */}
       <LocalizacionSection />
+
+      {/* Incognito Competition Section - Abril 2027 Almussafes, reserva 40 € (BIZ-164) */}
+      <IncognitoCompetitionSection />
       </main>
     </>
   );
