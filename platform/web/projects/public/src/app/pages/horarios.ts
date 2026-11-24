@@ -114,7 +114,7 @@ const T = {
           <gr-alert tone="warning" [title]="t().falloT">{{ t().falloD }}</gr-alert>
         }
       } @else {
-        <div class="flex max-w-[880px] flex-col gap-3">
+        <div class="flex w-full max-w-[880px] flex-col gap-3 min-[960px]:mx-auto">
           @if (h.dias.length > 1) {
             <nav class="-mx-5 flex gap-1 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:px-0" [attr.aria-label]="t().dias">
               @for (d of h.dias; track d.fecha) {
