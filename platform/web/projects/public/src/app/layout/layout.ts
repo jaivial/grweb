@@ -462,7 +462,7 @@ export class Footer {
   });
   protected readonly year = new Date().getFullYear();
   /** /sorteo is cash-only (D-RIFA): no payment badge there. */
-  protected readonly stripe = computed(() => !sinPrefijo(this.seo.path()).startsWith('/sorteo'));
+  protected readonly stripe = computed(() => /^\/(inscripcion|en-directo)/.test(sinPrefijo(this.seo.path())));
   private readonly comp = inject(Competition);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
