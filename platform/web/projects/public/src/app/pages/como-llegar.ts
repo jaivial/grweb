@@ -15,7 +15,7 @@ import { GIMNASIOS, detalleDe, mapaDe, type Sitio } from './donde-dormir-y-comer
 
 const T = {
   es: {
-    titulo: 'Cómo llegar al', pabellonDe: (ciudad: string) => 'Pabellón de ' + ciudad, pabellon: 'pabellón', sede: 'Sede', crumb: 'Cómo llegar',
+    titulo: 'Cómo llegar al', pabellonDe: (ciudad: string) => 'Pabellón Municipal de ' + ciudad, pabellon: 'pabellón', sede: 'Sede', crumb: 'Cómo llegar',
     subtitulo: 'Dirección, mapa, transporte desde Valencia y todo lo práctico para el día de la competición.', ubicacionOsm: 'Ubicación: OpenStreetMap · ',
     ubicacion: 'Ubicación', direccionMapa: 'Dirección y *mapa*', mapaDe: (n: string) => 'Mapa de ' + n,
     abrirMaps: 'Abrir en Google Maps', copiada: 'Dirección copiada', copiar: 'Copiar dirección',
@@ -223,13 +223,14 @@ export class ComoLlegarPage {
     const s = this.comp()?.sede;
     return s ? [s.direccion, [s.cp, s.ciudad].filter(Boolean).join(' ') + (s.provincia ? ` (${s.provincia})` : '')].filter(Boolean).join(' · ') : '';
   });
-  /** «≈ 16 km al sur de Valencia» (straight line from the city centre). */
+  /** «≈ 20 km al sur de Valencia»: road distance, estimated as 1.25 × the straight line from the city centre
+   *  (Almussafes ≈ 16 km in a straight line, 20 km by the V-31), so it matches the "En coche" copy. */
   protected readonly distancia = computed(() => {
     const s = this.comp()?.sede;
     if (!s?.lat || !s?.lng) return '';
     const [la1, lo1, la2, lo2] = [VALENCIA[0], VALENCIA[1], s.lat, s.lng].map((x) => (x * Math.PI) / 180);
     const h = Math.sin((la2 - la1) / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin((lo2 - lo1) / 2) ** 2;
-    const km = Math.round(2 * 6371 * Math.asin(Math.sqrt(h)));
+    const km = Math.round(1.25 * 2 * 6371 * Math.asin(Math.sqrt(h)));
     if (km < 3) return this.t().enValencia;
     const ang = (Math.atan2(Math.sin(lo2 - lo1) * Math.cos(la2), Math.cos(la1) * Math.sin(la2) - Math.sin(la1) * Math.cos(la2) * Math.cos(lo2 - lo1)) * 180) / Math.PI;
     const rumbo = this.t().rumbos[Math.round(((ang + 360) % 360) / 45) % 8];

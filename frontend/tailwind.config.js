@@ -25,6 +25,9 @@ export default {
         mono: ['Roboto Mono', 'monospace'],
         display: ['Inter', 'system-ui', 'sans-serif'],
         contrail: ['"Contrail One"', 'sans-serif'],
+        // BIZ-157: brand fonts. Files must be dropped in public/fonts/brand/ (licensed, not in repo yet).
+        avant: ['"ITC Avant Garde Gothic Pro"', 'Inter', 'system-ui', 'sans-serif'],
+        monster: ['"Monster Bites"', '"Contrail One"', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.6s ease-out forwards',

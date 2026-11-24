@@ -18,6 +18,7 @@ import { AltaFoto, type FotoAlta } from './alta-atleta-foto';
 import { AltaExito } from './alta-atleta-exito';
 import { AltaAviso } from './alta-atleta-aviso';
 import { AltaFaq, FAQS } from './alta-atleta-faq';
+import { HandlerGratis } from './handler-gratis';
 
 /** Configuración del alta (CONTRATOS §1): módulo, textos legales, reto antibots y token de tiempo. */
 interface ConfigAlta {
@@ -67,7 +68,7 @@ const MAX_MARCA = 600;
  */
 @Component({
   selector: 'gr-alta-atleta-page',
-  imports: [Page, FormsModule, GrButton, GrIcon, GrSkeleton, Related, Community, GrAltcha, AltaFoto, AltaExito, AltaAviso, AltaFaq, LocPipe],
+  imports: [Page, FormsModule, GrButton, GrIcon, GrSkeleton, Related, Community, GrAltcha, AltaFoto, AltaExito, AltaAviso, AltaFaq, HandlerGratis, LocPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page
@@ -248,6 +249,14 @@ const MAX_MARCA = 600;
                           [attr.aria-invalid]="!!err()['entrenador']" [attr.aria-describedby]="err()['entrenador'] ? 'e-entrenador' : null" />
                         @if (err()['entrenador']; as e) { <p id="e-entrenador" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
+                      <label class="flex min-h-11 items-start gap-2.5 py-1 text-body-s text-text-secondary">
+                        <span class="relative -mt-px flex size-6 shrink-0 items-center justify-center">
+                          <input type="checkbox" name="asignarHandler" [(ngModel)]="asignarHandler"
+                            class="peer size-[22px] cursor-pointer appearance-none rounded-[5px] border border-line-strong bg-bg-base checked:border-accent checked:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-text" />
+                          @if (asignarHandler) { <gr-icon name="check" [size]="14" class="pointer-events-none absolute text-white" /> }
+                        </span>
+                        <span>{{ t().asignarHandler }}</span>
+                      </label>
                     </fieldset>
 
                     <!-- Tu foto -->
@@ -380,6 +389,7 @@ const MAX_MARCA = 600;
         </div>
 
         <!-- Preguntas frecuentes -->
+        <gr-handler-gratis />
         <gr-alta-faq />
         <div class="mt-18 flex flex-col gap-18 md:mt-24 md:gap-24">
           <gr-related nivel="h3" [items]="t().relacionados" />
@@ -477,6 +487,7 @@ export class AltaAtletaPage {
     terminos: false, privacidad: false, imagen: false, novedades: false, whatsapp: false,
   };
   protected foto: FotoAlta | null = null;
+  protected asignarHandler = false;
   private intentado = false;
   /** Momento en el que se pidió la configuración (el token de tiempo debe tener al menos 3 s). */
   private configEn = 0;
@@ -780,6 +791,7 @@ export class AltaAtletaPage {
       club: this.d.club.trim(),
       ciudad: this.d.ciudad.trim(),
       entrenador: this.d.entrenador.trim(),
+      asignarHandler: this.asignarHandler,
       frase: this.d.frase.trim(),
       bio: this.d.bio.trim(),
       instagram: this.esMenor() ? '' : this.d.instagram.trim(),
@@ -1055,7 +1067,7 @@ const T_ES = {
   sexo: 'Sexo *', mujer: 'Mujer', hombre: 'Hombre', nacimiento: 'Fecha de nacimiento *', fechaPh: 'dd/mm/aaaa', fechaAyuda: 'Formato dd/mm/aaaa. De 14 a 90 años.',
   menor: 'Como has nacido antes de los 18, necesitaremos la autorización firmada de tu madre, padre o tutor. Te la pediremos por email antes de publicar tu ficha.',
   competicion: 'Competición', queCompeticion: '¿En qué competición compites?', completa: 'Completa · sin plazas',
-  clubPh: 'Escribe tu club', ciudad: 'Ciudad', entrenador: 'Entrenador/a (opcional)', entrenadorPh: 'Tu entrenador/a',
+  clubPh: 'Escribe tu club', ciudad: 'Ciudad', entrenador: 'Entrenador/a (opcional)', entrenadorPh: 'Tu entrenador/a', asignarHandler: 'No tengo handler / Asignadme uno',
   tuFoto: 'Tu foto', tuPerfil: 'Tu perfil', frase: 'Frase de presentación (opcional)', frasePh: 'Una frase para tu ficha',
   bio: 'Sobre ti (opcional)', bioPh: 'Cuéntale a la gente quién eres en dos líneas', instagram: 'Instagram (opcional)', instagramPh: '@tuusuario',
   instagramMenor: 'A los menores de 18 no les pedimos Instagram: el campo se oculta y no se publica nunca.',
@@ -1110,7 +1122,7 @@ const T = {
     sexo: 'Sex *', mujer: 'Female', hombre: 'Male', nacimiento: 'Date of birth *', fechaPh: 'dd/mm/yyyy', fechaAyuda: 'Format dd/mm/yyyy. Aged 14 to 90.',
     menor: "As you're under 18, we'll need a consent form signed by your mother, father or guardian. We'll ask for it by email before publishing your profile.",
     competicion: 'Competition', queCompeticion: 'Which competition are you entering?', completa: 'Full · no places left',
-    clubPh: 'Enter your club', ciudad: 'City', entrenador: 'Coach (optional)', entrenadorPh: 'Your coach',
+    clubPh: 'Enter your club', ciudad: 'City', entrenador: 'Coach (optional)', entrenadorPh: 'Your coach', asignarHandler: "I don't have a handler / Assign me one",
     tuFoto: 'Your photo', tuPerfil: 'Your profile', frase: 'Tagline (optional)', frasePh: 'A line for your profile',
     bio: 'About you (optional)', bioPh: 'Tell people who you are in two lines', instagram: 'Instagram (optional)', instagramPh: '@yourusername',
     instagramMenor: "We don't ask under-18s for Instagram: the field is hidden and never published.",

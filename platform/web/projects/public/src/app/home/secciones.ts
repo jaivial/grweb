@@ -11,6 +11,7 @@ import { HorariosPublic, ICS_URL, normalizar, type Horarios, type PubAtleta, typ
 import { Lightbox } from '../layout/lightbox';
 import { DivisionPipe, I18n, LocPipe, divisionEn } from '../core/i18n';
 import { ANCHO, GLOW, GrCabecera, GrEyebrow, GrTitulo, SECCION, sinNumero, textoTitulo } from './bloques';
+import { GrInscripcionesCerradas } from '../core/inscripcion-aep';
 
 const str = (s: Seccion | undefined, k: string) => (s?.[k] as string | undefined) ?? '';
 const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefined) ?? []);
@@ -49,13 +50,14 @@ const TA = {
  */
 @Component({
   selector: 'gr-sec-alta',
-  imports: [RouterLink, GrButton, GrIcon, LocPipe],
+  imports: [RouterLink, GrButton, GrIcon, LocPipe, GrInscripcionesCerradas],
   styles: `.gr-progreso{width:0;animation:gr-progreso linear forwards} @keyframes gr-progreso{to{width:100%}} @media (prefers-reduced-motion:reduce){.gr-progreso{animation:none;width:100%}}`,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block bg-bg-base px-5 pt-10 pb-18 md:px-8 md:pt-16 md:pb-24 xl:px-20 xl:pb-32' },
   template: `
     <div class="mx-auto flex max-w-[1200px] flex-col items-center gap-8 md:gap-12">
       <h2 class="text-center font-display text-[36px] leading-[1.25] tracking-[0.06em] uppercase [text-shadow:0_0_24px_rgb(196_43_62/0.6)] md:text-[56px]">{{ s()?.['titulo'] || ta().titulo }}</h2>
+      <gr-inscripciones-cerradas />
       <div class="flex w-full flex-col items-center gap-8 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
         <!-- Jaime 15-nov 11:11: a bigger iPhone with real, sharp screens (no Instagram template). Screen 1 is a story made with
              the athlete page's own generator (all in black and white, logos too; Jaime 11:37) and screen 4 the Fantasy pitch; (compartir-story · componer, 1080 × 1920) in the browser; the others are @3x
@@ -67,7 +69,7 @@ const TA = {
           <div class="relative aspect-[9/19.5] w-[min(64vw,270px)] rounded-[44px] border border-white/20 bg-[#0b0a0a] p-[9px] sm:w-[320px] sm:rounded-[50px] sm:p-[11px] lg:rounded-[56px] lg:p-[12px] shadow-[0_30px_80px_rgb(0_0_0/0.6)] lg:w-[360px]">
             <div class="relative flex size-full flex-col overflow-hidden rounded-[35px] bg-black sm:rounded-[39px] lg:rounded-[44px]">
               <!-- status bar (safe area): the Dynamic Island never covers the screen content -->
-              <div class="flex h-[6.5%] shrink-0 items-center justify-between px-[9%] text-[11px] font-semibold text-white sm:text-[13px]" aria-hidden="true"><span>9:41</span><span class="h-[9px] w-[20px] rounded-[3px] bg-white"></span></div>
+              <div class="flex h-[6.5%] shrink-0 items-center justify-between px-[9%] text-[11px] font-semibold text-white sm:text-[13px]" aria-hidden="true"></div>
               <div class="relative min-h-0 flex-1">
               @for (p of pantallas(); track p.src; let i = $index) {
                 <img [attr.srcset]="p.srcset ?? null" sizes="(min-width: 1024px) 336px, (min-width: 640px) 298px, min(calc(64vw - 18px), 252px)" [src]="p.src" [alt]="p.alt" loading="lazy" decoding="async" class="absolute inset-0 size-full transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none" [class]="(p.story ? 'object-contain ' : 'object-cover object-top ') + (i === slide() ? 'opacity-100 scale-100' : 'opacity-0 scale-[1.03]')" [attr.aria-hidden]="i !== slide() || null" />
@@ -186,17 +188,19 @@ const TE = {
     reserva: 'Reserva tu entrada gratis', horarios: 'Ver horarios', personas: (n: string) => n + ' personas ya tienen entrada',
     gratis: 'Entrada gratuita', puerta: 'Enséñalo en la puerta desde el móvil (no hace falta imprimirlo)', aforo: 'Aforo',
     sesion: (x: string) => 'Sesión de ' + x, puertas: (a: string, b: string) => 'Puertas ' + a + ' · hasta las ' + b,
-    acomp: 'Laura Gómez + 2 acompañantes', agotadas: 'Agotadas: apúntate a la lista de espera',
+    acomp: 'Tu nombre + 2 acompañantes', agotadas: 'Agotadas: apúntate a la lista de espera',
     ultimas: (n: number) => '¡Últimas ' + n + ' entradas!', quedan: (n: string) => 'Quedan ' + n + ' entradas',
   },
   en: {
     reserva: 'Book your free ticket', horarios: 'See schedule', personas: (n: string) => n + ' people already have a ticket',
     gratis: 'Free ticket', puerta: 'Show it at the door on your phone (no need to print it)', aforo: 'Capacity',
     sesion: (x: string) => x + ' session', puertas: (a: string, b: string) => 'Doors ' + a + ' · until ' + b,
-    acomp: 'Laura Gómez + 2 guests', agotadas: 'Sold out: join the waiting list',
+    acomp: 'Your name + 2 guests', agotadas: 'Sold out: join the waiting list',
     ultimas: (n: number) => 'Last ' + n + ' tickets!', quedan: (n: string) => n + ' tickets left',
   },
 };
+
+const esDomingo = (f: string) => new Date(f + 'T12:00:00Z').getUTCDay() === 0;
 
 const TX = {
   es: {
@@ -212,7 +216,7 @@ const TX = {
     nadie: 'Aún no sigues a ningún atleta', nadieTxt: 'Marca con ★ a tus atletas en «Todos» o «Detallado» y aquí verás solo sus horas.',
     buscarDet: 'Buscar atletas en Detallado', femenino: 'Femenino', masculino: 'Masculino', indep: 'Independiente',
     verLos: (n: number) => 'Ver los ' + n + ' atletas', sinAsig: 'Aún no hay atletas asignados.', cargando: 'Cargando atletas…',
-    completo: 'Ver horario completo', todos: 'Todos', detallado: 'Detallado',
+    completo: 'Ver horario completo', domingo: 'Horario del domingo próximamente', todos: 'Todos', detallado: 'Detallado',
     maps: 'Abrir en Google Maps', copiada: 'Dirección copiada', copiar: 'Copiar dirección', noEncuentras: '¿No encuentras tu respuesta?', escribenos: 'Escríbenos',
   },
   en: {
@@ -228,7 +232,7 @@ const TX = {
     nadie: 'You are not following any athletes yet', nadieTxt: 'Mark your athletes with ★ in «All» or «Detailed» and you will see only their times here.',
     buscarDet: 'Find athletes in Detailed', femenino: 'Female', masculino: 'Male', indep: 'Unattached',
     verLos: (n: number) => 'See all ' + n + ' athletes', sinAsig: 'No athletes assigned yet.', cargando: 'Loading athletes…',
-    completo: 'See full schedule', todos: 'All', detallado: 'Detailed',
+    completo: 'See full schedule', domingo: 'Sunday schedule coming soon', todos: 'All', detallado: 'Detailed',
     maps: 'Open in Google Maps', copiada: 'Address copied', copiar: 'Copy address', noEncuentras: 'Can’t find your answer?', escribenos: 'Write to us',
   },
 };
@@ -265,9 +269,6 @@ const TX = {
         </div>
         @if (entradas()?.personas) {
           <div class="flex items-center gap-3">
-            <span class="flex items-center" aria-hidden="true">
-              @for (a of avatares; track a) { <span class="-ml-2.5 flex size-8 items-center justify-center rounded-full border-2 border-bg-base bg-[linear-gradient(135deg,#58202b,#1b1718)] text-label-xs first:ml-0">{{ a }}</span> }
-            </span>
             <span class="text-body-s">{{ te().personas(num(entradas()!.personas)) }}</span>
           </div>
         }
@@ -277,7 +278,7 @@ const TX = {
         <div class="w-full max-w-[400px] overflow-hidden rounded-xl border border-accent/55 bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] shadow-card" aria-hidden="true">
           <div class="flex flex-col gap-3 px-5 pt-6 pb-4">
             <div class="flex items-center justify-between">
-              <img [attr.srcset]="logoSrcset" sizes="52px" [src]="logo" alt="" loading="lazy" decoding="async" class="h-8 w-auto" />
+              <img [attr.srcset]="logoSrcset" sizes="52px" [src]="logo" alt="Logo de la GRS Cup 2" loading="lazy" decoding="async" class="h-8 w-auto" />
               <span class="inline-flex h-6 items-center rounded-pill border border-white/25 bg-white/6 px-2.5 text-label-xs text-text-secondary">{{ te().gratis }}</span>
             </div>
             <p class="text-display-xs">{{ nombreTicket() }}</p>
@@ -291,8 +292,8 @@ const TX = {
             <span class="absolute top-0 -right-3 size-6 rounded-full border border-line-strong bg-bg-deep"></span>
           </div>
           <div class="flex flex-col items-center gap-2 px-5 pt-2 pb-6 text-center">
-            @if (qr()) { <img [src]="qr()" alt="" loading="lazy" decoding="async" class="size-[168px] rounded-[4px] bg-white" /> } @else { <span class="size-[168px] rounded-[4px] bg-white"></span> }
-            <span class="text-mono-s">GRC-7K3P</span>
+            @if (qr()) { <img [src]="qr()" alt="Código QR" loading="lazy" decoding="async" class="size-[168px] rounded-[4px] bg-white" /> } @else { <span class="size-[168px] rounded-[4px] bg-white"></span> }
+            
             <span class="text-body-xs text-text-tertiary">{{ te().puerta }}</span>
           </div>
         </div>
@@ -319,7 +320,6 @@ export class SecEntradas {
   protected readonly logo = LOGO;
   protected readonly logoSrcset = LOGO_SRCSET;
   protected readonly icons: GrIconName[] = ['ticket', 'users', 'trophy'];
-  protected readonly avatares = ['LG', 'CS', 'MR', 'JT'];
   protected readonly num = num;
   protected readonly qr = signal('');
   protected t = (k: string) => str(this.s(), k);
@@ -353,7 +353,8 @@ export class SecEntradas {
     const ss = (this.entradas()?.sesiones ?? []).filter((s) => s.aforo > 0);
     if (!ss.length) return null;
     const vivas = ss.filter((s) => s.libres > 0);
-    const s = (vivas.length ? vivas : ss).reduce((a, b) => (b.libres < a.libres ? b : a));
+    // BIZ-169: same session as the example ticket above, so the label matches it
+    const s = vivas.find((v) => v.id === this.primera()?.id) ?? (vivas.length ? vivas : ss).reduce((a, b) => (b.libres < a.libres ? b : a));
     const ultimas = s.libres > 0 && s.libres <= Math.max(10, s.aforo * 0.1);
     const nota = s.libres <= 0 ? this.te().agotadas : ultimas ? this.te().ultimas(s.libres) : this.te().quedan(num(s.libres));
     return { s, pct: Math.min(100, Math.round((s.ocupadas / s.aforo) * 100)), ultimas, nota };
@@ -502,7 +503,7 @@ export class SecAfiliaciones {
   host: { class: SECCION + ' bg-bg-deep' },
   template: `
     <div class="pointer-events-none absolute top-[120px] left-1/2 aspect-square w-full max-w-[720px] -translate-x-1/2 opacity-22 md:top-20">
-      <img [src]="(t('imagen') || '/img/home/categorias.webp') | cdn" alt="" class="size-full object-cover" loading="lazy" />
+      <img [src]="(t('imagen') || '/img/home/categorias.webp') | cdn" alt="Categorías de peso y edad de la GRS Cup 2" class="size-full object-cover" loading="lazy" />
       <div class="absolute inset-0 bg-[radial-gradient(closest-side,transparent_20%,#0e0c0d)]"></div>
     </div>
     <div [class]="ancho + ' flex flex-col items-center gap-6 md:gap-10'">
@@ -620,6 +621,9 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
             <button grButton variant="primary" type="button" (click)="elegir('detallado')">{{ tx().buscarDet }}</button>
           </div>
         }
+      } @else if (domingo()) {
+        <!-- BIZ-167: Sunday schedule not published yet -->
+        <div class="flex flex-col items-center gap-3 rounded-xl border border-dashed border-line-strong px-5 py-8 text-center"><gr-icon name="clock" [size]="24" /><p class="text-label-m">{{ tx().domingo }}</p></div>
       } @else {
         <ul class="flex flex-col gap-3">
           @for (r of filas(); track r.t + (r.flight?.id ?? r.item?.titulo)) {
@@ -708,7 +712,7 @@ export class SecHorarios {
   });
   /** Athletes of a slot: the ones in the JSON (old shape) or the loaded list. */
   protected ats(f: PubFlight): PubAtleta[] { return f.atletas?.length ? f.atletas : (this.listas()[f.id] ?? []); }
-  protected readonly dias = computed(() => (this.datos()?.dias ?? []).filter((d) => d.flights.length).map((d) => {
+  protected readonly dias = computed(() => (this.datos()?.dias ?? []).filter((d) => d.flights.length || esDomingo(d.fecha)).map((d) => {
     const e = new Intl.DateTimeFormat(this.i18n.locale(), { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(d.fecha + 'T12:00:00Z')).replace(',', '').replace('.', '');
     return { fecha: d.fecha, etiqueta: e, dia: d };
   }));
@@ -719,6 +723,8 @@ export class SecHorarios {
     return out;
   });
   protected readonly icsUrl = computed(() => `${ICS_URL}?atletas=${encodeURIComponent(this.misAtletas().map((m) => m.a.slug).join(','))}`);
+  /** BIZ-167: Sunday's schedule is not public yet. */
+  protected readonly domingo = computed(() => { const d = this.dias()[this.diaSel()]; return !!d && esDomingo(d.fecha); });
   protected readonly filas = computed<FilaHorario[]>(() => {
     const d = this.dias()[this.diaSel()]?.dia;
     if (!d) return [];
@@ -813,11 +819,11 @@ export class SecHorarios {
           <!-- desktop: the card is as tall as the photos and the map takes the spare height (Figma «Map card», map grows) -->
           <div class="flex w-full flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card lg:w-[520px] lg:self-stretch">
             <div class="relative aspect-[348/200] md:aspect-[518/300] lg:aspect-auto lg:min-h-[300px] lg:flex-1">
-              <img [src]="(t('mapa') || '/img/home/mapa.webp') | cdn" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" />
+              <img [src]="(t('mapa') || '/img/home/mapa.webp') | cdn" alt="Mapa de ubicación del pabellón de Almussafes" class="absolute inset-0 size-full object-cover" loading="lazy" />
               <span class="absolute right-2 bottom-2 rounded-[4px] bg-black/50 px-1.5 py-0.5 text-body-xs text-text-tertiary">© OpenStreetMap</span>
             </div>
             <div class="flex flex-col gap-3 p-5 md:p-7">
-              <p class="text-center text-display-xs">{{ t('nombreSede') || "Pabellón Municipal d'Almussafes" }}</p>
+              <p class="text-center text-display-xs">{{ t('nombreSede') || 'Pabellón Municipal de Almussafes' }}</p>
               <!-- Figma home R2: the town hall logo centred under the venue -->
               <img [src]="'/img/home/logo-almussafes-bn.webp' | cdn" alt="Ajuntament d'Almussafes" width="114" height="40" class="mx-auto h-10 w-auto" loading="lazy" decoding="async" />
               <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="map-pin" [size]="16" class="shrink-0 text-accent-text" />{{ direccion() }}</p>

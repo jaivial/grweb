@@ -67,7 +67,7 @@ var seedSecciones = map[string]any{
 }
 
 var seedFAQ = []faqIn{
-	{"Llegar", "¿Dónde se celebra la competición?", "En el Pabellón Municipal de Almussafes (Pavelló Poliesportiu, Avda. Laura Méndez s/n, 46440 Almussafes, Valencia). En la sección Localización tienes el mapa y el enlace a Google Maps.", true, true, enField{}},
+	{"Llegar", "¿Dónde se celebra la competición?", "En el Pabellón Municipal de Almussafes (Avda. Laura Méndez s/n, 46440 Almussafes, Valencia). En la sección Localización tienes el mapa y el enlace a Google Maps.", true, true, enField{}},
 	{"Atletas", "¿Cómo completo mi ficha de atleta?", "Rellena el [formulario de alta de atleta](/alta-atleta) con tu nombre, el email con el que te inscribiste en la AEP, tu club y tus mejores marcas. Añade una foto si quieres: se publica en blanco y negro y recortada. El equipo revisa cada solicitud a mano y, cuando la aprueba, tu ficha aparece en la [lista de atletas](/atletas).", true, true, enField{}},
 	{"Competición", "¿Cómo participo en la GR Cup?", "La inscripción y la lista de espera las gestiona la **AEP** y la plantilla está completa. Si compites en esta edición, lo que te falta es la ficha: [da de alta tu atleta](/alta-atleta) y te la revisamos a mano.", true, true, enField{}},
 	{"Competición", "¿Qué categorías de peso hay?", "Las categorías oficiales de la AEP para hombres y mujeres. Consulta la página de [categorías de peso](/categorias-de-peso).", true, true, enField{}},
@@ -82,17 +82,18 @@ var seedFAQ = []faqIn{
 var yes = true
 
 var seedPatro = []patroIn{
+	// BIZ-159: the 11 official sponsors; the four «principal» go first, bigger and in the hero. Empty logo = name as text.
+	{"GR Strength Coaching", "principal", "/img/home/patro-coa.webp", "", &yes, "", &enHero, "", 50, 50, "", enField{}},
+	{"GR Strength Club", "principal", "/img/home/patro-str.webp", "https://grstrength.com", &yes, "", &enHero, "", 50, 50, "", enField{}},
+	{"Ayuntamiento de Almussafes", "principal", "/img/home/patro-alm.webp", "https://www.almussafes.net", &yes, "", &enHero, "", 50, 50, "", enField{}},
+	{"GR Strength Alicante", "principal", "", "", &yes, "", &enHero, "", 50, 50, "", enField{}},
+	{"A7", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"Silentworker", "colaborador", "", "", &yes, "", nil, "", 50, 50, "", enField{}},
 	{"AEP", "institucional", bcdn + "sponsors/compressedAEP.webp", "https://powerliftingspain.es/", &yes, "Asociación Española de Powerlifting: avala la competición y aporta los jueces.", nil, "", 50, 50, "", enField{}},
-	{"A7", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
-	{"Maniak Fitness", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
-	{"Valkyria Powerlifting Center", "plata", logoValkyria, "", &yes, "", nil, "", 50, 50, "", enField{}},
-	{"PHED", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
-	{"CF Isabel Atlas", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
-	{"Gym Mediterrani", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
-	// BIZ-144: the three logos of the hero row (Figma 199:100283), the only ones with «Mostrar en hero» on.
-	{"GRStrength", "principal", "/img/home/patro-str.webp", "https://grstrength.com", &yes, "", &enHero, "", 50, 50, "", enField{}},
-	{"GRS Powerlifting Coaching", "principal", "/img/home/patro-coa.webp", "", &yes, "", &enHero, "", 50, 50, "", enField{}},
-	{"Ajuntament d'Almussafes", "institucional", "/img/home/patro-alm.webp", "https://www.almussafes.net", &yes, "", &enHero, "", 50, 50, "", enField{}},
+	{"Eleiko", "colaborador", "", "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"ER Strength Club", "colaborador", "", "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"KGXLB", "colaborador", "", "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"FER Entrenamiento", "colaborador", "", "", &yes, "", nil, "", 50, 50, "", enField{}},
 }
 
 var enHero = true
@@ -117,7 +118,7 @@ var seedPublico = map[string]any{
 	"normas": map[string]any{"eyebrow": "03 · Normas", "titulo": "En la", "tituloAcento": "grada",
 		"items": []map[string]string{{"texto": "Anima todo lo que quieras, pero guarda silencio cuando el atleta prepara el intento."}, {"texto": "No accedas a la zona de calentamiento ni a la plataforma."},
 			{"texto": "Foto y vídeo sin flash."}, {"texto": "Respeta los pasillos y salidas de emergencia."}}},
-	"interesar": map[string]any{"titulo": "Te puede interesar", "items": []map[string]string{{"titulo": "Cómo llegar", "texto": "Pabellón de Almussafes", "ruta": "/como-llegar"},
+	"interesar": map[string]any{"titulo": "Te puede interesar", "items": []map[string]string{{"titulo": "Cómo llegar", "texto": "Pabellón Municipal de Almussafes", "ruta": "/como-llegar"},
 		{"titulo": "Horarios", "texto": "Bloques por categoría", "ruta": "/horarios"}, {"titulo": "En directo", "texto": "Si no puedes venir", "ruta": "/en-directo"}}},
 }
 

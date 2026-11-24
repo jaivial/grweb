@@ -10,6 +10,9 @@ import {
   SchedulesSection,
   LocalizacionSection,
   RaffleSection,
+  HandlerSection,
+  IncognitoCompetitionSection,
+  NextEventSection,
 } from './components';
 import { fetchParticipantCount } from './lib/api';
 import { participantCount } from './atoms/state';
@@ -119,11 +122,20 @@ export function Home(): JSX.Element {
       {/* Weight Categories Section - Competition categories */}
       <WeightCategoriesSection />
 
+      {/* Handler Section - Free handler promo (GRS Coaching) */}
+      <HandlerSection />
+
       {/* Schedules Section - Competition schedule by date */}
       <SchedulesSection />
 
       {/* Localización Section - Venue information */}
       <LocalizacionSection />
+
+      {/* Incognito Competition Section - Abril 2027 Almussafes, reserva 40 € (BIZ-164) */}
+      <IncognitoCompetitionSection />
+
+      {/* Next Event Section - GRS Cup 3 «Avísame» */}
+      <NextEventSection />
       </main>
     </>
   );

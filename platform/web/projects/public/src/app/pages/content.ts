@@ -162,7 +162,7 @@ const location0 = (tipo: string) => LEGAL_PATHS[tipo] ?? '/';
       [stamp]="tipo() === 'blog' && p()?.publicadoAt ? fecha(p()!.publicadoAt!) : ''" [cabecera]="p() !== null || cms.failed()">
       @if (p() === undefined) { <gr-skeleton class="h-96 rounded-lg" /> }
       @else if (p() !== null) {
-        @if (p()!.portadaUrl) { <img [src]="p()!.portadaUrl | cdn" alt="" class="mb-10 aspect-[16/7] w-full max-w-4xl rounded-lg object-cover" /> }
+        @if (p()!.portadaUrl) { <img [src]="p()!.portadaUrl | cdn" [alt]="p()!.titulo" class="mb-10 aspect-[16/7] w-full max-w-4xl rounded-lg object-cover" /> }
         <article class="prose-gr max-w-3xl text-body-m" [innerHTML]="html()"></article>
       }
     </gr-page>

@@ -11,8 +11,8 @@ import TROFEO_PRECARGA from '../../../public/img/home/trofeo.webp' with { loader
 import { I18n, LocPipe } from '../core/i18n';
 
 const TXT = {
-  es: { titulo: 'Los ganadores nunca se rinden', desliza: 'Desliza', saltar: 'Saltar intro', cargando: 'Cargando la animación', cargandoVideo: 'Cargando vídeo…' },
-  en: { titulo: 'Winners never give up', desliza: 'Scroll', saltar: 'Skip intro', cargando: 'Loading the animation', cargandoVideo: 'Loading video…' },
+  es: { titulo: 'WHATEVER IT TAKES', desliza: 'Desliza', saltar: 'Saltar intro', cargando: 'Cargando la animación', cargandoVideo: 'Cargando vídeo…' },
+  en: { titulo: 'WHATEVER IT TAKES', desliza: 'Scroll', saltar: 'Skip intro', cargando: 'Loading the animation', cargandoVideo: 'Loading video…' },
 };
 
 const FRAMES = 313;
@@ -86,13 +86,13 @@ const PUFFS = [
           <!-- WebP frame only when needed (loader gone before the first seek, video failed, reduced motion): the
                trophy is hidden behind the loader and at opacity 0 at scroll 0, so it is never downloaded up front -->
           @if (imagenTrofeo(); as src) {
-            <img [src]="src" alt="" class="absolute inset-0 size-full object-cover" [class.hidden]="!imagenFija()" />
+            <img [src]="src" alt="Trofeo de la GRS Cup 2" class="absolute inset-0 size-full object-cover" [class.hidden]="!imagenFija()" />
           }
         </div>
       </div>
       <!-- U30 · Figma 54: background image with focal point; with motion it fades out with the intro text (U31-R1-15) -->
       @if (hero().imagen) {
-        <img [src]="hero().imagen | cdn" alt="" class="absolute inset-0 size-full object-cover" [style.opacity]="reduced() ? 0.6 : 0.6 * texto()" [style.object-position]="(hero().focalX ?? 50) + '% ' + (hero().focalY ?? 50) + '%'" />
+        <img [src]="hero().imagen | cdn" alt="Atleta compitiendo en la GRS Cup de powerlifting" class="absolute inset-0 size-full object-cover" [style.opacity]="reduced() ? 0.6 : 0.6 * texto()" [style.object-position]="(hero().focalX ?? 50) + '% ' + (hero().focalY ?? 50) + '%'" />
       }
       <!-- Smoke of the intro (clears and drifts away). Perf (iPhone): no filter:blur, the gradient's extra stops give the
            same soft edge; 12 blurred ~1000 px layers cost 200+ ms per frame on a weak GPU even with the hero still. -->
@@ -137,7 +137,7 @@ const PUFFS = [
             role="progressbar" [attr.aria-label]="t().cargando" [attr.aria-valuenow]="progresoIndeterminado() ? null : criticoPct()" aria-valuemin="0" aria-valuemax="100">
             <img [src]="trofeoPrecarga" alt="" class="h-[70px] w-20 animate-pulse object-contain" />
             <div class="h-2 w-64 overflow-hidden rounded-pill bg-bg-surface"><div class="h-full rounded-pill bg-[linear-gradient(90deg,#0e0c0d,#a82334)] transition-[width] duration-300" [class.animate-pulse]="progresoIndeterminado()" [style.width.%]="progresoIndeterminado() ? 100 : criticoPct()"></div></div>
-            <p class="text-body-s text-text-tertiary">@if (progresoIndeterminado()) { {{ t().cargandoVideo }} } @else { {{ criticoPct() }} % }</p>
+            <p class="text-body-s text-text-tertiary">@if (progresoIndeterminado() || !criticoPct()) { {{ t().cargandoVideo }} } @else { {{ criticoPct() }} % }</p>
           </div>
         }
       }

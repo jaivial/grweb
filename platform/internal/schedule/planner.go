@@ -21,17 +21,21 @@ type planSesion struct {
 // the only platform:
 //
 //   - women first, then men; lighter classes first; inside a class, by expected total;
-//   - groups of at most maxPorSesion, balanced (41 athletes with max 14 → 14 + 14 + 13);
+//   - groups of at most maxPorSesion that never split a weight class across two sessions (BIZ-168: no repeated
+//     class in the schedule); only a class bigger than maxPorSesion is split, balanced (41 → 14 + 14 + 13);
 //   - each session lasts minPorAtleta × athletes (rounded up to 5 min), starts when the previous one ends, skips the
 //     lunch break, waits for a free weigh-in table (at most mesasPesaje windows at once) and moves to the next day
-//     when it would end after the day's end. Sesiones that fit nowhere go after
-//     the last one (the planner flags them «fuera de horario»).
+//     when it would end after the day's end. Sesiones that fit nowhere are not created (their athletes stay
+//     «sin sesión»); athletes without a weight class are left out too.
 //
 // ocupado are the sessions that stay (the other competition): their time and weigh-in tables are taken.
 func generar(cfg Config, loc *time.Location, ats []atleta, ocupado []sesionRow) []planSesion {
 	var grupos [][]atleta
 	var f, m []atleta
 	for _, a := range ats {
+		if catKey(a.Categoria) == 999 {
+			continue // BIZ-168: no class → no session (stays «sin sesión» for a manual pick)
+		}
 		if a.Sexo == "F" {
 			f = append(f, a)
 		} else {
@@ -54,19 +58,50 @@ func generar(cfg Config, loc *time.Location, ats []atleta, ocupado []sesionRow) 
 			}
 			return strings.ToLower(a.Nombre) < strings.ToLower(b.Nombre)
 		})
-		n := int(math.Ceil(float64(len(g)) / float64(cfg.MaxPorSesion)))
-		base, extra := len(g)/n, len(g)%n
-		i := 0
-		for k := 0; k < n; k++ {
-			size := base
-			if k < extra {
-				size++
+		var cur []atleta
+		flush := func() {
+			if len(cur) > 0 {
+				trozos = append(trozos, cur)
+				cur = nil
 			}
-			trozos = append(trozos, g[i:i+size])
-			i += size
 		}
+		for i := 0; i < len(g); {
+			j := i
+			for j < len(g) && catKey(g[j].Categoria) == catKey(g[i].Categoria) {
+				j++
+			}
+			clase := g[i:j]
+			if len(clase) > cfg.MaxPorSesion {
+				flush()
+				trozos = append(trozos, balancear(clase, cfg.MaxPorSesion)...)
+			} else {
+				if len(cur)+len(clase) > cfg.MaxPorSesion {
+					flush()
+				}
+				cur = append(cur[:len(cur):len(cur)], clase...)
+			}
+			i = j
+		}
+		flush()
 	}
 	return colocar(cfg, loc, trozos, ocupado)
+}
+
+// balancear splits g into the fewest balanced groups of at most max (41 with max 14 → 14 + 14 + 13).
+func balancear(g []atleta, max int) [][]atleta {
+	n := int(math.Ceil(float64(len(g)) / float64(max)))
+	base, extra := len(g)/n, len(g)%n
+	var out [][]atleta
+	i := 0
+	for k := 0; k < n; k++ {
+		size := base
+		if k < extra {
+			size++
+		}
+		out = append(out, g[i:i+size])
+		i += size
+	}
+	return out
 }
 
 func tot(a atleta) float64 {
@@ -140,6 +175,7 @@ func colocar(cfg Config, loc *time.Location, trozos [][]atleta, ocupado []sesion
 		dur := (len(t)*cfg.MinPorAtleta + 4) / 5 * 5
 		var ini time.Time
 		plat := 0
+		cabeHoy := true
 		for {
 			plat = 0
 			for p := range libre {
@@ -151,11 +187,18 @@ func colocar(cfg Config, loc *time.Location, trozos [][]atleta, ocupado []sesion
 			ini = cabe(dia, libre[plat], dur)
 			// The earliest platform is the only candidate: if it does not fit today, no other platform does.
 			fin := dayTime(dia.Fecha, dia.Fin, loc)
-			if fin.IsZero() || !ini.Add(time.Duration(dur)*time.Minute).After(fin) || d == len(dias)-1 {
-				break // fits (on the last day it goes anyway and the planner flags it «fuera de horario»)
+			if fin.IsZero() || !ini.Add(time.Duration(dur)*time.Minute).After(fin) {
+				break // fits
+			}
+			if d == len(dias)-1 {
+				cabeHoy = false // BIZ-168: never past the end of the last day; its athletes stay «sin sesión»
+				break
 			}
 			d++
 			reset()
+		}
+		if !cabeHoy {
+			continue
 		}
 		ids := make([]uuid.UUID, len(t))
 		for i, a := range t {

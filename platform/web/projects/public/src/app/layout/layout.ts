@@ -56,7 +56,7 @@ const T = {
       ] },
       { titulo: 'Visita y comunidad', items: [
         { label: 'Entradas', desc: 'Gratis con reserva', href: '/entradas' },
-        { label: 'Cómo llegar', desc: 'Pabellón de Almussafes', href: '/como-llegar' },
+        { label: 'Cómo llegar', desc: 'Pabellón Municipal de Almussafes', href: '/como-llegar' },
         { label: 'Público', desc: 'Normas y servicios', href: '/publico' },
         { label: 'Preguntas frecuentes', desc: 'Resolvemos tus dudas', href: '/preguntas-frecuentes' },
         { label: 'Edición 2025', desc: 'Llíria · 1–2 marzo 2025', href: '/ediciones/2025' },
@@ -462,7 +462,7 @@ export class Footer {
   });
   protected readonly year = new Date().getFullYear();
   /** /sorteo is cash-only (D-RIFA): no payment badge there. */
-  protected readonly stripe = computed(() => !sinPrefijo(this.seo.path()).startsWith('/sorteo'));
+  protected readonly stripe = computed(() => /^\/(inscripcion|en-directo)/.test(sinPrefijo(this.seo.path())));
   private readonly comp = inject(Competition);
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);

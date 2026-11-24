@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -31,6 +32,7 @@ type MiEntrada struct {
 	Estado       string     `json:"estado" enum:"reservada,usada,anulada"`
 	ValidadaAt   *time.Time `json:"validadaAt,omitempty" doc:"Primer escaneo válido en la puerta (entradas usadas)"`
 	Sesion       SesionPub  `json:"sesion"`
+	Sesion2      *SesionPub `json:"sesion2,omitempty" doc:"Segunda sesión de una entrada de los dos días (sesion lleva entonces el nombre de ambas)"`
 	Lugar        string     `json:"lugar"`
 	PuedeCambiar bool       `json:"puedeCambiar"`
 	MaxPersonas  int        `json:"maxPersonas" doc:"Máximo al que puede subir (plazas libres y límite por reserva)"`
@@ -76,10 +78,11 @@ func (s *Svc) porToken(ctx context.Context, q interface {
 func (s *Svc) miEntrada(ctx context.Context, c compref.Comp, id uuid.UUID) (MiEntrada, error) {
 	var m MiEntrada
 	var sid uuid.UUID
+	var sid2 *uuid.UUID
 	var mail *string
-	if err := s.a.DB.QueryRow(ctx, `SELECT codigo, nombre, apellidos, email::text, personas, dentro, estado, sesion_id,
+	if err := s.a.DB.QueryRow(ctx, `SELECT codigo, nombre, apellidos, email::text, personas, dentro, estado, sesion_id, sesion2_id,
 		CASE WHEN consentimientos->>'novedades' = 'true' THEN 'si' WHEN consentimientos->>'novedadesNo' = 'true' THEN 'no' ELSE '' END FROM entradas WHERE id = $1`, id).
-		Scan(&m.Codigo, &m.Nombre, &m.Apellidos, &mail, &m.Personas, &m.Dentro, &m.Estado, &sid, &m.Novedades); err != nil {
+		Scan(&m.Codigo, &m.Nombre, &m.Apellidos, &mail, &m.Personas, &m.Dentro, &m.Estado, &sid, &sid2, &m.Novedades); err != nil {
 		return m, err
 	}
 	if mail != nil {
@@ -100,12 +103,31 @@ func (s *Svc) miEntrada(ctx context.Context, c compref.Comp, id uuid.UUID) (MiEn
 	}
 	now := time.Now()
 	m.Sesion = x.pub(now)
+	libres := m.Sesion.Libres
+	maxPor := x.MaxPorReserva
+	if sid2 != nil {
+		rows, err := s.a.DB.Query(ctx, selSesion+` WHERE s.id = $1`, *sid2)
+		if err != nil {
+			return m, err
+		}
+		y, err := pgx.CollectExactlyOneRow(rows, scanSesion)
+		if err != nil {
+			return m, err
+		}
+		p2 := y.pub(now)
+		m.Sesion2 = &p2
+		m.Sesion.Nombre, m.Sesion.Fin = dosDias(x, y).Nombre, y.Fin
+		libres, maxPor = min(libres, p2.Libres), min(maxPor, y.MaxPorReserva)
+	}
 	if m.Estado != "anulada" {
 		m.QR = s.qr(c.ID, m.Codigo)
 	}
 	m.Lugar = strings.Join(nonEmpty(c.Sede.Nombre, c.Sede.Ciudad), ", ")
+	if c.Sede.Ciudad != "" && strings.Contains(c.Sede.Nombre, c.Sede.Ciudad) {
+		m.Lugar = c.Sede.Nombre // BIZ-170: «Pabellón Municipal de Almussafes», no «…, Almussafes»
+	}
 	m.PuedeCambiar = m.Estado == "reservada" && now.Before(x.Inicio)
-	m.MaxPersonas = min(x.MaxPorReserva, m.Personas+m.Sesion.Libres)
+	m.MaxPersonas = min(maxPor, m.Personas+libres)
 	m.Compartir = s.webURL + "/entradas?ref=" + m.Codigo
 	return m, nil
 }
@@ -134,24 +156,32 @@ func (s *Svc) registerMiEntrada() {
 					return err
 				}
 				var sid uuid.UUID
+				var sid2 *uuid.UUID
 				var antes int
 				var estado string
-				if err := tx.QueryRow(ctx, `SELECT sesion_id, personas, estado FROM entradas WHERE id = $1`, id).Scan(&sid, &antes, &estado); err != nil {
+				if err := tx.QueryRow(ctx, `SELECT sesion_id, sesion2_id, personas, estado FROM entradas WHERE id = $1`, id).Scan(&sid, &sid2, &antes, &estado); err != nil {
 					return err
 				}
-				x, err := s.bloquearSesion(ctx, tx, cid, sid)
-				if err != nil {
-					return err
+				ids := []uuid.UUID{sid}
+				if sid2 != nil {
+					ids = append(ids, *sid2)
+					slices.SortFunc(ids, func(a, b uuid.UUID) int { return strings.Compare(a.String(), b.String()) })
 				}
 				n := in.Body.Personas
-				if estado != "reservada" || !time.Now().Before(x.Inicio) {
-					return problem.Conflict("NO_MODIFICABLE", "Esta entrada ya no se puede cambiar.")
-				}
-				if n > x.MaxPorReserva {
-					return problem.Unprocessable("DEMASIADAS_PERSONAS", fmt.Sprintf("Como mucho %d personas por reserva.", x.MaxPorReserva))
-				}
-				if n > antes && n-antes > x.Aforo-x.Usadas-x.Ofertas {
-					return problem.Conflict("AGOTADA", "No quedan plazas suficientes en esta sesión.")
+				for _, k := range ids {
+					x, err := s.bloquearSesion(ctx, tx, cid, k)
+					if err != nil {
+						return err
+					}
+					if estado != "reservada" || !time.Now().Before(x.Inicio) {
+						return problem.Conflict("NO_MODIFICABLE", "Esta entrada ya no se puede cambiar.")
+					}
+					if n > x.MaxPorReserva {
+						return problem.Unprocessable("DEMASIADAS_PERSONAS", fmt.Sprintf("Como mucho %d personas por reserva.", x.MaxPorReserva))
+					}
+					if n > antes && n-antes > x.Aforo-x.Usadas-x.Ofertas {
+						return problem.Conflict("AGOTADA", "No quedan plazas suficientes en esta sesión.")
+					}
 				}
 				if _, err := tx.Exec(ctx, `UPDATE entradas SET personas = $2, updated_at = now() WHERE id = $1`, id, n); err != nil {
 					return err
@@ -159,7 +189,12 @@ func (s *Svc) registerMiEntrada() {
 				if err := events.Enqueue(ctx, tx, events.New(ctx, "entrada.cambiada", map[string]any{"sesionId": sid, "antes": antes, "personas": n}, events.Competition(cid.String()), events.ForPermission("entradas.gestionar"))); err != nil {
 					return err
 				}
-				return s.aforoEvento(ctx, tx, cid, sid)
+				for _, k := range ids {
+					if err := s.aforoEvento(ctx, tx, cid, k); err != nil {
+						return err
+					}
+				}
+				return nil
 			})
 			if err != nil {
 				return nil, err
@@ -285,7 +320,8 @@ func (s *Svc) reenviar(ctx context.Context, tx pgx.Tx, c compref.Comp, id uuid.U
 	var mail *string
 	var personas int
 	var sid uuid.UUID
-	if err := tx.QueryRow(ctx, `SELECT codigo, nombre, apellidos, email::text, personas, sesion_id FROM entradas WHERE id = $1 AND estado <> 'anulada'`, id).Scan(&cod, &nombre, &ape, &mail, &personas, &sid); err != nil {
+	var sid2 *uuid.UUID
+	if err := tx.QueryRow(ctx, `SELECT codigo, nombre, apellidos, email::text, personas, sesion_id, sesion2_id FROM entradas WHERE id = $1 AND estado <> 'anulada'`, id).Scan(&cod, &nombre, &ape, &mail, &personas, &sid, &sid2); err != nil {
 		return problem.Conflict("ENTRADA_ANULADA", "Esta entrada está anulada.")
 	}
 	if mail == nil {
@@ -306,15 +342,27 @@ func (s *Svc) reenviar(ctx context.Context, tx pgx.Tx, c compref.Comp, id uuid.U
 	if err != nil {
 		return err
 	}
+	if sid2 != nil {
+		rows, err := tx.Query(ctx, selSesion+` WHERE s.id = $1`, *sid2)
+		if err != nil {
+			return err
+		}
+		y, err := pgx.CollectExactlyOneRow(rows, scanSesion)
+		if err != nil {
+			return err
+		}
+		x = dosDias(x, y)
+	}
 	return email(ctx, tx, c.ID, *mail, "entrada-confirmada", s.varsEntrada(c, x, cod, tok, nombre, ape, personas))
 }
 
 // anular cancels a ticket (its QR stops working), announces the freed places and, if asked, emails the holder.
 func (s *Svc) anular(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, motivo string, avisar bool) error {
 	var sid uuid.UUID
+	var sid2 *uuid.UUID
 	var estado, cod, nombre string
 	var mail *string
-	if err := tx.QueryRow(ctx, `SELECT sesion_id, estado, codigo, nombre, email::text FROM entradas WHERE id = $1 FOR UPDATE`, id).Scan(&sid, &estado, &cod, &nombre, &mail); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT sesion_id, sesion2_id, estado, codigo, nombre, email::text FROM entradas WHERE id = $1 FOR UPDATE`, id).Scan(&sid, &sid2, &estado, &cod, &nombre, &mail); err != nil {
 		return err
 	}
 	if estado == "anulada" {
@@ -328,13 +376,18 @@ func (s *Svc) anular(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, motivo s
 	}
 	if avisar && mail != nil {
 		var sesion string
-		_ = tx.QueryRow(ctx, `SELECT nombre FROM sesiones WHERE id = $1`, sid).Scan(&sesion)
+		_ = tx.QueryRow(ctx, `SELECT string_agg(nombre, ' + ' ORDER BY inicio) FROM sesiones WHERE id = $1 OR id = $2`, sid, sid2).Scan(&sesion)
 		if err := email(ctx, tx, cid, *mail, "entrada-anulada", map[string]string{"nombre": nombre, "codigo": cod, "sesion": sesion, "entradas": s.webURL + "/entradas"}); err != nil {
 			return err
 		}
 	}
 	if err := events.Enqueue(ctx, tx, events.New(ctx, "entrada.anulada", map[string]any{"codigo": cod, "sesionId": sid, "motivo": motivo}, events.Competition(cid.String()), events.ForPermission("entradas.gestionar"))); err != nil {
 		return err
+	}
+	if sid2 != nil {
+		if err := s.aforoEvento(ctx, tx, cid, *sid2); err != nil {
+			return err
+		}
 	}
 	return s.aforoEvento(ctx, tx, cid, sid)
 }

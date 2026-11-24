@@ -35,7 +35,7 @@ export const textoTitulo = (titulo: string, acento = '') => trozosTitulo(titulo,
   host: { class: 'block [text-shadow:0_2px_20px_rgb(0_0_0/0.8)]' },
   template: `
     @for (l of lineas(); track $index) {
-      <span [class.block]="lineas().length > 1">@for (t of l; track $index) {<span [class]="t.acento ? acento_ : ''">{{ t.t }}</span>}</span>
+      <span [class.block]="lineas().length > 1">@for (t of l; track $index) {<span [class]="t.acento ? acento_ : ''">{{ t.t }}</span>}</span>{{ $last ? '' : ' ' }}
     }
   `,
 })

@@ -138,6 +138,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerInscripcion()
 	s.registerInscripcionAdmin()
 	s.registerAltaAtleta()
+	s.registerHandlerGratis()
 	s.registerAltaAtletaAdmin()
 	s.registerAltaCupos()
 	a.Go(s.expirador)

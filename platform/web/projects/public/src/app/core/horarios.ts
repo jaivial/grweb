@@ -31,9 +31,15 @@ type DiaApi = Partial<PubDia> & { fecha: string };
 
 /** The schedule API is moving from `flights` to `horarios` (no flights, no platform numbers): accept both shapes. */
 export function normalizar(h: Horarios & { dias: DiaApi[] }): Horarios {
+  const dias: DiaApi[] = [...(h.dias ?? [])];
+  // BIZ-167: the event is Saturday + Sunday; if only Saturday is published, add an empty Sunday («próximamente»).
+  const ult = dias[dias.length - 1];
+  if (ult && new Date(ult.fecha + 'T12:00:00Z').getUTCDay() === 6) {
+    dias.push({ fecha: new Date(Date.parse(ult.fecha + 'T12:00:00Z') + 864e5).toISOString().slice(0, 10) });
+  }
   return {
     ...h,
-    dias: (h.dias ?? []).map((d) => {
+    dias: dias.map((d) => {
       const lista = (d.horarios ?? d.flights ?? []).map((x) => ({ ...x, atletas: x.atletas ?? [] }));
       return { ...d, agenda: d.agenda ?? [], horarios: lista, flights: lista };
     }),

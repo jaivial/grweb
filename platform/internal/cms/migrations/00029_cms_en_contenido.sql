@@ -6,7 +6,7 @@ UPDATE secciones s SET
   en_publicado = CASE WHEN s.en_publicado = '{}' THEN v.en::jsonb ELSE s.en_publicado END,
   en_borrador = CASE WHEN s.en_borrador = '{}' THEN v.en::jsonb ELSE s.en_borrador END
 FROM (VALUES
-('home', 'hero', $j$ {"titulo": "Winners never give up"}$j$),
+('home', 'hero', $j$ {"titulo": "WHATEVER IT TAKES"}$j$),
 ('home', 'campeonato', $j$ {"titulo": "Powerlifting championship"}$j$),
 ('home', 'cifras', $j$ {"items": [{"etiqueta": "Athletes competing"}, {"etiqueta": "Weight classes"}, {"etiqueta": "Lifts: S · B · D"}, {"etiqueta": "Official referees"}]}$j$),
 ('home', 'alta-atleta', $j$ {"cta": "Register my athlete", "texto": "If you are competing at the GR Cup 2026, create your athlete profile: photo, club and personal bests. We review it by hand and it stays private until you choose to publish it from the athlete area.", "titulo": "Create your athlete profile", "eyebrow": "GR Cup 2026 · Athlete registration"}$j$),
@@ -19,7 +19,7 @@ FROM (VALUES
 ('home', 'sorteo', $j$ {"texto": "During the competition we raffle off donated kit and prizes. Tickets are sold at the raffle stand, cash only.", "titulo": "*Kit* raffle at the venue"}$j$),
 ('home', 'categorias', $j$ {"texto": "Official AEP weight classes for men and women.", "titulo": "Weight *classes*", "eyebrow": "05 · Competition", "ctaTexto": "To qualify for other AEP competitions (official PDF).", "ctaTitulo": "Check the qualifying totals"}$j$),
 ('home', 'horarios', $j$ {"titulo": "Schedule", "eyebrow": "06 · Programme"}$j$),
-('home', 'localizacion', $j$ {"texto": "Pavelló Municipal d'Almussafes (Valencia).", "titulo": "Location", "eyebrow": "07 · Venue", "imagenes": [{"alt": "Entrance to the Almussafes sports hall"}, {"alt": "Sports hall stands"}, {"alt": "Sports hall facilities"}, {"alt": "Main court of the sports hall"}]}$j$),
+('home', 'localizacion', $j$ {"texto": "Pabellón Municipal de Almussafes (Valencia).", "titulo": "Location", "eyebrow": "07 · Venue", "imagenes": [{"alt": "Entrance to the Almussafes sports hall"}, {"alt": "Sports hall stands"}, {"alt": "Sports hall facilities"}, {"alt": "Main court of the sports hall"}]}$j$),
 ('home', 'faq', $j$ {"titulo": "Everything you *need to know*", "eyebrow": "08 · Frequently asked questions"}$j$),
 ('home', 'patrocinadores', $j$ {"titulo": "Sponsors and partners"}$j$),
 ('publico', 'intro', $j$ {"texto": "The platform is open to the public. Here is what you will see, how an attempt is judged and how to follow it from the stands.", "titulo": "Come and watch", "eyebrow": "Come and see it", "tituloAcento": "the competition"}$j$),
@@ -33,7 +33,7 @@ WHERE s.pagina = v.pagina AND s.clave = v.clave AND (s.en_publicado = '{}' OR s.
 
 UPDATE faq f SET en = v.en::jsonb
 FROM (VALUES
-('¿Dónde se celebra la competición?', $j$ {"categoria": "Getting there", "pregunta": "Where is the competition held?", "respuesta": "At the Pavelló Municipal d'Almussafes (Pavelló Poliesportiu, Avda. Laura Méndez s/n, 46440 Almussafes, Valencia). The Location section has the map and a link to Google Maps."}$j$),
+('¿Dónde se celebra la competición?', $j$ {"categoria": "Getting there", "pregunta": "Where is the competition held?", "respuesta": "At the Pabellón Municipal de Almussafes (Avda. Laura Méndez s/n, 46440 Almussafes, Valencia). The Location section has the map and a link to Google Maps."}$j$),
 ('¿Cómo completo mi ficha de atleta?', $j$ {"categoria": "Athletes", "pregunta": "How do I complete my athlete profile?", "respuesta": "Fill in the [athlete registration form](/alta-atleta) with your name, the email you used to register with the AEP, your club and your personal bests. Add a photo if you like: it is published in black and white and cropped. The team reviews every application by hand and, once approved, your profile appears in the [athlete list](/atletas)."}$j$),
 ('¿Cómo participo en la GRS Cup 2?', $j$ {"categoria": "Competition", "pregunta": "How do I take part in the GRS Cup 2?", "respuesta": "Entries and the waiting list are managed by the **AEP** and the line-up is full. If you are competing in this edition, all you need is your profile: [register your athlete](/alta-atleta) and we will review it by hand."}$j$),
 ('¿Qué categorías de peso hay?', $j$ {"categoria": "Competition", "pregunta": "What weight classes are there?", "respuesta": "The official AEP weight classes for men and women. See the [weight classes](/categorias-de-peso) page."}$j$),
