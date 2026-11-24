@@ -20,6 +20,10 @@ export interface Sitio {
   distancia?: string;
   /** «Desde 65 €/noche», «Pase de día ~10 €». */
   precio?: string;
+  /** English «precio». */
+  precioEn?: string;
+  telefono?: string;
+  email?: string;
   web?: string;
   imagen?: string;
   /** Exact Google Maps link (overrides the search built by mapaDe). */
@@ -106,7 +110,14 @@ const T = {
                       <p class="flex flex-wrap items-center gap-x-1.5 text-body-xs text-text-secondary">
                         @if (s.distancia) { <span>{{ s.distancia }}</span> }
                         @if (s.distancia && s.precio) { <span aria-hidden="true">·</span> }
-                        @if (s.precio) { <span>{{ s.precio }}</span> }
+                        @if (s.precio) { <span>{{ (lang() === 'en' && s.precioEn) || s.precio }}</span> }
+                      </p>
+                    }
+                    @if (s.telefono || s.email) {
+                      <p class="flex flex-wrap items-center gap-x-1.5 text-body-xs text-text-secondary">
+                        @if (s.telefono) { <a [href]="'tel:' + s.telefono.replaceAll(' ', '')" class="hover:underline">{{ s.telefono }}</a> }
+                        @if (s.telefono && s.email) { <span aria-hidden="true">·</span> }
+                        @if (s.email) { <a [href]="'mailto:' + s.email" class="hover:underline">{{ s.email }}</a> }
                       </p>
                     }
                     <div class="mt-auto flex gap-4 pt-2">
@@ -148,19 +159,27 @@ export class DondeDormirPage {
   }
 }
 
-// Provisional places (OpenStreetMap and the web of each place, November 2026): edit these lists.
+// Hotels: «Dónde alojarse» document (official hotel webs, 24 Nov 2026; GRS rates agreed by the group). Edit these lists.
 const HOTELES: Sitio[] = [
-  { nombre: 'Hotel Bartos', detalle: 'Carrer del Mestre Medina, Almussafes', web: 'https://www.hotelbartos.com/' },
-  { nombre: 'Ramada by Wyndham Valencia Almussafes', detalle: 'Avinguda de la Foia, Almussafes', web: 'https://www.wyndhamhotels.com/es-xl/ramada/almussafes-spain/ramada-valencia-almussafes/overview' },
-  { nombre: 'Hotel Isabel', detalle: 'Carrer de Salvador Botella, Almussafes' },
-  { nombre: 'Pensión Nadal', detalle: 'Carrer de la Lira Almussafense, 6, Almussafes' },
+  {
+    nombre: 'Hotel Key Reig', detalle: 'Carrer dels Llauradors, 13, 46440 Almussafes, Valencia',
+    precio: 'Tarifa GRS: 60 € en habitación doble (precio especial de grupo)', precioEn: 'GRS rate: €60 per double room (special group price)',
+    telefono: '+34 615 872 444', email: 'info@hotelkeyreig.com',
+    descripcion: 'Para reservar: llamar al hotel e indicar que se viene con el grupo GRS. Hotel urbano renovado, dentro del casco urbano de Almussafes y con buena conexión con la AP-7/A-7 hacia Valencia. 48 habitaciones con baño privado, TV y aire acondicionado: individuales, dobles y compartidas (hasta 4 personas). Wi-Fi de alta velocidad, desayuno tipo buffet, coworking, comedor, gimnasio, lavandería y traslado al aeropuerto. Acceso con código inteligente y check-in 24 horas.',
+    descripcionEn: 'To book: call the hotel and say you are coming with the GRS group. Renovated urban hotel in the town centre of Almussafes, well connected to the AP-7/A-7 towards Valencia. 48 rooms with private bathroom, TV and air conditioning: single, double and shared (up to 4 people). High-speed Wi-Fi, buffet breakfast, coworking, dining room, gym, laundry and airport transfer. Smart-code access and 24-hour check-in.',
+    web: 'https://www.hotelkeyreig.com/', maps: 'https://www.google.com/maps/search/?api=1&query=Hotel+Key+Reig+Almussafes',
+  },
+  {
+    nombre: 'Ramada by Wyndham Valencia Almussafes', detalle: 'Avenida de la Foia, s/n, 46440 Almussafes, Valencia',
+    precio: 'Tarifa GRS: 99 € con desayuno incluido (tarifa especial)', precioEn: 'GRS rate: €99 with breakfast included (special rate)',
+    telefono: '+34 961 744 300', email: 'reservas@ramadavalencia.com',
+    descripcion: 'Para reservar: indicar "reserva GRS" (enlace de reserva facilitado por el grupo). Hotel de 3 estrellas junto a la AP-7, a unos 30 km del aeropuerto de Valencia y al lado del parque empresarial Juan Carlos I y la factoría Ford. Piscina exterior, gimnasio 24 horas, restaurante de desayunos, bar, parking gratuito, Wi-Fi de alta velocidad, recepción 24 horas y salas para eventos.',
+    descripcionEn: 'To book: say "reserva GRS" (booking link provided by the group). 3-star hotel next to the AP-7, about 30 km from Valencia airport, beside the Juan Carlos I business park and the Ford factory. Outdoor pool, 24-hour gym, breakfast restaurant, bar, free parking, high-speed Wi-Fi, 24-hour reception and event rooms.',
+    web: 'https://ramada-wyndham-valencia-almussafes.bookstaygo.com/', maps: 'https://www.google.com/maps/search/?api=1&query=Ramada+by+Wyndham+Valencia+Almussafes',
+  },
 ];
 const APARTAMENTOS: Sitio[] = [];
-const RESTAURANTES: Sitio[] = [
-  { nombre: 'Casa La Cuesta', detalle: "Carrer d'Ausiàs March, Almussafes" },
-  { nombre: 'Cervecería Enjoy', detalle: "Ronda de l'Historiador Lluís Duart Alabarta, Almussafes" },
-  { nombre: 'Bar Polideportivo', detalle: 'Ronda Antoni Ludeña, Almussafes' },
-];
+const RESTAURANTES: Sitio[] = [];
 // BIZ-173: «Gimnasios de powerlifting» document + its Google Maps links (24 Nov 2026).
 export const GIMNASIOS: Sitio[] = [
   { nombre: 'F.E.R Entrenamiento', detalle: 'Polígono Industrial Canyada dels Codonyers, calle 13, nº 11, nave 9, 46220 Picassent', web: 'https://ferentrenamiento.wodbuster.com', maps: 'https://maps.app.goo.gl/U6JRbXb7iw7wTuC78',
@@ -184,7 +203,7 @@ export const GIMNASIOS: Sitio[] = [
 ];
 
 const SECCIONES: Seccion[] = [
-  { id: 'hoteles', eyebrow: { es: 'Dormir', en: 'Stay' }, titulo: { es: 'Hoteles *cerca*', en: 'Hotels *nearby*' }, texto: { es: 'A pocos minutos del pabellón. Reserva con tiempo: el fin de semana de la competición la zona se llena.', en: 'A few minutes from the sports hall. Book early: the area fills up on competition weekend.' }, icono: 'building', sitios: HOTELES },
+  { id: 'hoteles', eyebrow: { es: 'Dormir', en: 'Stay' }, titulo: { es: 'Hoteles *cerca*', en: 'Hotels *nearby*' }, texto: { es: 'Los dos hoteles de Almussafes con tarifa especial para el grupo GRS.', en: 'The two hotels in Almussafes with a special rate for the GRS group.' }, icono: 'building', sitios: HOTELES },
   { id: 'apartamentos', eyebrow: { es: 'Dormir', en: 'Stay' }, titulo: { es: 'Apartamentos *turísticos*', en: 'Holiday *apartments*' }, texto: { es: 'Para equipos y grupos que vienen varios días.', en: 'For teams and groups staying several days.' }, icono: 'home', sitios: APARTAMENTOS },
   { id: 'comer', eyebrow: { es: 'Comer', en: 'Eat' }, titulo: { es: 'Dónde *comer*', en: 'Where to *eat*' }, texto: { es: 'Restaurantes y bares cerca del pabellón para antes y después de la competición.', en: 'Restaurants and bars near the sports hall for before and after the competition.' }, icono: 'star', sitios: RESTAURANTES },
   { id: 'gimnasios', eyebrow: { es: 'Entrenar', en: 'Train' }, titulo: { es: 'Gimnasios de powerlifting *donde entrenar*', en: 'Powerlifting gyms *to train at*' }, texto: { es: 'Gimnasios en Almussafes, Picassent, Benifaió y Valencia para entrenar los días previos.', en: 'Gyms in Almussafes, Picassent, Benifaió and Valencia to train at in the days before.' }, icono: 'trophy', sitios: GIMNASIOS },
