@@ -3,7 +3,7 @@ import { DestroyRef, Directive, ElementRef, PLATFORM_ID, afterNextRender, inject
 import { cdn } from '@grcup/ui';
 
 /** Halo of each metal (Figma «Halo · Oro / Plata / Bronce»). */
-const HALO = { gold: 'rgb(212 175 55 / 0.55)', silver: 'rgb(192 196 204 / 0.45)', bronze: 'rgb(200 131 90 / 0.5)' };
+const HALO = { gold: 'rgb(212 175 55 / 0.4)', silver: 'rgb(192 196 204 / 0.3)', bronze: 'rgb(200 131 90 / 0.35)' };
 
 /**
  * Hanging medal with the physics of Figma page 79 («Medallas 3D · Podio»), as a damped pendulum around the top of the
@@ -64,11 +64,16 @@ export class MedallaFisica {
           const colocar = () => {
             k = el.offsetWidth / this.ancho();
             Object.assign(m.canvas.style, { left: x * k + 'px', top: y * k + 'px', width: w * k + 'px', height: h * k + 'px' });
-            // the image keeps the ribbon down to the tab of the disc (its baked face and halo are hidden)
-            if (img) img.style.clipPath = `inset(0 0 ${Math.max(0, el.offsetHeight - (y + h * 0.12) * k)}px 0)`;
+            // the image keeps the ribbon and fades out over the tab of the disc: its baked medal and halo are hidden
+            // under the canvas with no hard edge (a soft mask, not a clip)
+            if (img) {
+              const m = `linear-gradient(#000 ${(y - h * 0.08) * k}px, transparent ${(y + h * 0.18) * k}px)`;
+              img.style.maskImage = m;
+              img.style.webkitMaskImage = m;
+            }
           };
           m.canvas.setAttribute('aria-hidden', 'true');
-          Object.assign(m.canvas.style, { position: 'absolute', filter: `drop-shadow(0 0 ${Math.round(w / 7)}px ${HALO[metal]})` });
+          Object.assign(m.canvas.style, { position: 'absolute', filter: `drop-shadow(0 0 ${Math.round(w / 10)}px ${HALO[metal]})` });
           colocar();
           m.pintar(w * k, h * k, 0);
           el.appendChild(m.canvas);

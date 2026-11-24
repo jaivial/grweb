@@ -1,4 +1,4 @@
-import { ACESFilmicToneMapping, Box3, Object3D, OrthographicCamera, PMREMGenerator, SRGBColorSpace, Scene, Vector3, WebGLRenderer, type Texture } from 'three';
+import { ACESFilmicToneMapping, Box3, Mesh, MeshStandardMaterial, Object3D, OrthographicCamera, PMREMGenerator, SRGBColorSpace, Scene, Vector3, WebGLRenderer, type Texture } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
@@ -18,6 +18,8 @@ function contexto() {
     r.setClearColor(0, 0);
     r.outputColorSpace = SRGBColorSpace;
     r.toneMapping = ACESFilmicToneMapping;
+    // Figma 199:210: dark face, the metal only on the rim and the relief (not a fully bright disc)
+    r.toneMappingExposure = 0.7;
     const pm = new PMREMGenerator(r);
     gl = { r, env: pm.fromScene(new RoomEnvironment(), 0.04).texture };
     pm.dispose();
@@ -27,7 +29,19 @@ function contexto() {
 
 export async function medalla3d(url: string) {
   const { r, env } = contexto();
-  if (!glbs.has(url)) glbs.set(url, new GLTFLoader().loadAsync(url).then((g) => g.scene));
+  if (!glbs.has(url))
+    glbs.set(
+      url,
+      new GLTFLoader().loadAsync(url).then((g) => {
+        // polished metal: the flat face mirrors the dark room (Figma 199:210 dark face) and only the bevelled rim and
+        // the relief catch the light
+        g.scene.traverse((o) => {
+          const m = (o as Mesh).material as MeshStandardMaterial | undefined;
+          if (m?.isMeshStandardMaterial) m.roughness = 0.3;
+        });
+        return g.scene;
+      }),
+    );
   const modelo = (await glbs.get(url)!).clone(true);
   const caja = new Box3().setFromObject(modelo);
   const tam = caja.getSize(new Vector3());
