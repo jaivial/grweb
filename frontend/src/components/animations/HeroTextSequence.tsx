@@ -6,7 +6,7 @@ export interface HeroTextSequenceProps {
   className?: string;
 }
 
-const HERO_TEXT = 'Los ganadores nunca se rinden';
+const HERO_TEXT = 'WHATEVER IT TAKES';
 const LOGO_SRC = '/grcuplogo.png';
 
 const TEXT_FADE_START = 0.02;

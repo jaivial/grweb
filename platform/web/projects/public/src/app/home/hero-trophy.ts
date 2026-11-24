@@ -11,8 +11,8 @@ import TROFEO_PRECARGA from '../../../public/img/home/trofeo.webp' with { loader
 import { I18n, LocPipe } from '../core/i18n';
 
 const TXT = {
-  es: { titulo: 'Los ganadores nunca se rinden', desliza: 'Desliza', saltar: 'Saltar intro', cargando: 'Cargando la animación', cargandoVideo: 'Cargando vídeo…' },
-  en: { titulo: 'Winners never give up', desliza: 'Scroll', saltar: 'Skip intro', cargando: 'Loading the animation', cargandoVideo: 'Loading video…' },
+  es: { titulo: 'WHATEVER IT TAKES', desliza: 'Desliza', saltar: 'Saltar intro', cargando: 'Cargando la animación', cargandoVideo: 'Cargando vídeo…' },
+  en: { titulo: 'WHATEVER IT TAKES', desliza: 'Scroll', saltar: 'Skip intro', cargando: 'Loading the animation', cargandoVideo: 'Loading video…' },
 };
 
 const FRAMES = 313;
