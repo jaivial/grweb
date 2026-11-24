@@ -20,7 +20,7 @@ const bcdn = "https://jaimedigitalstudio.b-cdn.net/grcup/"
 const img = "/img/home/"
 
 var seedSecciones = map[string]any{
-	"hero":       map[string]any{"titulo": "Los ganadores nunca se rinden"},
+	"hero":       map[string]any{"titulo": "WHATEVER IT TAKES"},
 	"campeonato": map[string]any{"titulo": "Campeonato de powerlifting", "subtitulo": "", "aviso": ""},
 	"cifras": map[string]any{"items": []map[string]string{{"valor": "150", "etiqueta": "Atletas en competición"}, {"valor": "18", "etiqueta": "Categorías de peso"},
 		{"valor": "3", "etiqueta": "Movimientos: S · B · D"}, {"valor": "AEP", "etiqueta": "Jueces oficiales"}}},

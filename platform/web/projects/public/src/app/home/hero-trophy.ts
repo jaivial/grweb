@@ -68,7 +68,9 @@ const PUFFS = [
   host: { class: 'relative isolate z-0 block' },
   template: `
     <!-- contain:paint: WebKit does not clip blurred, transformed puffs with overflow alone -->
-    <div class="sticky top-0 h-dvh overflow-hidden bg-bg-base [contain:paint]">
+    <!-- BIZ-192: stable height (px fixed by JS on load / width change; svh before hydration), never dvh: the iOS
+         Safari toolbar resized it mid-scroll and every %-centred layer (video, logo, title) jumped -->
+    <div class="sticky top-0 h-[var(--gr-hero-h,100svh)] overflow-hidden bg-bg-base [contain:paint]">
       <!-- «Fondo»: grey at the top while the smoke is on screen (Figma intro), base later. It leaves while the trophy is
            shown, so the trophy's baked edges (faded to #141112) meet a flat bg-base and never show a box. -->
       <div class="absolute inset-0 bg-[linear-gradient(180deg,#3a3435_0%,#252021_65%,#141112_100%)]" [style.opacity]="humo() * (1 - trofeo())"></div>
@@ -115,7 +117,7 @@ const PUFFS = [
       <!-- Bottom fade (300 px, base) -->
       <div class="pointer-events-none absolute inset-x-0 bottom-0 h-[300px] bg-[linear-gradient(180deg,transparent,#141112)]"></div>
       <!-- Intro (Figma home R2): GRS CUP 2 logo and tagline; dates, place and organiser logos moved to «Campeonato» -->
-      <div class="gr-intro pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-5 pb-[12dvh] text-center" [style.opacity]="texto()">
+      <div class="gr-intro pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-5 pb-[calc(var(--gr-hero-h,100svh)*0.04+var(--gr-sobre-h,0px))] text-center lg:pb-[calc(var(--gr-hero-h,100svh)*0.12)]" [style.opacity]="texto()">
         <img [attr.srcset]="logoSrcset" sizes="(min-width: 768px) 318px, 201px" [src]="logo" alt="GRS Cup 2" class="h-[clamp(80px,30vw,125px)] w-auto select-none md:h-[198px]" draggable="false" fetchpriority="high" />
         @if (hero().eyebrow) { <p class="gr-intro-extra mt-10 text-label-xs tracking-[0.12em] text-accent-text uppercase">{{ hero().eyebrow }}</p> }
         <h2 class="max-w-[1000px] font-monster text-[clamp(22px,8vw,30px)] leading-[1.05] tracking-[-0.01em] uppercase [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-[56px]" [class]="hero().eyebrow ? 'mt-3' : 'mt-3 md:mt-1'">{{ titulo() || t().titulo }}</h2>
@@ -152,14 +154,14 @@ const PUFFS = [
       -webkit-mask-composite: source-in; mask-composite: intersect;
     }
     @media (min-width: 768px) { :host { height: 460vh; } }
-    @media (prefers-reduced-motion: reduce) { :host { height: 100dvh; } }
+    @media (prefers-reduced-motion: reduce) { :host { height: var(--gr-hero-h, 100svh); } }
     /* Was radial(32 % → 12 % at 60 % → 0) + blur(80px): the blur spread the falloff, so the stops ease out instead */
     .gr-puff { background: radial-gradient(closest-side, rgb(138 138 138 / 0.2), rgb(120 120 120 / 0.16) 25%, rgb(100 100 100 / 0.09) 55%, rgb(90 90 90 / 0.03) 80%, transparent); }
     /* UX1-R1-7 / R2-2: short viewports (iPhone SE, zoom 200 %, landscape): compact intro so «Saltar intro» never sits on the text */
     @media (max-width: 767px) and (max-height: 700px) {
       .gr-intro { top: 72px; justify-content: flex-start; padding-bottom: 0; }
-      .gr-intro > * + * { margin-top: 3dvh !important; }
-      .gr-intro > img:first-child { height: min(30vw, 18dvh, 125px); }
+      .gr-intro > * + * { margin-top: 3svh !important; }
+      .gr-intro > img:first-child { height: min(30vw, 18svh, 125px); }
     }
     /* UX1-R3-1: at 320×568 the compact CTA reaches «Desliza»; «Saltar intro» already tells the user to scroll */
     @media (max-width: 767px) and (max-height: 620px) {
@@ -168,7 +170,7 @@ const PUFFS = [
     @media (max-height: 560px) {
       .gr-intro { top: 64px; justify-content: flex-start; padding-bottom: 0; }
       .gr-intro > * + * { margin-top: 12px !important; }
-      .gr-intro > img:first-child { height: min(30vw, 14dvh, 125px); }
+      .gr-intro > img:first-child { height: min(30vw, 14svh, 125px); }
       /* zoom 200 % / landscape: only logo, title and date fit above «Saltar intro»; the booking CTA stays in the navbar and the bottom bar */
       .gr-intro-extra { display: none; }
       .gr-desliza { display: none; }
@@ -241,13 +243,27 @@ export class HeroTrophy {
   private io?: IntersectionObserver;
   private readonly framesListos = new Set<number>();
   private framesCargando = false;
-  private anchoVista = 0;
   private altoVista = 0;
 
   constructor() {
     const destroy = inject(DestroyRef);
     afterNextRender(() => {
       if (!this.browser) return;
+      // BIZ-192: viewport height in px, refreshed only when the width changes (rotation, window resize), not when the
+      // iOS toolbar shows/hides; the host also uses it so its scroll span stays fixed
+      const hostEl = this.host.nativeElement as HTMLElement;
+      // (desktop windows have no toolbar to hide: there a height-only resize refreshes it too)
+      let anchoAlto = 0;
+      const tactil = window.matchMedia('(pointer: coarse)').matches;
+      const fijarAlto = () => {
+        if (tactil && window.innerWidth === anchoAlto) return;
+        anchoAlto = window.innerWidth;
+        this.altoVista = window.innerHeight;
+        hostEl.style.setProperty('--gr-hero-h', this.altoVista + 'px');
+      };
+      fijarAlto();
+      window.addEventListener('resize', fijarAlto, { passive: true });
+      destroy.onDestroy(() => window.removeEventListener('resize', fijarAlto));
       const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       this.reduced.set(reduced);
       if (reduced) {
@@ -344,10 +360,7 @@ export class HeroTrophy {
 
   private measure(): void {
     const r = this.host.nativeElement.getBoundingClientRect();
-    // iOS Safari: innerHeight grows when the toolbar hides mid-scroll; the largest height seen at this width keeps the
-    // progress from jumping back (the host is in vh = the large viewport, so this matches it once the bar is gone).
-    if (window.innerWidth !== this.anchoVista) { this.anchoVista = window.innerWidth; this.altoVista = 0; }
-    this.altoVista = Math.max(this.altoVista, window.innerHeight);
+    // BIZ-192: the sticky stage is altoVista px tall (fixed per width), so the span never moves with the iOS toolbar
     const span = r.height - this.altoVista;
     if (span > 0) this.spanPx.set(span);
     this.progress = span > 0 ? Math.min(1, Math.max(0, -r.top / span)) : 0;
