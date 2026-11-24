@@ -25,6 +25,7 @@ import {
 import { SecPremios } from './premios';
 import { SecFantasy, SecPorra, type ResumenFantasy, type ResumenPorra } from './juegos';
 import { SecSorteo } from './sorteo';
+import { SecCompeticiones } from './competiciones';
 
 const T = {
   es: {
@@ -53,7 +54,7 @@ const T = {
 @Component({
   selector: 'gr-home',
   imports: [Navbar, Footer, GrAlert, GrIcon, RouterLink, LocPipe, HeroTrophy, Campeonato, SecAlta, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
-    SecSorteo, SecPorra, SecFantasy, SecCategorias, SecHorarios, SecLocalizacion, SecFaq],
+    SecSorteo, SecPorra, SecFantasy, SecCategorias, SecHorarios, SecLocalizacion, SecFaq, SecCompeticiones],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let h = cms();
@@ -108,9 +109,12 @@ const T = {
             @case ('categorias') { @if (!h.orden.includes('premios')) { @defer (on immediate; hydrate on viewport) { <gr-sec-categorias [s]="h.secciones[k]" /> } } }
             @case ('horarios') { @if (horarios()?.publicado) { @defer (on immediate; hydrate on viewport) { <gr-sec-horarios [s]="h.secciones[k]" [horarios]="horarios()" /> } } }
             @case ('localizacion') { @defer (on immediate; hydrate on viewport) { <gr-sec-localizacion [s]="h.secciones[k]" [comp]="c" /> } }
+            @case ('competiciones') { @defer (on immediate; hydrate on viewport) { <gr-sec-competiciones [s]="h.secciones[k]" /> } }
             @case ('faq') { @if (h.faqDestacadas.length) { @defer (on immediate; hydrate on viewport) { <gr-sec-faq [s]="h.secciones[k]" [items]="h.faqDestacadas" [contacto]="c?.evento?.emailContacto || ''" /> } } }
           }
         }
+        <!-- BIZ-164: shown even without a CMS row (then at the end, button disabled until «reservaUrl» is set) -->
+        @if (!h.orden.includes('competiciones')) { @defer (on immediate; hydrate on viewport) { <gr-sec-competiciones /> } }
       }
     </main>
     @defer (on immediate; hydrate on viewport) { <gr-footer /> }
