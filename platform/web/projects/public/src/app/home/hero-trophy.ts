@@ -123,11 +123,11 @@ const PUFFS = [
         }
       </div>
       @if (!reduced()) {
-        <div class="gr-desliza absolute inset-x-0 bottom-[110px] flex flex-col items-center gap-2 text-label-xs text-text-tertiary transition-opacity duration-500 md:inset-x-auto md:bottom-9 md:left-[120px] md:h-11 md:flex-row" [style.opacity]="pista()">
+        <div class="gr-desliza absolute inset-x-0 bottom-[calc(110px+var(--gr-sobre-h,0px))] flex flex-col items-center gap-2 text-label-xs text-text-tertiary transition-opacity duration-500 md:inset-x-auto md:bottom-9 md:bottom-[calc(36px+var(--gr-sobre-h,0px))] md:left-[120px] md:h-11 md:flex-row" [style.opacity]="pista()">
           {{ t().desliza }}<gr-icon name="arrow-down" [size]="18" class="animate-bounce text-text-muted [animation-iteration-count:3]" />
         </div>
         <button type="button" (click)="skip()" [class.invisible]="finished()"
-          class="absolute bottom-[calc(24px+env(safe-area-inset-bottom))] left-1/2 inline-flex h-11 -translate-x-1/2 items-center gap-2 rounded-pill border border-white/15 bg-[rgb(44_40_41/0.85)] px-4 text-label-s hover:border-white/30 md:right-[120px] md:bottom-9 md:left-auto md:translate-x-0">
+          class="absolute bottom-[calc(24px+max(env(safe-area-inset-bottom),var(--gr-sobre-h,0px)))] left-1/2 inline-flex h-11 -translate-x-1/2 items-center gap-2 rounded-pill border border-white/15 bg-[rgb(44_40_41/0.85)] px-4 text-label-s hover:border-white/30 md:right-[120px] md:bottom-[calc(36px+var(--gr-sobre-h,0px))] md:left-auto md:translate-x-0">
           {{ t().saltar }}<gr-icon name="arrow-down" [size]="16" />
         </button>
         <!-- «Hero preload»: trophy icon and download progress until the first video seek completes -->
