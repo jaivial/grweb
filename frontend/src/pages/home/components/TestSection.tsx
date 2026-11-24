@@ -21,12 +21,16 @@ interface Sponsor {
   logo: string | null;
 }
 
+const SponsorLogo: FC<{ src: string; name: string; height: number }> = ({ src, name, height }) => {
+  const resolvedSrc = useCdnImage(src);
+  return <img src={resolvedSrc} alt={name} title={name} style={{ height }} className="w-auto object-contain" />;
+};
+
 const SponsorItem: FC<{ sponsor: Sponsor; height: number; textClass: string }> = ({ sponsor, height, textClass }) => {
-  const src = useCdnImage(sponsor.logo ?? '');
   return (
     <li className="flex items-center" data-ui="sponsor-item">
       {sponsor.logo ? (
-        <img src={src} alt={sponsor.name} title={sponsor.name} style={{ height }} className="w-auto object-contain" loading="lazy" />
+        <SponsorLogo src={sponsor.logo} name={sponsor.name} height={height} />
       ) : (
         <span
           className={`${textClass} uppercase text-white/90`}
