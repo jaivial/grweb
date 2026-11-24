@@ -80,7 +80,8 @@ const MAX_MARCA = 600;
       [crumb]="t().miga"
       [subtitle]="exito() ? t().introExito : cerrada() ? t().introCerrada : t().intro"
       [subtitleHtml]="exito() || cerrada() ? '' : introHtml()"
-      [tituloMovilGrande]="!exito()">
+      [tituloMovilGrande]="!exito()"
+      [tituloCentrado]="exito()">
       @if (vista() === 'cargando') {
         <gr-skeleton class="h-[560px] rounded-[18px]" />
       } @else if (vista() === 'exito') {

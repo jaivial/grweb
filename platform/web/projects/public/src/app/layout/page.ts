@@ -49,8 +49,8 @@ const T = {
              as sr-only text (SEO), the intro is not painted (sr-only; the page's meta description carries it) and the
              «Meta» row (updated stamp / pageStamps badges) is gone. -->
         @if (cabecera() && !centrado() && !juego()) {
-          <header class="max-w-[900px] flex-col gap-4 md:flex md:gap-6" [class.flex]="cabeceraMovil()" [class.hidden]="!cabeceraMovil()">
-            <nav class="flex-wrap items-center gap-1.5 text-body-s text-text-tertiary md:flex" [class.flex]="migasMovil()" [class.hidden]="!migasMovil()" [attr.aria-label]="t().migas">
+          <header class="max-w-[900px] flex-col gap-4 md:flex md:gap-6" [class.flex]="cabeceraMovil()" [class.hidden]="!cabeceraMovil()" [class.mx-auto]="tituloCentrado()" [class.text-center]="tituloCentrado()">
+            <nav class="flex-wrap items-center gap-1.5 text-body-s text-text-tertiary md:flex" [class.justify-center]="tituloCentrado()" [class.flex]="migasMovil()" [class.hidden]="!migasMovil()" [attr.aria-label]="t().migas">
               <a [routerLink]="'/' | loc" class="-mx-2 -my-3 inline-flex min-h-11 min-w-11 items-center justify-center px-2 hover:text-text-primary">{{ t().inicio }}</a>
               @if (section()) { <gr-icon name="chevron-right" [size]="14" /><span>{{ section() }}</span> }
               <gr-icon name="chevron-right" [size]="14" /><span class="text-text-secondary">{{ crumb() || (title() + (accent() ? ' ' + accent() : '')) }}</span>
@@ -89,6 +89,8 @@ export class Page {
   readonly subtitleHtml = input('');
   /** Display/L title on mobile too (Figma 75 Alta de atleta). */
   readonly tituloMovilGrande = input(false);
+  /** Centred title block (e.g. /alta-atleta success state). */
+  readonly tituloCentrado = input(false);
   readonly crumb = input('');
   /** Middle breadcrumb (e.g. «Visita», «Comunidad»). */
   readonly section = input('');
