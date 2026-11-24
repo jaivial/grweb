@@ -18,6 +18,7 @@ import { AltaFoto, type FotoAlta } from './alta-atleta-foto';
 import { AltaExito } from './alta-atleta-exito';
 import { AltaAviso } from './alta-atleta-aviso';
 import { AltaFaq, FAQS } from './alta-atleta-faq';
+import { HandlerGratis } from './handler-gratis';
 
 /** Configuración del alta (CONTRATOS §1): módulo, textos legales, reto antibots y token de tiempo. */
 interface ConfigAlta {
@@ -67,7 +68,7 @@ const MAX_MARCA = 600;
  */
 @Component({
   selector: 'gr-alta-atleta-page',
-  imports: [Page, FormsModule, GrButton, GrIcon, GrSkeleton, Related, Community, GrAltcha, AltaFoto, AltaExito, AltaAviso, AltaFaq, LocPipe],
+  imports: [Page, FormsModule, GrButton, GrIcon, GrSkeleton, Related, Community, GrAltcha, AltaFoto, AltaExito, AltaAviso, AltaFaq, HandlerGratis, LocPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page
@@ -388,6 +389,7 @@ const MAX_MARCA = 600;
         </div>
 
         <!-- Preguntas frecuentes -->
+        <gr-handler-gratis />
         <gr-alta-faq />
         <div class="mt-18 flex flex-col gap-18 md:mt-24 md:gap-24">
           <gr-related nivel="h3" [items]="t().relacionados" />
