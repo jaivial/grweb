@@ -182,7 +182,7 @@ const T = {
               @for (g of gimnasios; track g.nombre) {
                 <li class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-5">
                   <div class="flex items-center gap-3">
-                    @if (g.logo) { <span class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white p-1"><img [src]="g.logo" [alt]="g.nombre" class="size-full object-contain" loading="lazy" /></span> } @else { <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="trophy" [size]="20" /></span> }
+                    @if (g.logo) { <span class="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-md p-1" [class]="g.logoClaro ? 'bg-[#141112]' : 'bg-white'"><img [src]="g.logo" [alt]="g.nombre" class="size-full object-contain" loading="lazy" /></span> } @else { <span class="flex size-12 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="trophy" [size]="20" /></span> }
                     <h3 class="text-label-m">{{ g.nombre }}</h3>
                   </div>
                   <p class="text-body-s text-text-tertiary">{{ detalle(g) }}</p>
