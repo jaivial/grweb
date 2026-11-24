@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { GrIcon } from '@grcup/ui';
 import { I18n } from './i18n';
 
-/** BIZ-160: registration was done through the AEP and is closed; 153 athletes registered (AEP lists below). */
-export const INSCRITOS_AEP = 153;
+/** BIZ-160: registration was done through the AEP and is closed; 152 athletes registered (AEP-2: 68, AEP-3: 84; lists below). */
+export const INSCRITOS_AEP = 152;
 export const LISTAS_AEP = [
   'https://docs.google.com/spreadsheets/d/1iwVC8FDMmNe_pCTxgW-yP6PWocuFaeacKvk794VMJKQ/edit',
   'https://docs.google.com/spreadsheets/d/1UjcPxcPgGVD2tUkI1YaIYKARqQh1ENPorGvPDtmxK0A/edit',

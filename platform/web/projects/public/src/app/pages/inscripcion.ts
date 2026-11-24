@@ -606,7 +606,7 @@ export class InscripcionPage {
       return c.estado === 'proximamente' ? 'proximamente' : c.estado === 'cerrada' ? 'cerrada' : 'formulario';
     }
     // external (AEP) registration: the state the organiser set in «Evento»
-    // BIZ-160: the AEP registration is closed (153 athletes), so the open «aep» view is no longer shown
+    // BIZ-160: the AEP registration is closed (152 athletes), so the open «aep» view is no longer shown
     switch (comp?.inscripcion?.estado) {
       case 'proximamente': return 'proximamente';
       case 'completa': return 'completas';
