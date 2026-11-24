@@ -65,12 +65,12 @@ const T = {
     /** Groups of the mobile menu (Figma «Mobile menu v3»): the footer columns, shorter. */
     grupos: [
       { titulo: 'Competición', items: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },
-      { titulo: 'El campeonato', items: [{ label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Galería', href: '/galeria' }, { label: 'Edición 2025', href: '/ediciones/2025' }] },
+      { titulo: 'El campeonato', items: [{ label: 'Resultados', href: '/resultados' }, { label: 'Galería', href: '/galeria' }, { label: 'Edición 2025', href: '/ediciones/2025' }] },
       { titulo: 'Juegos', items: [{ label: 'GRS Fantasy', href: '/fantasy' }, { label: 'Porra', href: '/porra' }, { label: 'Rifa', href: '/sorteo' }] },
       { titulo: 'Visita y comunidad', items: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Blog', href: '/blog' }] },
     ] as Grupo[],
     /** The main links of the mobile menu. */
-    accesos: [{ label: 'Inicio', href: '/' }, { label: 'Entradas', href: '/entradas' }, { label: 'Horarios', href: '/horarios' }, { label: 'Área de atleta', href: '/area-atleta' }, { label: 'Para el público', href: '/publico' }] as NavLink[],
+    accesos: [{ label: 'Inicio', href: '/' }, { label: 'En directo', href: '/en-directo' }, { label: 'Entradas', href: '/entradas' }, { label: 'Horarios', href: '/horarios' }, { label: 'Área de atleta', href: '/area-atleta' }, { label: 'Para el público', href: '/publico' }] as NavLink[],
     cta: 'Entrada gratis', ctaMenu: 'Reserva tu entrada gratis', open: 'Abrir menú', close: 'Cerrar menú', otherLabel: 'English version', home: 'GRS Cup 2 · inicio',
     principal: 'Principal', menu: 'Menú', megaEyebrow: 'Entrada gratuita', megaTitulo: 'Vive la GR Cup en directo', megaTexto: 'Reserva gratis tu plaza en las gradas.', reservar: 'Reservar',
     porConfirmar: 'fecha por confirmar', edicion: (y: string, f: string, ciudad: string) => `Edición ${y} · ${f} · ${ciudad}`,
@@ -109,11 +109,11 @@ const T = {
     ],
     grupos: [
       { titulo: 'Competition', items: [{ label: 'Weight classes', href: '/categorias-de-peso' }, { label: 'Qualifying totals', href: '/marcas-minimas' }, { label: 'Rules', href: '/reglamento' }, { label: 'Athlete sign-up', href: '/alta-atleta' }] },
-      { titulo: 'The championship', items: [{ label: 'Live', href: '/en-directo' }, { label: 'Results', href: '/resultados' }, { label: 'Gallery', href: '/galeria' }, { label: '2025 edition', href: '/ediciones/2025' }] },
+      { titulo: 'The championship', items: [{ label: 'Results', href: '/resultados' }, { label: 'Gallery', href: '/galeria' }, { label: '2025 edition', href: '/ediciones/2025' }] },
       { titulo: 'Games', items: [{ label: 'GRS Fantasy', href: '/fantasy' }, { label: 'Pool', href: '/porra' }, { label: 'Raffle', href: '/sorteo' }] },
       { titulo: 'Visit and community', items: [{ label: 'Getting there', href: '/como-llegar' }, { label: 'FAQ', href: '/preguntas-frecuentes' }, { label: 'Blog', href: '/blog' }] },
     ],
-    accesos: [{ label: 'Home', href: '/' }, { label: 'Tickets', href: '/entradas' }, { label: 'Schedule', href: '/horarios' }, { label: 'Athlete area', href: '/area-atleta' }, { label: 'For spectators', href: '/publico' }],
+    accesos: [{ label: 'Home', href: '/' }, { label: 'Live', href: '/en-directo' }, { label: 'Tickets', href: '/entradas' }, { label: 'Schedule', href: '/horarios' }, { label: 'Athlete area', href: '/area-atleta' }, { label: 'For spectators', href: '/publico' }],
     cta: 'Free ticket', ctaMenu: 'Book your free ticket', open: 'Open menu', close: 'Close menu', otherLabel: 'Versión en español', home: 'GRS Cup 2 · home',
     principal: 'Main', menu: 'Menu', megaEyebrow: 'Free entry', megaTitulo: 'Watch the GR Cup live', megaTexto: 'Book your free seat in the stands.', reservar: 'Book',
     porConfirmar: 'date to be confirmed', edicion: (y: string, f: string, ciudad: string) => `${y} edition · ${f} · ${ciudad}`,
