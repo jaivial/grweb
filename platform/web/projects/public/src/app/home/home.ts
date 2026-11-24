@@ -35,6 +35,10 @@ const T = {
     seoTitulo: (nombre: string, ciudad: string) => `${nombre} · Campeonato de powerlifting en ${ciudad}`,
     seoTexto: (nombre: string, nivel: string, fecha: string, sede: string) => `${nombre}: campeonato de powerlifting ${nivel ? '(' + nivel + ') ' : ''}el ${fecha} en ${sede}. Entradas gratuitas, atletas, horarios y directo.`,
     noEncontradaTitulo: 'Página no encontrada · GRS Cup 2', noEncontradaTexto: 'La página que buscas no existe.',
+    sobreTitulo: 'Sobre GRS Cup',
+    sobreTexto: 'GRS Cup es la web oficial del campeonato de powerlifting GRS Cup, organizado por GR Strength. Aquí puedes consultar la información del evento, inscribirte como atleta, reservar entradas gratuitas, participar en el sorteo y seguir la competición en directo, sin necesidad de registrarte.',
+    sobreGoogle: 'El equipo organizador puede conectar su propia cuenta de Gmail (Google) para enviar desde ella los correos del campeonato (confirmaciones de entradas, inscripciones y avisos). Solo usamos el permiso de envío de correo y la dirección de email de esa cuenta; no leemos su bandeja de entrada ni compartimos esos datos con terceros.',
+    sobrePrivacidad: 'Política de privacidad', sobreTerminos: 'Términos del servicio',
   },
   en: {
     retransmision: 'Live broadcast', enDirecto: 'Live', verDirecto: 'Watch the full live stream →',
@@ -43,6 +47,10 @@ const T = {
     seoTitulo: (nombre: string, ciudad: string) => `${nombre} · Powerlifting championship in ${ciudad}`,
     seoTexto: (nombre: string, nivel: string, fecha: string, sede: string) => `${nombre}: powerlifting championship ${nivel ? '(' + nivel + ') ' : ''}on ${fecha} at ${sede}. Free tickets, athletes, schedule and live stream.`,
     noEncontradaTitulo: 'Page not found · GRS Cup 2', noEncontradaTexto: 'The page you are looking for does not exist.',
+    sobreTitulo: 'About GRS Cup',
+    sobreTexto: 'GRS Cup is the official website of the GRS Cup powerlifting championship, organised by GR Strength. Here you can read the event information, register as an athlete, book free tickets, enter the raffle and follow the competition live, without creating an account.',
+    sobreGoogle: 'The organising team can connect its own Gmail (Google) account to send the championship emails from it (ticket confirmations, registrations and notices). We only use the permission to send email and that account\'s email address; we never read its inbox or share that data with third parties.',
+    sobrePrivacidad: 'Privacy policy', sobreTerminos: 'Terms of service',
   },
 };
 
@@ -116,6 +124,13 @@ const T = {
         <!-- BIZ-164: shown even without a CMS row (then at the end, button disabled until «reservaUrl» is set) -->
         @if (!h.orden.includes('competiciones')) { @defer (on immediate; hydrate on viewport) { <gr-sec-competiciones /> } }
       }
+      <!-- BIZ-178: Google brand verification — the home must state the app's purpose and its use of Google data -->
+      <section id="sobre" class="mx-auto flex max-w-[1440px] flex-col gap-3 px-5 py-10 md:px-8 xl:px-[120px]" [attr.aria-label]="t().sobreTitulo">
+        <h2 class="text-display-s text-text-primary">{{ t().sobreTitulo }}</h2>
+        <p class="max-w-3xl text-text-secondary">{{ t().sobreTexto }}</p>
+        <p class="max-w-3xl text-text-secondary">{{ t().sobreGoogle }}</p>
+        <p class="flex gap-4 text-sm text-text-tertiary"><a class="underline" [routerLink]="'/privacidad' | loc">{{ t().sobrePrivacidad }}</a><a class="underline" [routerLink]="'/terminos' | loc">{{ t().sobreTerminos }}</a></p>
+      </section>
     </main>
     @defer (on immediate; hydrate on viewport) { <gr-footer /> }
   `,
