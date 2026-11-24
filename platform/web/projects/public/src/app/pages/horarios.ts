@@ -34,7 +34,7 @@ interface Pagina { page: number; items: PubAtleta[]; total: number; cargando: bo
 
 const T = {
   es: {
-    titulo: 'Horarios GRS Cup 2', crumb: 'Horarios', pronto: 'Próximamente',
+    titulo: 'Horarios GRS Cup 2', crumb: 'Horarios', domingo: 'Horario del domingo próximamente', pronto: 'Próximamente',
     prontoTxt: 'Publicaremos los horarios cuando cerremos el listado de atletas (unas 2 semanas antes). Mientras, puedes ver quién compite y seguir a tus atletas.',
     verAtletas: 'Ver los atletas', nlTitulo: 'Te avisamos de lo importante', nlTexto: 'Horarios, sorteo y novedades de la GRS Cup 2. Como mucho un email al mes.',
     falloT: 'No hemos podido cargar los horarios', falloD: 'Estamos teniendo un problema temporal. Vuelve a intentarlo en unos minutos.',
@@ -58,7 +58,7 @@ const T = {
     seoNo: 'Los horarios de la GRS Cup 2 se publican unas 2 semanas antes. Consulta los atletas inscritos y síguelos.',
   },
   en: {
-    titulo: 'GRS Cup 2 schedule', crumb: 'Schedule', pronto: 'Coming soon',
+    titulo: 'GRS Cup 2 schedule', crumb: 'Schedule', domingo: 'Sunday schedule coming soon', pronto: 'Coming soon',
     prontoTxt: 'We will publish the schedule once the athlete list is closed (about 2 weeks before). Meanwhile, you can see who is competing and follow your athletes.',
     verAtletas: 'See the athletes', nlTitulo: 'We will tell you what matters', nlTexto: 'Schedule, raffle and GRS Cup 2 news. One email a month at most.',
     falloT: 'We could not load the schedule', falloD: 'We are having a temporary problem. Please try again in a few minutes.',
@@ -146,12 +146,16 @@ const T = {
           }
 
           <div class="mt-3 flex flex-col gap-3">
-            @if (diaSel()?.puertas && q().length < 2 && vista() !== 'favs') {
+            @if (domingo()) {
+              <!-- BIZ-167: Sunday schedule not published yet -->
+              <p class="flex min-h-12 items-center gap-3 rounded-md border border-dashed border-line-strong bg-bg-surface px-4 text-body-m text-text-secondary"><gr-icon name="clock" [size]="16" class="text-text-tertiary" />{{ t().domingo }}</p>
+            }
+            @if (!domingo() && diaSel()?.puertas && q().length < 2 && vista() !== 'favs') {
               <p class="flex min-h-12 items-center gap-3 rounded-md border border-line-subtle bg-bg-surface px-4 text-body-s text-text-secondary">
                 <gr-icon name="door" [size]="16" class="text-text-tertiary" />{{ t().puertas }}{{ diaSel()!.puertas }}
               </p>
             }
-            @if (vista() === 'favs' && !filas().length) {
+            @if (!domingo() && vista() === 'favs' && !filas().length) {
               <!-- Figma «Favs vacío» -->
               <section class="flex flex-col items-center gap-3 rounded-lg border border-line-subtle bg-bg-card px-6 py-10 text-center">
                 <span class="flex size-12 items-center justify-center rounded-full border border-line-strong text-accent-text"><gr-icon name="star" [size]="20" /></span>
@@ -288,7 +292,10 @@ export class HorariosPage {
     const q = norm(this.q());
     return (this.diaSel()?.horarios ?? []).reduce((n, f) => n + this.lista(f).filter((a) => norm(a.nombre + ' ' + a.club).includes(q)).length, 0);
   });
+  /** BIZ-167: Sunday's schedule is not public yet. */
+  protected readonly domingo = computed(() => !!this.diaSel() && new Date(this.diaSel()!.fecha + 'T12:00:00Z').getUTCDay() === 0);
   protected readonly filas = computed<Fila[]>(() => {
+    if (this.domingo()) return [];
     const d = this.diaSel();
     if (!d) return [];
     const q = norm(this.q());

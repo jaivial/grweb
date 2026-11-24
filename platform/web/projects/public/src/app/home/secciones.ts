@@ -198,6 +198,8 @@ const TE = {
   },
 };
 
+const esDomingo = (f: string) => new Date(f + 'T12:00:00Z').getUTCDay() === 0;
+
 const TX = {
   es: {
     fotos: 'Fotos', irFoto: (n: number) => 'Ir a foto ' + n, ampliar: (x: string) => 'Ampliar: ' + x,
@@ -212,7 +214,7 @@ const TX = {
     nadie: 'Aún no sigues a ningún atleta', nadieTxt: 'Marca con ★ a tus atletas en «Todos» o «Detallado» y aquí verás solo sus horas.',
     buscarDet: 'Buscar atletas en Detallado', femenino: 'Femenino', masculino: 'Masculino', indep: 'Independiente',
     verLos: (n: number) => 'Ver los ' + n + ' atletas', sinAsig: 'Aún no hay atletas asignados.', cargando: 'Cargando atletas…',
-    completo: 'Ver horario completo', todos: 'Todos', detallado: 'Detallado',
+    completo: 'Ver horario completo', domingo: 'Horario del domingo próximamente', todos: 'Todos', detallado: 'Detallado',
     maps: 'Abrir en Google Maps', copiada: 'Dirección copiada', copiar: 'Copiar dirección', noEncuentras: '¿No encuentras tu respuesta?', escribenos: 'Escríbenos',
   },
   en: {
@@ -228,7 +230,7 @@ const TX = {
     nadie: 'You are not following any athletes yet', nadieTxt: 'Mark your athletes with ★ in «All» or «Detailed» and you will see only their times here.',
     buscarDet: 'Find athletes in Detailed', femenino: 'Female', masculino: 'Male', indep: 'Unattached',
     verLos: (n: number) => 'See all ' + n + ' athletes', sinAsig: 'No athletes assigned yet.', cargando: 'Loading athletes…',
-    completo: 'See full schedule', todos: 'All', detallado: 'Detailed',
+    completo: 'See full schedule', domingo: 'Sunday schedule coming soon', todos: 'All', detallado: 'Detailed',
     maps: 'Open in Google Maps', copiada: 'Address copied', copiar: 'Copy address', noEncuentras: 'Can’t find your answer?', escribenos: 'Write to us',
   },
 };
@@ -620,6 +622,9 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
             <button grButton variant="primary" type="button" (click)="elegir('detallado')">{{ tx().buscarDet }}</button>
           </div>
         }
+      } @else if (domingo()) {
+        <!-- BIZ-167: Sunday schedule not published yet -->
+        <div class="flex flex-col items-center gap-3 rounded-xl border border-dashed border-line-strong px-5 py-8 text-center"><gr-icon name="clock" [size]="24" /><p class="text-label-m">{{ tx().domingo }}</p></div>
       } @else {
         <ul class="flex flex-col gap-3">
           @for (r of filas(); track r.t + (r.flight?.id ?? r.item?.titulo)) {
@@ -708,7 +713,7 @@ export class SecHorarios {
   });
   /** Athletes of a slot: the ones in the JSON (old shape) or the loaded list. */
   protected ats(f: PubFlight): PubAtleta[] { return f.atletas?.length ? f.atletas : (this.listas()[f.id] ?? []); }
-  protected readonly dias = computed(() => (this.datos()?.dias ?? []).filter((d) => d.flights.length).map((d) => {
+  protected readonly dias = computed(() => (this.datos()?.dias ?? []).filter((d) => d.flights.length || esDomingo(d.fecha)).map((d) => {
     const e = new Intl.DateTimeFormat(this.i18n.locale(), { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(d.fecha + 'T12:00:00Z')).replace(',', '').replace('.', '');
     return { fecha: d.fecha, etiqueta: e, dia: d };
   }));
@@ -719,6 +724,8 @@ export class SecHorarios {
     return out;
   });
   protected readonly icsUrl = computed(() => `${ICS_URL}?atletas=${encodeURIComponent(this.misAtletas().map((m) => m.a.slug).join(','))}`);
+  /** BIZ-167: Sunday's schedule is not public yet. */
+  protected readonly domingo = computed(() => { const d = this.dias()[this.diaSel()]; return !!d && esDomingo(d.fecha); });
   protected readonly filas = computed<FilaHorario[]>(() => {
     const d = this.dias()[this.diaSel()]?.dia;
     if (!d) return [];
