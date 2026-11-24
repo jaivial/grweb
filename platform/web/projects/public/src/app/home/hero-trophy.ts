@@ -78,7 +78,8 @@ const PUFFS = [
            stays only for the part that spills past the box (its inside is baked with the same geometry). -->
       <div class="pointer-events-none absolute inset-0" [style.opacity]="trofeo()">
         <div class="absolute top-1/2 left-1/2 aspect-square h-[90%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]"></div>
-        <div class="absolute top-[6.4%] left-1/2 aspect-[2/3] h-[80%] max-w-[92vw] -translate-x-1/2 [transform:translateZ(0)]">
+        <!-- BIZ-180: static mask fades the 4 video edges into the dark background (no straight borders, no per-frame cost) -->
+        <div class="gr-trofeo-fade absolute top-[6.4%] left-1/2 aspect-[2/3] h-[80%] max-w-[92vw] -translate-x-1/2 [transform:translateZ(0)]">
           <!-- LCP: Chrome counts the video's first frame as the page's LCP even at opacity 0 or visibility:hidden (it
                came ~4 s late, after the whole download). Shrunk while the trophy is fully transparent (behind the loader,
                scroll 0), it never qualifies: the LCP is the h1. It still decodes and seeks (only its painted box shrinks). -->
@@ -145,6 +146,11 @@ const PUFFS = [
   `,
   styles: [`
     :host { height: 280vh; }
+    .gr-trofeo-fade {
+      --gr-fade: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent), linear-gradient(180deg, transparent, #000 12%, #000 85%, transparent);
+      -webkit-mask-image: var(--gr-fade); mask-image: var(--gr-fade);
+      -webkit-mask-composite: source-in; mask-composite: intersect;
+    }
     @media (min-width: 768px) { :host { height: 460vh; } }
     @media (prefers-reduced-motion: reduce) { :host { height: 100dvh; } }
     /* Was radial(32 % → 12 % at 60 % → 0) + blur(80px): the blur spread the falloff, so the stops ease out instead */
