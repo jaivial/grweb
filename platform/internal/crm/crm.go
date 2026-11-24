@@ -89,6 +89,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerSegmentos()
 	s.registerSupresiones()
 	s.registerPublico()
+	s.registerAvisosEvento()
 	s.registerAudiencia()
 	return nil
 }
