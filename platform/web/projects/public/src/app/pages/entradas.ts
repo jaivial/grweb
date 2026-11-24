@@ -512,7 +512,11 @@ export class TicketCard {
 }
 
 /** Ticket line 1 without repeating the weekday (UX8-R1-7): «sáb 19 dic · Tarde». */
-const lineaTicket = (inicio: string, nombre: string, loc = 'es-ES') =>
+const diaCorto = (iso: string, loc: string, mes: boolean) =>
+  new Intl.DateTimeFormat(loc, { weekday: 'short', day: 'numeric', ...(mes ? { month: 'short' } : {}), timeZone: 'Europe/Madrid' }).format(new Date(iso)).replace(/[,.]/g, '').replace(/^\p{L}/u, (c) => c.toUpperCase());
+/** Ticket line 1; with a second day: «Sáb 19 y Dom 20 dic» (BIZ-163). */
+const lineaTicket = (inicio: string, nombre: string, loc = 'es-ES', inicio2?: string) => inicio2
+  ? diaCorto(inicio, loc, false) + (loc.startsWith('en') ? ' and ' : ' y ') + diaCorto(inicio2, loc, true) :
   new Intl.DateTimeFormat(loc, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(inicio)).replace(/[,.]/g, '') +
   ' · ' + nombre.replace(/^(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\s+/i, '').replace(/^\p{L}/u, (c) => c.toUpperCase());
 
@@ -583,7 +587,6 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
             @if (d?.personas) {
               <!-- same social proof as the home «Entradas» section -->
               <div class="flex items-center gap-3">
-                <span class="flex items-center" aria-hidden="true">@for (a of avatares; track a) { <span class="-ml-2.5 flex size-8 items-center justify-center rounded-full border-2 border-bg-base bg-[linear-gradient(135deg,#58202b,#1b1718)] text-label-xs first:ml-0">{{ a }}</span> }</span>
                 <span class="text-body-s"><b class="font-semibold">{{ n(d!.personas) }} {{ t().pg.personas }}</b> {{ t().pg.yaTienen }}</span>
               </div>
             }
@@ -793,7 +796,6 @@ export class EntradasPage {
   protected readonly euros = (c: number) => euros(c, this.i18n.lang());
   protected readonly max = Math.max;
   protected readonly min = Math.min;
-  protected readonly avatares = ['LG', 'CS', 'MR', 'JT'];
   protected readonly origenes = ['Instagram', 'Un amigo o familiar', 'Mi club o gimnasio', 'Un atleta', 'Cartel o flyer', 'Otro'];
   protected readonly queVer: { i: GrIconName; t: string }[] = [
     { i: 'maximize', t: 'Sentadilla, banca y peso muerto' },
@@ -828,14 +830,14 @@ export class EntradasPage {
     const p = this.par();
     if (!p) return null;
     const [a, b] = p;
-    return { ...a, id: this.AMBOS, nombre: a.nombre + ' + ' + b.nombre, detalle: '', fin: b.fin, libres: Math.min(a.libres, b.libres), maxPorReserva: Math.min(a.maxPorReserva, b.maxPorReserva),
+    return { ...a, id: this.AMBOS, nombre: lineaTicket(a.inicio, '', this.i18n.locale(), b.inicio), detalle: '', fin: b.fin, libres: Math.min(a.libres, b.libres), maxPorReserva: Math.min(a.maxPorReserva, b.maxPorReserva),
       estado: a.estado === 'ultimas' || b.estado === 'ultimas' ? 'ultimas' : 'disponible', listaEspera: false, enEspera: 0 };
   });
   protected readonly todasAgotadas = computed(() => { const l = this.data()?.sesiones ?? []; return l.length > 0 && !this.abiertas().length && l.some((s) => s.estado === 'agotada'); });
   protected readonly sesHero = computed(() => this.sesSel() ?? this.abiertas()[0] ?? this.data()?.sesiones[0]);
   protected readonly ejemplo = computed(() => {
     const x = this.sesHero();
-    return x ? { l1: lineaTicket(x.inicio, x.nombre, this.i18n.locale()), l2: this.t().pg.puertas + ' ' + hora(x.puertas) + ' · ' + this.t().pg.hasta + ' ' + hora(x.fin) } : { l1: this.t().pg.ejL1, l2: this.t().pg.ejL2 };
+    return x ? { l1: lineaTicket(x.inicio, x.nombre, this.i18n.locale(), x.id === this.AMBOS ? this.par()?.[1].inicio : undefined), l2: this.t().pg.puertas + ' ' + hora(x.puertas) + (x.id === this.AMBOS ? '' : ' · ' + this.t().pg.hasta + ' ' + hora(x.fin)) } : { l1: this.t().pg.ejL1, l2: this.t().pg.ejL2 };
   });
   protected readonly maxPersonas = computed(() => Math.min(this.sesSel()?.maxPorReserva ?? 6, Math.max(1, this.sesSel()?.estado === 'agotada' ? 6 : (this.sesSel()?.libres ?? 6))));
   protected readonly ciudad = computed(() => this.comp.data()?.sede?.ciudad || 'Almussafes');
@@ -1024,7 +1026,7 @@ export class EntradasPage {
               <p class="text-body-m text-text-secondary">{{ t().cf.enviada(m.email) }} {{ t().cf.spam }}</p>
             </div>
             }
-            <gr-ticket class="w-full xl:w-[342px]" [linea1]="linea(m.sesion.inicio, m.sesion.nombre, i18n.locale())" [puertaBtn]="true" [linea2]="t().pg.puertas + ' ' + hora(m.sesion.puertas) + ' · ' + t().pg.hasta + ' ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m, i18n.lang())" [codigo]="m.codigo" [qr]="m.qr" [estado]="m.estado" />
+            <gr-ticket class="w-full xl:w-[342px]" [linea1]="linea(m.sesion.inicio, m.sesion.nombre, i18n.locale(), m.sesion2?.inicio)" [puertaBtn]="true" [linea2]="t().pg.puertas + ' ' + hora(m.sesion.puertas) + (m.sesion2 ? '' : ' · ' + t().pg.hasta + ' ' + hora(m.sesion.fin))" [lugar]="m.lugar" [titular]="tit(m, i18n.lang())" [codigo]="m.codigo" [qr]="m.qr" [estado]="m.estado" />
             @if (m.estado !== 'anulada') {
             <div class="grid w-full grid-cols-2 gap-2 xl:w-[342px]">
               <a [href]="ics()" class="flex h-12 items-center justify-center gap-2 rounded-md border border-line-strong text-label-s transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-accent"><gr-icon name="calendar" [size]="16" />{{ t().cf.cal }}</a>
@@ -1197,7 +1199,7 @@ export class OfertaPage {
             }
           </section>
         } @else {
-          <gr-ticket [linea1]="linea(m.sesion.inicio, m.sesion.nombre, i18n.locale())" [puertaBtn]="true" [linea2]="t().pg.puertas + ' ' + hora(m.sesion.puertas) + ' · ' + t().pg.hasta + ' ' + hora(m.sesion.fin)" [lugar]="m.lugar" [titular]="tit(m, i18n.lang())" [codigo]="m.codigo" [qr]="m.estado === 'anulada' ? '' : m.qr" [estado]="m.estado" [validadaEn]="validada(m.validadaAt, i18n.locale())" />
+          <gr-ticket [linea1]="linea(m.sesion.inicio, m.sesion.nombre, i18n.locale(), m.sesion2?.inicio)" [puertaBtn]="true" [linea2]="t().pg.puertas + ' ' + hora(m.sesion.puertas) + (m.sesion2 ? '' : ' · ' + t().pg.hasta + ' ' + hora(m.sesion.fin))" [lugar]="m.lugar" [titular]="tit(m, i18n.lang())" [codigo]="m.codigo" [qr]="m.estado === 'anulada' ? '' : m.qr" [estado]="m.estado" [validadaEn]="validada(m.validadaAt, i18n.locale())" />
           @if (m.puedeCambiar) {
             <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
               <h2 class="text-ui-h5">{{ t().mi.cambia }}</h2>
