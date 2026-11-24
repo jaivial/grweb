@@ -180,17 +180,17 @@ export class SecPremios {
   /** Figma: −4° · 0 · +4° (with their vertical offsets inside the 340 × 480 holders). */
   protected readonly giro = ['lg:-rotate-4 lg:-translate-y-2.5', 'lg:translate-y-0', 'lg:rotate-4 lg:translate-y-2.5'];
   protected readonly colgantesA = [
-    { src: cdn('/img/home/medalla-oro-larga.webp'), h: 784, cara: [54, 565, 184, 179] as const, t: '6.2s', d: '-1s', amp: 4.5, per: 3.2, fase: 0.33 },
-    { src: cdn('/img/home/medalla-oro-corta.webp'), h: 429, cara: [54, 210, 184, 179] as const, t: '5.4s', d: '-3s', amp: 3.5, per: 3.6, fase: 0 },
-    { src: cdn('/img/home/medalla-oro-larga.webp'), h: 784, cara: [54, 565, 184, 179] as const, t: '6.8s', d: '-2s', amp: 5, per: 3, fase: 0.66 },
+    { src: cdn('/img/home/medalla-oro-larga.webp'), h: 784, cara: [62, 530, 170, 163] as const, t: '6.2s', d: '-1s', amp: 4.5, per: 3.2, fase: 0.33 },
+    { src: cdn('/img/home/medalla-oro-corta.webp'), h: 429, cara: [62, 201, 170, 159] as const, t: '5.4s', d: '-3s', amp: 3.5, per: 3.6, fase: 0 },
+    { src: cdn('/img/home/medalla-oro-larga.webp'), h: 784, cara: [62, 530, 170, 163] as const, t: '6.8s', d: '-2s', amp: 5, per: 3, fase: 0.66 },
   ];
   /** Phone/tablet: the two long side medals of block A (their own layer next to the slider). */
   protected readonly colgantesLado = this.colgantesA.filter((m) => m.h > 500);
   /** B: silver 228 · gold 218 · bronze 228 (Figma 199:255, faces 199:259 · 275 · 267); swing, period and phase of page 79's table. */
   protected readonly podio = [
-    { src: cdn('/img/home/medalla-plata.webp'), metal: 'silver' as const, cara: [41, 450, 140, 136] as const, w: 228, h: 617, t: '5.8s', d: '-2s', amp: 4.5, per: 3.2, fase: 0.33 },
-    { src: cdn('/img/home/medalla-oro-cat.webp'), metal: 'gold' as const, cara: [25, 480, 160, 156] as const, w: 218, h: 665, t: '6.4s', d: '-4s', amp: 3.5, per: 3.6, fase: 0 },
-    { src: cdn('/img/home/medalla-bronce.webp'), metal: 'bronze' as const, cara: [41, 430, 140, 136] as const, w: 228, h: 597, t: '6s', d: '-1s', amp: 5, per: 3, fase: 0.66 },
+    { src: cdn('/img/home/medalla-plata.webp'), metal: 'silver' as const, cara: [47, 427, 129, 118] as const, w: 228, h: 617, t: '5.8s', d: '-2s', amp: 4.5, per: 3.2, fase: 0.33 },
+    { src: cdn('/img/home/medalla-oro-cat.webp'), metal: 'gold' as const, cara: [41, 401, 133, 124] as const, w: 218, h: 665, t: '6.4s', d: '-4s', amp: 3.5, per: 3.6, fase: 0 },
+    { src: cdn('/img/home/medalla-bronce.webp'), metal: 'bronze' as const, cara: [47, 406, 129, 121] as const, w: 228, h: 597, t: '6s', d: '-1s', amp: 5, per: 3, fase: 0.66 },
   ];
   /** «Nube» 199:1739: [x, y, w, h, colour, opacity, blur] of each ellipse of the 1440 × 400 frame. */
   protected readonly nube: [number, number, number, number, string, number, number][] = [
