@@ -11,6 +11,7 @@ import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
 import { FanSession } from '../core/fan';
 import { EntradasPublic, dia, diaLargo, errorDe, hora, qrDataURL, validada, type Entradas, type MiEntrada, type Oferta, type SesionPub } from '../core/entradas';
 import type { Horarios } from '../core/horarios';
+import { INSCRITOS_AEP } from '../core/inscripcion-aep';
 import { Seo } from '../core/seo';
 import { GrCabecera } from '../home/bloques';
 import { Footer, Navbar } from '../layout/layout';
@@ -125,7 +126,7 @@ const T = {
       ambosD: 'Una sola entrada y un QR para ambos días',
       enEspera: (s: string, e: string) => `Estás en la lista de espera de ${s}. Si se libera plaza te escribimos a ${e}.`,
       origenes: ['Instagram', 'Un amigo o familiar', 'Mi club o gimnasio', 'Un atleta', 'Cartel o flyer', 'Otro'],
-      queVer: ['Sentadilla, banca y peso muerto', 'Competición AEP-2 y AEP-3', '150 atletas', 'Premios y sorteo en directo', 'Sigue a tus atletas', 'Participa en la rifa de material'],
+      queVer: ['Sentadilla, banca y peso muerto', 'Competición AEP-2 y AEP-3', INSCRITOS_AEP + ' atletas', 'Premios y sorteo en directo', 'Sigue a tus atletas', 'Participa en la rifa de material'],
       pasos: ['Reserva en 1 minuto', 'Recibe tu QR', 'Enséñalo en la puerta'],
       seoT: 'Entradas gratis · GRS Cup 2',
       seoD: 'Reserva gratis tu entrada para la GRS Cup 2 en Almussafes: elige sesión, recibe tu QR por email y entra sin colas.',
@@ -143,8 +144,8 @@ const T = {
       spam: 'Si no la ves en 2 minutos, mira en spam.',
       cal: 'Al calendario',
       pdf: 'Descargar PDF',
-      rifa: 'Rifa del evento',
-      rifaX: 'Los boletos se compran en el recinto el día del evento. Aquí no se paga nada: consulta los objetos que se rifan.',
+      rifa: 'Rifa del campeonato',
+      rifaX: 'Los boletos se compran en el recinto el día del campeonato. Aquí no se paga nada: consulta los objetos que se rifan.',
       prox: '¿Te avisamos de la próxima?',
       hecho: 'Hecho: revisa tu correo para confirmarlo.',
       vale: 'Vale, no te escribiremos.',
@@ -307,7 +308,7 @@ const T = {
       ambosD: 'One ticket and one QR for both days',
       enEspera: (s: string, e: string) => `You are on the waiting list for ${s}. If a place frees up we will write to you at ${e}.`,
       origenes: ['Instagram', 'A friend or relative', 'My club or gym', 'An athlete', 'Poster or flyer', 'Other'],
-      queVer: ['Squat, bench press and deadlift', 'AEP-2 and AEP-3 competition', '150 athletes', 'Live prizes and prize draw', 'Follow your athletes', 'Enter the equipment raffle'],
+      queVer: ['Squat, bench press and deadlift', 'AEP-2 and AEP-3 competition', INSCRITOS_AEP + ' athletes', 'Live prizes and prize draw', 'Follow your athletes', 'Enter the equipment raffle'],
       pasos: ['Book in 1 minute', 'Get your QR', 'Show it at the gate'],
       seoT: 'Free tickets · GRS Cup 2',
       seoD: 'Book your free ticket for GRS Cup 2 in Almussafes: choose a session, get your QR by email and walk in without queuing.',
@@ -325,7 +326,7 @@ const T = {
       spam: 'If you do not see it within 2 minutes, check your spam.',
       cal: 'Add to calendar',
       pdf: 'Download PDF',
-      rifa: 'Event raffle',
+      rifa: 'Championship raffle',
       rifaX: 'Raffle tickets are bought at the venue on the day. Nothing is paid here: check out the items being raffled.',
       prox: 'Shall we let you know about the next one?',
       hecho: 'Done: check your email to confirm it.',
@@ -800,7 +801,7 @@ export class EntradasPage {
   protected readonly queVer: { i: GrIconName; t: string }[] = [
     { i: 'maximize', t: 'Sentadilla, banca y peso muerto' },
     { i: 'award', t: 'Competición AEP-2 y AEP-3' },
-    { i: 'users', t: '150 atletas' },
+    { i: 'users', t: INSCRITOS_AEP + ' atletas' },
     { i: 'trophy', t: 'Premios y sorteo en directo' },
     { i: 'radio', t: 'Sigue a tus atletas' },
     { i: 'ticket', t: 'Participa en la rifa de material' },
