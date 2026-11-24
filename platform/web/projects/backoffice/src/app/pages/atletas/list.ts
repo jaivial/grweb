@@ -9,7 +9,8 @@ import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BO_ROW, BoCheckbox, BoEmptyState, BoFilterPill, BoPagination, BoSearch, BoSkeleton, BoSortHeader, BoTableToolbar } from '../../shared/kit';
-import { BoPageHeader, BoToggle, errText, BoTabsMovil } from '../../shared/ui';
+import { BoPageHeader, BoToggle, errText, BoTabsMovil, BoTabs, type BoTab } from '../../shared/ui';
+import { SolicitudesContador } from '../../core/solicitudes';
 import { AtletasApi, cat, diaFecha, type ItemLista, type Lista } from './api';
 import { AccionNecesariaDialogo } from './accion-necesaria';
 import { tabEnUrl } from '../../shared/tab-url';
@@ -31,7 +32,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
 /** «Atletas» (Figma page 55 · «Atletas · lista», «casos límite», «vacío y carga»). */
 @Component({
   selector: 'bo-atletas',
-  imports: [AccionNecesariaDialogo, BoTabsMovil, GrSelect, FormsModule, RouterLink, A11yModule, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoFilterPill, BoSkeleton, BoEmptyState, BoCheckbox, BoSortHeader, BoToggle, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton],
+  imports: [AccionNecesariaDialogo, BoTabs, BoTabsMovil, GrSelect, FormsModule, RouterLink, A11yModule, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoFilterPill, BoSkeleton, BoEmptyState, BoCheckbox, BoSortHeader, BoToggle, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
@@ -40,6 +41,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
         @if (canEdit() && l?.pestanas?.todos) { <button actions grButton icon="download" [loading]="exporting()" (click)="exportar()">Exportar</button> }
         @if (canEdit()) { <a actions grButton variant="primary" routerLink="importar">Importar acta AEP</a> }
       </bo-page-header>
+      @if (canEdit()) { <bo-tabs label="Atletas" [tabs]="secciones()" /> }
 
       @if (sobreaforo(); as s) {
         <gr-alert tone="warning" [title]="'Cupo superado: ' + s.confirmados + ' confirmados para ' + s.plazas + ' plazas'">Sobran {{ s.confirmados - s.plazas }}. Revisa el cupo de la AEP en Inscripción o da de baja a quien no tenga plaza.</gr-alert>
@@ -238,6 +240,12 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
 })
 export class AtletasPage {
   protected readonly comps = inject(Competitions);
+  private readonly solicitudes = inject(SolicitudesContador);
+  /** BIZ-183: section tabs so the «Solicitudes» page is reachable from the UI. */
+  protected readonly secciones = computed<BoTab[]>(() => [
+    { label: 'Atletas', path: '.', exact: true },
+    { label: 'Solicitudes', path: 'solicitudes', count: this.solicitudes.pendientes() || null },
+  ]);
   private readonly api = inject(AtletasApi);
   private readonly auth = inject(Auth);
   private readonly router = inject(Router);
