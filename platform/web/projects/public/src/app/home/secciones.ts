@@ -824,7 +824,7 @@ export class SecHorarios {
               <span class="absolute right-2 bottom-2 rounded-[4px] bg-black/50 px-1.5 py-0.5 text-body-xs text-text-tertiary">© OpenStreetMap</span>
             </div>
             <div class="flex flex-col gap-3 p-5 md:p-7">
-              <p class="text-center text-display-xs">{{ t('nombreSede') || "Pabellón Municipal d'Almussafes" }}</p>
+              <p class="text-center text-display-xs">{{ t('nombreSede') || 'Pabellón Municipal de Almussafes' }}</p>
               <!-- Figma home R2: the town hall logo centred under the venue -->
               <img [src]="'/img/home/logo-almussafes-bn.webp' | cdn" alt="Ajuntament d'Almussafes" width="114" height="40" class="mx-auto h-10 w-auto" loading="lazy" decoding="async" />
               <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="map-pin" [size]="16" class="shrink-0 text-accent-text" />{{ direccion() }}</p>

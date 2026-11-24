@@ -67,7 +67,7 @@ var seedSecciones = map[string]any{
 }
 
 var seedFAQ = []faqIn{
-	{"Llegar", "¿Dónde se celebra la competición?", "En el Pabellón Municipal de Almussafes (Pavelló Poliesportiu, Avda. Laura Méndez s/n, 46440 Almussafes, Valencia). En la sección Localización tienes el mapa y el enlace a Google Maps.", true, true, enField{}},
+	{"Llegar", "¿Dónde se celebra la competición?", "En el Pabellón Municipal de Almussafes (Avda. Laura Méndez s/n, 46440 Almussafes, Valencia). En la sección Localización tienes el mapa y el enlace a Google Maps.", true, true, enField{}},
 	{"Atletas", "¿Cómo completo mi ficha de atleta?", "Rellena el [formulario de alta de atleta](/alta-atleta) con tu nombre, el email con el que te inscribiste en la AEP, tu club y tus mejores marcas. Añade una foto si quieres: se publica en blanco y negro y recortada. El equipo revisa cada solicitud a mano y, cuando la aprueba, tu ficha aparece en la [lista de atletas](/atletas).", true, true, enField{}},
 	{"Competición", "¿Cómo participo en la GR Cup?", "La inscripción y la lista de espera las gestiona la **AEP** y la plantilla está completa. Si compites en esta edición, lo que te falta es la ficha: [da de alta tu atleta](/alta-atleta) y te la revisamos a mano.", true, true, enField{}},
 	{"Competición", "¿Qué categorías de peso hay?", "Las categorías oficiales de la AEP para hombres y mujeres. Consulta la página de [categorías de peso](/categorias-de-peso).", true, true, enField{}},
@@ -117,7 +117,7 @@ var seedPublico = map[string]any{
 	"normas": map[string]any{"eyebrow": "03 · Normas", "titulo": "En la", "tituloAcento": "grada",
 		"items": []map[string]string{{"texto": "Anima todo lo que quieras, pero guarda silencio cuando el atleta prepara el intento."}, {"texto": "No accedas a la zona de calentamiento ni a la plataforma."},
 			{"texto": "Foto y vídeo sin flash."}, {"texto": "Respeta los pasillos y salidas de emergencia."}}},
-	"interesar": map[string]any{"titulo": "Te puede interesar", "items": []map[string]string{{"titulo": "Cómo llegar", "texto": "Pabellón de Almussafes", "ruta": "/como-llegar"},
+	"interesar": map[string]any{"titulo": "Te puede interesar", "items": []map[string]string{{"titulo": "Cómo llegar", "texto": "Pabellón Municipal de Almussafes", "ruta": "/como-llegar"},
 		{"titulo": "Horarios", "texto": "Bloques por categoría", "ruta": "/horarios"}, {"titulo": "En directo", "texto": "Si no puedes venir", "ruta": "/en-directo"}}},
 }
 

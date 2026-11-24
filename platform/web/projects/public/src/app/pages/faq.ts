@@ -21,10 +21,10 @@ const T = {
     noEncuentras: '¿No encuentras tu respuesta?', contestamos: 'Escríbenos y te contestamos en menos de 48 h.', email: 'Email',
     relacionados: [
       { titulo: 'Reglamento', texto: 'Cómo funciona la competición', ruta: '/reglamento' },
-      { titulo: 'Cómo llegar', texto: 'Pabellón de Almussafes', ruta: '/como-llegar' },
+      { titulo: 'Cómo llegar', texto: 'Pabellón Municipal de Almussafes', ruta: '/como-llegar' },
       { titulo: 'Sorteo', texto: 'Gana un cinturón SBD', ruta: '/sorteo' },
     ] as RelatedLink[],
-    seoTitulo: 'Preguntas frecuentes · GRS Cup 2', seoDesc: 'Alta de atleta, entradas gratuitas, sorteo y cómo llegar al pabellón de Almussafes.',
+    seoTitulo: 'Preguntas frecuentes · GRS Cup 2', seoDesc: 'Alta de atleta, entradas gratuitas, sorteo y cómo llegar al Pabellón Municipal de Almussafes.',
   },
   en: {
     titulo: 'Frequently asked', acento: 'questions', eyebrow: 'Help', stamp: 'Updated on 28/10/2026',

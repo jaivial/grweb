@@ -14,7 +14,7 @@ import { applySeo } from './content';
 type Practica = { titulo: string; texto: string; icono: GrIconName; enlace: string; ruta: string };
 const T = {
   es: {
-    titulo: 'Mapa de accesos al', pabellonDe: (c: string) => 'Pabellón de ' + c, visita: 'Visita', seccion: 'Cómo llegar', crumb: 'Mapa de accesos',
+    titulo: 'Mapa de accesos al', pabellonDe: (c: string) => 'Pabellón Municipal de ' + c, visita: 'Visita', seccion: 'Cómo llegar', crumb: 'Mapa de accesos',
     subtitulo: 'Planos de las entradas del pabellón para atletas y público: por dónde se entra, dónde está el pesaje y cómo llegar a la grada.',
     accesos: 'Accesos', planos: 'Planos de acceso para *atletas y público*', ampliar: 'Ampliar: ', porConfirmar: 'Por confirmar',
     publicaremos: 'Publicaremos aquí los planos de acceso antes de la competición. Mientras tanto, tienes la dirección y el transporte en «Cómo llegar».',
@@ -24,9 +24,9 @@ const T = {
       { titulo: 'Acceso del público', texto: 'La entrada es gratuita con reserva. Sigue el acceso de público del plano hasta la grada y ten tu entrada a mano.', icono: 'ticket', enlace: 'Reservar entrada', ruta: '/entradas' },
       { titulo: 'Aparcamiento y transporte', texto: 'Dirección, cómo llegar desde Valencia en coche o transporte público y dónde aparcar cerca del pabellón.', icono: 'parking', enlace: 'Cómo llegar', ruta: '/como-llegar' },
     ] as Practica[],
-    seoTitulo: (c: string) => `Mapa de accesos al Pabellón de ${c} · GR Strength Cup`,
-    seoDesc: (c: string) => `Planos de acceso al Pabellón de ${c} para atletas y público de la GR Strength Cup: entradas, pesaje, grada y aparcamiento.`,
-    alt: (n: number, c: string) => `Mapa de accesos ${n} al Pabellón de ${c}`,
+    seoTitulo: (c: string) => `Mapa de accesos al Pabellón Municipal de ${c} · GR Strength Cup`,
+    seoDesc: (c: string) => `Planos de acceso al Pabellón Municipal de ${c} para atletas y público de la GR Strength Cup: entradas, pesaje, grada y aparcamiento.`,
+    alt: (n: number, c: string) => `Mapa de accesos ${n} al Pabellón Municipal de ${c}`,
   },
   en: {
     titulo: 'Access map of the', pabellonDe: (c: string) => c + ' Sports Hall', visita: 'Visit', seccion: 'Getting there', crumb: 'Access map',
