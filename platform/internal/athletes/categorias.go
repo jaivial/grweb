@@ -81,12 +81,15 @@ func Categorias(sexo string, juvenil bool) []string {
 	return all[1:]
 }
 
-// NormCategoria turns "−63", "63", "-63 kg", "M-83" or "+84" into "-63" / "+84".
+// NormCategoria turns "−63", "63", "-63 kg", "M-83", "+84" or the AEP lists' "84+" into "-63" / "+84".
 func NormCategoria(s string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
 	s = strings.NewReplacer("−", "-", "–", "-", "kg", "", " ", "", "m", "", "f", "").Replace(s)
 	if s == "" {
 		return ""
+	}
+	if strings.HasSuffix(s, "+") {
+		s = "+" + strings.Trim(s, "+-")
 	}
 	if s[0] != '-' && s[0] != '+' {
 		s = "-" + s

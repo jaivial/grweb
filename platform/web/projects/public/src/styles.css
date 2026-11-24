@@ -39,7 +39,7 @@ html {
 @font-face {
   font-family: "ITC Avant Garde Gothic Pro";
   font-style: normal;
-  font-weight: 400;
+  font-weight: 300;
   font-display: swap;
   src: url("/fonts/brand/ITCAvantGardeGothicPro-Book.woff2") format("woff2");
 }
@@ -56,6 +56,13 @@ html {
   font-weight: 400;
   font-display: swap;
   src: url("/fonts/brand/MonsterBites.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Monster Bites";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/brand/MonsterBites-Italic.woff2") format("woff2");
 }
 @theme {
   /* font-avant: «POWERED BY» and clean headlines. font-monster: impact headlines. */

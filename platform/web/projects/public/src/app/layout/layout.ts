@@ -425,7 +425,7 @@ const FT = {
         <ul class="flex flex-wrap items-center justify-center gap-x-5 gap-y-4 md:gap-x-10 md:gap-y-5 md:py-2" [attr.aria-label]="t().patrocinadores">
           @for (p of logos(); track p.nombre) {
             <li><a [href]="p.url || ('/patrocinadores' | loc)" [attr.target]="p.url ? '_blank' : null" rel="noopener" class="flex min-h-11 items-center opacity-60 grayscale transition hover:opacity-100 hover:grayscale-0">
-              <img [attr.srcset]="srcsetLogo(p.logoUrl)" [src]="p.logoUrl | cdn" [alt]="p.nombre" class="h-8 w-auto max-w-[150px] object-contain md:h-7" loading="lazy" /></a></li>
+              @if (p.logoUrl) { <img [attr.srcset]="srcsetLogo(p.logoUrl)" [src]="p.logoUrl | cdn" [alt]="p.nombre" class="h-8 w-auto max-w-[150px] object-contain md:h-7" loading="lazy" /> } @else { <span class="text-body-sm font-semibold uppercase text-text-secondary">{{ p.nombre }}</span> }</a></li>
           }
         </ul>
       }
@@ -488,7 +488,7 @@ export class Footer {
     // Same source on every page (cached per render and transferred to the browser): the event's data.
     void inject(PendingTasks).run(() => this.comp.load());
     // Sponsor logos are decoration: a failure must never turn the page into an error.
-    void firstValueFrom(this.http.get<Patrocinador[]>(`/api/competiciones/${COMPETITION_SLUG}/patrocinadores`)).then((l) => this.logos.set((l ?? []).filter((p) => p.logoUrl).slice(0, 10)), () => undefined);
+    void firstValueFrom(this.http.get<Patrocinador[]>(`/api/competiciones/${COMPETITION_SLUG}/patrocinadores`)).then((l) => this.logos.set(l ?? []), () => undefined);
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       this.url.set(this.router.url);
       const sub = this.router.events.subscribe(() => { this.url.set(this.router.url); setTimeout(onScroll); });
