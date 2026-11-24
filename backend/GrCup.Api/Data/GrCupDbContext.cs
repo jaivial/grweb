@@ -49,9 +49,14 @@ public class GrCupDbContext : DbContext
     public DbSet<NewsletterEmail> NewsletterEmails => Set<NewsletterEmail>();
     public DbSet<NewsletterEmailMedia> NewsletterEmailMedia => Set<NewsletterEmailMedia>();
     public DbSet<NewsletterSendProgress> NewsletterSendProgress => Set<NewsletterSendProgress>();
+    public DbSet<EventoAviso> EventoAvisos => Set<EventoAviso>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<EventoAviso>(entity => {
+            entity.HasIndex(e => new { e.Evento, e.Email }).IsUnique();
+        });
+
         // Legacy models
         modelBuilder.Entity<Participant>(entity => {
             entity.HasIndex(e => e.Email);

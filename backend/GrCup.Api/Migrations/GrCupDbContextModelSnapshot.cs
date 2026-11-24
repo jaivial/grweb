@@ -378,6 +378,35 @@ namespace GrCup.Api.Migrations
                     b.ToTable("EmailConfig");
                 });
 
+            modelBuilder.Entity("GrCup.Api.Models.EventoAviso", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("Evento")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Evento", "Email")
+                        .IsUnique();
+
+                    b.ToTable("EventoAvisos");
+                });
+
             modelBuilder.Entity("GrCup.Api.Models.Inscripcion", b =>
                 {
                     b.Property<int>("Id")

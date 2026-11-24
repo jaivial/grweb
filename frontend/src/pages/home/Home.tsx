@@ -12,6 +12,7 @@ import {
   RaffleSection,
   HandlerSection,
   IncognitoCompetitionSection,
+  NextEventSection,
 } from './components';
 import { fetchParticipantCount } from './lib/api';
 import { participantCount } from './atoms/state';
@@ -132,6 +133,9 @@ export function Home(): JSX.Element {
 
       {/* Incognito Competition Section - Abril 2027 Almussafes, reserva 40 € (BIZ-164) */}
       <IncognitoCompetitionSection />
+
+      {/* Next Event Section - GRS Cup 3 «Avísame» */}
+      <NextEventSection />
       </main>
     </>
   );
