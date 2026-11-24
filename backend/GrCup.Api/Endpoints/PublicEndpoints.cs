@@ -12,6 +12,25 @@ public static class PublicEndpoints
 {
     public static void MapPublicEndpoints(this IEndpointRouteBuilder app)
     {
+        // POST /api/avisos - Public «Avísame» email capture for an upcoming event (idempotent)
+        app.MapPost("/api/avisos", async ([FromBody] EventoAvisoRequest request, GrCupDbContext db) =>
+        {
+            var email = request.Email?.Trim().ToLowerInvariant() ?? "";
+            var evento = request.Evento?.Trim() ?? "";
+            if (email.Length is < 3 or > 255 || !System.Net.Mail.MailAddress.TryCreate(email, out _))
+                return Results.BadRequest(new { error = "Email no válido" });
+            if (evento.Length is 0 or > 50)
+                return Results.BadRequest(new { error = "Evento no válido" });
+
+            if (!await db.EventoAvisos.AnyAsync(a => a.Evento == evento && a.Email == email))
+            {
+                db.EventoAvisos.Add(new EventoAviso { Evento = evento, Email = email });
+                try { await db.SaveChangesAsync(); }
+                catch (DbUpdateException) { /* concurrent duplicate: already subscribed */ }
+            }
+            return Results.Ok(new { success = true });
+        });
+
         // POST /api/tickets/buy - Create Stripe checkout session
         app.MapPost("/api/tickets/buy", async (
             [FromBody] TicketPurchaseRequest request,
@@ -263,6 +282,8 @@ public static class PublicEndpoints
         });
     }
 }
+
+public record EventoAvisoRequest(string? Evento, string? Email);
 
 public record TicketPurchaseRequest(
     string FirstName,

@@ -11,6 +11,7 @@ import {
   LocalizacionSection,
   RaffleSection,
   HandlerSection,
+  NextEventSection,
 } from './components';
 import { fetchParticipantCount } from './lib/api';
 import { participantCount } from './atoms/state';
@@ -128,6 +129,9 @@ export function Home(): JSX.Element {
 
       {/* Localización Section - Venue information */}
       <LocalizacionSection />
+
+      {/* Next Event Section - GRS Cup 3 «Avísame» */}
+      <NextEventSection />
       </main>
     </>
   );
