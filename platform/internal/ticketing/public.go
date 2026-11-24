@@ -56,6 +56,7 @@ type sesionRow struct {
 	Publicada, ListaEspera            bool
 	Usadas, Ofertas, EnEspera, Dentro int
 	Reservas, Version                 int
+	Fin1                              time.Time // two-day ticket (dosDias): end of the first day; zero otherwise
 }
 
 const selSesion = `SELECT s.id, s.nombre, s.detalle, s.inicio, s.fin, s.puertas, s.aforo, s.max_por_reserva, s.orden, s.apertura_at, s.cierre_at, s.publicada, s.lista_espera,
@@ -175,14 +176,19 @@ func (s *Svc) registerPublic() {
 					rows.Close()
 				}
 			}
+			ids := make([]uuid.UUID, 0, len(l))
 			for _, x := range l {
+				ids = append(ids, x.ID)
 				p := x.pub(now)
 				if m := en[p.ID]; m != nil {
 					p.Nombre, p.Detalle = entexto.Pick(m, "nombre", p.Nombre), entexto.Pick(m, "detalle", p.Detalle)
 				}
 				o.Sesiones = append(o.Sesiones, p)
-				o.Personas += x.Usadas
 				o.Plazas += x.Aforo
+			}
+			// Unique people: a two-day ticket counts once, not once per session (BIZ-169).
+			if err := s.a.DB.QueryRow(ctx, `SELECT COALESCE(sum(personas), 0)::int FROM entradas WHERE (sesion_id = ANY($1) OR sesion2_id = ANY($1)) AND estado <> 'anulada'`, ids).Scan(&o.Personas); err != nil {
+				return nil, err
 			}
 			return &struct {
 				CacheControl string `header:"Cache-Control"`
@@ -598,9 +604,22 @@ func (s *Svc) varsEntrada(c compref.Comp, x sesionRow, cod, tok, nombre, apellid
 	if personas > 1 {
 		acomp = fmt.Sprintf(" + %d acompañante%s", personas-1, map[bool]string{true: "s"}[personas > 2])
 	}
-	return map[string]string{"nombre": strings.TrimSpace(nombre), "titular": strings.TrimSpace(nombre+" "+apellidos) + acomp, "sesion": x.Nombre, "dia": diaTxt(x.Inicio),
-		"puertas": hm(x.Puertas), "hasta": hm(x.Fin), "personas": fmt.Sprint(personas), "codigo": cod, "qr": s.qrURL(c.Slug, c.ID, cod),
-		"enlace": s.webURL + "/mi-entrada?t=" + tok, "lugar": strings.TrimSpace(strings.Join(nonEmpty(c.Sede.Nombre, c.Sede.Ciudad), ", "))}
+	dia, hasta := diaTxt(x.Inicio), hm(x.Fin)
+	if !x.Fin1.IsZero() { // two days (BIZ-163): «Sáb 19 y Dom 20 dic, los dos días … (hasta las 13:00 el sábado y las 14:00 el domingo)»
+		dia, hasta = "los dos días", hm(x.Fin1)+" el "+diasSemana[x.Fin1.In(madrid).Weekday()]+" y las "+hm(x.Fin)+" el "+diasSemana[x.Fin.In(madrid).Weekday()]
+	}
+	return map[string]string{"nombre": strings.TrimSpace(nombre), "titular": strings.TrimSpace(nombre+" "+apellidos) + acomp, "sesion": x.Nombre, "dia": dia,
+		"puertas": hm(x.Puertas), "hasta": hasta, "personas": fmt.Sprint(personas), "codigo": cod, "qr": s.qrURL(c.Slug, c.ID, cod),
+		"enlace": s.webURL + "/mi-entrada?t=" + tok, "lugar": lugar(c)}
+}
+
+// lugar is «Sede, Ciudad», without repeating the city when the venue name already has it (BIZ-170).
+func lugar(c compref.Comp) string {
+	n, ci := strings.TrimSpace(c.Sede.Nombre), strings.TrimSpace(c.Sede.Ciudad)
+	if ci != "" && strings.Contains(strings.ToLower(n), strings.ToLower(ci)) {
+		return n
+	}
+	return strings.Join(nonEmpty(n, ci), ", ")
 }
 
 // enviarEnlace emails the «Mi entrada» link of a ticket (the same link as its other emails).
