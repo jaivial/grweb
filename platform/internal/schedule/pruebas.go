@@ -38,15 +38,15 @@ func dePrueba(ats []atleta, p string) []atleta {
 	return out
 }
 
-// diasPrueba: the day of the competition when the event has one day per competition; otherwise every day (the
-// generator then places it after the sesiones of the other competition, see colocar's ocupado).
+// diasPrueba: from the day of the competition on when the event has one day per competition; otherwise every day
+// (the generator then places it after the sesiones of the other competition, see colocar's ocupado).
 func diasPrueba(ds []Dia, p string) []Dia {
 	if len(ds) < len(ordenPruebas) {
 		return ds
 	}
 	for i, x := range ordenPruebas {
 		if x == p {
-			return ds[i : i+1]
+			return ds[i:] // its day first; what does not fit moves on to the next days (BIZ-168)
 		}
 	}
 	return ds
