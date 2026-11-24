@@ -38,6 +38,7 @@ const T = {
     sobreTitulo: 'Sobre GRS Cup 2',
     sobreTexto: 'GRS Cup 2 es la web oficial del campeonato de powerlifting GRS Cup 2, organizado por GR Strength. Aquí puedes consultar la información del evento, inscribirte como atleta, reservar entradas gratuitas, participar en el sorteo y seguir la competición en directo, sin necesidad de registrarte.',
     sobreGoogle: 'El equipo organizador puede conectar su propia cuenta de Gmail (Google) para enviar desde ella los correos del campeonato (confirmaciones de entradas, inscripciones y avisos). Solo usamos el permiso de envío de correo y la dirección de email de esa cuenta; no leemos su bandeja de entrada ni compartimos esos datos con terceros.',
+    sobreUsoApis: 'Uso de las APIs de Google: GRS Cup 2 solo usa la API de Gmail para enviar correos transaccionales e informativos del campeonato. No usa ninguna API de Google para generar, editar ni analizar imágenes o vídeos, no genera contenido con inteligencia artificial a partir de datos de Google y nunca crea, aloja ni distribuye contenido sexual o imágenes íntimas no consentidas (NCII), tampoco generadas por IA.',
     sobrePrivacidad: 'Política de privacidad', sobreTerminos: 'Términos del servicio',
   },
   en: {
@@ -50,6 +51,7 @@ const T = {
     sobreTitulo: 'About GRS Cup 2',
     sobreTexto: 'GRS Cup 2 is the official website of the GRS Cup 2 powerlifting championship, organised by GR Strength. Here you can read the event information, register as an athlete, book free tickets, enter the raffle and follow the competition live, without creating an account.',
     sobreGoogle: 'The organising team can connect its own Gmail (Google) account to send the championship emails from it (ticket confirmations, registrations and notices). We only use the permission to send email and that account\'s email address; we never read its inbox or share that data with third parties.',
+    sobreUsoApis: 'Use of Google APIs: GRS Cup 2 only uses the Gmail API to send transactional and informational emails about the championship. It does not use any Google API to generate, edit or analyse images or videos, does not generate AI content from Google data, and never creates, hosts or distributes sexual content or non-consensual intimate imagery (NCII), including AI-generated imagery.',
     sobrePrivacidad: 'Privacy policy', sobreTerminos: 'Terms of service',
   },
 };
@@ -75,6 +77,7 @@ const T = {
         <p class="text-sm font-semibold text-text-primary">{{ t().sobreTitulo }}</p>
         <p class="max-w-4xl text-sm text-text-secondary">{{ t().sobreTexto }}</p>
         <p class="max-w-4xl text-sm text-text-secondary">{{ t().sobreGoogle }}</p>
+        <p class="max-w-4xl text-sm text-text-secondary">{{ t().sobreUsoApis }}</p>
         <p class="flex gap-4 text-sm text-text-tertiary"><a class="underline" [routerLink]="'/privacidad' | loc">{{ t().sobrePrivacidad }}</a><a class="underline" [routerLink]="'/terminos' | loc">{{ t().sobreTerminos }}</a></p>
       </section>
       <gr-hero-trophy [titulo]="$any(h?.secciones?.['hero']?.['titulo']) || ''" [hero]="$any(h?.secciones?.['hero']) || {}" (done)="introDone.set($event)" />

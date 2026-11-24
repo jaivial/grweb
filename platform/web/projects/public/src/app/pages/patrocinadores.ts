@@ -1,6 +1,6 @@
 import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, signal } from '@angular/core';
-import { GrButton, GrSkeleton, LOGO, CdnPipe } from '@grcup/ui';
+import { GrButton, GrSkeleton, CdnPipe } from '@grcup/ui';
 import { Cms, type Patrocinador } from '../core/cms';
 import { Competition } from '../core/competition';
 import { I18n, LocPipe } from '../core/i18n';
@@ -10,39 +10,36 @@ import { Page } from '../layout/page';
 import { applySeo } from './content';
 import { Related } from './landings';
 
-const LOGO_GR = LOGO;
 const T = {
   es: {
     nivel: { principal: 'Principal', oro: 'Oro', plata: 'Plata', colaborador: 'Colaborador', institucional: 'Federación', federacion: 'Federación', organizador: 'Organizador' } as Record<string, string>,
-    titulo: 'Patrocinadores', acento: 'y colaboradores', comunidad: 'Comunidad', subtitulo: 'Las marcas, clubs y entidades que hacen posible la GRStrength Cup.',
+    titulo: 'Patrocinadores', acento: 'y colaboradores', comunidad: 'Comunidad', subtitulo: 'Las marcas, clubs y entidades que hacen posible la GRS Cup 2.',
     avala: 'Avala y organiza', federacion: 'Federación *y organización*', colaboradores: 'Colaboradores', marcas: 'Marcas *y clubs*',
     patrocina: 'Patrocina', hazte: 'Hazte *patrocinador*', llega: 'Llega a atletas, entrenadores y aficionados a la fuerza de toda la Comunitat Valenciana.',
     ofrecemosT: 'Qué ofrecemos', hablemos: 'Hablemos', dossierTexto: 'Te enviamos el dossier con las opciones de patrocinio.', pedir: 'Pedir dossier',
     voluntariado: 'Voluntariado', hazPosible: 'Haz posible la competición', apuntate: 'Jueces, cargadores, mesa técnica y foto: apúntate como voluntario.', ayudar: 'Quiero ayudar',
-    asunto: 'Dossier de patrocinio · GR Strength Cup',
+    asunto: 'Dossier de patrocinio · GRS Cup 2',
     ofrecemos: ['Logo en la tarima, el photocall y el cartel', 'Presencia en la web y en redes', 'Stand o espacio de producto en el pabellón', 'Menciones durante la retransmisión'],
     rel: [
       { titulo: 'Voluntarios', texto: 'Ayuda en la competición', ruta: '/voluntarios' },
       { titulo: 'Edición 2025', texto: 'Quién estuvo', ruta: '/ediciones/2025' },
     ],
-    clubOrg: (n: string) => `Club organizador de la ${n}.`,
-    seoTitulo: 'Patrocinadores · GR Strength Cup', seoDesc: 'Las marcas, clubs y entidades que hacen posible la GR Strength Cup.',
+    seoTitulo: 'Patrocinadores · GRS Cup 2', seoDesc: 'Las marcas, clubs y entidades que hacen posible la GRS Cup 2.',
   },
   en: {
     nivel: { principal: 'Main', oro: 'Gold', plata: 'Silver', colaborador: 'Partner', institucional: 'Federation', federacion: 'Federation', organizador: 'Organiser' } as Record<string, string>,
-    titulo: 'Sponsors', acento: 'and partners', comunidad: 'Community', subtitulo: 'The brands, clubs and organisations that make the GRStrength Cup possible.',
+    titulo: 'Sponsors', acento: 'and partners', comunidad: 'Community', subtitulo: 'The brands, clubs and organisations that make the GRS Cup 2 possible.',
     avala: 'Endorsed and organised by', federacion: 'Federation *and organisation*', colaboradores: 'Partners', marcas: 'Brands *and clubs*',
     patrocina: 'Sponsor', hazte: 'Become a *sponsor*', llega: 'Reach athletes, coaches and strength fans across the whole Valencia region.',
     ofrecemosT: 'What we offer', hablemos: 'Let’s talk', dossierTexto: 'We’ll send you the dossier with the sponsorship options.', pedir: 'Request the dossier',
     voluntariado: 'Volunteering', hazPosible: 'Make the competition happen', apuntate: 'Referees, loaders, technical desk and photography: sign up as a volunteer.', ayudar: 'I want to help',
-    asunto: 'Sponsorship dossier · GR Strength Cup',
+    asunto: 'Sponsorship dossier · GRS Cup 2',
     ofrecemos: ['Logo on the platform, the photocall and the poster', 'Presence on the website and social media', 'Stand or product space in the sports hall', 'Mentions during the broadcast'],
     rel: [
       { titulo: 'Volunteers', texto: 'Help at the competition', ruta: '/voluntarios' },
       { titulo: '2025 edition', texto: 'Who was there', ruta: '/ediciones/2025' },
     ],
-    clubOrg: (n: string) => `Organising club of the ${n}.`,
-    seoTitulo: 'Sponsors · GR Strength Cup', seoDesc: 'The brands, clubs and organisations that make the GR Strength Cup possible.',
+    seoTitulo: 'Sponsors · GRS Cup 2', seoDesc: 'The brands, clubs and organisations that make the GRS Cup 2 possible.',
   },
 };
 /** Levels shown with the organiser and the federation (backoffice «Organizadores y afiliaciones»). */
@@ -157,8 +154,7 @@ export class PatrocinadoresPage {
   /** The institutions (AEP) and the organiser, built from the event. */
   protected readonly federacion = computed<Tarjeta[]>(() => {
     const inst = (this.items() ?? []).filter((p) => AFILIACION.includes(p.nivel) && !mismo(p.nombre, this.organizador())).map((p) => this.tarjeta(p));
-    const org = this.organizador();
-    return [...inst, { nombre: org, insignia: this.t().nivel['organizador'], logo: LOGO_GR, url: '', texto: this.t().clubOrg(this.comp.data()?.nombre ?? 'GR Strength Cup') }];
+    return inst;
   });
   protected readonly marcas = computed<Tarjeta[]>(() =>
     (this.items() ?? []).filter((p) => !AFILIACION.includes(p.nivel) && !mismo(p.nombre, this.organizador()))

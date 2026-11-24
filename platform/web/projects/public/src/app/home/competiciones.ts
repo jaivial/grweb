@@ -10,7 +10,7 @@ const T = {
   es: {
     eyebrow: "What's next", titulo: 'Competiciones', fecha: 'Abril 2027', lugar: 'Almussafes (Valencia)', nombre: 'Nombre por revelar',
     texto: 'RESERVA TU PLAZA DE ESTA COMPETICIÓN A UN PRECIO REDUCIDO. ¡LLEVAMOS YA DOS CAMPEONATOS SOLD OUT!',
-    reservar: 'Reservar mi plaza · 40 €', pronto: 'Reservar mi plaza · próximamente',
+    reservar: 'Reservar mi plaza · 40 €', pronto: 'Reservar mi plaza · 40 € · próximamente',
     c3: 'GRS Cup 3', c3fecha: '17, 18 y 19 de diciembre de 2027', c3texto: 'Déjanos tu email y te avisamos cuando abran las inscripciones.',
     tuEmail: 'Tu email', placeholder: 'tu@email.com', avisame: 'Avísame', enviando: 'Enviando…', emailMal: 'Escribe un email válido.',
     ok: '¡Listo! Te avisaremos de la GRS Cup 3.',
@@ -18,7 +18,7 @@ const T = {
   en: {
     eyebrow: "What's next", titulo: 'Competitions', fecha: 'April 2027', lugar: 'Almussafes (Valencia)', nombre: 'Name to be revealed',
     texto: 'BOOK YOUR SPOT IN THIS COMPETITION AT A REDUCED PRICE. WE HAVE ALREADY SOLD OUT TWO CHAMPIONSHIPS!',
-    reservar: 'Book my spot · €40', pronto: 'Book my spot · coming soon',
+    reservar: 'Book my spot · €40', pronto: 'Book my spot · €40 · coming soon',
     c3: 'GRS Cup 3', c3fecha: '17, 18 and 19 December 2027', c3texto: 'Leave your email and we will let you know when registration opens.',
     tuEmail: 'Your email', placeholder: 'you@email.com', avisame: 'Notify me', enviando: 'Sending…', emailMal: 'Enter a valid email.',
     ok: 'Done! We will let you know about GRS Cup 3.',

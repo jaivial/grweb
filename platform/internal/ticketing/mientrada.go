@@ -122,7 +122,7 @@ func (s *Svc) miEntrada(ctx context.Context, c compref.Comp, id uuid.UUID) (MiEn
 	if m.Estado != "anulada" {
 		m.QR = s.qr(c.ID, m.Codigo)
 	}
-	m.Lugar = strings.Join(nonEmpty(c.Sede.Nombre, c.Sede.Ciudad), ", ")
+	m.Lugar = lugar(c)
 	if c.Sede.Ciudad != "" && strings.Contains(c.Sede.Nombre, c.Sede.Ciudad) {
 		m.Lugar = c.Sede.Nombre // BIZ-170: «Pabellón Municipal de Almussafes», no «…, Almussafes»
 	}
