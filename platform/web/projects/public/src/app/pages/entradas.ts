@@ -121,6 +121,8 @@ const T = {
       eEmail2: 'Escribe un email válido.',
       ePriv2: 'Acepta la política de privacidad.',
       sesionAria: 'Sesión',
+      ambos: 'Los dos días',
+      ambosD: 'Una sola entrada y un QR para ambos días',
       enEspera: (s: string, e: string) => `Estás en la lista de espera de ${s}. Si se libera plaza te escribimos a ${e}.`,
       origenes: ['Instagram', 'Un amigo o familiar', 'Mi club o gimnasio', 'Un atleta', 'Cartel o flyer', 'Otro'],
       queVer: ['Sentadilla, banca y peso muerto', 'Competición AEP-2 y AEP-3', '150 atletas', 'Premios y sorteo en directo', 'Sigue a tus atletas', 'Participa en la rifa de material'],
@@ -301,6 +303,8 @@ const T = {
       eEmail2: 'Enter a valid email.',
       ePriv2: 'Accept the privacy policy.',
       sesionAria: 'Session',
+      ambos: 'Both days',
+      ambosD: 'One ticket and one QR for both days',
       enEspera: (s: string, e: string) => `You are on the waiting list for ${s}. If a place frees up we will write to you at ${e}.`,
       origenes: ['Instagram', 'A friend or relative', 'My club or gym', 'An athlete', 'Poster or flyer', 'Other'],
       queVer: ['Squat, bench press and deadlift', 'AEP-2 and AEP-3 competition', '150 athletes', 'Live prizes and prize draw', 'Follow your athletes', 'Enter the equipment raffle'],
@@ -741,6 +745,15 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
             <span class="inline-flex h-6 shrink-0 items-center rounded-full border px-2.5 text-label-xs uppercase" [class]="estado[s.estado].cls">{{ s.estado === 'ultimas' ? t().pg.ultimasN + ' ' + s.libres : t().est[s.estado] }}</span>
           </button>
         }
+        @if (ambos(); as a) {
+          <button type="button" role="radio" [attr.aria-checked]="sesion() === AMBOS" (click)="elegir(a)"
+            class="flex items-center gap-3 rounded-lg border p-4 text-left transition-colors"
+            [class]="sesion() === AMBOS ? 'border-accent bg-accent/10' : err('sesion') ? 'border-accent-text/60' : 'border-line-subtle hover:border-line-strong'">
+            <span class="flex size-5 shrink-0 items-center justify-center rounded-full border-2" [class]="sesion() === AMBOS ? 'border-accent' : 'border-line-strong'">@if (sesion() === AMBOS) { <span class="size-2.5 rounded-full bg-accent"></span> }</span>
+            <span class="min-w-0 flex-1"><span class="block text-label-m first-letter:uppercase">{{ t().pg.ambos }}</span><span class="block text-body-xs text-text-tertiary">{{ a.nombre }} · {{ t().pg.ambosD }}</span></span>
+            <span class="inline-flex h-6 shrink-0 items-center rounded-full border px-2.5 text-label-xs uppercase" [class]="estado[a.estado].cls">{{ a.estado === 'ultimas' ? t().pg.ultimasN + ' ' + a.libres : t().est[a.estado] }}</span>
+          </button>
+        }
       </div>
     </ng-template>
     <ng-template #personas>
@@ -795,6 +808,7 @@ export class EntradasPage {
   protected readonly faq = signal<Faq[]>([]);
   private readonly horarios = signal<Horarios | null>(null);
   protected readonly sesion = signal('');
+  protected readonly AMBOS = 'ambos';
   protected readonly enviando = signal(false);
   protected readonly errores = signal<string[]>([]);
   protected readonly campos = signal<string[]>([]);
@@ -803,8 +817,20 @@ export class EntradasPage {
   private readonly formVisible = signal(true);
   private readonly bajoHero = signal(false);
   protected f = { nombre: '', apellidos: '', email: '', telefono: '', origen: '', personas: 1, privacidad: false, novedades: false};
-  protected readonly sesSel = computed(() => this.data()?.sesiones.find((s) => s.id === this.sesion()));
+  protected readonly sesSel = computed(() => (this.sesion() === this.AMBOS ? this.ambos() ?? undefined : this.data()?.sesiones.find((s) => s.id === this.sesion())));
   protected readonly abiertas = computed(() => (this.data()?.sesiones ?? []).filter((s) => s.estado === 'disponible' || s.estado === 'ultimas'));
+  /** BIZ-163: two open sessions on different days → a «both days» option (one ticket, counts for both capacities). */
+  private readonly par = computed(() => {
+    const a = this.abiertas();
+    return a.length === 2 && dia(a[0].inicio) !== dia(a[1].inicio) ? a : null;
+  });
+  protected readonly ambos = computed<SesionPub | null>(() => {
+    const p = this.par();
+    if (!p) return null;
+    const [a, b] = p;
+    return { ...a, id: this.AMBOS, nombre: a.nombre + ' + ' + b.nombre, detalle: '', fin: b.fin, libres: Math.min(a.libres, b.libres), maxPorReserva: Math.min(a.maxPorReserva, b.maxPorReserva),
+      estado: a.estado === 'ultimas' || b.estado === 'ultimas' ? 'ultimas' : 'disponible', listaEspera: false, enEspera: 0 };
+  });
   protected readonly todasAgotadas = computed(() => { const l = this.data()?.sesiones ?? []; return l.length > 0 && !this.abiertas().length && l.some((s) => s.estado === 'agotada'); });
   protected readonly sesHero = computed(() => this.sesSel() ?? this.abiertas()[0] ?? this.data()?.sesiones[0]);
   protected readonly ejemplo = computed(() => {
@@ -934,7 +960,8 @@ export class EntradasPage {
     const telefono = tel ? (tel.startsWith('+') ? tel : '+34 ' + tel) : undefined;
     let token = '';
     try {
-      const r = await this.api.reservar({ sesionId: this.sesion(), nombre: this.f.nombre.trim(), apellidos: this.f.apellidos.trim(), email: this.f.email.trim(), telefono,
+      const p = this.sesion() === this.AMBOS ? this.par() : null;
+      const r = await this.api.reservar({ sesionId: p ? p[0].id : this.sesion(), sesion2Id: p?.[1].id, nombre: this.f.nombre.trim(), apellidos: this.f.apellidos.trim(), email: this.f.email.trim(), telefono,
         personas: this.f.personas, origen: this.f.origen || undefined, utm, aceptaPrivacidad: true, novedades: this.f.novedades });
       token = r.token;
     } catch (e) {

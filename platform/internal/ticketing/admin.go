@@ -213,7 +213,7 @@ func filtro(in listaIn) (string, []any) {
 		w = append(w, strings.ReplaceAll(c, "?", fmt.Sprintf("$%d", len(args))))
 	}
 	if id, err := uuid.Parse(in.Sesion); err == nil {
-		add("e.sesion_id = ?", id)
+		add("(e.sesion_id = ? OR e.sesion2_id = ?)", id)
 	}
 	if in.Estado != "" {
 		add("e.estado = ?", in.Estado)
