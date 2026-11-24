@@ -37,7 +37,9 @@ export async function medalla3d(url: string) {
         // bronze but ≈ 0.036 on silver, relief and rim from ~0.04) is masked in the shader to a near-black, low-metal,
         // rough finish, except the red «2» printed in the base colour texture, which stays red; rim and relief keep the
         // polished metal
-        const cara = url.includes('silver') ? 0.039 : 0.034;
+        // with gold's finish silver's face still reflects the room as mid grey (#706F6F): fully matte, non-metal there
+        const plata = url.includes('silver');
+        const cara = plata ? 0.039 : 0.034;
         g.scene.traverse((o) => {
           const m = (o as Mesh).material as MeshStandardMaterial | undefined;
           if (!m?.isMeshStandardMaterial) return;
@@ -53,11 +55,11 @@ export async function medalla3d(url: string) {
               .replace('#include <map_fragment>', '#include <map_fragment>\nfloat rojo = vCara * step(diffuseColor.g, 0.15 * diffuseColor.r);\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.02), vCara - rojo);')
               .replace(
                 '#include <roughnessmap_fragment>',
-                '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.55, vCara);',
+                '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, ' + (plata ? '1.0' : '0.55') + ', vCara);',
               )
               .replace(
                 '#include <metalnessmap_fragment>',
-                '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.15, vCara);',
+                '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, ' + (plata ? '0.0' : '0.15') + ', vCara);',
               );
           };
         });
