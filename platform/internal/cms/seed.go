@@ -93,7 +93,7 @@ var seedPatro = []patroIn{
 	{"Eleiko", "colaborador", bcdn + "logos/05_ELEIKO.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
 	{"ER Strength Club", "colaborador", bcdn + "logos/06_ER.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
 	{"KGXLB", "colaborador", bcdn + "logos/01_KGxLB_Anabolik_Wear.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
-	{"FER Entrenamiento", "colaborador", "", "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"FER Entrenamiento", "colaborador", bcdn + "logos/FER-Entrenamiento-logo-sin-fondo.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
 }
 
 var enHero = true
