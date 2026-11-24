@@ -37,7 +37,7 @@ const T = {
     seoDesc: (nombre: string, ciudad: string) => `Cómo llegar al ${nombre} de ${ciudad}: mapa, coche, transporte público, aparcamiento y alojamiento.`,
   },
   en: {
-    titulo: 'Getting to the', pabellonDe: (ciudad: string) => ciudad + ' Sports Hall', pabellon: 'sports hall', sede: 'Venue', crumb: 'Getting there',
+    titulo: 'Getting to the', pabellonDe: (ciudad: string) => 'Pabellón Municipal de ' + ciudad, pabellon: 'sports hall', sede: 'Venue', crumb: 'Getting there',
     subtitulo: 'Address, map, transport from Valencia and everything practical for competition day.', ubicacionOsm: 'Location: OpenStreetMap · ',
     ubicacion: 'Location', direccionMapa: 'Address and *map*', mapaDe: (n: string) => 'Map of ' + n,
     abrirMaps: 'Open in Google Maps', copiada: 'Address copied', copiar: 'Copy address',

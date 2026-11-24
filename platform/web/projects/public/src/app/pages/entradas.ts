@@ -153,12 +153,12 @@ const T = {
       no: 'No, gracias',
       invita: 'Invita a tu gente',
       comparte: 'Comparte tu enlace: sabremos cuántas entradas trae tu invitación.',
-      wa: 'Vente a la GRStrength Cup, la entrada es gratis: ',
+      wa: 'Vente a la GRS Cup 2, la entrada es gratis: ',
       copiarEnl: 'Copiar enlace',
       copiado: 'Copiado',
       copiar: 'Copiar',
       gestionar: 'Gestionar mi entrada',
-      seoT: 'Tu entrada · GR Strength Cup',
+      seoT: 'Tu entrada · GRS Cup 2',
       seoD: 'Tu entrada gratuita con su QR.',
       enviada: (e: string) => `Te la hemos enviado a ${e}.`,
     },
@@ -196,7 +196,7 @@ const T = {
       puertas: 'puertas',
       confirmando: 'Confirmando…',
       confirmar: 'Confirmar mi entrada',
-      seoT: 'Plaza de la lista de espera · GR Strength Cup',
+      seoT: 'Plaza de la lista de espera · GRS Cup 2',
       seoD: 'Confirma la plaza que te hemos ofrecido.',
       plazas: (n: number, s: string) => `${n} plaza${n > 1 ? 's' : ''} para ${s}`,
       antes: (d: string, h: string) => `Confírmala antes del ${d} a las ${h}.`,
@@ -335,12 +335,12 @@ const T = {
       no: 'No, thanks',
       invita: 'Invite your people',
       comparte: 'Share your link: we will know how many tickets your invitation brings in.',
-      wa: 'Come to the GRStrength Cup, entry is free: ',
+      wa: 'Come to the GRS Cup 2, entry is free: ',
       copiarEnl: 'Copy link',
       copiado: 'Copied',
       copiar: 'Copy',
       gestionar: 'Manage my ticket',
-      seoT: 'Your ticket · GR Strength Cup',
+      seoT: 'Your ticket · GRS Cup 2',
       seoD: 'Your free ticket with its QR.',
       enviada: (e: string) => `We have sent it to ${e}.`,
     },
@@ -378,7 +378,7 @@ const T = {
       puertas: 'doors',
       confirmando: 'Confirming…',
       confirmar: 'Confirm my ticket',
-      seoT: 'Waiting-list place · GR Strength Cup',
+      seoT: 'Waiting-list place · GRS Cup 2',
       seoD: 'Confirm the place we have offered you.',
       plazas: (n: number, s: string) => `${n} place${n > 1 ? 's' : ''} for ${s}`,
       antes: (d: string, h: string) => `Confirm it before ${d} at ${h}.`,
@@ -1279,7 +1279,7 @@ export class MiEntradaPage {
   protected readonly ics = computed(() => this.api.ics(this.token));
   protected email = '';
   constructor() {
-    inject(Seo).set({ title: this.t().mi.tit + ' · GR Strength Cup', description: this.t().mi.seoD, path: '/mi-entrada', robots: 'noindex' });
+    inject(Seo).set({ title: this.t().mi.tit + ' · GRS Cup 2', description: this.t().mi.seoD, path: '/mi-entrada', robots: 'noindex' });
     this.token = inject(ActivatedRoute).snapshot.queryParamMap.get('t') ?? '';
     if (!isPlatformBrowser(inject(PLATFORM_ID))) return;
     if (!this.token) {

@@ -47,7 +47,7 @@ const T = {
         { label: 'Alta de atleta', desc: 'Completa tu perfil', href: '/alta-atleta' },
         { label: 'Resultados', desc: 'Clasificaciones por edición', href: '/resultados' },
       ] },
-      { titulo: 'El evento', items: [
+      { titulo: 'El campeonato', items: [
         { label: 'Atletas', desc: 'Perfiles y su horario', href: '/atletas' },
         { label: 'Horarios', desc: 'Horarios y tarima, en directo', href: '/horarios' },
         { label: 'En directo', desc: 'Streaming y marcador', href: '/en-directo' },
@@ -65,7 +65,7 @@ const T = {
     /** Groups of the mobile menu (Figma «Mobile menu v3»): the footer columns, shorter. */
     grupos: [
       { titulo: 'Competición', items: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },
-      { titulo: 'El evento', items: [{ label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Galería', href: '/galeria' }, { label: 'Edición 2025', href: '/ediciones/2025' }] },
+      { titulo: 'El campeonato', items: [{ label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Galería', href: '/galeria' }, { label: 'Edición 2025', href: '/ediciones/2025' }] },
       { titulo: 'Juegos', items: [{ label: 'GRS Fantasy', href: '/fantasy' }, { label: 'Porra', href: '/porra' }, { label: 'Rifa', href: '/sorteo' }] },
       { titulo: 'Visita y comunidad', items: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Blog', href: '/blog' }] },
     ] as Grupo[],
@@ -92,7 +92,7 @@ const T = {
         { label: 'Athlete sign-up', desc: 'Complete your profile', href: '/alta-atleta' },
         { label: 'Results', desc: 'Standings by edition', href: '/resultados' },
       ] },
-      { titulo: 'The event', items: [
+      { titulo: 'The championship', items: [
         { label: 'Athletes', desc: 'Profiles and their schedule', href: '/atletas' },
         { label: 'Schedule', desc: 'Times and platform, live', href: '/horarios' },
         { label: 'Live', desc: 'Streaming and scoreboard', href: '/en-directo' },
@@ -109,7 +109,7 @@ const T = {
     ],
     grupos: [
       { titulo: 'Competition', items: [{ label: 'Weight classes', href: '/categorias-de-peso' }, { label: 'Qualifying totals', href: '/marcas-minimas' }, { label: 'Rules', href: '/reglamento' }, { label: 'Athlete sign-up', href: '/alta-atleta' }] },
-      { titulo: 'The event', items: [{ label: 'Live', href: '/en-directo' }, { label: 'Results', href: '/resultados' }, { label: 'Gallery', href: '/galeria' }, { label: '2025 edition', href: '/ediciones/2025' }] },
+      { titulo: 'The championship', items: [{ label: 'Live', href: '/en-directo' }, { label: 'Results', href: '/resultados' }, { label: 'Gallery', href: '/galeria' }, { label: '2025 edition', href: '/ediciones/2025' }] },
       { titulo: 'Games', items: [{ label: 'GRS Fantasy', href: '/fantasy' }, { label: 'Pool', href: '/porra' }, { label: 'Raffle', href: '/sorteo' }] },
       { titulo: 'Visit and community', items: [{ label: 'Getting there', href: '/como-llegar' }, { label: 'FAQ', href: '/preguntas-frecuentes' }, { label: 'Blog', href: '/blog' }] },
     ],
@@ -367,7 +367,7 @@ const FT = {
     desc: 'Competición de powerlifting organizada por GRStrength en Almussafes (Valencia). Rifa presencial de material para la comunidad.',
     columnas: [
       { titulo: 'Competición', links: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Horarios', href: '/horarios' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },
-      { titulo: 'El evento', links: [{ label: 'Entradas', href: '/entradas' }, { label: 'Atletas', href: '/atletas' }, { label: 'Sorteo', href: '/sorteo' }, { label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Edición 2025', href: '/ediciones/2025' }, { label: 'Galería', href: '/galeria' }] },
+      { titulo: 'El campeonato', links: [{ label: 'Entradas', href: '/entradas' }, { label: 'Atletas', href: '/atletas' }, { label: 'Sorteo', href: '/sorteo' }, { label: 'En directo', href: '/en-directo' }, { label: 'Resultados', href: '/resultados' }, { label: 'Edición 2025', href: '/ediciones/2025' }, { label: 'Galería', href: '/galeria' }] },
       { titulo: 'Visita y comunidad', links: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Público', href: '/publico' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Patrocinadores', href: '/patrocinadores' }, { label: 'Voluntarios', href: '/voluntarios' }, { label: 'Blog', href: '/blog' }] },
       { titulo: 'Legal', links: [{ label: 'Privacidad', href: '/privacidad' }, { label: 'Términos', href: '/terminos' }, { label: 'Consentimiento de datos', href: '/consentimiento-datos' }, { label: 'Política del concurso', href: '/politica-concurso' }] },
     ] as { titulo: string; links: NavLink[] }[],
@@ -378,7 +378,7 @@ const FT = {
     desc: 'Powerlifting competition organised by GRStrength in Almussafes (Valencia). In-person raffle of equipment for the community.',
     columnas: [
       { titulo: 'Competition', links: [{ label: 'Weight classes', href: '/categorias-de-peso' }, { label: 'Qualifying totals', href: '/marcas-minimas' }, { label: 'Rules', href: '/reglamento' }, { label: 'Schedule', href: '/horarios' }, { label: 'Athlete sign-up', href: '/alta-atleta' }] },
-      { titulo: 'The event', links: [{ label: 'Tickets', href: '/entradas' }, { label: 'Athletes', href: '/atletas' }, { label: 'Raffle', href: '/sorteo' }, { label: 'Live', href: '/en-directo' }, { label: 'Results', href: '/resultados' }, { label: '2025 edition', href: '/ediciones/2025' }, { label: 'Gallery', href: '/galeria' }] },
+      { titulo: 'The championship', links: [{ label: 'Tickets', href: '/entradas' }, { label: 'Athletes', href: '/atletas' }, { label: 'Raffle', href: '/sorteo' }, { label: 'Live', href: '/en-directo' }, { label: 'Results', href: '/resultados' }, { label: '2025 edition', href: '/ediciones/2025' }, { label: 'Gallery', href: '/galeria' }] },
       { titulo: 'Visit and community', links: [{ label: 'Getting there', href: '/como-llegar' }, { label: 'Spectators', href: '/publico' }, { label: 'FAQ', href: '/preguntas-frecuentes' }, { label: 'Sponsors', href: '/patrocinadores' }, { label: 'Volunteers', href: '/voluntarios' }, { label: 'Blog', href: '/blog' }] },
       { titulo: 'Legal', links: [{ label: 'Privacy', href: '/privacidad' }, { label: 'Terms', href: '/terminos' }, { label: 'Data consent', href: '/consentimiento-datos' }, { label: 'Raffle terms', href: '/politica-concurso' }] },
     ],
@@ -423,9 +423,9 @@ const FT = {
       </div>
       @if (logos().length) {
         <ul class="flex flex-wrap items-center justify-center gap-x-5 gap-y-4 md:gap-x-10 md:gap-y-5 md:py-2" [attr.aria-label]="t().patrocinadores">
-          @for (p of logos(); track p.nombre) {
+          @for (p of logosOrden(); track p.nombre) {
             <li><a [href]="p.url || ('/patrocinadores' | loc)" [attr.target]="p.url ? '_blank' : null" rel="noopener" class="flex min-h-11 items-center opacity-60 grayscale transition hover:opacity-100 hover:grayscale-0">
-              @if (p.logoUrl) { <img [attr.srcset]="srcsetLogo(p.logoUrl)" [src]="p.logoUrl | cdn" [alt]="p.nombre" class="h-8 w-auto max-w-[150px] object-contain md:h-7" loading="lazy" /> } @else { <span class="text-body-sm font-semibold uppercase text-text-secondary">{{ p.nombre }}</span> }</a></li>
+              @if (p.logoUrl) { <img [attr.srcset]="srcsetLogo(p.logoUrl)" [src]="p.logoUrl | cdn" [alt]="p.nombre" class="w-auto object-contain" [class]="p.nivel === 'principal' ? 'h-12 max-w-[200px] md:h-11' : 'h-8 max-w-[150px] md:h-7'" loading="lazy" /> } @else { <span class="text-body-sm font-semibold uppercase text-text-secondary">{{ p.nombre }}</span> }</a></li>
           }
         </ul>
       }
@@ -470,6 +470,8 @@ export class Footer {
   protected readonly contacto = computed(() => this.comp.data()?.evento.emailContacto ?? '');
   protected readonly handle = computed(() => '@' + this.instagram().replace(/\/$/, '').split('/').pop());
   protected readonly logos = signal<Patrocinador[]>([]);
+  /** BIZ-159: the main sponsors first and bigger in the footer strip. */
+  protected readonly logosOrden = computed(() => [...this.logos()].sort((x, y) => Number(y.nivel === 'principal') - Number(x.nivel === 'principal')));
   protected arriba(): void { window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }
   private readonly scrolled = signal(false);
   protected readonly ctaEnVista = signal(false);

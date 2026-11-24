@@ -36,6 +36,8 @@ export function renderMarkdown(src: string, lang: Lang = 'es'): { html: string; 
       headings.push({ id, text });
       return `<h2${cls ?? ''} id="${id}">${cls ? text : inner}</h2>`;
     })
+    // Markdown images without alt text (FAQ answers) get a default one.
+    .replace(/<img([^>]*?) alt=""/g, (_m, a: string) => '<img' + a + ' alt="' + (lang === 'en' ? 'GRS Cup 2 image' : 'Imagen de la GRS Cup 2') + '"')
     // Internal absolute links stay in the reader's language (not /api/, not already /en).
     .replace(/href="(\/(?!\/|api\/|en(?:[\/?#]|"))[^"]*)"/g, (m, p: string) => (lang === 'en' ? `href="/en${p === '/' ? '' : p}"` : m));
   return { html, headings };
