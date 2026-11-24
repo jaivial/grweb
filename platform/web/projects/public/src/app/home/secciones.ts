@@ -11,6 +11,7 @@ import { HorariosPublic, ICS_URL, normalizar, type Horarios, type PubAtleta, typ
 import { Lightbox } from '../layout/lightbox';
 import { DivisionPipe, I18n, LocPipe, divisionEn } from '../core/i18n';
 import { ANCHO, GLOW, GrCabecera, GrEyebrow, GrTitulo, SECCION, sinNumero, textoTitulo } from './bloques';
+import { GrInscripcionesCerradas } from '../core/inscripcion-aep';
 
 const str = (s: Seccion | undefined, k: string) => (s?.[k] as string | undefined) ?? '';
 const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefined) ?? []);
@@ -49,13 +50,14 @@ const TA = {
  */
 @Component({
   selector: 'gr-sec-alta',
-  imports: [RouterLink, GrButton, GrIcon, LocPipe],
+  imports: [RouterLink, GrButton, GrIcon, LocPipe, GrInscripcionesCerradas],
   styles: `.gr-progreso{width:0;animation:gr-progreso linear forwards} @keyframes gr-progreso{to{width:100%}} @media (prefers-reduced-motion:reduce){.gr-progreso{animation:none;width:100%}}`,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block bg-bg-base px-5 pt-10 pb-18 md:px-8 md:pt-16 md:pb-24 xl:px-20 xl:pb-32' },
   template: `
     <div class="mx-auto flex max-w-[1200px] flex-col items-center gap-8 md:gap-12">
       <h2 class="text-center font-display text-[36px] leading-[1.25] tracking-[0.06em] uppercase [text-shadow:0_0_24px_rgb(196_43_62/0.6)] md:text-[56px]">{{ s()?.['titulo'] || ta().titulo }}</h2>
+      <gr-inscripciones-cerradas />
       <div class="flex w-full flex-col items-center gap-8 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
         <!-- Jaime 15-nov 11:11: a bigger iPhone with real, sharp screens (no Instagram template). Screen 1 is a story made with
              the athlete page's own generator (all in black and white, logos too; Jaime 11:37) and screen 4 the Fantasy pitch; (compartir-story · componer, 1080 × 1920) in the browser; the others are @3x
