@@ -83,8 +83,8 @@ export const fechasHero = (ini?: string | null, fin?: string | null, lang: Lang 
           <div class="flex w-max animate-[gr-marquesina_linear_infinite] items-center hover:[animation-play-state:paused] motion-reduce:animate-none" [style.animation-duration.s]="duracion()">
             @for (p of cinta(); track $index) {
               <a role="listitem" class="shrink-0 pr-9 md:pr-[72px]" [attr.href]="p.url || null" target="_blank" rel="noopener sponsored" [attr.aria-hidden]="$index >= patrocinadores().length || null" [attr.tabindex]="$index >= patrocinadores().length ? -1 : null">
-                @if (p.logoUrl) { <img [attr.srcset]="srcsetLogo(p.logoUrl)" [src]="p.logoUrl | cdn" [alt]="p.nombre" loading="lazy" decoding="async" class="h-[34px] w-auto max-w-none opacity-90 transition-opacity hover:opacity-100 md:h-12" /> }
-                @else { <span class="flex h-[34px] items-center text-label-m whitespace-nowrap text-text-secondary md:h-12">{{ p.nombre }}</span> }
+                @if (p.logoUrl) { <img [attr.srcset]="srcsetLogo(p.logoUrl)" [src]="p.logoUrl | cdn" [alt]="p.nombre" loading="lazy" decoding="async" class="w-auto max-w-none opacity-90 transition-opacity hover:opacity-100" [class]="p.nivel === 'principal' ? 'h-12 md:h-16' : 'h-[34px] md:h-12'" /> }
+                @else { <span class="flex items-center whitespace-nowrap text-text-secondary" [class]="p.nivel === 'principal' ? 'h-12 text-label-l md:h-16' : 'h-[34px] text-label-m md:h-12'">{{ p.nombre }}</span> }
               </a>
             }
           </div>

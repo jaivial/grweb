@@ -82,17 +82,18 @@ var seedFAQ = []faqIn{
 var yes = true
 
 var seedPatro = []patroIn{
+	// BIZ-159: the 11 official sponsors; the four «principal» go first, bigger and in the hero. Empty logo = name as text.
+	{"GR Strength Coaching", "principal", "/img/home/patro-coa.webp", "", &yes, "", &enHero, "", 50, 50, "", enField{}},
+	{"GR Strength Club", "principal", "/img/home/patro-str.webp", "https://grstrength.com", &yes, "", &enHero, "", 50, 50, "", enField{}},
+	{"Ayuntamiento de Almussafes", "principal", "/img/home/patro-alm.webp", "https://www.almussafes.net", &yes, "", &enHero, "", 50, 50, "", enField{}},
+	{"GR Strength Alicante", "principal", "", "", &yes, "", &enHero, "", 50, 50, "", enField{}},
+	{"A7", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"Silentworker", "colaborador", "", "", &yes, "", nil, "", 50, 50, "", enField{}},
 	{"AEP", "institucional", bcdn + "sponsors/compressedAEP.webp", "https://powerliftingspain.es/", &yes, "Asociación Española de Powerlifting: avala la competición y aporta los jueces.", nil, "", 50, 50, "", enField{}},
-	{"A7", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_05_00.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
-	{"Maniak Fitness", "oro", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_06_35.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
-	{"Valkyria Powerlifting Center", "plata", logoValkyria, "", &yes, "", nil, "", 50, 50, "", enField{}},
-	{"PHED", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_21.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
-	{"CF Isabel Atlas", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_25.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
-	{"Gym Mediterrani", "colaborador", bcdn + "sponsors/ChatGPT%20Image%2029%20mar%202026%2C%2020_15_27.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
-	// BIZ-144: the three logos of the hero row (Figma 199:100283), the only ones with «Mostrar en hero» on.
-	{"GRStrength", "principal", "/img/home/patro-str.webp", "https://grstrength.com", &yes, "", &enHero, "", 50, 50, "", enField{}},
-	{"GRS Powerlifting Coaching", "principal", "/img/home/patro-coa.webp", "", &yes, "", &enHero, "", 50, 50, "", enField{}},
-	{"Ajuntament d'Almussafes", "institucional", "/img/home/patro-alm.webp", "https://www.almussafes.net", &yes, "", &enHero, "", 50, 50, "", enField{}},
+	{"Eleiko", "colaborador", "", "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"ER Strength Club", "colaborador", "", "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"KGXLB", "colaborador", "", "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"FER Entrenamiento", "colaborador", "", "", &yes, "", nil, "", 50, 50, "", enField{}},
 }
 
 var enHero = true
