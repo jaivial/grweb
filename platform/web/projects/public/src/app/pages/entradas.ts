@@ -4,7 +4,7 @@ import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrAlert, GrButton, GrCheckbox, GrIcon, GrRaffleNotice, GrSkeleton, type GrIconName, GrSelect, CdnPipe } from '@grcup/ui';
+import { GrAlert, GrButton, GrCheckbox, GrIcon, GrRaffleNotice, GrSkeleton, type GrIconName, GrSelect, CdnPipe, LOGO, LOGO_SRCSET } from '@grcup/ui';
 import { Cms, type Faq } from '../core/cms';
 import { renderMarkdown } from '../core/markdown';
 import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
@@ -402,7 +402,7 @@ const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
  */
 @Component({
   selector: 'gr-ticket',
-  imports: [CdnPipe, GrIcon],
+  imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
@@ -410,7 +410,7 @@ const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
     @let b = e !== 'anulada' ? boletos() : [];
     <article class="relative overflow-hidden rounded-[20px] border shadow-card [overflow-wrap:anywhere]" [class]="b.length ? 'border-accent/55 bg-[linear-gradient(to_bottom_right,#4e121d,#150b0d)]' : 'border-line-strong bg-bg-card'">
       <div class="flex flex-col gap-3 px-5 pt-6 pb-4">
-        <header class="flex h-8 items-center justify-between gap-3"><img [src]="'/img/logo/grcuplogo.webp' | cdn" alt="GRS Cup 2" width="84" height="32" class="h-8 w-[84px] object-contain" />
+        <header class="flex h-8 items-center justify-between gap-3"><img [attr.srcset]="logoSrcset" sizes="84px" [src]="logo" alt="GRS Cup 2" width="84" height="32" class="h-8 w-[84px] object-contain" />
           <span class="inline-flex h-6 shrink-0 items-center rounded-pill border px-2.5 text-label-xs" [class]="pill[e].cls">{{ e === 'reservada' ? t().tk.gratis : e === 'usada' ? t().tk.validada : t().tk.anuladaPill }}</span></header>
         <p class="text-display-xs" [class.text-text-muted]="e === 'anulada'">{{ evento() }}</p>
         <ul class="flex flex-col gap-2 text-body-s text-text-secondary">
@@ -466,6 +466,8 @@ const ESTADO: Record<SesionPub['estado'], { label: string; cls: string }> = {
   `,
 })
 export class TicketCard {
+  protected readonly logo = LOGO;
+  protected readonly logoSrcset = LOGO_SRCSET;
   protected readonly t = inject(I18n).dict(T);
   /** «Mostrar en puerta» button (real tickets only, not the hero example). */
   readonly puertaBtn = input(false);
