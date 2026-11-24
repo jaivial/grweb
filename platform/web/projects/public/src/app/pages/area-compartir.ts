@@ -206,7 +206,7 @@ const T = {
                     <p class="ayuda">{{ t().alTerminar }}</p>
                   } @else if (fotoSrc() && !fotoRota()) {
                     <div class="mt-4 flex items-center gap-4">
-                      <img [src]="fotoSrc()" alt="" class="h-20 w-[45px] rounded-xs object-cover grayscale" [style.object-position]="rec().focalX + '% ' + rec().focalY + '%'" />
+                      <img [src]="fotoSrc()" alt="Tu foto de atleta" class="h-20 w-[45px] rounded-xs object-cover grayscale" [style.object-position]="rec().focalX + '% ' + rec().focalY + '%'" />
                       <div class="min-w-0">
                         <p class="truncate text-label-s">{{ fichero() }}</p>
                         <p class="text-[12px] text-text-tertiary">{{ t().recorteInfo(zoomTxt()) }}</p>
@@ -267,12 +267,12 @@ const T = {
                   @if (vista() === 'listo') {
                     @if (formato() === 'sticker') {
                       <gr-story-movil [src]="url()" [alt]="alt()" [fondo]="fotoSrc() || '/img/edicion-2025/foto-1.webp'" />
-                      <div class="hidden flex-col items-center gap-2 sm:flex md:hidden xl:flex"><img [src]="url()" alt="" class="ajedrez aspect-[9/16] w-[118px] rounded-xs" /><span class="text-[11px] font-semibold tracking-[0.06em] text-text-tertiary">{{ t().pngTransp }}</span></div>
+                      <div class="hidden flex-col items-center gap-2 sm:flex md:hidden xl:flex"><img [src]="url()" alt="Vista previa del sticker" class="ajedrez aspect-[9/16] w-[118px] rounded-xs" /><span class="text-[11px] font-semibold tracking-[0.06em] text-text-tertiary">{{ t().pngTransp }}</span></div>
                     } @else {
                       <gr-story-movil [src]="url()" [alt]="alt()" [hueco]="!foto()" />
                     }
                   } @else {
-                    <gr-story-movil [src]="'/img/edicion-2025/foto-1.webp' | cdn" alt="" [borroso]="true" />
+                    <gr-story-movil [src]="'/img/edicion-2025/foto-1.webp' | cdn" alt="Foto de la edición 2025 de la GRS Cup" [borroso]="true" />
                   }
                 </div>
                 <p class="mt-4 text-center text-[12px] text-text-tertiary">{{ pie() }}</p>
@@ -283,7 +283,7 @@ const T = {
                 }
                 <!-- UX3-R1-5: primary CTA fixed in the thumb zone on mobile, with a 9:16 thumbnail -->
                 <div class="max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-30 max-md:flex max-md:items-center max-md:gap-3 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-5 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]">
-                  @if (url()) { <img [src]="url()" alt="" class="aspect-[9/16] w-10 shrink-0 rounded-xs object-cover md:hidden" [class.ajedrez]="formato() === 'sticker'" /> }
+                  @if (url()) { <img [src]="url()" alt="Vista previa de la story" class="aspect-[9/16] w-10 shrink-0 rounded-xs object-cover md:hidden" [class.ajedrez]="formato() === 'sticker'" /> }
                   <button grButton variant="primary" size="l" [block]="true" icon="instagram" class="min-w-0 flex-1 overflow-hidden" [loading]="busy()" [disabled]="!listo()" (click)="compartir()"><span class="min-w-0 truncate">{{ formato() === 'sticker' ? t().compSticker : t().compIg }}</span></button>
                 </div>
                 <button grButton variant="secondary" size="l" [block]="true" [disabled]="!listo()" (click)="descargar()">{{ formato() === 'sticker' ? t().descPng : t().descImg }}</button>

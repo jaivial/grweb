@@ -100,7 +100,7 @@ interface ItemRifa { id: string; nombre: string; imagenUrl: string | null }
         <ul class="grid w-full grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
           @for (i of items(); track i.id) {
             <li class="relative aspect-square overflow-hidden rounded-xl border border-white/8 bg-[linear-gradient(180deg,#2a2627,#141112)] md:aspect-[167/168]">
-              @if (i.imagenUrl) { <img [src]="i.imagenUrl" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" decoding="async" /> }
+              @if (i.imagenUrl) { <img [src]="i.imagenUrl" [alt]="i.nombre" class="absolute inset-0 size-full object-cover" loading="lazy" decoding="async" /> }
               <span class="absolute inset-0 bg-[linear-gradient(180deg,transparent_45%,rgb(0_0_0/0.9))]"></span>
               <span class="absolute inset-x-3 bottom-3 text-left text-[14px] leading-[18px] font-semibold md:inset-x-2 md:text-[15px]">{{ i.nombre }}</span>
             </li>

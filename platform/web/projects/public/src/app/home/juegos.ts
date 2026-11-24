@@ -92,7 +92,7 @@ const MEDALLA = [
     <div [class]="ancho + ' flex flex-col gap-12'">
       <!-- Figma home R2 (393:144517 · 211:165859): centred header (logo, text with «i», CTAs) and three centred cards -->
       <div class="flex flex-col items-center gap-5 text-center">
-        <img [src]="'/img/home/logo-porra.webp' | cdn" alt="" width="280" height="145" class="h-auto w-[240px] md:w-[280px]" loading="lazy" decoding="async" />
+        <img [src]="'/img/home/logo-porra.webp' | cdn" alt="Logo de GRS Porra" width="280" height="145" class="h-auto w-[240px] md:w-[280px]" loading="lazy" decoding="async" />
         <p class="sr-only">{{ t().porraSr }}</p>
         <h2 class="sr-only">{{ t().porraH2 }}</h2>
         <div class="relative flex max-w-[640px] items-start gap-3 text-left md:items-center md:text-center">
@@ -207,7 +207,7 @@ export class SecPorra {
   template: `
     <!-- Figma home R2 (393:144584 · 211:166129): centred stack — logo, title, pitch, text, CTAs -->
     <div [class]="ancho + ' flex flex-col items-center gap-6 text-center'">
-      <img [src]="'/img/home/logo-fantasy.webp' | cdn" alt="" width="280" height="132" class="h-auto w-[240px] md:w-[240px]" loading="lazy" decoding="async" />
+      <img [src]="'/img/home/logo-fantasy.webp' | cdn" alt="Logo de GRS Fantasy" width="280" height="132" class="h-auto w-[240px] md:w-[240px]" loading="lazy" decoding="async" />
       <p class="sr-only">{{ t().fantasySr }}</p>
       <h2 class="sr-only">GRS Fantasy</h2>
       <div class="w-full max-w-[490px]">

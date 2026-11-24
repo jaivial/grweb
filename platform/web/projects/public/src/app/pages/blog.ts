@@ -94,7 +94,7 @@ const fechaLarga = (locale: string, iso: string) =>
               <div class="grid gap-6 lg:grid-cols-[minmax(0,760px)_minmax(0,1fr)] lg:gap-8">
                 <!-- Figma «Destacado»: 760 × 420 (350 × 420 on mobile), 24 px corners, title over the photo -->
                 <a [routerLink]="'/blog/' + d.slug | loc" class="group relative flex aspect-[350/420] flex-col justify-end overflow-hidden rounded-xl md:rounded-2xl border border-line-subtle md:aspect-[760/420]">
-                  <img [src]="(d.portadaUrl || portada) | cdn" alt="" class="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" />
+                  <img [src]="(d.portadaUrl || portada) | cdn" [alt]="d.titulo" class="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" />
                   <span class="absolute inset-0 bg-[linear-gradient(180deg,transparent_25%,rgb(14_12_13/0.95))]" aria-hidden="true"></span>
                   <span class="relative flex flex-col items-start gap-3 p-5 md:p-6">
                     @if (d.categoria) { <span class="inline-flex h-6 items-center rounded-full bg-accent px-2.5 text-label-xs text-white uppercase">{{ et(d.categoria) }}</span> }
@@ -107,7 +107,7 @@ const fechaLarga = (locale: string, iso: string) =>
                     <p class="text-label-xs text-text-muted uppercase">{{ t().recientes }}</p>
                     @for (p of recientes(); track p.slug) {
                       <a [routerLink]="'/blog/' + p.slug | loc" class="group flex gap-4">
-                        <span class="size-[88px] shrink-0 overflow-hidden rounded-md bg-bg-card"><img [src]="(p.portadaUrl || portada) | cdn" alt="" class="size-full object-cover" loading="lazy" /></span>
+                        <span class="size-[88px] shrink-0 overflow-hidden rounded-md bg-bg-card"><img [src]="(p.portadaUrl || portada) | cdn" [alt]="p.titulo" class="size-full object-cover" loading="lazy" /></span>
                         <span class="flex min-w-0 flex-col gap-1">
                           @if (p.categoria) { <span class="text-label-xs text-accent-text uppercase">{{ et(p.categoria) }}</span> }
                           <span class="text-label-m group-hover:underline">{{ p.titulo }}</span>
@@ -126,7 +126,7 @@ const fechaLarga = (locale: string, iso: string) =>
                 @for (p of visibles(); track p.slug) {
                   <li [class.lg:hidden]="esReciente(p)">
                     <a [routerLink]="'/blog/' + p.slug | loc" class="group flex h-full gap-4 rounded-lg border-line-subtle transition-colors md:flex-col md:gap-0 md:overflow-hidden md:border md:bg-bg-card md:hover:border-line-strong">
-                      <span class="size-[88px] shrink-0 overflow-hidden rounded-md bg-bg-card md:aspect-[360/210] md:size-auto md:w-full md:rounded-none"><img [src]="(p.portadaUrl || portada) | cdn" alt="" class="size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" loading="lazy" /></span>
+                      <span class="size-[88px] shrink-0 overflow-hidden rounded-md bg-bg-card md:aspect-[360/210] md:size-auto md:w-full md:rounded-none"><img [src]="(p.portadaUrl || portada) | cdn" [alt]="p.titulo" class="size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" loading="lazy" /></span>
                       <span class="flex min-w-0 flex-1 flex-col gap-1.5 md:p-5">
                         @if (p.categoria) { <span class="text-label-xs text-accent-text uppercase">{{ et(p.categoria) }}</span> }
                         <span class="text-label-m md:text-ui-h4">{{ p.titulo }}</span>
@@ -255,7 +255,7 @@ export class BlogPage {
                 <span class="flex size-10 items-center justify-center rounded-full bg-accent text-label-s text-white" aria-hidden="true">GR</span>
                 <span class="flex flex-col"><span class="text-label-s">{{ t().equipo }}</span><span class="text-body-xs text-text-tertiary">{{ fecha(a.publicadoAt) }} · {{ a.minutos }} {{ t().minLectura }}</span></span>
               </p>
-              @if (a.portadaUrl) { <img [src]="a.portadaUrl | cdn" alt="" class="aspect-[760/400] w-full rounded-xl object-cover" /> }
+              @if (a.portadaUrl) { <img [src]="a.portadaUrl | cdn" [alt]="a.titulo" class="aspect-[760/400] w-full rounded-xl object-cover" /> }
               @if (toc().length > 1) {
                 <!-- mobile: collapsed «Contenido» accordion before the text (desktop: sticky column) -->
                 <details class="group rounded-lg border border-line-subtle bg-bg-card lg:hidden">
@@ -294,7 +294,7 @@ export class BlogPage {
                 <!-- desktop only: Figma 34-post-390 has no edition card -->
                 <div class="hidden overflow-hidden rounded-xl border border-line-subtle bg-bg-card lg:block">
                   <div class="relative h-40 overflow-hidden bg-bg-deep md:h-[200px]">
-                    <img [src]="'/img/blog/trofeo-edicion.webp' | cdn" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" />
+                    <img [src]="'/img/blog/trofeo-edicion.webp' | cdn" alt="Trofeo de la GRS Cup" class="absolute inset-0 size-full object-cover" loading="lazy" />
                     <span class="absolute inset-0 bg-[linear-gradient(180deg,transparent_40%,rgb(14_12_13/0.9))]" aria-hidden="true"></span>
                     @if (c.fechaInicio) { <span class="absolute bottom-4 left-5 text-display-l text-white">{{ c.fechaInicio.slice(0, 4) }}</span> }
                   </div>

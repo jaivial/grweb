@@ -174,7 +174,7 @@ export class Fav {
                 @for (a of g.items; track a.slug) {
                   <li class="border-b border-line-subtle last:border-0">
                     <a [routerLink]="'/atletas/' + a.slug | loc" class="flex min-h-16 items-center gap-3 py-2.5">
-                      @if (a.fotoUrl) { <img [src]="a.fotoUrl" alt="" class="size-11 shrink-0 rounded-full object-cover" [style.object-position]="a.focalX + '% ' + a.focalY + '%'" loading="lazy" /> }
+                      @if (a.fotoUrl) { <img [src]="a.fotoUrl" [alt]="a.nombre + ' ' + a.apellidos" class="size-11 shrink-0 rounded-full object-cover" [style.object-position]="a.focalX + '% ' + a.focalY + '%'" loading="lazy" /> }
                       @else { <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-deep/50 text-label-m">{{ ini(a) }}</span> }
                       <span class="min-w-0 flex-1"><span class="block text-label-m break-words">{{ a.nombre }} {{ a.apellidos }}</span><span class="line-clamp-2 block text-body-xs text-text-tertiary">{{ a.club || t().independiente }} · {{ a.categoria.trim() ? a.sexo + ' ' + cat(a.categoria) + ' kg' : t().sinCat }}{{ a.divisionNombre ? ' · ' + (a.divisionNombre | division) : '' }}</span></span>
                       <span class="font-mono text-[13px] text-text-secondary">{{ a.horaInicio ? hora(a.horaInicio) : '' }}</span>
@@ -513,7 +513,7 @@ const T2 = {
                   @for (o of a.tambien; track o.slug) {
                     <li class="flex items-center gap-3 border-b border-line-subtle py-2 last:border-0">
                       <a [routerLink]="'/atletas/' + o.slug | loc" class="flex min-w-0 flex-1 items-center gap-3">
-                        @if (o.fotoUrl) { <img [src]="o.fotoUrl" alt="" class="size-11 rounded-full object-cover" [style.object-position]="o.focalX + '% ' + o.focalY + '%'" loading="lazy" /> }
+                        @if (o.fotoUrl) { <img [src]="o.fotoUrl" [alt]="o.nombre + ' ' + o.apellidos" class="size-11 rounded-full object-cover" [style.object-position]="o.focalX + '% ' + o.focalY + '%'" loading="lazy" /> }
                         @else { <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-deep/50 text-label-s leading-none [text-box:trim-both_cap_alphabetic]">{{ ini(o) }}</span> }
                         <span class="min-w-0 break-words"><span class="block text-label-m">{{ o.nombre }} {{ o.apellidos }}</span><span class="block text-body-xs text-text-tertiary">{{ o.club || t().independiente }} · {{ o.divisionNombre | division }}</span></span>
                       </a>

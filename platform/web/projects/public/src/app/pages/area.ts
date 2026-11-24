@@ -422,7 +422,7 @@ const T = {
               <!-- Jaime 15-nov: athlete hero (photo, name, weight class and sex) + four square shortcuts (icon and title only) -->
               <header class="relative flex flex-col items-center gap-5 overflow-hidden rounded-2xl border border-white/8 bg-[linear-gradient(160deg,rgb(110_20_32/0.35),rgb(20_17_18/0.6)_55%)] px-5 pt-8 pb-6 text-center md:flex-row md:gap-8 md:p-8 md:text-left">
                 <span class="size-28 shrink-0 overflow-hidden rounded-full border-2 border-accent/60 bg-bg-raised shadow-[0_0_40px_rgb(196_43_62/0.35)] md:size-36">
-                  @if (p.atleta.perfil.fotoUrl) { <img [src]="p.atleta.perfil.fotoUrl" alt="" class="size-full object-cover" [style.object-position]="p.atleta.perfil.focalX + '% ' + p.atleta.perfil.focalY + '%'" /> }
+                  @if (p.atleta.perfil.fotoUrl) { <img [src]="p.atleta.perfil.fotoUrl" [alt]="p.atleta.nombre + ' ' + p.atleta.apellidos" class="size-full object-cover" [style.object-position]="p.atleta.perfil.focalX + '% ' + p.atleta.perfil.focalY + '%'" /> }
                   @else { <span class="flex size-full items-center justify-center font-display text-[40px]">{{ ((p.atleta.nombre[0] ?? '') + (p.atleta.apellidos[0] ?? '')).toUpperCase() }}</span> }
                 </span>
                 <div class="flex min-w-0 flex-1 flex-col items-center gap-3 md:items-start">
@@ -542,7 +542,7 @@ const T = {
                 <p class="mt-1 text-body-s text-text-tertiary">{{ t().loVeran }}{{ p.atleta.perfil.slug }}</p>
                 <div class="mt-6 flex gap-4">
                   <button type="button" class="relative size-24 shrink-0 overflow-hidden rounded-full bg-bg-raised" (click)="focal($event)" [disabled]="!p.atleta.perfil.fotoUrl" [attr.aria-label]="t().encuadre">
-                    @if (p.atleta.perfil.fotoUrl) { <img [src]="p.atleta.perfil.fotoUrl" alt="" class="size-full object-cover" [style.object-position]="fx + '% ' + fy + '%'" /> }
+                    @if (p.atleta.perfil.fotoUrl) { <img [src]="p.atleta.perfil.fotoUrl" [alt]="p.atleta.nombre + ' ' + p.atleta.apellidos" class="size-full object-cover" [style.object-position]="fx + '% ' + fy + '%'" /> }
                     @else { <span class="flex size-full items-center justify-center text-label-l text-text-tertiary">{{ ((p.atleta.nombre[0] ?? '') + (p.atleta.apellidos[0] ?? '')).toUpperCase() }}</span> }
                   </button>
                   <div class="min-w-0">

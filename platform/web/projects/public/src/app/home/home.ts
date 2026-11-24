@@ -163,7 +163,7 @@ export class HomePage {
       this.horarios.set(horarios);
       const nombre = c?.nombre ?? 'GRS Cup 2';
       this.seo.set({
-        title: this.t().seoTitulo(nombre, c?.sede?.ciudad ?? 'Almussafes'),
+        title: this.t().seoTitulo('GRS Cup 2', c?.sede?.ciudad || 'Almussafes'),
         description: this.t().seoTexto(nombre, c?.evento?.nivel ?? '', c?.fechaInicio ? this.fechaLarga(c.fechaInicio) : '', c?.sede?.nombre ?? 'Almussafes'),
         path: '/',
         jsonLd: c

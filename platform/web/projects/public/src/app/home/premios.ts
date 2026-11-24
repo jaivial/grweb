@@ -85,7 +85,7 @@ const T = {
             <li class="relative w-[300px] shrink-0 snap-start lg:flex lg:h-[480px] lg:w-[340px] lg:items-center lg:justify-center">
               <div class="relative aspect-[300/360] w-full overflow-hidden rounded-lg border shadow-card lg:aspect-[300/420] lg:w-[300px]"
                 [class]="(i === 1 ? 'border-accent shadow-glow-deep' : 'border-white/8') + ' ' + giro[i % 3]">
-                <img [src]="p.imagen | cdn" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" />
+                <img [src]="p.imagen | cdn" [alt]="p.titulo" class="absolute inset-0 size-full object-cover" loading="lazy" />
                 <div class="absolute inset-0 flex flex-col justify-end gap-2 bg-[linear-gradient(180deg,transparent_55%,rgb(14_12_13/0.92))] p-5">
                   <span class="text-display-s [text-shadow:0_2px_20px_rgb(0_0_0/0.8)]">{{ p.titulo }}</span>
                 </div>

@@ -86,13 +86,13 @@ const PUFFS = [
           <!-- WebP frame only when needed (loader gone before the first seek, video failed, reduced motion): the
                trophy is hidden behind the loader and at opacity 0 at scroll 0, so it is never downloaded up front -->
           @if (imagenTrofeo(); as src) {
-            <img [src]="src" alt="" class="absolute inset-0 size-full object-cover" [class.hidden]="!imagenFija()" />
+            <img [src]="src" alt="Trofeo de la GRS Cup 2" class="absolute inset-0 size-full object-cover" [class.hidden]="!imagenFija()" />
           }
         </div>
       </div>
       <!-- U30 · Figma 54: background image with focal point; with motion it fades out with the intro text (U31-R1-15) -->
       @if (hero().imagen) {
-        <img [src]="hero().imagen | cdn" alt="" class="absolute inset-0 size-full object-cover" [style.opacity]="reduced() ? 0.6 : 0.6 * texto()" [style.object-position]="(hero().focalX ?? 50) + '% ' + (hero().focalY ?? 50) + '%'" />
+        <img [src]="hero().imagen | cdn" alt="Atleta compitiendo en la GRS Cup de powerlifting" class="absolute inset-0 size-full object-cover" [style.opacity]="reduced() ? 0.6 : 0.6 * texto()" [style.object-position]="(hero().focalX ?? 50) + '% ' + (hero().focalY ?? 50) + '%'" />
       }
       <!-- Smoke of the intro (clears and drifts away). Perf (iPhone): no filter:blur, the gradient's extra stops give the
            same soft edge; 12 blurred ~1000 px layers cost 200+ ms per frame on a weak GPU even with the hero still. -->

@@ -281,7 +281,7 @@ const TX = {
         <div class="w-full max-w-[400px] overflow-hidden rounded-xl border border-accent/55 bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] shadow-card" aria-hidden="true">
           <div class="flex flex-col gap-3 px-5 pt-6 pb-4">
             <div class="flex items-center justify-between">
-              <img [attr.srcset]="logoSrcset" sizes="52px" [src]="logo" alt="" loading="lazy" decoding="async" class="h-8 w-auto" />
+              <img [attr.srcset]="logoSrcset" sizes="52px" [src]="logo" alt="Logo de la GRS Cup 2" loading="lazy" decoding="async" class="h-8 w-auto" />
               <span class="inline-flex h-6 items-center rounded-pill border border-white/25 bg-white/6 px-2.5 text-label-xs text-text-secondary">{{ te().gratis }}</span>
             </div>
             <p class="text-display-xs">{{ nombreTicket() }}</p>
@@ -295,7 +295,7 @@ const TX = {
             <span class="absolute top-0 -right-3 size-6 rounded-full border border-line-strong bg-bg-deep"></span>
           </div>
           <div class="flex flex-col items-center gap-2 px-5 pt-2 pb-6 text-center">
-            @if (qr()) { <img [src]="qr()" alt="" loading="lazy" decoding="async" class="size-[168px] rounded-[4px] bg-white" /> } @else { <span class="size-[168px] rounded-[4px] bg-white"></span> }
+            @if (qr()) { <img [src]="qr()" alt="Código QR" loading="lazy" decoding="async" class="size-[168px] rounded-[4px] bg-white" /> } @else { <span class="size-[168px] rounded-[4px] bg-white"></span> }
             
             <span class="text-body-xs text-text-tertiary">{{ te().puerta }}</span>
           </div>
@@ -506,7 +506,7 @@ export class SecAfiliaciones {
   host: { class: SECCION + ' bg-bg-deep' },
   template: `
     <div class="pointer-events-none absolute top-[120px] left-1/2 aspect-square w-full max-w-[720px] -translate-x-1/2 opacity-22 md:top-20">
-      <img [src]="(t('imagen') || '/img/home/categorias.webp') | cdn" alt="" class="size-full object-cover" loading="lazy" />
+      <img [src]="(t('imagen') || '/img/home/categorias.webp') | cdn" alt="Categorías de peso y edad de la GRS Cup 2" class="size-full object-cover" loading="lazy" />
       <div class="absolute inset-0 bg-[radial-gradient(closest-side,transparent_20%,#0e0c0d)]"></div>
     </div>
     <div [class]="ancho + ' flex flex-col items-center gap-6 md:gap-10'">
@@ -822,7 +822,7 @@ export class SecHorarios {
           <!-- desktop: the card is as tall as the photos and the map takes the spare height (Figma «Map card», map grows) -->
           <div class="flex w-full flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card lg:w-[520px] lg:self-stretch">
             <div class="relative aspect-[348/200] md:aspect-[518/300] lg:aspect-auto lg:min-h-[300px] lg:flex-1">
-              <img [src]="(t('mapa') || '/img/home/mapa.webp') | cdn" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" />
+              <img [src]="(t('mapa') || '/img/home/mapa.webp') | cdn" alt="Mapa de ubicación del pabellón de Almussafes" class="absolute inset-0 size-full object-cover" loading="lazy" />
               <span class="absolute right-2 bottom-2 rounded-[4px] bg-black/50 px-1.5 py-0.5 text-body-xs text-text-tertiary">© OpenStreetMap</span>
             </div>
             <div class="flex flex-col gap-3 p-5 md:p-7">

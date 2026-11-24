@@ -122,7 +122,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
               <iframe [src]="v" class="absolute inset-0 size-full border-0" [title]="t().iframe" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
             } @else {
               <!-- Figma «Video»: the full venue as the poster (bright while live, dimmed before and after) -->
-              <img [src]="poster" [attr.srcset]="poster + ' 640w, ' + posterL + ' 1300w'" sizes="(min-width: 1024px) 800px, 100vw" alt="" class="absolute inset-0 size-full object-cover" [class.opacity-50]="d.fase !== 'en_directo'" />
+              <img [src]="poster" [attr.srcset]="poster + ' 640w, ' + posterL + ' 1300w'" sizes="(min-width: 1024px) 800px, 100vw" alt="Tarima de la GRS Cup 2" class="absolute inset-0 size-full object-cover" [class.opacity-50]="d.fase !== 'en_directo'" />
               <div class="absolute inset-0" [class]="d.fase === 'en_directo' ? 'bg-[linear-gradient(180deg,transparent_55%,rgb(20_16_18/0.75))]' : 'bg-[linear-gradient(180deg,rgb(20_16_18/0.2),rgb(20_16_18/0.85))]'"></div>
               @if (d.fase === 'antes') {
                 <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
@@ -181,7 +181,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
                   <gr-alert tone="success" [title]="t().terminadaT">{{ t().terminadaD }}
                     <a [routerLink]="'/resultados/' + anio() | loc" class="mt-2 block text-label-s text-accent-text hover:underline">{{ t().verResultados }}</a></gr-alert>
                   <a [routerLink]="'/ediciones/2025' | loc" class="group overflow-hidden rounded-lg border border-line-subtle bg-bg-card transition-colors hover:border-line-strong">
-                    <div class="relative h-40"><img [src]="foto2025" alt="" class="size-full object-cover object-top" /><p class="absolute bottom-3 left-4 font-display text-[44px] leading-none italic">2025</p></div>
+                    <div class="relative h-40"><img [src]="foto2025" alt="Edición 2025 de la GRS Cup" class="size-full object-cover object-top" /><p class="absolute bottom-3 left-4 font-display text-[44px] leading-none italic">2025</p></div>
                     <div class="p-4"><span class="rounded-2xs border border-line-strong px-1.5 py-0.5 text-mono-xs text-text-tertiary">{{ t().celebrada }}</span>
                       <p class="mt-2 font-display text-[22px] uppercase italic">GRS Cup 2025</p>
                       <p class="mt-1 text-body-xs text-text-tertiary">{{ t().ed2025 }}</p>
@@ -887,7 +887,7 @@ const TP = {
 
         @if (p.pantalla.qr && qr()) {
           <section class="absolute right-[80px] bottom-[60px] flex w-[560px] items-center gap-6 rounded-[24px] border border-accent/50 bg-accent-deep/40 p-6">
-            <img [src]="qr()" alt="" class="size-[150px] rounded-md bg-white p-2" />
+            <img [src]="qr()" alt="Código QR" class="size-[150px] rounded-md bg-white p-2" />
             <div><p class="font-display text-[30px] uppercase italic">{{ t().sigue }}</p><p class="mt-2 text-[22px] text-white/75">{{ host() }}{{ t().sigueD }}</p></div>
           </section>
         }

@@ -27,6 +27,15 @@ export interface SeoData {
 /** hreflang pair of the home and its English landing. */
 export const HOME_ALTERNATES = [{ hreflang: 'es', path: '/' }, { hreflang: 'en', path: '/en' }, { hreflang: 'x-default', path: '/' }];
 
+/** BIZ-171: every title ends «<Página> · GRS Cup 2» (old brand suffixes are replaced); the home starts with «GRS Cup 2 · ». */
+const MARCA = 'GRS Cup 2';
+const SUFIJO_MARCA = /\s*[·|–-]\s*(?:blog de la\s+)?(?:GR Strength Cup|GRS? Cup(?: 2)?)(?:\s+blog)?\s*$/i;
+export function tituloConMarca(t: string): string {
+  if (t.startsWith(MARCA + ' · ')) return t;
+  const base = t.replace(SUFIJO_MARCA, '').trim();
+  return !base || /^(GR Strength Cup|GRS? Cup(?: 2)?)$/i.test(base) ? MARCA : base + ' · ' + MARCA;
+}
+
 /** Title, description, canonical, Open Graph / Twitter and JSON-LD per page (SEO plan of the design). */
 @Injectable({ providedIn: 'root' })
 export class Seo {
@@ -48,7 +57,7 @@ export class Seo {
   set(d: SeoData): void {
     const lang = d.lang ?? this.i18n.lang();
     const es = sinPrefijo(d.path);
-    d = { ...d, lang, path: this.i18n.path(es, lang), alternates: d.alternates ?? [{ hreflang: 'es', path: es }, { hreflang: 'en', path: this.i18n.path(es, 'en') }, { hreflang: 'x-default', path: es }] };
+    d = { ...d, title: tituloConMarca(d.title), lang, path: this.i18n.path(es, lang), alternates: d.alternates ?? [{ hreflang: 'es', path: es }, { hreflang: 'en', path: this.i18n.path(es, 'en') }, { hreflang: 'x-default', path: es }] };
     const url = this.origin + d.path;
     this.path.set(d.path);
     const image = d.image ?? this.defaultImage;
