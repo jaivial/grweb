@@ -143,7 +143,7 @@ const T = {
         <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-text-tertiary">
           <a class="underline" [routerLink]="'/privacidad' | loc">{{ t().sobrePrivacidad }}</a>
           <a class="underline" [routerLink]="'/terminos' | loc">{{ t().sobreTerminos }}</a>
-          <button type="button" class="ml-auto min-h-11 rounded-md bg-accent px-4 font-semibold text-on-accent" (click)="cerrarSobre()">{{ t().sobreEntendido }}</button>
+          <button type="button" class="ml-auto min-h-11 rounded-md bg-accent px-4 font-semibold text-text-on-accent" (click)="cerrarSobre()">{{ t().sobreEntendido }}</button>
         </div>
       </section>
     }
