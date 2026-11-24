@@ -34,6 +34,35 @@ html {
   --font-archivo: "Archivo", "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
+/* BIZ-157 brand fonts. Licensed files are NOT in the repo yet: drop them in public/fonts/brand/ (see README there).
+   Until then the browser skips the missing src and the fallback stack (Inter / Contrail One) renders. */
+@font-face {
+  font-family: "ITC Avant Garde Gothic Pro";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/brand/ITCAvantGardeGothicPro-Book.woff2") format("woff2");
+}
+@font-face {
+  font-family: "ITC Avant Garde Gothic Pro";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/brand/ITCAvantGardeGothicPro-Bold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Monster Bites";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/brand/MonsterBites.woff2") format("woff2");
+}
+@theme {
+  /* font-avant: «POWERED BY» and clean headlines. font-monster: impact headlines. */
+  --font-avant: "ITC Avant Garde Gothic Pro", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-monster: "Monster Bites", "Contrail One", "Impact", system-ui, sans-serif;
+}
+
 /* Mobile menu open (layout.ts): the page behind the opaque menu is not painted (iOS stuttered over the hero video). */
 html.gr-menu-abierto main { visibility: hidden; }
 html.gr-menu-abierto #menu-movil { visibility: visible; } /* a navbar inside <main> (styleguide demo) */
