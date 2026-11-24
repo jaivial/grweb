@@ -33,11 +33,29 @@ export async function medalla3d(url: string) {
     glbs.set(
       url,
       new GLTFLoader().loadAsync(url).then((g) => {
-        // polished metal: the flat face mirrors the dark room (Figma 199:210 dark face) and only the bevelled rim and
-        // the relief catch the light
+        // Figma 199:210: the GLB has one material, so the recessed flat face (front normal, local z ≈ 0.028 vs the
+        // relief and rim up to 0.05) is masked in the shader to a near-black, low-metal, rough finish; rim and relief
+        // keep the polished metal
         g.scene.traverse((o) => {
           const m = (o as Mesh).material as MeshStandardMaterial | undefined;
-          if (m?.isMeshStandardMaterial) m.roughness = 0.3;
+          if (!m?.isMeshStandardMaterial) return;
+          m.roughness = 0.3;
+          m.onBeforeCompile = (s) => {
+            s.vertexShader = s.vertexShader
+              .replace('#include <common>', '#include <common>\nvarying float vCara;')
+              .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCara = step(0.9, normal.z) * step(position.z, 0.034);');
+            s.fragmentShader = s.fragmentShader
+              .replace('#include <common>', '#include <common>\nvarying float vCara;')
+              .replace('#include <map_fragment>', '#include <map_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.02), vCara);')
+              .replace(
+                '#include <roughnessmap_fragment>',
+                '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.55, vCara);',
+              )
+              .replace(
+                '#include <metalnessmap_fragment>',
+                '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.15, vCara);',
+              );
+          };
         });
         return g.scene;
       }),
@@ -56,13 +74,18 @@ export async function medalla3d(url: string) {
   cam.position.z = prof;
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d')!;
+  let ultimo = '';
   return {
     canvas,
-    /** Draws the disc at w × h CSS px, turned `y` rad around its vertical axis. */
+    /** Draws the disc at w × h CSS px, turned `y` rad around its vertical axis (skipped when the pose is unchanged). */
     pintar(w: number, h: number, y: number) {
-      const dpr = Math.min(devicePixelRatio || 1, 2);
+      const dpr = Math.min(devicePixelRatio || 1, 1.5);
       const ancho = Math.max(1, Math.min(LADO, Math.round(w * dpr)));
       const alto = Math.max(1, Math.min(LADO, Math.round(h * dpr)));
+      // ~0.1° steps: below that the reflections do not visibly move
+      const pose = `${ancho}x${alto}@${Math.round(y * 600)}`;
+      if (pose === ultimo) return;
+      ultimo = pose;
       if (canvas.width !== ancho || canvas.height !== alto) {
         canvas.width = ancho;
         canvas.height = alto;
