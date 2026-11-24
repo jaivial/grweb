@@ -44,7 +44,7 @@ export interface Recorte {
         }
         <!-- status bar, story progress and Instagram header -->
         <div class="pointer-events-none absolute inset-x-0 top-0 px-4 pt-2 text-white" aria-hidden="true">
-          <div class="flex items-center justify-between text-[12px] font-semibold"><span>9:41</span><span class="h-5 w-16 rounded-full bg-black"></span><span class="h-2.5 w-5 rounded-[3px] bg-white"></span></div>
+          <div class="flex items-center justify-between text-[12px] font-semibold"><span></span><span class="h-5 w-16 rounded-full bg-black"></span><span></span></div>
           @if (!borroso()) {
             <div class="mt-2 h-0.5 rounded bg-white/30"><div class="h-full w-1/3 rounded bg-white"></div></div>
             <div class="mt-2 flex items-center gap-1.5 text-[9px] font-semibold"><span class="size-4 rounded-full border border-white/60 bg-white/20"></span>{{ usuario() || t().usuario }} · 1 min<gr-icon class="ml-auto" name="x" [size]="12" /></div>

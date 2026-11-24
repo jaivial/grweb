@@ -47,7 +47,7 @@ const T = {
       comoFunc: 'Cómo funciona',
       personas: 'personas',
       yaTienen: 'ya tienen entrada',
-      ejTitular: 'Laura Gómez + 2 acompañantes',
+      ejTitular: 'Tu nombre + 2 acompañantes',
       limT: 'Demasiadas visitas desde tu red',
       limX: 'Hemos recibido muchas peticiones desde tu conexión. Espera un minuto y vuelve a cargar la página.',
       errT: 'No hemos podido cargar las entradas',
@@ -227,7 +227,7 @@ const T = {
       comoFunc: 'How it works',
       personas: 'people',
       yaTienen: 'already have a ticket',
-      ejTitular: 'Laura Gómez + 2 guests',
+      ejTitular: 'Your name + 2 guests',
       limT: 'Too many visits from your network',
       limX: 'We have received too many requests from your connection. Wait a minute and reload the page.',
       errT: 'We could not load the tickets',
@@ -586,7 +586,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
           </div>
           <!-- Figma «Ticket» (rotated 4°) and «Aforo meter»: desktop only -->
           <div class="hidden flex-col gap-5 lg:flex">
-            <gr-ticket class="rotate-[4deg]" [linea1]="ejemplo().l1" [linea2]="ejemplo().l2" [lugar]="comp.data()?.sede?.nombre ?? ''" [titular]="t().pg.ejTitular" codigo="GRC-7K3P" qr="E:GRC-7K3P:ejemplo" />
+            <gr-ticket class="rotate-[4deg]" [linea1]="ejemplo().l1" [linea2]="ejemplo().l2" [lugar]="comp.data()?.sede?.nombre ?? ''" [titular]="t().pg.ejTitular" codigo="" qr="E:ejemplo" />
             @if (sesHero(); as s) { <ng-container [ngTemplateOutlet]="aforo" [ngTemplateOutletContext]="{ $implicit: s }" /> }
           </div>
         </div>

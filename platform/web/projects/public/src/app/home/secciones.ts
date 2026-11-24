@@ -67,7 +67,7 @@ const TA = {
           <div class="relative aspect-[9/19.5] w-[min(64vw,270px)] rounded-[44px] border border-white/20 bg-[#0b0a0a] p-[9px] sm:w-[320px] sm:rounded-[50px] sm:p-[11px] lg:rounded-[56px] lg:p-[12px] shadow-[0_30px_80px_rgb(0_0_0/0.6)] lg:w-[360px]">
             <div class="relative flex size-full flex-col overflow-hidden rounded-[35px] bg-black sm:rounded-[39px] lg:rounded-[44px]">
               <!-- status bar (safe area): the Dynamic Island never covers the screen content -->
-              <div class="flex h-[6.5%] shrink-0 items-center justify-between px-[9%] text-[11px] font-semibold text-white sm:text-[13px]" aria-hidden="true"><span>9:41</span><span class="h-[9px] w-[20px] rounded-[3px] bg-white"></span></div>
+              <div class="flex h-[6.5%] shrink-0 items-center justify-between px-[9%] text-[11px] font-semibold text-white sm:text-[13px]" aria-hidden="true"></div>
               <div class="relative min-h-0 flex-1">
               @for (p of pantallas(); track p.src; let i = $index) {
                 <img [attr.srcset]="p.srcset ?? null" sizes="(min-width: 1024px) 336px, (min-width: 640px) 298px, min(calc(64vw - 18px), 252px)" [src]="p.src" [alt]="p.alt" loading="lazy" decoding="async" class="absolute inset-0 size-full transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none" [class]="(p.story ? 'object-contain ' : 'object-cover object-top ') + (i === slide() ? 'opacity-100 scale-100' : 'opacity-0 scale-[1.03]')" [attr.aria-hidden]="i !== slide() || null" />
@@ -186,14 +186,14 @@ const TE = {
     reserva: 'Reserva tu entrada gratis', horarios: 'Ver horarios', personas: (n: string) => n + ' personas ya tienen entrada',
     gratis: 'Entrada gratuita', puerta: 'Enséñalo en la puerta desde el móvil (no hace falta imprimirlo)', aforo: 'Aforo',
     sesion: (x: string) => 'Sesión de ' + x, puertas: (a: string, b: string) => 'Puertas ' + a + ' · hasta las ' + b,
-    acomp: 'Laura Gómez + 2 acompañantes', agotadas: 'Agotadas: apúntate a la lista de espera',
+    acomp: 'Tu nombre + 2 acompañantes', agotadas: 'Agotadas: apúntate a la lista de espera',
     ultimas: (n: number) => '¡Últimas ' + n + ' entradas!', quedan: (n: string) => 'Quedan ' + n + ' entradas',
   },
   en: {
     reserva: 'Book your free ticket', horarios: 'See schedule', personas: (n: string) => n + ' people already have a ticket',
     gratis: 'Free ticket', puerta: 'Show it at the door on your phone (no need to print it)', aforo: 'Capacity',
     sesion: (x: string) => x + ' session', puertas: (a: string, b: string) => 'Doors ' + a + ' · until ' + b,
-    acomp: 'Laura Gómez + 2 guests', agotadas: 'Sold out: join the waiting list',
+    acomp: 'Your name + 2 guests', agotadas: 'Sold out: join the waiting list',
     ultimas: (n: number) => 'Last ' + n + ' tickets!', quedan: (n: string) => n + ' tickets left',
   },
 };
@@ -294,7 +294,7 @@ const TX = {
           </div>
           <div class="flex flex-col items-center gap-2 px-5 pt-2 pb-6 text-center">
             @if (qr()) { <img [src]="qr()" alt="" loading="lazy" decoding="async" class="size-[168px] rounded-[4px] bg-white" /> } @else { <span class="size-[168px] rounded-[4px] bg-white"></span> }
-            <span class="text-mono-s">GRC-7K3P</span>
+            
             <span class="text-body-xs text-text-tertiary">{{ te().puerta }}</span>
           </div>
         </div>

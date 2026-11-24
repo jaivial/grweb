@@ -182,7 +182,7 @@ const POSICIONES = [
                 <span class="flex size-16 items-center justify-center rounded-full border-[1.5px] border-dashed border-white/40 bg-bg-deep/35 text-text-secondary transition-colors group-hover:border-white/70 group-hover:text-white lg:size-20">
                   <gr-icon name="plus" [size]="24" />
                 </span>
-                <span class="text-[12px] font-semibold text-text-tertiary lg:text-[14px]">{{ t().fichar }}</span>
+                <span class="text-[12px] font-semibold text-text-tertiary lg:text-[14px]">{{ p.nombre }}</span>
               </a>
             }
           </li>
