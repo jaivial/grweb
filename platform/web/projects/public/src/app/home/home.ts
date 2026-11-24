@@ -36,9 +36,10 @@ const T = {
     seoTexto: (nombre: string, nivel: string, fecha: string, sede: string) => `${nombre}: campeonato de powerlifting ${nivel ? '(' + nivel + ') ' : ''}el ${fecha} en ${sede}. Entradas gratuitas, atletas, horarios y directo.`,
     noEncontradaTitulo: 'Página no encontrada · GRS Cup 2', noEncontradaTexto: 'La página que buscas no existe.',
     sobreTitulo: 'Sobre GRS Cup 2',
-    sobreTexto: 'GRS Cup 2 es la web oficial del campeonato de powerlifting GRS Cup 2, organizado por GR Strength. Aquí puedes consultar la información del evento, inscribirte como atleta, reservar entradas gratuitas, participar en el sorteo y seguir la competición en directo, sin necesidad de registrarte.',
+    sobreTexto: 'GRS Cup 2 es la web oficial del campeonato de powerlifting GRS Cup 2, organizado por GR Strength. Aquí puedes consultar la información del campeonato, inscribirte como atleta, reservar entradas gratuitas, participar en el sorteo y seguir la competición en directo, sin necesidad de registrarte.',
     sobreGoogle: 'El equipo organizador puede conectar su propia cuenta de Gmail (Google) para enviar desde ella los correos del campeonato (confirmaciones de entradas, inscripciones y avisos). Solo usamos el permiso de envío de correo y la dirección de email de esa cuenta; no leemos su bandeja de entrada ni compartimos esos datos con terceros.',
     sobreUsoApis: 'Uso de las APIs de Google: GRS Cup 2 solo usa la API de Gmail para enviar correos transaccionales e informativos del campeonato. No usa ninguna API de Google para generar, editar ni analizar imágenes o vídeos, no genera contenido con inteligencia artificial a partir de datos de Google y nunca crea, aloja ni distribuye contenido sexual o imágenes íntimas no consentidas (NCII), tampoco generadas por IA.',
+    sobreCorto: 'Web oficial del campeonato de powerlifting. Solo usamos Gmail para enviar los correos del campeonato.', sobreMas: 'Más info', sobreEntendido: 'Entendido',
     sobrePrivacidad: 'Política de privacidad', sobreTerminos: 'Términos del servicio',
   },
   en: {
@@ -49,9 +50,10 @@ const T = {
     seoTexto: (nombre: string, nivel: string, fecha: string, sede: string) => `${nombre}: powerlifting championship ${nivel ? '(' + nivel + ') ' : ''}on ${fecha} at ${sede}. Free tickets, athletes, schedule and live stream.`,
     noEncontradaTitulo: 'Page not found · GRS Cup 2', noEncontradaTexto: 'The page you are looking for does not exist.',
     sobreTitulo: 'About GRS Cup 2',
-    sobreTexto: 'GRS Cup 2 is the official website of the GRS Cup 2 powerlifting championship, organised by GR Strength. Here you can read the event information, register as an athlete, book free tickets, enter the raffle and follow the competition live, without creating an account.',
+    sobreTexto: 'GRS Cup 2 is the official website of the GRS Cup 2 powerlifting championship, organised by GR Strength. Here you can read the championship information, register as an athlete, book free tickets, enter the raffle and follow the competition live, without creating an account.',
     sobreGoogle: 'The organising team can connect its own Gmail (Google) account to send the championship emails from it (ticket confirmations, registrations and notices). We only use the permission to send email and that account\'s email address; we never read its inbox or share that data with third parties.',
     sobreUsoApis: 'Use of Google APIs: GRS Cup 2 only uses the Gmail API to send transactional and informational emails about the championship. It does not use any Google API to generate, edit or analyse images or videos, does not generate AI content from Google data, and never creates, hosts or distributes sexual content or non-consensual intimate imagery (NCII), including AI-generated imagery.',
+    sobreCorto: 'Official website of the powerlifting championship. We only use Gmail to send the championship emails.', sobreMas: 'More info', sobreEntendido: 'Got it',
     sobrePrivacidad: 'Privacy policy', sobreTerminos: 'Terms of service',
   },
 };
@@ -71,15 +73,6 @@ const T = {
     @let c = comp.data();
     <gr-navbar [hidden]="!introDone()" />
     <main>
-      <!-- BIZ-178: Google brand verification — above the fold (before the intro hero) the home must name the app, state its purpose and its use of Google data, without login -->
-      <section id="sobre" class="mx-auto flex max-w-[1440px] flex-col gap-3 px-5 pt-28 pb-4 md:px-8 xl:px-[120px]" [attr.aria-label]="t().sobreTitulo">
-        <h1 class="text-xl font-semibold text-text-primary">GRS Cup 2</h1>
-        <p class="text-sm font-semibold text-text-primary">{{ t().sobreTitulo }}</p>
-        <p class="max-w-4xl text-sm text-text-secondary">{{ t().sobreTexto }}</p>
-        <p class="max-w-4xl text-sm text-text-secondary">{{ t().sobreGoogle }}</p>
-        <p class="max-w-4xl text-sm text-text-secondary">{{ t().sobreUsoApis }}</p>
-        <p class="flex gap-4 text-sm text-text-tertiary"><a class="underline" [routerLink]="'/privacidad' | loc">{{ t().sobrePrivacidad }}</a><a class="underline" [routerLink]="'/terminos' | loc">{{ t().sobreTerminos }}</a></p>
-      </section>
       <gr-hero-trophy [titulo]="$any(h?.secciones?.['hero']?.['titulo']) || ''" [hero]="$any(h?.secciones?.['hero']) || {}" (done)="introDone.set($event)" />
       <gr-campeonato [comp]="c" [titulo]="$any(h?.secciones?.['campeonato']?.['titulo']) || t().campeonato"
         [subtitulo]="$any(h?.secciones?.['campeonato']?.['subtitulo']) || ''" [aviso]="$any(h?.secciones?.['campeonato']?.['aviso']) || ''" [fechas]="heroFechas()" [lugar]="heroLugar()"
@@ -137,15 +130,43 @@ const T = {
       }
     </main>
     @defer (on immediate; hydrate on viewport) { <gr-footer /> }
+    @if (!sobreCerrado()) {
+      <!-- BIZ-178: Google brand verification — on first visit (server HTML too) the home names the app, its purpose and its use of Google data, with the privacy link. Full texts stay in the DOM inside <details>. -->
+      <section id="sobre" role="region" [attr.aria-label]="t().sobreTitulo"
+        class="fixed inset-x-3 bottom-3 z-40 max-h-[70vh] overflow-y-auto rounded-lg border border-white/15 bg-black p-4 text-sm shadow-lg md:inset-x-auto md:left-6 md:bottom-6 md:max-w-md">
+        <p class="font-semibold text-text-primary">GRS Cup 2</p>
+        <p class="mt-1 text-text-secondary">{{ t().sobreCorto }}</p>
+        <details class="mt-2 text-text-secondary">
+          <summary class="cursor-pointer text-text-primary underline">{{ t().sobreMas }}</summary>
+          <div class="mt-2 flex flex-col gap-2"><p>{{ t().sobreTexto }}</p><p>{{ t().sobreGoogle }}</p><p>{{ t().sobreUsoApis }}</p></div>
+        </details>
+        <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-text-tertiary">
+          <a class="underline" [routerLink]="'/privacidad' | loc">{{ t().sobrePrivacidad }}</a>
+          <a class="underline" [routerLink]="'/terminos' | loc">{{ t().sobreTerminos }}</a>
+          <button type="button" class="ml-auto min-h-11 rounded-md bg-accent px-4 font-semibold text-text-on-accent" (click)="cerrarSobre()">{{ t().sobreEntendido }}</button>
+        </div>
+      </section>
+    }
   `,
 })
 export class HomePage {
+  protected cerrarSobre(): void {
+    this.sobreCerrado.set(true);
+    this.sobreRo?.disconnect();
+    document.documentElement.style.removeProperty('--gr-sobre-h');
+    try { localStorage.setItem('grcup_sobre_ok', '1'); } catch { /* storage blocked */ }
+  }
+
   protected readonly comp = inject(Competition);
   protected readonly cmsApi = inject(Cms);
   private readonly seo = inject(Seo);
   private readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(T);
   protected readonly introDone = signal(false);
+  /** BIZ-178 notice: open on the server and on first visit; closed once acknowledged (localStorage). */
+  protected readonly sobreCerrado = signal(false);
+  /** F-R4-178-1/2: publishes the toast height (+ gap) as --gr-sobre-h so the hero controls sit above it. */
+  private sobreRo?: ResizeObserver;
   protected readonly cms = signal<HomeCms | null>(null);
   protected readonly heroFechas = signal('');
   protected readonly heroLugar = signal('');
@@ -163,6 +184,16 @@ export class HomePage {
   private pendientes = 0;
 
   constructor() {
+    const sobreDestroy = inject(DestroyRef);
+    afterNextRender(() => {
+      try { if (localStorage.getItem('grcup_sobre_ok')) this.sobreCerrado.set(true); } catch { /* storage blocked */ }
+      const el = this.sobreCerrado() ? null : document.getElementById('sobre');
+      if (!el || typeof ResizeObserver === 'undefined') return;
+      const root = document.documentElement.style;
+      this.sobreRo = new ResizeObserver(() => root.setProperty('--gr-sobre-h', `${Math.ceil(window.innerHeight - el.getBoundingClientRect().top) + 12}px`));
+      this.sobreRo.observe(el);
+      sobreDestroy.onDestroy(() => { this.sobreRo?.disconnect(); root.removeProperty('--gr-sobre-h'); });
+    });
     // PendingTasks keeps the server render open until the data and the SEO tags are in place.
     const opt = <T,>(p: string, set: (v: T) => void) => firstValueFrom(this.http.get<T>(this.api(p))).catch((e: unknown) => {
       this.reintentar(e, p, set, 0);

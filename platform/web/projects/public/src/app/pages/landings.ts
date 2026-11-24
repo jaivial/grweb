@@ -1,7 +1,6 @@
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PendingTasks, computed, inject, input, signal } from '@angular/core';
-import { GrButton, GrIcon, GrSelect, GrSkeleton, type GrIconName, CdnPipe } from '@grcup/ui';
-import { Pestanas } from '../layout/pestanas';
+import { GrButton, GrIcon, GrSkeleton, type GrIconName, CdnPipe } from '@grcup/ui';
 import { Cms, type Landing, type Seccion } from '../core/cms';
 import { Competition, type CompeticionPublica } from '../core/competition';
 import { Seo } from '../core/seo';
@@ -127,13 +126,8 @@ export class Community {
 /** /publico (Figma page 29): what spectators will see, how an attempt is judged and the stand rules. All sections come from the CMS. */
 @Component({
   selector: 'gr-publico-page',
-  imports: [CdnPipe, RouterLink, LocPipe, Page, GrIcon, GrSkeleton, GrCabecera, GrSelect, Related, Community, Pestanas],
+  imports: [CdnPipe, RouterLink, LocPipe, Page, GrIcon, GrSkeleton, GrCabecera, Related, Community],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: `
-    .gr-vista { animation: gr-vista-in 180ms ease-out; }
-    @keyframes gr-vista-in { from { opacity: 0; } to { opacity: 1; } }
-    @media (prefers-reduced-motion: reduce) { .gr-vista { animation: none; } }
-  `,
   template: `
     @let l = land();
     <gr-page [title]="t('intro', 'titulo') || tp().venAVer" [accent]="t('intro', 'tituloAcento') || tp().laComp" [eyebrow]="t('intro', 'eyebrow')" [subtitle]="txt(t('intro', 'texto'))" [section]="tp().visita" [crumb]="tp().publico">
@@ -152,24 +146,12 @@ export class Community {
           }
         </ul>
       </nav>
-      <!-- Figma 46:23: the page tabs are one dropdown (not sticky); each view has its own ?vista= -->
-      <!-- Jaime 16-nov: on phones and tablets the sections are tabs in a row that scrolls sideways (no dropdown + bottom sheet) -->
-      <gr-pestanas class="mb-8 md:mb-12 lg:hidden" [etiqueta]="tp().seccion" [opciones]="anchors" [valor]="vista()" (elegir)="verVista($event)" />
-      <div class="mb-12 hidden max-w-80 flex-col gap-2 lg:flex">
-        <label class="text-label-s text-text-secondary" for="publico-vista">{{ tp().seccion }}</label>
-        <gr-select id="publico-vista" tam="l" [value]="vista()" (valorChange)="verVista($event)">
-          @for (a of anchors; track a.id) { <option [value]="a.id">{{ a.t }}</option> }
-        </gr-select>
-      </div>
       @if (l === undefined) {
         <div class="grid grid-cols-2 gap-3 md:grid-cols-4">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-24 rounded-md" /> }</div>
       }
       <div class="flex flex-col gap-12 md:gap-20">
-        @for (v of [vista()]; track v) {
-        <div class="gr-vista flex flex-col gap-12 md:gap-20">
         @for (k of l?.orden ?? []; track k) {
           @let s = l!.secciones[k];
-          @if (k === 'interesar' || k === SECCION[v]) {
           @switch (k) {
             @case ('datos') {
               <ul id="info" class="grid scroll-mt-32 grid-cols-2 gap-2 md:grid-cols-4 md:gap-4">
@@ -235,9 +217,6 @@ export class Community {
               <gr-related [titulo]="str(s, 'titulo') || tp().interesar" [items]="related(s)" />
             }
           }
-          }
-        }
-        </div>
         }
         <gr-community />
       </div>
@@ -260,19 +239,6 @@ export class PublicoPage {
     { texto: 'FAQ', ruta: '/preguntas-frecuentes', icono: 'help' },
   ];
   protected readonly land = signal<Landing | null | undefined>(undefined);
-  protected readonly anchors = [{ id: 'info', t: this.tp().info }, { id: 'que-veras', t: this.tp().queVeras }, { id: 'como-se-juzga', t: this.tp().juzga }, { id: 'normas', t: this.tp().normas }];
-  /** CMS section shown by each ?vista= («Te puede interesar» goes with all of them). */
-  protected readonly SECCION: Record<string, string> = { info: 'datos', 'que-veras': 'movimientos', 'como-se-juzga': 'juicio', normas: 'normas' };
-  private readonly router = inject(Router);
-  private readonly route = inject(ActivatedRoute);
-  private readonly qp = signal(this.route.snapshot.queryParamMap.get('vista') ?? '');
-  protected readonly vista = computed(() => (this.qp() in this.SECCION ? this.qp() : 'info'));
-  /** Changes the view in place (no scroll jump); the canonical stays on /publico. */
-  protected verVista(v: string) {
-    if (v === this.vista()) return;
-    this.qp.set(v);
-    void this.router.navigate([], { relativeTo: this.route, queryParams: { vista: v === 'info' ? null : v }, queryParamsHandling: 'merge', replaceUrl: true });
-  }
   /** Jaime: the stage is «tarima», never «plataforma». */
   protected txt = (t: string | undefined) => (t ?? '').replace(/plataforma/g, 'tarima').replace(/Plataforma/g, 'Tarima');
   /** Card in view in the mobile swipe row (dots). */

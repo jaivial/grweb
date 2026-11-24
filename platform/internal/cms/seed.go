@@ -20,7 +20,7 @@ const bcdn = "https://jaimedigitalstudio.b-cdn.net/grcup/"
 const img = "/img/home/"
 
 var seedSecciones = map[string]any{
-	"hero":       map[string]any{"titulo": "Los ganadores nunca se rinden"},
+	"hero":       map[string]any{"titulo": "WHATEVER IT TAKES"},
 	"campeonato": map[string]any{"titulo": "Campeonato de powerlifting", "subtitulo": "", "aviso": ""},
 	"cifras": map[string]any{"items": []map[string]string{{"valor": "150", "etiqueta": "Atletas en competición"}, {"valor": "18", "etiqueta": "Categorías de peso"},
 		{"valor": "3", "etiqueta": "Movimientos: S · B · D"}, {"valor": "AEP", "etiqueta": "Jueces oficiales"}}},
@@ -93,7 +93,7 @@ var seedPatro = []patroIn{
 	{"Eleiko", "colaborador", bcdn + "logos/05_ELEIKO.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
 	{"ER Strength Club", "colaborador", bcdn + "logos/06_ER.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
 	{"KGXLB", "colaborador", bcdn + "logos/01_KGxLB_Anabolik_Wear.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
-	{"FER Entrenamiento", "colaborador", "", "", &yes, "", nil, "", 50, 50, "", enField{}},
+	{"FER Entrenamiento", "colaborador", bcdn + "logos/FER-Entrenamiento-logo-sin-fondo.webp", "", &yes, "", nil, "", 50, 50, "", enField{}},
 }
 
 var enHero = true

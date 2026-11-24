@@ -26,6 +26,10 @@ export interface Sitio {
   email?: string;
   web?: string;
   imagen?: string;
+  /** Brand logo (shown contained on a light panel). */
+  logo?: string;
+  /** Logo is light (white/grey): paint its panel dark (#141112) instead of white. */
+  logoClaro?: boolean;
   /** Exact Google Maps link (overrides the search built by mapaDe). */
   maps?: string;
   descripcion?: string;
@@ -97,6 +101,10 @@ const T = {
                   @if (s.imagen) {
                   <div class="aspect-video bg-bg-elevated">
                     <img [src]="s.imagen | cdn" [alt]="s.nombre" class="size-full object-cover" loading="lazy" />
+                  </div>
+                  } @else if (s.logo) {
+                  <div class="flex aspect-video items-center justify-center p-6" [class]="s.logoClaro ? 'bg-[#141112]' : 'bg-white'">
+                    <img [src]="s.logo" [alt]="s.nombre" class="size-full object-contain" loading="lazy" />
                   </div>
                   }
                   <div class="flex flex-1 flex-col gap-2 p-5">
@@ -182,22 +190,22 @@ const APARTAMENTOS: Sitio[] = [];
 const RESTAURANTES: Sitio[] = [];
 // BIZ-173: «Gimnasios de powerlifting» document + its Google Maps links (24 Nov 2026).
 export const GIMNASIOS: Sitio[] = [
-  { nombre: 'F.E.R Entrenamiento', detalle: 'Polígono Industrial Canyada dels Codonyers, calle 13, nº 11, nave 9, 46220 Picassent', web: 'https://ferentrenamiento.wodbuster.com', maps: 'https://maps.app.goo.gl/U6JRbXb7iw7wTuC78',
+  { nombre: 'F.E.R Entrenamiento', logo: 'https://jaimedigitalstudio.b-cdn.net/grcup/gimnasios_donde_entrenar/logo-fer-entrenamiento.webp', logoClaro: true, detalle: 'Polígono Industrial Canyada dels Codonyers, calle 13, nº 11, nave 9, 46220 Picassent', web: 'https://ferentrenamiento.wodbuster.com', maps: 'https://maps.app.goo.gl/U6JRbXb7iw7wTuC78',
     descripcion: 'Abierto 24 h. 400 m² de material, clases de crosstraining y sala de musculación. Tarifa «Open Powerlifting» de 40 €/mes con acceso a la zona de material de competición.',
     descripcionEn: 'Open 24 h. 400 m² of equipment, crosstraining classes and a weights room. «Open Powerlifting» plan at €40/month with access to the competition equipment area.' },
-  { nombre: 'NewQ Almussafes Fitness', detalle: 'Ronda Síndic Antoni Albuixech, 123, 46440 Almussafes', web: 'https://newquo.es', maps: 'https://maps.app.goo.gl/T5FYoVatjRhNw5Y76',
+  { nombre: 'NewQ Almussafes Fitness', logo: 'https://jaimedigitalstudio.b-cdn.net/grcup/gimnasios_donde_entrenar/logo-newq-almussafes.webp', detalle: 'Ronda Síndic Antoni Albuixech, 123, 46440 Almussafes', web: 'https://newquo.es', maps: 'https://maps.app.goo.gl/T5FYoVatjRhNw5Y76',
     descripcion: 'Gimnasio con clases colectivas variadas y monitores; máquinas nuevas tras una reforma.',
     descripcionEn: 'Gym with a variety of group classes and instructors; new machines after a refurbishment.' },
-  { nombre: 'Valhalla Gym Almussafes', detalle: 'Carrer Sant Cristòfol, 61, Bajo, 46440 Almussafes', web: 'https://valhallagymalmussafes.es', maps: 'https://maps.app.goo.gl/7KYWNZ6vU88cCVJL8',
+  { nombre: 'Valhalla Gym Almussafes', logo: 'https://jaimedigitalstudio.b-cdn.net/grcup/gimnasios_donde_entrenar/logo-valhalla-gym-almussafes.webp', detalle: 'Carrer Sant Cristòfol, 61, Bajo, 46440 Almussafes', web: 'https://valhallagymalmussafes.es', maps: 'https://maps.app.goo.gl/7KYWNZ6vU88cCVJL8',
     descripcion: 'Gimnasio reciente con mucha variedad de máquinas.',
     descripcionEn: 'Recently opened gym with a wide variety of machines.' },
-  { nombre: 'Pabellón Municipal de Almusafes', detalle: 'Avda. Laura Méndez, s/n, 46440 Almussafes', web: 'https://almussafes.es', maps: 'https://maps.app.goo.gl/aidcANg9ngd7qvoz7',
+  { nombre: 'Pabellón Municipal de Almussafes', detalle: 'Avda. Laura Méndez, s/n, 46440 Almussafes', web: 'https://almussafes.es', maps: 'https://maps.app.goo.gl/aidcANg9ngd7qvoz7',
     descripcion: 'Centro deportivo municipal: pabellón cubierto con acceso por la CV-42 desde la AP-7.',
     descripcionEn: 'Municipal sports centre: indoor hall reached via the CV-42 from the AP-7.' },
-  { nombre: 'The Factory Workout', detalle: 'Carrer Montroi, 10, 46450 Benifaió', web: 'https://mimpalawellness.com/tfw', maps: 'https://maps.app.goo.gl/yGipVmFfo4M9G4Dt9',
+  { nombre: 'The Factory Workout', logo: 'https://jaimedigitalstudio.b-cdn.net/grcup/gimnasios_donde_entrenar/logo-the-factory-workout.webp', logoClaro: true, detalle: 'Carrer Montroi, 10, 46450 Benifaió', web: 'https://mimpalawellness.com/tfw', maps: 'https://maps.app.goo.gl/yGipVmFfo4M9G4Dt9',
     descripcion: 'Sala fitness con máquinas de musculación y peso libre, clases dirigidas y asesoramiento nutricional.',
     descripcionEn: 'Fitness room with weight machines and free weights, group classes and nutrition advice.' },
-  { nombre: '3D Valencia Centro Deportivo', detalle: 'Calle Cofrentes, 5, 46010 Valencia (tranvía Primado Reig, líneas 4/6)', detalleEn: 'Calle Cofrentes, 5, 46010 Valencia (Primado Reig tram stop, lines 4/6)', web: 'https://3dvalencia.es', maps: 'https://maps.app.goo.gl/AnFsLHhz2YyLt9YeA',
+  { nombre: '3D Valencia Centro Deportivo', logo: 'https://jaimedigitalstudio.b-cdn.net/grcup/gimnasios_donde_entrenar/logo-3d-valencia.webp', detalle: 'Calle Cofrentes, 5, 46010 Valencia (tranvía Primado Reig, líneas 4/6)', detalleEn: 'Calle Cofrentes, 5, 46010 Valencia (Primado Reig tram stop, lines 4/6)', web: 'https://3dvalencia.es', maps: 'https://maps.app.goo.gl/AnFsLHhz2YyLt9YeA',
     descripcion: 'Gimnasio y entrenamiento personal, con asesoría online y amplia zona de máquinas.',
     descripcionEn: 'Gym and personal training, with online coaching and a large machine area.' },
 ];

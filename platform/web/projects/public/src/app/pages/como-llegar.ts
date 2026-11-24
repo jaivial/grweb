@@ -182,11 +182,14 @@ const T = {
               @for (g of gimnasios; track g.nombre) {
                 <li class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-5">
                   <div class="flex items-center gap-3">
-                    <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="trophy" [size]="20" /></span>
+                    @if (g.logo) { <span class="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-md p-1" [class]="g.logoClaro ? 'bg-[#141112]' : 'bg-white'"><img [src]="g.logo" [alt]="g.nombre" class="size-full object-contain" loading="lazy" /></span> } @else { <span class="flex size-12 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="trophy" [size]="20" /></span> }
                     <h3 class="text-label-m">{{ g.nombre }}</h3>
                   </div>
                   <p class="text-body-s text-text-tertiary">{{ detalle(g) }}</p>
-                  <a [href]="g.web || mapa(g)" target="_blank" rel="noopener nofollow" class="mt-auto inline-flex items-center gap-1.5 pt-1 text-label-s text-accent-text hover:underline">{{ g.web ? t().verWeb : t().verMapa }}<gr-icon name="external-link" [size]="14" /></a>
+                  <div class="mt-auto flex flex-wrap gap-x-4 gap-y-1 pt-1">
+                    @if (g.web) { <a [href]="g.web" target="_blank" rel="noopener nofollow" class="inline-flex items-center gap-1.5 text-label-s text-accent-text hover:underline">{{ t().verWeb }}<gr-icon name="external-link" [size]="14" /></a> }
+                    <a [href]="mapa(g)" target="_blank" rel="noopener nofollow" class="inline-flex items-center gap-1.5 text-label-s text-accent-text hover:underline">{{ t().verMapa }}<gr-icon name="external-link" [size]="14" /></a>
+                  </div>
                 </li>
               }
             </ul>
