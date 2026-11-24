@@ -21,7 +21,8 @@ type planSesion struct {
 // the only platform:
 //
 //   - women first, then men; lighter classes first; inside a class, by expected total;
-//   - groups of at most maxPorSesion, balanced (41 athletes with max 14 → 14 + 14 + 13);
+//   - groups of at most maxPorSesion that never split a weight class across two sessions (BIZ-168: no repeated
+//     class in the schedule); only a class bigger than maxPorSesion is split, balanced (41 → 14 + 14 + 13);
 //   - each session lasts minPorAtleta × athletes (rounded up to 5 min), starts when the previous one ends, skips the
 //     lunch break, waits for a free weigh-in table (at most mesasPesaje windows at once) and moves to the next day
 //     when it would end after the day's end. Sesiones that fit nowhere go after
@@ -54,19 +55,50 @@ func generar(cfg Config, loc *time.Location, ats []atleta, ocupado []sesionRow) 
 			}
 			return strings.ToLower(a.Nombre) < strings.ToLower(b.Nombre)
 		})
-		n := int(math.Ceil(float64(len(g)) / float64(cfg.MaxPorSesion)))
-		base, extra := len(g)/n, len(g)%n
-		i := 0
-		for k := 0; k < n; k++ {
-			size := base
-			if k < extra {
-				size++
+		var cur []atleta
+		flush := func() {
+			if len(cur) > 0 {
+				trozos = append(trozos, cur)
+				cur = nil
 			}
-			trozos = append(trozos, g[i:i+size])
-			i += size
 		}
+		for i := 0; i < len(g); {
+			j := i
+			for j < len(g) && catKey(g[j].Categoria) == catKey(g[i].Categoria) {
+				j++
+			}
+			clase := g[i:j]
+			if len(clase) > cfg.MaxPorSesion {
+				flush()
+				trozos = append(trozos, balancear(clase, cfg.MaxPorSesion)...)
+			} else {
+				if len(cur)+len(clase) > cfg.MaxPorSesion {
+					flush()
+				}
+				cur = append(cur[:len(cur):len(cur)], clase...)
+			}
+			i = j
+		}
+		flush()
 	}
 	return colocar(cfg, loc, trozos, ocupado)
+}
+
+// balancear splits g into the fewest balanced groups of at most max (41 with max 14 → 14 + 14 + 13).
+func balancear(g []atleta, max int) [][]atleta {
+	n := int(math.Ceil(float64(len(g)) / float64(max)))
+	base, extra := len(g)/n, len(g)%n
+	var out [][]atleta
+	i := 0
+	for k := 0; k < n; k++ {
+		size := base
+		if k < extra {
+			size++
+		}
+		out = append(out, g[i:i+size])
+		i += size
+	}
+	return out
 }
 
 func tot(a atleta) float64 {

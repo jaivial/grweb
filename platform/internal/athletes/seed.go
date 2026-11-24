@@ -60,7 +60,7 @@ var seedFigma = []seedAtleta{
 		foto: fotos + "ChatGPT%20Image%2022%20mar%202026%2C%2023_47_22.png", imagen: false, seguidores: 12},
 	{nombre: "Diego", apellidos: "Moreno", sexo: "M", cat: "-74", div: "subjunior", club: "GRStrength", ciudad: "Almussafes", estado: "confirmado", lic: "VAL-0611", nac: "2008-01-10",
 		foto: fotos + "ChatGPT%20Image%2022%20mar%202026%2C%2023_40_58.png", imagen: true, frase: "El más joven del equipo", sq: 170, bp: 105, dl: 205, seguidores: 77},
-	{nombre: "Sara", apellidos: "López", sexo: "F", cat: "-58", div: "subjunior", club: "Independiente", estado: "confirmado", lic: "VAL-0610", nac: "2010-03-18", seguidores: 0},
+	{nombre: "Sara", apellidos: "López", sexo: "F", cat: "-57", div: "subjunior", club: "Independiente", estado: "confirmado", lic: "VAL-0610", nac: "2010-03-18", seguidores: 0},
 	{nombre: "Javier", apellidos: "Torres", sexo: "M", cat: "-93", div: "master1", club: "Club Paterna", ciudad: "Paterna", estado: "reserva", orden: 1, lic: "VAL-0198", nac: "1984-09-30", seguidores: 3},
 	{nombre: "Hugo", apellidos: "Navarro", sexo: "M", cat: "-83", div: "open", club: "Atlas Gandia", ciudad: "Gandia", estado: "reserva", orden: 2, lic: "VAL-0702", nac: "1996-12-01"},
 	{nombre: "Elena", apellidos: "Castillo", sexo: "F", cat: "-57", div: "open", club: "Fuerza Castelló", ciudad: "Castellón", estado: "reserva", orden: 3, lic: "CAS-0102", nac: "1993-06-25"},
