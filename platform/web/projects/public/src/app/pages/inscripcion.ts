@@ -14,6 +14,7 @@ import { I18n, LocPipe, idiomaActual } from '../core/i18n';
 import { Seo } from '../core/seo';
 import { instagramOf } from '../layout/layout';
 import { Page } from '../layout/page';
+import { GrInscripcionesCerradas } from '../core/inscripcion-aep';
 
 interface ConfigPub { modo: 'externa' | 'propia'; estado: 'abierta' | 'proximamente' | 'cerrada' | 'completa'; cuota: number; plazas: number; ocupadas: number; abre?: string; cierra?: string; reserva: boolean; cupones: boolean; referidos: boolean; referidoTexto?: string; pasarela: 'stripe' | 'simulado' | 'ninguna'; pruebas: boolean }
 interface Descuento { codigo: string; valido: boolean; importe: number; texto: string; motivo?: string; invitadoPor?: string }
@@ -327,7 +328,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
 /** /inscripcion (Figma pages 06 and 06b): AEP link (external mode) or own registration with payment, coupon and referral. */
 @Component({
   selector: 'gr-inscripcion-page',
-  imports: [RouterLink, LocPipe, GrSelect, Page, FormsModule, GrButton, GrIcon, GrSkeleton],
+  imports: [RouterLink, LocPipe, GrSelect, Page, FormsModule, GrButton, GrIcon, GrSkeleton, GrInscripcionesCerradas],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = cfg();
@@ -376,11 +377,14 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
           @if (plazas() && v === 'completas') {
             <p class="flex items-end gap-2"><span class="font-display text-[60px] leading-none text-accent-text md:text-[72px]">{{ inscritos() }}</span><span class="pb-1 text-display-2xs text-text-tertiary md:text-display-xs">/ {{ plazas() }} atletas</span></p>
           }
+          @if (v === 'cerrada' && c?.modo !== 'propia') { <gr-inscripciones-cerradas /> }
+          @else {
           <p class="max-w-[640px] text-body-m text-text-secondary md:text-body-l">
             @if (v === 'completas' && c?.modo !== 'propia') { {{ t().completasAep(nombreComp()) }} }
             @else if (v === 'completas') { {{ t().completasPropia(nombreComp()) }} }
             @else { {{ t().cerradaTxt(nombreComp(), contacto()) }} }
           </p>
+          }
           <div class="flex w-full flex-col gap-3 md:w-auto md:flex-row">
             @if (c?.modo === 'propia') {
               <a grButton variant="primary" size="l" [routerLink]="'/atletas' | loc">{{ t().verInscritos }}</a>
@@ -602,11 +606,11 @@ export class InscripcionPage {
       return c.estado === 'proximamente' ? 'proximamente' : c.estado === 'cerrada' ? 'cerrada' : 'formulario';
     }
     // external (AEP) registration: the state the organiser set in «Evento»
+    // BIZ-160: the AEP registration is closed (153 athletes), so the open «aep» view is no longer shown
     switch (comp?.inscripcion?.estado) {
       case 'proximamente': return 'proximamente';
       case 'completa': return 'completas';
-      case 'cerrada': return 'cerrada';
-      default: return 'aep';
+      default: return 'cerrada';
     }
   });
   /** «II GR Strength Cup» (edition in Roman numerals, without the year of the name). */
