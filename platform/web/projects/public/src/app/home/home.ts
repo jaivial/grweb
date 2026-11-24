@@ -133,7 +133,7 @@ const T = {
     @if (!sobreCerrado()) {
       <!-- BIZ-178: Google brand verification — on first visit (server HTML too) the home names the app, its purpose and its use of Google data, with the privacy link. Full texts stay in the DOM inside <details>. -->
       <section id="sobre" role="region" [attr.aria-label]="t().sobreTitulo"
-        class="fixed inset-x-3 bottom-3 z-40 max-h-[70vh] overflow-y-auto rounded-lg border border-line-subtle bg-surface-raised p-4 text-sm shadow-lg md:inset-x-auto md:left-6 md:bottom-6 md:max-w-md">
+        class="fixed inset-x-3 bottom-3 z-40 max-h-[70vh] overflow-y-auto rounded-lg border border-white/15 bg-black p-4 text-sm shadow-lg md:inset-x-auto md:left-6 md:bottom-6 md:max-w-md">
         <p class="font-semibold text-text-primary">GRS Cup 2</p>
         <p class="mt-1 text-text-secondary">{{ t().sobreCorto }}</p>
         <details class="mt-2 text-text-secondary">
