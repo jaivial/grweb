@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injectable, PLATFORM_ID, PendingTasks, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injectable, PLATFORM_ID, PendingTasks, afterNextRender, computed, effect, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { GrButton, GrIcon, GrLogo, LOGO, LOGO_SRCSET, srcsetLogo, CdnPipe } from '@grcup/ui';
@@ -11,6 +11,8 @@ import { I18n, LocPipe, sinPrefijo } from '../core/i18n';
 import { FanSession } from '../core/fan';
 import { Newsletter } from './newsletter';
 import { AccesoModal } from '../pages/directo-social/acceso-modal';
+import { Consentimiento } from '../core/consentimiento';
+import { CookiesBanner } from './cookies';
 
 export interface NavLink {
   label: string;
@@ -374,6 +376,7 @@ const FT = {
       { titulo: 'Legal', links: [{ label: 'Privacidad', href: '/privacidad' }, { label: 'Términos', href: '/terminos' }, { label: 'Consentimiento de datos', href: '/consentimiento-datos' }, { label: 'Política del concurso', href: '/politica-concurso' }] },
     ] as { titulo: string; links: NavLink[] }[],
     patrocinadores: 'Patrocinadores', derechos: 'GRStrength. Todos los derechos reservados.', stripe: 'Pagos seguros con Stripe',
+    configurarCookies: 'Configurar cookies',
     barraTitulo: 'Entrada gratuita', barraTexto: '1 minuto · aforo limitado', reservar: 'Reservar', arriba: 'Volver arriba',
   },
   en: {
@@ -385,6 +388,7 @@ const FT = {
       { titulo: 'Legal', links: [{ label: 'Privacy', href: '/privacidad' }, { label: 'Terms', href: '/terminos' }, { label: 'Data consent', href: '/consentimiento-datos' }, { label: 'Raffle terms', href: '/politica-concurso' }] },
     ],
     patrocinadores: 'Sponsors', derechos: 'GRStrength. All rights reserved.', stripe: 'Secure payments with Stripe',
+    configurarCookies: 'Cookie settings',
     barraTitulo: 'Free entry', barraTexto: '1 minute · limited capacity', reservar: 'Book', arriba: 'Back to top',
   },
 };
@@ -392,7 +396,7 @@ const FT = {
 /** Footer (Figma «Footer»). */
 @Component({
   selector: 'gr-footer',
-  imports: [CdnPipe, RouterLink, LocPipe, GrLogo, GrIcon, Newsletter, Overlays],
+  imports: [CdnPipe, RouterLink, LocPipe, GrLogo, GrIcon, Newsletter, Overlays, CookiesBanner],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block border-t border-line-subtle bg-bg-deep' },
   template: `
@@ -432,7 +436,7 @@ const FT = {
         </ul>
       }
       <div class="flex flex-col items-center gap-1 border-t border-line-subtle pt-5 text-center text-body-xs text-text-muted md:flex-row md:justify-between md:gap-3 md:text-left">
-        <p>© {{ year }} GRS Cup 2 · {{ t().derechos }} · <a [routerLink]="'/cookies' | loc" class="-my-3.5 inline-flex min-h-11 items-center hover:text-text-secondary">Cookies</a></p>
+        <p>© {{ year }} GRS Cup 2 · {{ t().derechos }} · <a [routerLink]="'/cookies' | loc" class="-my-3.5 inline-flex min-h-11 items-center hover:text-text-secondary">Cookies</a> · <button type="button" (click)="consentimiento.reabrir()" class="-my-3.5 inline-flex min-h-11 items-center hover:text-text-secondary">{{ t().configurarCookies }}</button></p>
         @if (stripe()) { <p class="inline-flex h-[29px] items-center gap-1.5 rounded-pill bg-white/5 px-3 text-text-tertiary"><gr-icon name="lock" [size]="12" />{{ t().stripe }}</p> }
       </div>
     </div>
@@ -449,11 +453,16 @@ const FT = {
       <!-- UX1-R1-4: iOS pattern - only while scrolling back up, past three screens -->
       <button type="button" (click)="arriba()" [attr.aria-label]="t().arriba" class="fixed right-4 bottom-[calc(84px+env(safe-area-inset-bottom))] z-40 flex size-11 items-center justify-center rounded-full border border-line-strong bg-bg-raised shadow-card transition-opacity duration-200 md:hidden" [class.opacity-0]="!fab()" [class.pointer-events-none]="!fab()" [attr.inert]="!fab() || null"><gr-icon name="arrow-up" [size]="20" /></button>
     }
+    <!-- BIZ-201: cookie banner on every page (the home renders its own, merged with the BIZ-178 notice) -->
+    @if (cookies() && consentimiento.pendiente()) { <gr-cookies [sobreBarra]="barra()" /> }
     <!-- Modal de acceso al directo y avisos: una sola instancia en toda la web -->
     <gr-overlays />
   `,
 })
 export class Footer {
+  /** Renders the site-wide cookie banner (false on the home, which merges it with its own notice). */
+  readonly cookies = input(true);
+  protected readonly consentimiento = inject(Consentimiento);
   private readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(FT);
   private readonly seo = inject(Seo);
@@ -493,6 +502,7 @@ export class Footer {
     void inject(PendingTasks).run(() => this.comp.load());
     // Sponsor logos are decoration: a failure must never turn the page into an error.
     void firstValueFrom(this.http.get<Patrocinador[]>(`/api/competiciones/${COMPETITION_SLUG}/patrocinadores`)).then((l) => this.logos.set(l ?? []), () => undefined);
+    afterNextRender(() => this.consentimiento.cargar());
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       this.url.set(this.router.url);
       const sub = this.router.events.subscribe(() => { this.url.set(this.router.url); setTimeout(onScroll); });

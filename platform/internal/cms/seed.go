@@ -2,6 +2,7 @@ package cms
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -173,9 +174,14 @@ func seedSeo(ctx context.Context, tx pgx.Tx, cid uuid.UUID, r [3]string) error {
 
 const ejemplo = "> **Datos de ejemplo.** Texto provisional pendiente de revisión por la asesoría legal antes de publicar la web.\n\n"
 
+// legalCookies: the cookie policy of BIZ-201 (migration 00037 publishes it, with its English version, on existing databases).
+//
+//go:embed legal_cookies.md
+var legalCookies string
+
 // seedLegal: the exact texts of Figma 12–15 (dated 1 April 2026); cookies has no Figma page yet.
 var seedLegal = map[string][2]string{
-	"cookies": {"Política de cookies", ejemplo + "Solo usamos cookies técnicas necesarias para el funcionamiento de la web y de la sesión del backoffice."},
+	"cookies": {"Política de cookies", legalCookies},
 	"privacidad": {"Política de Privacidad", `## Responsable del Tratamiento
 
 GR Strength Sitio web: https://www.grteam.net Email de contacto: admin@grstrength.com
