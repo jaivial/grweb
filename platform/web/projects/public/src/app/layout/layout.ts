@@ -53,6 +53,7 @@ const T = {
         { label: 'En directo', desc: 'Streaming y marcador', href: '/en-directo' },
         { label: 'Sorteo', desc: 'Rifa presencial en efectivo', href: '/sorteo' },
         { label: 'Galería', desc: 'Fotos de la competición', href: '/galeria' },
+        { label: 'Cómo será', desc: 'El montaje de la GRS Cup 2', href: '/#montaje' },
       ] },
       { titulo: 'Visita y comunidad', items: [
         { label: 'Entradas', desc: 'Gratis con reserva', href: '/entradas' },
@@ -65,7 +66,7 @@ const T = {
     /** Groups of the mobile menu (Figma «Mobile menu v3»): the footer columns, shorter. */
     grupos: [
       { titulo: 'Competición', items: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },
-      { titulo: 'El campeonato', items: [{ label: 'Resultados', href: '/resultados' }, { label: 'Galería', href: '/galeria' }, { label: 'Edición 2025', href: '/ediciones/2025' }] },
+      { titulo: 'El campeonato', items: [{ label: 'Cómo será', href: '/#montaje' }, { label: 'Resultados', href: '/resultados' }, { label: 'Galería', href: '/galeria' }, { label: 'Edición 2025', href: '/ediciones/2025' }] },
       { titulo: 'Juegos', items: [{ label: 'GRS Fantasy', href: '/fantasy' }, { label: 'Porra', href: '/porra' }, { label: 'Rifa', href: '/sorteo' }] },
       { titulo: 'Visita y comunidad', items: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Blog', href: '/blog' }] },
     ] as Grupo[],
@@ -98,6 +99,7 @@ const T = {
         { label: 'Live', desc: 'Streaming and scoreboard', href: '/en-directo' },
         { label: 'Raffle', desc: 'In-person cash raffle', href: '/sorteo' },
         { label: 'Gallery', desc: 'Photos of the competition', href: '/galeria' },
+        { label: 'What it will look like', desc: 'The GRS Cup 2 set-up', href: '/#montaje' },
       ] },
       { titulo: 'Visit and community', items: [
         { label: 'Tickets', desc: 'Free with booking', href: '/entradas' },
@@ -109,7 +111,7 @@ const T = {
     ],
     grupos: [
       { titulo: 'Competition', items: [{ label: 'Weight classes', href: '/categorias-de-peso' }, { label: 'Qualifying totals', href: '/marcas-minimas' }, { label: 'Rules', href: '/reglamento' }, { label: 'Athlete sign-up', href: '/alta-atleta' }] },
-      { titulo: 'The championship', items: [{ label: 'Results', href: '/resultados' }, { label: 'Gallery', href: '/galeria' }, { label: '2025 edition', href: '/ediciones/2025' }] },
+      { titulo: 'The championship', items: [{ label: 'What it will look like', href: '/#montaje' }, { label: 'Results', href: '/resultados' }, { label: 'Gallery', href: '/galeria' }, { label: '2025 edition', href: '/ediciones/2025' }] },
       { titulo: 'Games', items: [{ label: 'GRS Fantasy', href: '/fantasy' }, { label: 'Pool', href: '/porra' }, { label: 'Raffle', href: '/sorteo' }] },
       { titulo: 'Visit and community', items: [{ label: 'Getting there', href: '/como-llegar' }, { label: 'FAQ', href: '/preguntas-frecuentes' }, { label: 'Blog', href: '/blog' }] },
     ],
@@ -165,7 +167,7 @@ const T = {
           <div class="flex w-[194px] flex-col gap-1 lg:w-[250px]">
             <p class="mb-1.5 text-label-xs text-text-muted">{{ col.titulo }}</p>
             @for (it of col.items; track it.href) {
-              <a [routerLink]="ruta(it.href) | loc" (click)="mega.set(false)" class="flex flex-col gap-1 rounded-sm p-2 transition-colors hover:bg-white/5"><span class="text-label-s">{{ it.label }}</span><span class="text-body-xs text-text-tertiary">{{ it.desc }}</span></a>
+              <a [routerLink]="ruta(it.href) | loc" [fragment]="frag(it.href)" (click)="mega.set(false)" class="flex flex-col gap-1 rounded-sm p-2 transition-colors hover:bg-white/5"><span class="text-label-s">{{ it.label }}</span><span class="text-body-xs text-text-tertiary">{{ it.desc }}</span></a>
             }
           </div>
         }
@@ -206,7 +208,7 @@ const T = {
                 @if (grupo() === gi) {
                   <ul animate.enter="gr-desplegar" class="flex flex-col gap-1">
                     @for (it of g.items; track it.href) {
-                      <li><a [routerLink]="ruta(it.href) | loc" (click)="open.set(false)" class="flex h-11 items-center justify-between rounded-sm px-3 text-body-m text-text-secondary hover:bg-white/4 hover:text-text-primary" [class.bg-white/4]="activo(it.href)" [attr.aria-current]="activo(it.href) ? 'page' : null">{{ it.label }}<gr-icon name="arrow-right" [size]="14" class="text-text-tertiary" /></a></li>
+                      <li><a [routerLink]="ruta(it.href) | loc" [fragment]="frag(it.href)" (click)="open.set(false)" class="flex h-11 items-center justify-between rounded-sm px-3 text-body-m text-text-secondary hover:bg-white/4 hover:text-text-primary" [class.bg-white/4]="activo(it.href)" [attr.aria-current]="activo(it.href) ? 'page' : null">{{ it.label }}<gr-icon name="arrow-right" [size]="14" class="text-text-tertiary" /></a></li>
                     }
                   </ul>
                 }
