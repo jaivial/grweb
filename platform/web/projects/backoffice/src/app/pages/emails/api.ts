@@ -20,7 +20,6 @@ export interface Salida { items: Mensaje[]; total: number; pagina: number; por: 
 export interface AutoItem {
   clave: string; nombre: string; cuando: string; publico: string; canales: string[]; esencial: boolean; activa: boolean; estado: 'activa' | 'pausada' | 'error'; plantillas: string[]; enviados7d: number; ultimo?: string;
 }
-export interface Integracion { tipo: string; estado: string; error?: string; probadoAt?: string }
 export interface Autos { pausarEnEvento: boolean; ritmo: number; items: AutoItem[] }
 
 /** Transactional email API (messaging service, Figma page 62). */
@@ -66,9 +65,6 @@ export class EmailsApi {
   }
   bulk(cid: string, ids: string[], accion: 'reintentar' | 'cancelar'): Promise<{ afectados: number }> {
     return firstValueFrom(this.http.post<{ afectados: number }>(`${this.b(cid)}/salida/bulk`, { ids, accion }));
-  }
-  probarSMTP(cid: string): Promise<Integracion> {
-    return firstValueFrom(this.http.post<Integracion>(`/api/admin/competiciones/${cid}/integraciones/smtp/probar`, {}));
   }
   autos(cid: string): Promise<Autos> {
     return firstValueFrom(this.http.get<Autos>(`${this.b(cid)}/automatizaciones`));

@@ -3,11 +3,12 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrPopover, GrSelect, GrSkeleton, GrToasts } from '@grcup/ui';
+import { GrBadge, GrButton, GrEmpty, GrIcon, GrInput, GrKpi, GrPopover, GrSelect, GrSkeleton, GrToasts } from '@grcup/ui';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoDrawer, BoPageHeader, BoToggle, errText, BoTabsMovil, BoTablaMovil } from '../../shared/ui';
-import { ESTADO_MSG, EmailsApi, hace, hora, type AutoItem, type Autos, type Mensaje, type PlantillaItem, type Resumen, type Salida } from './api';
+import { BoSheet } from '../../shared/kit';
+import { ESTADO_MSG, EmailsApi, hora, type AutoItem, type Autos, type Mensaje, type PlantillaItem, type Resumen, type Salida } from './api';
 import { CampanasPage } from '../campanas/campanas';
 import { ContactosPage } from '../contactos/contactos';
 
@@ -19,10 +20,10 @@ const FILTROS: { v: string; label: string }[] = [
 ];
 const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los canales' }, { v: 'email', label: 'Email' }, { v: 'whatsapp', label: 'WhatsApp' }];
 
-/** «Emails y avisos» (Figma page 62): templates, outbox with retries and the SMTP state, automations. */
+/** «Emails y avisos» (Figma page 62): templates, outbox with retries, automations. */
 @Component({
   selector: 'bo-emails',
-  imports: [CampanasPage, ContactosPage, BoTablaMovil, BoTabsMovil, FormsModule, RouterLink, BoPageHeader, BoDrawer, BoToggle, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrPopover, GrSelect, GrSkeleton],
+  imports: [CampanasPage, ContactosPage, BoTablaMovil, BoTabsMovil, FormsModule, RouterLink, BoPageHeader, BoDrawer, BoSheet, BoToggle, GrBadge, GrButton, GrEmpty, GrIcon, GrInput, GrKpi, GrPopover, GrSelect, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let r = resumen();
@@ -40,20 +41,6 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
         }
       </nav>
       </bo-tabs-movil>
-
-      @if (caido) {
-        <section class="flex items-start gap-3 rounded-lg border border-accent/50 bg-accent-deep/25 p-4" role="alert">
-          <gr-icon name="circle-x" [size]="20" class="mt-0.5 shrink-0 text-accent-text" />
-          <div class="min-w-0 flex-1 text-body-m">
-            <p class="text-label-m text-accent-text">El SMTP rechaza los envíos{{ r!.smtp.desde ? ' desde las ' + soloHora(r!.smtp.desde) : '' }}</p>
-            <p class="text-text-secondary">{{ r!.smtp.error || 'Sin respuesta del servidor' }} · {{ r!.enCola }} emails en cola · los reintentos están en pausa para no bloquear la cuenta.</p>
-            <p class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
-              <a [routerLink]="['/', comps.current()?.slug, 'sistema', 'email']" class="inline-flex min-h-9 items-center gap-1 text-label-m text-accent-text hover:underline">Configurar email <gr-icon name="arrow-right" [size]="14" /></a>
-              <button type="button" class="inline-flex min-h-9 items-center gap-1 text-label-m text-text-secondary hover:text-text-primary disabled:opacity-60" [disabled]="probando()" (click)="probar()"><gr-icon [name]="probando() ? 'loader' : 'refresh'" [size]="14" [class.animate-spin]="probando()" />Probar conexión</button>
-            </p>
-          </div>
-        </section>
-      }
 
       @switch (tab()) {
         @case ('plantillas') {
@@ -87,13 +74,6 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
 
 
         @case ('salida') {
-          @if (r && !caido) {
-            <div class="flex items-start gap-3 rounded-lg border border-success/40 bg-success/10 p-4">
-              <gr-icon name="circle-check" [size]="20" class="mt-0.5 shrink-0 text-success" />
-              <div class="text-body-m"><p class="text-label-m text-success">{{ !r.smtp.conocido ? 'SMTP sin usar todavía' : 'SMTP operativo' }} · {{ r.smtp.servidor }}{{ r.smtp.propio ? '' : ' (el del sistema)' }}</p>
-                <p class="text-text-secondary">{{ r.smtp.ultimoEnvio ? 'Último envío ' + hace(r.smtp.ultimoEnvio) : 'Sin envíos todavía' }} · cola {{ r.enCola }} · ritmo {{ r.ritmo }}/min</p></div>
-            </div>
-          }
           @if (r && caido) {
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:gap-4">
               <gr-kpi label="En cola" [value]="n(r.enCola)" caption="acumulándose" />
@@ -106,15 +86,11 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
               <p class="mt-2 text-body-xs text-text-tertiary">Se reanudará al validar la conexión SMTP</p>
             </section>
           }
-          <div class="flex flex-wrap items-center gap-2">
-            @for (fx of filtros; track fx.v) {
-              <button type="button" (click)="filtrar(fx.v)" [attr.aria-pressed]="estado() === fx.v" class="inline-flex h-9 items-center rounded-pill border px-3 text-label-s"
-                [class]="estado() === fx.v ? 'border-accent-text bg-accent-deep/40' : 'border-line-strong text-text-secondary hover:text-text-primary'">{{ fx.label }}</button>
-            }
-            <gr-select tipo="filtro" etiqueta="Canal" [ngModel]="canal()" (ngModelChange)="canal.set($event); pagina.set(1); cargarSalida()">
-              @for (c of canales; track c.v) { <option [value]="c.v">{{ c.label }}</option> }
-            </gr-select>
-            <input class="h-9 w-full rounded-md border border-line-strong bg-bg-field px-3 text-body-s sm:ml-auto sm:w-56" placeholder="Buscar destinatario" [ngModel]="q()" (ngModelChange)="q.set($event); buscar()" aria-label="Buscar destinatario" />
+          <div class="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Filtros de la bandeja">
+            <button grButton icon="filter" aria-haspopup="dialog" [attr.aria-expanded]="filtrosOpen()" (click)="filtrosOpen.set(true)">
+              Filtros @if (nFiltros()) { <span class="rounded-2xs bg-accent-deep/50 px-1.5 text-mono-xs text-accent-text">{{ nFiltros() }}</span> }
+            </button>
+            @if (nFiltros()) { <button grButton variant="ghost" (click)="limpiar()">Limpiar filtros</button> }
           </div>
           @if (sel().size) {
             <div class="flex flex-wrap items-center gap-2 rounded-md border border-line-strong bg-bg-raised px-3 py-2 text-body-s">
@@ -245,6 +221,28 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
       }
     </div>
 
+    <bo-sheet title="Filtrar bandeja" [(open)]="filtrosOpen" [filtered]="nFiltros() > 0" (reset)="limpiar()"
+      [resultLabel]="salida() ? 'Ver ' + salida()!.total + ' mensajes' : ''">
+      <div class="flex flex-col gap-2">
+        <span class="text-label-s text-text-primary" id="salida-estado">Estado</span>
+        <div class="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="salida-estado">
+          @for (fx of filtros; track fx.v) {
+            <button type="button" role="radio" [attr.aria-checked]="estado() === fx.v" (click)="filtrar(fx.v)"
+              class="flex h-11 items-center rounded-sm border px-3 text-label-s whitespace-nowrap focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]"
+              [class]="estado() === fx.v ? 'border-accent-text bg-accent-deep/20 text-accent-text' : 'border-line-strong text-text-secondary hover:text-text-primary'">{{ fx.label }}</button>
+          }
+        </div>
+      </div>
+      <gr-select tipo="campo" etiqueta="Canal" [ngModel]="canal()" (ngModelChange)="canal.set($event); pagina.set(1); cargarSalida()">
+        @for (c of canales; track c.v) { <option [value]="c.v">{{ c.label }}</option> }
+      </gr-select>
+      <label class="relative block w-full">
+        <span class="sr-only">Buscar destinatario</span>
+        <gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
+        <input grInput type="search" class="pl-9" placeholder="Buscar destinatario" [ngModel]="q()" (ngModelChange)="q.set($event); buscar()" />
+      </label>
+    </bo-sheet>
+
     <bo-drawer [(open)]="verOpen" [title]="msg()?.asunto || msg()?.nombre || 'Mensaje'" [badge]="msg() ? est[msg()!.estado].label : ''" [badgeTone]="msg() ? est[msg()!.estado].tone : 'neutral'">
       @if (msg(); as m) {
         <dl class="grid grid-cols-[110px_minmax(0,1fr)] gap-y-1.5 text-body-s">
@@ -275,7 +273,6 @@ export class EmailsPage {
   protected readonly filtros = FILTROS;
   protected readonly canales = CANALES;
   protected readonly hora = hora;
-  protected readonly hace = hace;
   protected readonly tabs: { v: Tab; label: string }[] = [
     { v: 'plantillas', label: 'Plantillas' }, { v: 'salida', label: 'Bandeja de salida' }, { v: 'automatizaciones', label: 'Automatizaciones' },
     { v: 'campanas', label: 'Campañas' }, { v: 'contactos', label: 'Contactos' },
@@ -302,7 +299,9 @@ export class EmailsPage {
   protected readonly verOpen = signal(false);
   protected readonly msg = signal<Mensaje | null>(null);
   protected readonly msgHtml = signal<SafeHtml | null>(null);
-  protected readonly probando = signal(false);
+  /** BIZ-207: state, channel and search live in the «Filtros» sheet (side on desktop/tablet, bottom on phones). */
+  protected readonly filtrosOpen = signal(false);
+  protected readonly nFiltros = computed(() => [this.estado(), this.canal(), this.q().trim()].filter(Boolean).length);
   private readonly tabsNav = viewChild<ElementRef<HTMLElement>>('tabsNav');
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
   private readonly fechas = computed(() => this.comps.current() as { fechaInicio?: string; fechaFin?: string } | null);
@@ -377,6 +376,11 @@ export class EmailsPage {
     this.sel.set(new Set());
     void this.cargarSalida();
   }
+  protected limpiar(): void {
+    this.canal.set('');
+    this.q.set('');
+    this.filtrar('');
+  }
   protected ir(p: number): void {
     this.pagina.set(p);
     void this.cargarSalida();
@@ -402,9 +406,6 @@ export class EmailsPage {
   }
   protected entregados(r: Resumen): string {
     return r.entregados.toLocaleString('es-ES');
-  }
-  protected soloHora(iso: string): string {
-    return new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(iso));
   }
   protected progreso(r: Resumen): number {
     const t = r.enviadosHoy + r.enCola;
@@ -467,23 +468,6 @@ export class EmailsPage {
       this.msgHtml.set(d.html ? this.san.bypassSecurityTrustHtml(d.html) : null);
     } catch {
       /* details stay */
-    }
-  }
-  protected async probar(): Promise<void> {
-    this.probando.set(true);
-    try {
-      const r = await this.api.probarSMTP(this.cid());
-      if (r.estado === 'ok') {
-        this.toasts.success('Conexión SMTP correcta', 'La cola se reanuda en el próximo minuto.');
-        const s = this.salida();
-        const pend = s?.items.filter((m) => m.estado === 'reintentando').map((m) => m.id) ?? [];
-        if (pend.length) await this.api.bulk(this.cid(), pend, 'reintentar');
-      } else this.toasts.error('El SMTP sigue fallando', r.error || 'Revisa las credenciales en Sistema → Integraciones.');
-    } catch (e) {
-      this.toasts.error('No se pudo probar', errText(e));
-    } finally {
-      this.probando.set(false);
-      void this.cargarResumen();
     }
   }
   protected async auto(clave: string, activa: boolean): Promise<void> {
