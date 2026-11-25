@@ -131,7 +131,7 @@ const PUFFS = [
           {{ t().desliza }}<gr-icon name="arrow-down" [size]="18" class="animate-bounce text-text-muted [animation-iteration-count:3]" />
         </div>
         <button type="button" (click)="skip()" [class.invisible]="finished()"
-          class="absolute bottom-[calc(24px+env(safe-area-inset-bottom))] left-1/2 inline-flex h-11 -translate-x-1/2 items-center gap-2 rounded-pill border border-white/15 bg-[rgb(44_40_41/0.85)] px-4 text-label-s hover:border-white/30 md:right-[120px] md:bottom-9 md:left-auto md:translate-x-0">
+          class="absolute bottom-[calc(24px+var(--gr-hero-sab,env(safe-area-inset-bottom)))] left-1/2 inline-flex h-11 -translate-x-1/2 items-center gap-2 rounded-pill border border-white/15 bg-[rgb(44_40_41/0.85)] px-4 text-label-s hover:border-white/30 md:right-[120px] md:bottom-9 md:left-auto md:translate-x-0">
           {{ t().saltar }}<gr-icon name="arrow-down" [size]="16" />
         </button>
         <!-- «Hero preload»: trophy icon and download progress until the first video seek completes -->
@@ -263,6 +263,13 @@ export class HeroTrophy {
         anchoAlto = window.innerWidth;
         this.altoVista = window.innerHeight;
         hostEl.style.setProperty('--gr-hero-h', this.altoVista + 'px');
+        // iOS Safari changes safe-area-inset-bottom (0 ↔ 34 px) as its toolbar shows/hides: locked with the height
+        // so «Saltar intro» does not jump mid-scroll
+        const sonda = document.createElement('div');
+        sonda.style.cssText = 'position:fixed;visibility:hidden;padding-bottom:env(safe-area-inset-bottom)';
+        hostEl.append(sonda);
+        hostEl.style.setProperty('--gr-hero-sab', getComputedStyle(sonda).paddingBottom);
+        sonda.remove();
       };
       fijarAlto();
       window.addEventListener('resize', fijarAlto, { passive: true });
