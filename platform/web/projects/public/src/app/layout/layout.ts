@@ -137,22 +137,22 @@ const T = {
   // UX1-R1-1: on phones the navbar stays visible during the intro (hidden only from md). UX1-R1-5: above the bottom bar and FAB while the menu is open.
   host: { class: 'fixed inset-x-0 top-0 pr-[max(20px,env(safe-area-inset-right))] pl-[max(20px,env(safe-area-inset-left))] pt-[max(12px,env(safe-area-inset-top))] max-[239px]:px-2 transition-[opacity,transform,translate] duration-300 ease-[cubic-bezier(.22,1,.36,1)] md:pr-[max(32px,env(safe-area-inset-right))] md:pl-[max(32px,env(safe-area-inset-left))] md:pt-[max(16px,env(safe-area-inset-top))] xl:px-[120px]', '(document:click)': 'fuera($event)', '(document:keydown.escape)': 'mega.set(false); open.set(false)', '[class.z-40]': '!capa()', '[class.z-60]': 'capa()', '[class.md:opacity-0]': 'hidden()', '[class.md:-translate-y-4]': 'hidden()', '[class.md:pointer-events-none]': 'hidden()', '[attr.aria-hidden]': '(hidden() && ancho()) || null', '[style.translate]': "oculta() && !open() ? '0 calc(-100% - 8px)' : null", '(window:scroll)': 'alScroll()' },
   template: `
-    <nav class="@container relative mx-auto flex min-h-16 max-w-[1200px] items-center gap-2 overflow-hidden md:gap-4 xl:gap-6 rounded-md border border-accent-deep/35 bg-bg-deep/72 px-3 max-[239px]:px-1.5 backdrop-blur-[10px] md:min-h-[72px] md:px-6" [attr.aria-label]="t().principal">
+    <nav class="@container relative mx-auto flex min-h-16 max-w-[1200px] items-center gap-2 overflow-hidden md:gap-4 min-[1440px]:gap-6 rounded-md border border-accent-deep/35 bg-bg-deep/72 px-3 max-[239px]:px-1.5 backdrop-blur-[10px] md:min-h-[72px] md:px-6" [attr.aria-label]="t().principal">
       <span class="pointer-events-none absolute -top-20 -left-10 size-40 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]" aria-hidden="true"></span>
       <span class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(90deg,transparent,rgb(196_43_62/0.6),transparent)]" aria-hidden="true"></span>
       <a [routerLink]="'/' | loc" class="relative shrink-0" [attr.aria-label]="t().home"><img [attr.srcset]="logoSrcset" sizes="116px" [src]="logo" alt="GRS Cup 2" class="h-[36px] w-24 object-contain max-[239px]:w-20 md:h-[40px] md:w-[116px]" /></a>
-      <!-- Figma «Navbar»: tablet keeps the first three links (the rest is in «Competición ▾»), desktop all of them, with «En directo» for quick access to the live stream (tighter gaps at lg so they fit at 1024) -->
-      <ul class="relative -mr-2 ml-auto hidden items-center md:flex lg:gap-1 xl:gap-2">
+      <!-- Figma «Navbar»: tablet keeps the first three links (the rest is in «Competición ▾»); desktop adds «En directo» for quick access to the live stream, and «Cómo llegar» from xl (tighter gaps below 1440 so the labels fit on one line) -->
+      <ul class="relative -mr-2 ml-auto hidden items-center md:flex lg:gap-1 min-[1440px]:gap-2">
         @for (l of links(); track l.href; let i = $index) {
-          <li [class]="i > 2 ? 'hidden lg:block' : ''">
+          <li [class]="i > 5 ? 'hidden xl:block' : i > 2 ? 'hidden lg:block' : ''">
             @if (i === 0) {
-              <button type="button" class="group relative inline-flex items-center rounded-xs p-2 text-label-s pointer-coarse:min-h-11 text-text-secondary transition-colors hover:text-text-primary" [attr.aria-expanded]="mega()" aria-controls="mega-competicion" (click)="mega.set(!mega())">
+              <button type="button" class="group relative inline-flex items-center rounded-xs p-2 text-label-s whitespace-nowrap pointer-coarse:min-h-11 text-text-secondary transition-colors hover:text-text-primary" [attr.aria-expanded]="mega()" aria-controls="mega-competicion" (click)="mega.set(!mega())">
                 <span class="inline-flex items-center gap-1">{{ l.label }}<gr-icon name="chevron-down" [size]="14" class="text-text-tertiary transition-transform" [class.rotate-180]="mega()" /></span>
                 <span class="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-[1px] bg-transparent transition-colors group-hover:bg-white/30" aria-hidden="true"></span>
               </button>
             } @else {
               <!-- Figma «Nav link»: 2 px indicator under the label (white 30 % on hover, accent on the current route) -->
-              <a [routerLink]="ruta(l.href) | loc" [fragment]="frag(l.href)" class="group relative inline-flex items-center rounded-xs p-2 text-label-s pointer-coarse:min-h-11 transition-colors hover:text-text-primary" [class]="activo(l.href) ? 'text-text-primary' : 'text-text-secondary'" [attr.aria-current]="activo(l.href) ? 'page' : null">{{ l.label }}<span class="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-[1px] transition-colors" [class]="activo(l.href) ? 'bg-accent' : 'bg-transparent group-hover:bg-white/30'" aria-hidden="true"></span></a>
+              <a [routerLink]="ruta(l.href) | loc" [fragment]="frag(l.href)" class="group relative inline-flex items-center rounded-xs p-2 text-label-s whitespace-nowrap pointer-coarse:min-h-11 transition-colors hover:text-text-primary" [class]="activo(l.href) ? 'text-text-primary' : 'text-text-secondary'" [attr.aria-current]="activo(l.href) ? 'page' : null">{{ l.label }}<span class="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-[1px] transition-colors" [class]="activo(l.href) ? 'bg-accent' : 'bg-transparent group-hover:bg-white/30'" aria-hidden="true"></span></a>
             }
           </li>
         }
