@@ -391,6 +391,24 @@ type asignacion struct {
 }
 
 // aplicarIn is the body of athletes' PUT /internal/competiciones/{cid}/horarios.
+// asignacionesDe turns a published snapshot into the times every athlete gets in its profile. antes (may be empty)
+// holds each athlete's previous position, the «antes» text of the notice.
+func asignacionesDe(sn Snapshot, antes map[uuid.UUID]posicion, loc *time.Location) []asignacion {
+	out := []asignacion{}
+	for _, dd := range sn.Dias {
+		for _, f := range dd.Sesiones {
+			for _, a := range f.Atletas {
+				as := asignacion{AtletaID: a.ID, Dia: dd.Fecha, Lote: a.Lote, Inicio: f.Inicio, PesajeInicio: f.PesajeInicio, PesajeFin: f.PesajeFin, Sesion: f.Titulo, Nivel: nombrePrueba(f.Prueba)}
+				if q, ok := antes[a.ID]; ok {
+					as.Antes = q.texto(loc)
+				}
+				out = append(out, as)
+			}
+		}
+	}
+	return out
+}
+
 type aplicarIn struct {
 	Version          int          `json:"version"`
 	Asignaciones     []asignacion `json:"asignaciones"`
@@ -516,21 +534,18 @@ func (s *Svc) publicar(ctx context.Context, cid uuid.UUID, ifm, prueba string, a
 	if prev != nil {
 		antes = posiciones(&prev.Snapshot)
 	}
-	loc := s.loc(ctx, cid)
-	in := aplicarIn{Version: sn.Numero, Asignaciones: []asignacion{}, Afectados: d.afectados, AvisarAtletas: avisarAtletas, AvisarSeguidores: avisarSeguidores, Primera: d.Primera}
+	in := aplicarIn{Version: sn.Numero, Asignaciones: asignacionesDe(sn, antes, s.loc(ctx, cid)), Afectados: d.afectados, AvisarAtletas: avisarAtletas, AvisarSeguidores: avisarSeguidores, Primera: d.Primera}
 	if in.Afectados == nil {
 		in.Afectados = []uuid.UUID{}
 	}
-	for _, dd := range sn.Dias {
-		for _, f := range dd.Sesiones {
-			for _, a := range f.Atletas {
-				as := asignacion{AtletaID: a.ID, Dia: dd.Fecha, Lote: a.Lote, Inicio: f.Inicio, PesajeInicio: f.PesajeInicio, PesajeFin: f.PesajeFin, Sesion: f.Titulo, Nivel: nombrePrueba(f.Prueba)}
-				if q, ok := antes[a.ID]; ok {
-					as.Antes = q.texto(loc)
-				}
-				in.Asignaciones = append(in.Asignaciones, as)
-			}
-		}
+	// «Publicar horarios» off: the version is stored but stays off the web, so the profiles get no time and nobody is
+	// told (switching it on applies this version, without notices).
+	visible, err := webVisible(ctx, s.a.DB, cid)
+	if err != nil {
+		return Publicado{}, err
+	}
+	if !visible {
+		in.Asignaciones, in.Afectados, in.AvisarAtletas, in.AvisarSeguidores = []asignacion{}, []uuid.UUID{}, false, false
 	}
 	var res aplicarOut
 	out := Publicado{Version: sn.Numero, Prueba: prueba, NumeroPrueba: d.Siguiente, Cambios: len(d.Cambios)}
@@ -627,6 +642,55 @@ func (s *Svc) registerPublicar() {
 				return nil, err
 			}
 			return &struct{ Body Publicado }{p}, nil
+		})
+
+	// ---- «Publicar horarios»: show or hide the published version on the web without a new version ----
+	type visibilidadIn struct {
+		CID  uuid.UUID `path:"cid"`
+		Body struct {
+			Visible bool `json:"visible" doc:"true: la web muestra la versión publicada; false: la web muestra «Próximamente»"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "horarios-visibilidad", Method: http.MethodPut, Path: base + "/visibilidad", Summary: "Mostrar u ocultar en la web los horarios publicados (interruptor «Publicar horarios»)", Tags: tagAdmin, Security: bearer, DefaultStatus: http.StatusNoContent},
+		func(ctx context.Context, in *visibilidadIn) (*struct{}, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "horarios.publicar"); err != nil {
+				return nil, err
+			}
+			if err := s.ensureConfig(ctx, in.CID); err != nil {
+				return nil, err
+			}
+			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				var antes bool
+				if err := tx.QueryRow(ctx, `SELECT web_visible FROM config WHERE competition_id = $1 FOR UPDATE`, in.CID).Scan(&antes); err != nil {
+					return err
+				}
+				if antes == in.Body.Visible {
+					return nil
+				}
+				// The athletes' profiles follow the switch: the published times (no notices) or none.
+				if v, err := s.versionPublicada(ctx, tx, in.CID); err != nil {
+					return err
+				} else if v != nil {
+					ap := aplicarIn{Version: v.Numero, Asignaciones: []asignacion{}, Afectados: []uuid.UUID{}}
+					if in.Body.Visible {
+						ap.Asignaciones = asignacionesDe(v.Snapshot, nil, s.loc(ctx, in.CID))
+					}
+					if err := s.athletes.Do(ctx, http.MethodPut, "/internal/competiciones/"+in.CID.String()+"/horarios", ap, nil); err != nil {
+						s.a.Log.Warn("athletes horarios", "err", err)
+						return problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No hemos podido actualizar las fichas de los atletas. Inténtalo en unos segundos.")
+					}
+				}
+				if _, err := tx.Exec(ctx, `UPDATE config SET web_visible = $2 WHERE competition_id = $1`, in.CID, in.Body.Visible); err != nil {
+					return err
+				}
+				return events.Enqueue(ctx, tx, events.New(ctx, "horarios.visibilidad", map[string]any{"visible": in.Body.Visible},
+					events.Competition(in.CID.String()), events.Audience(events.Public)))
+			})
+			if err != nil {
+				return nil, err
+			}
+			s.bump(ctx, in.CID)
+			return nil, nil
 		})
 
 	huma.Register(api, huma.Operation{OperationID: "horarios-despublicar", Method: http.MethodPost, Path: base + "/despublicar", Summary: "Retirar los horarios publicados (la web vuelve a «Próximamente»)", Tags: tagAdmin, Security: bearer, DefaultStatus: http.StatusNoContent},

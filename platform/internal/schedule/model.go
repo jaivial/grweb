@@ -138,6 +138,7 @@ type Borrador struct {
 	Conflictos         []Conflicto    `json:"conflictos"`
 	Atletas            int            `json:"atletas" doc:"Atletas confirmados"`
 	Publicado          bool           `json:"publicado"`
+	WebVisible         bool           `json:"webVisible" doc:"Interruptor «Publicar horarios»: la versión publicada se ve en la web"`
 	Publicada          *VersionInfo   `json:"publicada,omitempty"`
 	CambiosSinPublicar bool           `json:"cambiosSinPublicar"`
 }
@@ -254,7 +255,11 @@ func (s *Svc) cargar(ctx context.Context, cid uuid.UUID) (Borrador, map[uuid.UUI
 	if err != nil {
 		return Borrador{}, nil, nil, err
 	}
-	b := Borrador{Config: cfg, Rev: rev, Agenda: ag, Atletas: len(ats), Publicado: pub}
+	vis, err := webVisible(ctx, s.a.DB, cid)
+	if err != nil {
+		return Borrador{}, nil, nil, err
+	}
+	b := Borrador{Config: cfg, Rev: rev, Agenda: ag, Atletas: len(ats), Publicado: pub, WebVisible: vis}
 	if b.Agenda == nil {
 		b.Agenda = []AgendaItem{}
 	}

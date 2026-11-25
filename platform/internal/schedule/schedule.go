@@ -7,6 +7,7 @@ package schedule
 import (
 	"context"
 	"embed"
+	"errors"
 	"io/fs"
 	"net/http"
 	"strconv"
@@ -129,6 +130,17 @@ func (s *Svc) version(ctx context.Context, cid uuid.UUID) string {
 		return "0"
 	}
 	return v
+}
+
+// webVisible reads the «Publicar horarios» switch of the backoffice (no settings yet → visible: nothing is
+// published anyway).
+func webVisible(ctx context.Context, q querier, cid uuid.UUID) (bool, error) {
+	var v bool
+	err := q.QueryRow(ctx, `SELECT web_visible FROM config WHERE competition_id = $1`, cid).Scan(&v)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return true, nil
+	}
+	return v, err
 }
 
 func (s *Svc) bump(ctx context.Context, cid uuid.UUID) {

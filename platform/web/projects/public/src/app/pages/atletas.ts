@@ -8,7 +8,7 @@ import { AtletasPublic, Favoritos, cat, hora, iniciales, kg, type AtletaPub, typ
 import { Cms } from '../core/cms';
 import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
 import { FanSession } from '../core/fan';
-import { ICS_URL } from '../core/horarios';
+import { EVENTOS_HORARIOS, ICS_URL } from '../core/horarios';
 import { DivisionPipe, I18n, LocPipe, divisionEn } from '../core/i18n';
 import { Seo } from '../core/seo';
 import { Page } from '../layout/page';
@@ -303,10 +303,11 @@ export class AtletasPage {
       // Live: a published schedule changes flights and start times (public SSE).
       const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
       let t: ReturnType<typeof setTimeout> | undefined;
-      es.addEventListener('horarios.publicados', () => {
+      const recargar = () => {
         clearTimeout(t);
         t = setTimeout(async () => { const l = await this.api.lista(); if (l) this.lista.set(l); }, 400);
-      });
+      };
+      for (const ev of EVENTOS_HORARIOS) es.addEventListener(ev, recargar);
       inject(DestroyRef).onDestroy(() => { clearTimeout(t); es.close(); });
     }
   }

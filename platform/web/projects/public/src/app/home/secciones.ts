@@ -1,5 +1,5 @@
 import { RouterLink } from '@angular/router';
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, afterNextRender, computed, inject, input, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, afterNextRender, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { GrButton, GrIcon, type GrIconName, LOGO, LOGO_SRCSET, cdn, cdnSrcset, cdnSrcsetW, CdnPipe } from '@grcup/ui';
 import { type Faq, type Seccion } from '../core/cms';
@@ -716,8 +716,8 @@ export class SecHorarios {
     return out;
   });
   protected readonly icsUrl = computed(() => `${ICS_URL}?atletas=${encodeURIComponent(this.misAtletas().map((m) => m.a.slug).join(','))}`);
-  /** BIZ-167: Sunday's schedule is not public yet. */
-  protected readonly domingo = computed(() => { const d = this.dias()[this.diaSel()]; return !!d && esDomingo(d.fecha); });
+  /** BIZ-167: «Horario del domingo próximamente» only while Sunday has no session published (it used to hide any Sunday). */
+  protected readonly domingo = computed(() => { const d = this.dias()[this.diaSel()]; return !!d && esDomingo(d.fecha) && !d.dia.flights.length; });
   protected readonly filas = computed<FilaHorario[]>(() => {
     const d = this.dias()[this.diaSel()]?.dia;
     if (!d) return [];
@@ -732,6 +732,20 @@ export class SecHorarios {
   constructor() {
     // Stars from an earlier visit: the «Mi horario (n)» count needs the athletes
     afterNextRender(() => { if (this.fav.slugs().length) this.cargar(); });
+    // The home re-fetches the summary when the schedule changes live: drop the full copy and load it again if in use.
+    let previo: Horarios | null | undefined;
+    effect(() => {
+      const h = this.horarios();
+      untracked(() => {
+        if (previo !== undefined && h !== previo && this.completo()) {
+          this.completo.set(null);
+          this.listos.set(false);
+          this.cargando = false;
+          this.cargar();
+        }
+        previo = h;
+      });
+    });
   }
 
   private cargar(): void {

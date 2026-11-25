@@ -117,7 +117,12 @@ func (s *Svc) horarios(ctx context.Context, c compref.Comp) (Horarios, error) {
 	if err != nil {
 		return h, err
 	}
-	if v != nil {
+	// «Publicar horarios» off: the web shows its fallback (as if nothing were published) while the team plans.
+	visible, err := webVisible(ctx, s.a.DB, c.ID)
+	if err != nil {
+		return h, err
+	}
+	if v != nil && visible {
 		pub, fresh := s.publicos(ctx, c.ID)
 		h.Publicado, h.Version, h.ActualizadoAt, h.ZonaHoraria = true, v.Numero, v.At, v.Snapshot.ZonaHoraria
 		for _, d := range v.Snapshot.Dias {

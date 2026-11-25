@@ -60,6 +60,8 @@ const diaSiguiente = (f: string) => {
             @if (escritorio()) { <button grButton variant="ghost" icon="history" (click)="abrirHistorial()">Historial</button> }
             <button grButton icon="eye" (click)="preview.set(true)" [disabled]="!dia()">Vista previa</button>
             @if (canEdit()) {
+              <!-- «Publicar horarios»: off keeps the web on its fallback while the team plans and assigns athletes -->
+              <span class="flex h-10 items-center gap-2.5 rounded-md border border-line-subtle px-3"><span class="text-label-s whitespace-nowrap">Publicar horarios</span><bo-toggle [(value)]="webVisible" label="Publicar horarios" [disabled]="cambiandoVisible()" (changed)="cambiarVisible($event)" /></span>
               <button grButton variant="primary" icon="send" (click)="abrirPublicar()" [disabled]="!b.sesiones.length || (b.publicado && !b.cambiosSinPublicar)">Publicar v{{ siguiente() }}</button>
             }
           </ng-container>
@@ -261,20 +263,21 @@ const diaSiguiente = (f: string) => {
                 }
               </ul>
             }
+            @if (!webVisible()) { <gr-alert tone="info" class="mt-5" title="«Publicar horarios» está desactivado">Se guarda la versión, pero la web sigue mostrando «Próximamente», las fichas no tienen horario y no se avisa a nadie. Actívalo cuando quieras que se vea.</gr-alert> }
             <div class="mt-5 flex flex-col divide-y divide-line-subtle rounded-md border border-line-subtle">
               <div class="flex items-center gap-3 px-4 py-2">
                 <div class="min-w-0 flex-1"><p class="text-label-s">Avisar a los {{ d.afectados }} atletas afectados</p><p class="text-body-xs text-text-tertiary">Plantilla «{{ d.primera ? 'Tu fecha y horario' : 'Cambio en tu horario' }}» · también en su área · {{ d.conEmail }} con email</p></div>
-                <bo-toggle [(value)]="avisarAtletas" label="Avisar a los atletas" [disabled]="!d.afectados" />
+                <bo-toggle [(value)]="avisarAtletas" label="Avisar a los atletas" [disabled]="!d.afectados || !webVisible()" />
               </div>
               <div class="flex items-center gap-3 px-4 py-2">
                 <div class="min-w-0 flex-1"><p class="text-label-s">Avisar a sus {{ d.seguidores }} seguidores</p><p class="text-body-xs text-text-tertiary">Solo a quien activó avisos de ese atleta</p></div>
-                <bo-toggle [(value)]="avisarSeguidores" label="Avisar a los seguidores" [disabled]="!d.seguidores" />
+                <bo-toggle [(value)]="avisarSeguidores" label="Avisar a los seguidores" [disabled]="!d.seguidores || !webVisible()" />
               </div>
             </div>
           </div>
           <footer class="flex flex-wrap justify-end gap-2 border-t border-line-subtle px-6 py-4">
             <button grButton variant="ghost" (click)="pub.set(null)">Cancelar</button>
-            <button grButton variant="primary" [loading]="publicando()" [disabled]="d.bloqueantes > 0" (click)="publicar()">{{ avisarAtletas() || avisarSeguidores() ? 'Publicar y avisar' : 'Publicar sin avisar' }}</button>
+            <button grButton variant="primary" [loading]="publicando()" [disabled]="d.bloqueantes > 0" (click)="publicar()">{{ webVisible() && (avisarAtletas() || avisarSeguidores()) ? 'Publicar y avisar' : 'Publicar sin avisar' }}</button>
           </footer>
         </div>
       </div>
@@ -484,6 +487,9 @@ export class HorariosPage {
   protected readonly pub = signal<Diff | null>(null);
   protected readonly avisarAtletas = signal(true);
   protected readonly avisarSeguidores = signal(false);
+  /** «Publicar horarios» switch (from the draft; reverted if saving fails). */
+  protected readonly webVisible = signal(true);
+  protected readonly cambiandoVisible = signal(false);
   protected readonly diaOpen = signal(false);
   protected readonly nuevaOpen = signal(false);
   protected readonly sesionOpen = signal(false);
@@ -558,6 +564,7 @@ export class HorariosPage {
     const b = this.raw();
     if (!b) return { label: '', tone: 'neutral' };
     if (!b.publicado) return { label: b.sesiones.length ? 'Sin publicar' : '', tone: 'neutral' };
+    if (!b.webVisible) return { label: `v${b.publicada?.numero} · oculto en la web`, tone: 'neutral' };
     return b.cambiosSinPublicar ? { label: 'Cambios sin publicar', tone: 'warning' } : { label: `Publicado · v${b.publicada?.numero}`, tone: 'success' };
   });
   protected readonly subtitulo = computed(() => {
@@ -631,6 +638,7 @@ export class HorariosPage {
     this.ultimoRev = b.rev;
     this.listas.clear();
     this.raw.set(b);
+    this.webVisible.set(b.webVisible);
     const f = this.fechas();
     if (!f.includes(this.dia())) this.dia.set(f[0] ?? '');
   }
@@ -926,6 +934,25 @@ export class HorariosPage {
       this.publicando.set(false);
     }
   }
+  /** «Publicar horarios» on/off: the web shows the published version or its fallback (no new version, no notices). */
+  protected async cambiarVisible(visible: boolean): Promise<void> {
+    if (!visible && !(await this.confirm.ask({ title: 'Ocultar los horarios de la web', text: 'La web mostrará «Horarios próximamente» y las fichas de los atletas quedarán sin horario hasta que lo vuelvas a activar. Puedes seguir generando horarios y asignando atletas. No se avisa a nadie.', confirm: 'Ocultar' }))) {
+      this.webVisible.set(true);
+      return;
+    }
+    this.cambiandoVisible.set(true);
+    try {
+      await this.api.visibilidad(this.cid(), visible);
+      this.toasts.success(visible ? 'Horarios visibles en la web' : 'Horarios ocultos en la web', visible && !this.raw()?.publicado ? 'Se verán en cuanto publiques una versión.' : undefined);
+      await this.cargar();
+    } catch (e) {
+      this.webVisible.set(!visible);
+      this.toasts.error('No se pudo cambiar «Publicar horarios»', errText(e));
+    } finally {
+      this.cambiandoVisible.set(false);
+    }
+  }
+
   protected async despublicar(): Promise<void> {
     if (!(await this.confirm.ask({ title: 'Retirar los horarios de la web', text: 'La web volverá a «Horarios próximamente» y las fichas de los atletas quedarán sin horario. No se avisa a nadie.', confirm: 'Retirar', danger: true }))) return;
     try {

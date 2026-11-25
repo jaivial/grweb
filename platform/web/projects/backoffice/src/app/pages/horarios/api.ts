@@ -20,6 +20,8 @@ export interface VersionInfo { numero: number; prueba: string; numeroPrueba: num
 export interface Borrador {
   config: Config; rev: number; zonaHoraria: string; sesiones: Sesion[]; agenda: AgendaItem[]; sinSesion: SesionAtleta[]; conflictos: Conflicto[];
   atletas: number; publicado: boolean; publicada?: VersionInfo; cambiosSinPublicar: boolean;
+  /** «Publicar horarios» switch: the published version is visible on the web (false: the web shows «Próximamente»). */
+  webVisible: boolean;
 }
 export interface Cambio { tipo: 'atleta' | 'sesion' | 'alta' | 'baja' | 'agenda'; titulo: string; antes: string; despues: string; atletas: number }
 export interface Diff { prueba: string; desde: number; siguiente: number; primera: boolean; cambios: Cambio[]; afectados: number; conEmail: number; seguidores: number; bloqueantes: number; atletas: number }
@@ -90,6 +92,10 @@ export class HorariosApi {
   }
   publicar(cid: string, avisarAtletas: boolean, avisarSeguidores: boolean): Promise<Publicado> {
     return firstValueFrom(this.http.post<Publicado>(`${this.base(cid)}/publicar`, { avisarAtletas, avisarSeguidores }, { headers: this.h() }));
+  }
+  /** «Publicar horarios»: show or hide the published version on the web (no new version, no notices). */
+  visibilidad(cid: string, visible: boolean): Promise<void> {
+    return firstValueFrom(this.http.put<void>(`${this.base(cid)}/visibilidad`, { visible }));
   }
   despublicar(cid: string): Promise<void> {
     return firstValueFrom(this.http.post<void>(`${this.base(cid)}/despublicar`, {}));
