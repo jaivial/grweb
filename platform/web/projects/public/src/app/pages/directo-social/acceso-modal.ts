@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } 
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { GrButton, GrIcon, GrInput, type GrIconName } from '@grcup/ui';
-import { FanSession, codigoError, detalleError } from '../../core/fan';
+import { FanSession, codigoError, detalleError, mensajeCampo } from '../../core/fan';
 import { I18n } from '../../core/i18n';
 
 type Estado = 'formulario' | 'enviado' | 'atleta';
@@ -43,7 +43,7 @@ const T = {
     subEntradas: 'Tu entrada va asociada a tu cuenta de GRS Cup 2. Vuelves a la reserva con lo que ya has rellenado.',
     subFormulario: 'La solicitud va asociada a tu cuenta de GRS Cup 2. Vuelves al formulario para enviarla.',
     subSeguir: 'Sigue a tus atletas con tu cuenta de GRS Cup 2: te avisamos por email antes de que compitan.', subDef: 'Chatea, dona y juega con tu cuenta de directo.',
-    errAlias: 'El alias debe tener entre 3 y 20 caracteres.', errEmail: 'Escribe un email válido.', errClave: 'Escribe tu contraseña.',
+    errAlias: 'El alias debe tener entre 3 y 20 caracteres.', entrarConEmail: 'Entrar con este email', errEmail: 'Escribe un email válido.', errClave: 'Escribe tu contraseña.',
   },
   en: {
     cerrar: 'Close', enviadoA: 'Sent to ', otroDispositivo: 'You can open it on another device: it still takes you to the room.',
@@ -78,7 +78,7 @@ const T = {
     subEntradas: 'Your ticket is linked to your GRS Cup 2 account. You return to the booking with what you have already filled in.',
     subFormulario: 'The request is linked to your GRS Cup 2 account. You return to the form to send it.',
     subSeguir: 'Follow your athletes with your GRS Cup 2 account: we will email you before they compete.', subDef: 'Chat, donate and play with your live account.',
-    errAlias: 'The alias must be between 3 and 20 characters.', errEmail: 'Enter a valid email.', errClave: 'Enter your password.',
+    errAlias: 'The alias must be between 3 and 20 characters.', entrarConEmail: 'Sign in with this email', errEmail: 'Enter a valid email.', errClave: 'Enter your password.',
   },
 };
 
@@ -195,7 +195,7 @@ const T = {
 
               <label class="mt-4 block">
                 <span class="text-label-s text-text-primary">{{ t().alias }}</span>
-                <input grInput grSize="l" type="text" autocomplete="nickname" class="mt-1.5" [placeholder]="t().aliasPh" aria-label="Alias" [invalid]="!!errorAlias()" [ngModel]="alias()" (ngModelChange)="alias.set($event)" />
+                <input grInput grSize="l" type="text" autocomplete="nickname" class="mt-1.5" [placeholder]="t().aliasPh" aria-label="Alias" [invalid]="!!errorAlias()" [ngModel]="alias()" (ngModelChange)="alias.set($event); errorAlias.set(null)" (blur)="comprobar()" />
                 @if (errorAlias(); as e) { <span class="mt-1.5 flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />{{ e }}</span> }
                 @else { <span class="mt-1.5 block text-body-xs text-text-tertiary">{{ t().aliasAyuda }}</span> }
               </label>
@@ -203,8 +203,9 @@ const T = {
 
               <label class="mt-4 block">
                 <span class="text-label-s text-text-primary">{{ modo() === 'crear' && tipo() === 'atleta' ? t().emailAep : t().email }}</span>
-                <input grInput grSize="l" type="email" autocomplete="email" class="mt-1.5" [placeholder]="t().emailPh" aria-label="Email" [invalid]="!!error()" [ngModel]="email()" (ngModelChange)="email.set($event)" />
+                <input grInput grSize="l" type="email" autocomplete="email" class="mt-1.5" [placeholder]="t().emailPh" aria-label="Email" [invalid]="!!error()" [ngModel]="email()" (ngModelChange)="email.set($event); limpiarEmailRegistrado()" (blur)="comprobar()" />
                 @if (error(); as e) { <span class="mt-1.5 flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />{{ e }}</span> }
+                @if (emailRegistrado()) { <button type="button" class="mt-1 min-h-11 text-body-s text-accent-text underline-offset-4 hover:underline" (click)="cambiarModo('entrar')">{{ t().entrarConEmail }}</button> }
                 @else if (modo() !== 'entrar') { <span class="mt-1.5 block text-body-xs text-text-tertiary">{{ t().enlaceAyuda }}</span> }
               </label>
 
@@ -258,6 +259,8 @@ export class AccesoModal {
   protected readonly telefono = signal('');
   protected readonly error = signal<string | null>(null);
   protected readonly errorAlias = signal<string | null>(null);
+  /** /disponible (or /acceso) said the email already has an account: offers «Entrar con este email». */
+  protected readonly emailRegistrado = signal(false);
   protected readonly errorNormas = signal(false);
   protected readonly enviando = signal(false);
 
@@ -318,6 +321,7 @@ export class AccesoModal {
       this.error.set(null);
       this.errorAlias.set(null);
       this.errorNormas.set(false);
+      this.emailRegistrado.set(false);
     });
   }
 
@@ -329,9 +333,39 @@ export class AccesoModal {
     this.modo.set(m);
     this.clave.set('');
     this.error.set(null);
+    this.emailRegistrado.set(false);
     this.errorAlias.set(null);
     this.errorClave.set(null);
     this.errorNormas.set(false);
+  }
+
+  protected limpiarEmailRegistrado(): void {
+    if (!this.emailRegistrado()) return;
+    this.emailRegistrado.set(false);
+    this.error.set(null);
+  }
+
+  /**
+   * Account creation: asks /disponible whether the alias and the email are free and puts the answer under each
+   * field (on blur and before sending the link). Returns false when something is taken or invalid. A network
+   * error does not block: /acceso checks the same again.
+   */
+  protected async comprobar(): Promise<boolean> {
+    if (this.modo() !== 'crear') return true;
+    const alias = this.alias().trim();
+    const email = this.email().trim();
+    const b = { ...(alias.length >= 3 ? { alias } : {}), ...(email.includes('@') ? { email } : {}), tipo: this.tipo() };
+    if (!b.alias && !b.email) return true;
+    try {
+      const r = await this.fan.disponible(b);
+      // the answer is for these values: ignore it if the user kept typing meanwhile
+      if (this.alias().trim() !== alias || this.email().trim() !== email) return true;
+      if (r.alias && !r.alias.libre) this.errorAlias.set(mensajeCampo(r.alias));
+      if (r.email && !r.email.libre) { this.error.set(mensajeCampo(r.email)); this.emailRegistrado.set(true); }
+      return (!r.alias || r.alias.libre) && (!r.email || r.email.libre);
+    } catch {
+      return true;
+    }
   }
 
   protected volver(): void {
@@ -355,6 +389,7 @@ export class AccesoModal {
     }
     this.enviando.set(true);
     this.error.set(null);
+    this.emailRegistrado.set(false);
     this.errorAlias.set(null);
     this.errorClave.set(null);
     this.errorNormas.set(false);
@@ -370,6 +405,7 @@ export class AccesoModal {
         return;
       }
       const crear = this.modo() === 'crear';
+      if (crear && !(await this.comprobar())) return;
       await this.fan.pedirAcceso({ email: this.email().trim(), tipo: crear ? this.tipo() : 'publico', alias: crear ? this.alias().trim() : '',
         aceptaNormas: crear && this.normas(), next: this.fan.volverA() ?? undefined, ...(crear && this.telefono().trim() ? { telefono: this.telefono().trim() } : {}) });
       this.estado.set('enviado');
@@ -377,6 +413,7 @@ export class AccesoModal {
       const codigo = codigoError(e);
       if (codigo === 'CREDENCIALES_INVALIDAS') this.errorClave.set(detalleError(e));
       else if (codigo === 'ALIAS_NO_VALIDO' || codigo === 'ALIAS_OCUPADO') this.errorAlias.set(detalleError(e));
+      else if (codigo === 'EMAIL_REGISTRADO') { this.error.set(detalleError(e)); this.emailRegistrado.set(true); }
       else if (codigo === 'ATLETA_NO_ENCONTRADO') {
         this.estado.set('atleta');
         this.error.set(this.t().noAtleta);
