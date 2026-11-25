@@ -130,10 +130,6 @@ export class JuegosApi {
     return firstValueFrom(this.http.patch<void>(`${this.b(cid)}/jornadas/${jid}`, cambios));
   }
 
-  generarMercados(cid: string, jornada: string): Promise<{ creados: number }> {
-    return firstValueFrom(this.http.post<{ creados: number }>(`${this.b(cid)}/mercados/generar`, { jornada }));
-  }
-
   cerrarMercado(cid: string, mid: string): Promise<void> {
     return firstValueFrom(this.http.post<void>(`${this.b(cid)}/mercados/${mid}/cerrar`, {}));
   }
