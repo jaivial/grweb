@@ -13,7 +13,7 @@ export interface Sesion {
 }
 export interface AgendaItem { dia: string; hora: string; titulo: string; icono?: string }
 export interface Conflicto {
-  tipo: 'exceso' | 'solape' | 'solape_pesaje' | 'sexo_mixto' | 'fuera_horario' | 'pausa' | 'baja' | 'sin_sesion' | 'vacio';
+  tipo: 'exceso' | 'solape' | 'solape_pesaje' | 'sexo_mixto' | 'categoria' | 'fuera_horario' | 'pausa' | 'baja' | 'sin_sesion' | 'vacio';
   bloquea: boolean; sesionId?: string; sesion?: string; prueba?: string; titulo: string; detalle: string;
 }
 export interface VersionInfo { numero: number; prueba: string; numeroPrueba: number; estado: 'publicada' | 'sustituida' | 'retirada'; at: string; por: string; cambios: number; avisos: number; seguidores: number }

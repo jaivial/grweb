@@ -147,7 +147,7 @@ const diaSiguiente = (f: string) => {
                     </button>
                     <button grIconButton icon="pencil" [label]="'Editar la sesión de las ' + hora(f.inicio)" (click)="abrirSesion(f)"></button>
                   </header>
-                  <div class="mt-1 text-body-xs text-text-tertiary"><span [class.text-accent-text]="activos(f) > b.config.maxPorSesion">{{ activos(f) }} atletas</span> · pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }} · hasta ~{{ hora(f.fin) }}</div>
+                  <div class="mt-1 text-body-xs text-text-tertiary"><span [class.text-accent-text]="activos(f) > b.config.maxPorSesion">{{ activos(f) }} {{ activos(f) === 1 ? 'atleta' : 'atletas' }}</span> · pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }} · hasta ~{{ hora(f.fin) }}</div>
                   @for (a of f.avisos.slice(0, 2); track a) { <p class="mt-2 flex items-start gap-1.5 text-body-xs text-warning"><gr-icon name="triangle-alert" [size]="12" class="mt-0.5 shrink-0" />{{ a }}</p> }
                   @if (!plegada(f)) {
                     <ol class="lista mt-3 flex min-h-14 flex-col gap-1.5" cdkDropList [cdkDropListData]="lista(f)" (cdkDropListDropped)="drop($event)" [cdkDropListDisabled]="!canEdit() || !!nFiltros()" [attr.aria-label]="'Atletas de la sesión de las ' + hora(f.inicio)">
@@ -317,7 +317,7 @@ const diaSiguiente = (f: string) => {
                 <button type="button" class="inline-flex h-11 min-w-16 items-center justify-center rounded-md border px-3 font-mono text-label-s" [class]="sEdit.categorias.includes(c) ? 'border-accent bg-accent-deep/30 text-text-primary' : 'border-line-subtle text-text-secondary hover:border-line-strong'" [attr.aria-pressed]="sEdit.categorias.includes(c)" (click)="alternarCategoria(c)">{{ cat(c) }}</button>
               }
             </div>
-            <p class="text-body-xs text-text-tertiary">{{ sEdit.categorias.length ? 'Sesión ' + (sEdit.sexo === 'F' ? 'femenina' : 'masculina') + ' ' + sEdit.categorias.map(cat).join(' / ') + ' kg' : 'Sin elegir: se usan las categorías de sus atletas.' }} Otra sesión a la misma hora puede ser del otro sexo.</p>
+            <p class="text-body-xs text-text-tertiary">{{ sEdit.categorias.length ? 'Sesión ' + (sEdit.sexo === 'F' ? 'femenina' : 'masculina') + ' ' + sEdit.categorias.map(cat).join(' / ') + ' kg.' : 'Sin elegir: se usan las categorías de sus atletas.' }} Otra sesión a la misma hora puede ser del otro sexo.</p>
           </fieldset>
           <p class="text-body-xs text-text-tertiary">Si cambias la hora y no tocas el pesaje, el pesaje se recalcula ({{ raw()?.config?.pesajeAntesMin }} min antes, {{ raw()?.config?.pesajeDuracionMin }} min).</p>
         </div>
@@ -507,6 +507,7 @@ export class HorariosPage {
   protected sEdit: { dia: string; inicio: string; duracionMin: number; pesajeInicio: string; pesajeFin: string; sexo: 'F' | 'M'; categorias: string[]; nivel: string } =
     { dia: '', inicio: '', duracionMin: 0, pesajeInicio: '', pesajeFin: '', sexo: 'F', categorias: [], nivel: '' };
   protected readonly categoriasSexo = CATEGORIAS_SEXO;
+  private sIni = { sexo: 'F', categorias: '' };
   protected dEditDia = { fecha: '', inicio: '', fin: '', puertas: '', pausaInicio: '', pausaFin: '' };
   protected notas = '';
   protected agendaDia: AgendaItem[] = [];
@@ -836,7 +837,11 @@ export class HorariosPage {
   protected abrirSesion(s: Sesion): void {
     this.sSel.set(s);
     const sexo = s.sexo === 'M' ? 'M' : 'F';
-    this.sEdit = { dia: s.dia, inicio: hora(s.inicio), duracionMin: s.duracionMin, pesajeInicio: hora(s.pesajeInicio), pesajeFin: hora(s.pesajeFin), sexo, categorias: [...(s.categorias ?? [])], nivel: s.prueba ?? '' };
+    // BIZ-202 QA: without its own classes, preselect the ones of its athletes (what the title shows).
+    const propias = s.sexoFijo && s.categorias?.length ? s.categorias : s.atletas.filter((a) => !a.baja && a.sexo === sexo).map((a) => a.categoria);
+    const categorias = CATEGORIAS_SEXO[sexo].filter((c) => propias.includes(c));
+    this.sIni = { sexo, categorias: categorias.join() };
+    this.sEdit = { dia: s.dia, inicio: hora(s.inicio), duracionMin: s.duracionMin, pesajeInicio: hora(s.pesajeInicio), pesajeFin: hora(s.pesajeFin), sexo, categorias, nivel: s.prueba ?? '' };
     this.sesionOpen.set(true);
   }
   protected async guardarSesion(): Promise<void> {
@@ -846,7 +851,7 @@ export class HorariosPage {
     const cambiaHora = e.inicio !== hora(s.inicio) || e.dia !== s.dia;
     const pesajeTocado = e.pesajeInicio !== hora(s.pesajeInicio) || e.pesajeFin !== hora(s.pesajeFin);
     // BIZ-202: sex and weight classes are sent when set before or changed now (otherwise they stay derived from the athletes).
-    const cambiaCats = s.sexoFijo || e.sexo !== s.sexo || e.categorias.join() !== (s.categorias ?? []).join();
+    const cambiaCats = s.sexoFijo || e.sexo !== this.sIni.sexo || e.categorias.join() !== this.sIni.categorias;
     const body = { dia: e.dia, inicio: e.inicio, duracionMin: +e.duracionMin, ...(pesajeTocado || !cambiaHora ? { pesajeInicio: e.pesajeInicio, pesajeFin: e.pesajeFin } : {}),
       ...(cambiaCats ? { sexo: e.sexo, categorias: e.categorias } : {}), ...(e.nivel !== (s.prueba ?? '') ? { nivel: e.nivel } : {}) };
     if (await this.run(() => this.api.editarSesion(this.cid(), s.id, body), 'Sesión guardada')) {

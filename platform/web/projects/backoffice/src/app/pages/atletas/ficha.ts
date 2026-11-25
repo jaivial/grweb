@@ -173,7 +173,7 @@ const PUBLIC_WEB = webPublica();
                     <p class="mt-3 font-display text-[22px] leading-tight uppercase italic">{{ a.nombreCompleto }}</p>
                     <p class="text-body-xs text-text-tertiary">{{ a.sexo }} {{ cat(a.categoria) }} · {{ a.divisionNombre }} · {{ a.club || 'Independiente' }}</p>
                     <dl class="mt-3 text-body-xs">
-                      <div class="flex justify-between border-b border-line-subtle py-1.5"><dt class="text-text-tertiary">Horario</dt><dd>{{ a.jornada ? diaFecha(a.jornada) + (a.horaInicio ? ' · ' + hora(a.horaInicio) : '') + (a.lote ? ' · lote ' + a.lote : '') : 'Por publicar' }}</dd></div>
+                      <div class="flex justify-between border-b border-line-subtle py-1.5"><dt class="text-text-tertiary">Horario</dt><dd>{{ a.jornada ? diaFecha(a.jornada) + (a.horaInicio ? ' · ' + hora(a.horaInicio) : '') + (a.lote ? ' · lote ' + a.lote : '') + (a.sesion ? ' · ' + a.sesion : '') + (a.sesionNivel ? ' · ' + a.sesionNivel : '') : 'Por publicar' }}</dd></div>
                       @if (p.mostrarMarcas && total()) { <div class="flex justify-between py-1.5"><dt class="text-text-tertiary">Total previsto</dt><dd>{{ kg(total()) }} kg</dd></div> }
                     </dl>
                     @if (p.permiteSeguir && !a.menor) { <span class="mt-3 flex h-10 items-center justify-center rounded-md bg-accent text-label-s">Seguir · {{ a.seguidores }}</span> }
@@ -319,7 +319,7 @@ export class AtletaFichaPage {
   protected readonly subtitulo = computed(() => {
     const a = this.atleta();
     if (!a) return '';
-    return [a.categoria ? `${a.sexo} ${cat(a.categoria)} kg` : 'Sin categoría', a.divisionNombre, a.prueba ? 'Competición ' + a.prueba.toUpperCase().replace('AEP', 'AEP-') : '', a.club || 'Independiente', a.licencia ? `licencia ${a.licencia}` : '', a.jornada ? `${diaFecha(a.jornada)}${a.horaInicio ? ' ' + this.hora(a.horaInicio) : ''}` : '']
+    return [a.categoria ? `${a.sexo} ${cat(a.categoria)} kg` : 'Sin categoría', a.divisionNombre, a.prueba ? 'Competición ' + a.prueba.toUpperCase().replace('AEP', 'AEP-') : '', a.club || 'Independiente', a.licencia ? `licencia ${a.licencia}` : '', a.jornada ? `${diaFecha(a.jornada)}${a.horaInicio ? ' ' + this.hora(a.horaInicio) : ''}${a.sesionNivel ? ' · sesión ' + a.sesionNivel : ''}` : '']
       .filter(Boolean).join(' · ');
   });
   protected categorias(): string[] {
