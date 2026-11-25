@@ -140,6 +140,8 @@ export class SecMontaje {
     if (i !== this.sel()) {
       this.error.set(false);
       this.avance.set(0);
+      // the old element is removed without a «pause» event
+      this.sonando.set(false);
       this.sel.set(i);
     }
     setTimeout(() => this.sincronizar());
