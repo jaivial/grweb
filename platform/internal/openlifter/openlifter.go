@@ -68,6 +68,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.athletes = svcclient.New(config.Str("UPSTREAM_ATHLETES", "http://athletes:8080"), "openlifter", "athletes", a.Cfg.InternalToken)
 	s.live = svcclient.New(config.Str("UPSTREAM_LIVE", "http://live:8080"), "openlifter", "live", a.Cfg.InternalToken)
 	s.register()
+	s.registerPadron()
 	return nil
 }
 
@@ -505,44 +506,55 @@ func mensaje(err error) string {
 	return "servicio no disponible."
 }
 
+// AtletaImport is an athlete (or, with padron, a row of the AEP roll of the desk's level) to create the OpenLifter
+// registration from the platform («Importar atletas» of the fork).
+type AtletaImport struct {
+	ID              uuid.UUID `json:"id" doc:"Atleta; con padron, fila del padrón AEP"`
+	Nombre          string    `json:"nombre"`
+	Sexo            string    `json:"sexo"`
+	FechaNacimiento string    `json:"fechaNacimiento,omitempty"`
+	Categoria       string    `json:"categoria"`
+	Division        string    `json:"division"`
+	Club            string    `json:"club,omitempty"`
+	Licencia        string    `json:"licencia,omitempty"`
+	Instagram       string    `json:"instagram,omitempty"`
+	Flight          string    `json:"flight,omitempty"`
+	Plataforma      *int      `json:"plataforma,omitempty"`
+	PesoCorporal    *float64  `json:"pesoCorporal,omitempty"`
+	Primeros        struct {
+		SQ *float64 `json:"sq,omitempty"`
+		BP *float64 `json:"bp,omitempty"`
+		DL *float64 `json:"dl,omitempty"`
+	} `json:"primeros"`
+	RackSQ *int   `json:"rackSq,omitempty"`
+	RackBP string `json:"rackBp,omitempty"`
+	Prueba string `json:"prueba,omitempty" doc:"aep2, aep3 o vacío"`
+	// Roll rows (BIZ-210).
+	Padron         bool       `json:"padron,omitempty" doc:"Fila del padrón AEP (id es la fila, no un atleta)"`
+	AtletaID       *uuid.UUID `json:"atletaId,omitempty" doc:"Atleta enlazado con la fila del padrón"`
+	EntryID        *int       `json:"entryId,omitempty" doc:"Entrada de OpenLifter ya enlazada con la fila"`
+	Equipamiento   string     `json:"equipamiento,omitempty" doc:"raw o equipado"`
+	AnioNacimiento int        `json:"anioNacimiento,omitempty"`
+	TotalAnterior  *float64   `json:"totalAnterior,omitempty"`
+}
+
 // ---- endpoints ----
 
 func (s *Svc) register() {
 	api := s.a.API
 	base := "/api/admin/competiciones/{cid}/openlifter"
 
-	// Athletes to create the OpenLifter registration from the platform (no matching needed afterwards).
-	type AtletaImport struct {
-		ID              uuid.UUID `json:"id"`
-		Nombre          string    `json:"nombre"`
-		Sexo            string    `json:"sexo"`
-		FechaNacimiento string    `json:"fechaNacimiento,omitempty"`
-		Categoria       string    `json:"categoria"`
-		Division        string    `json:"division"`
-		Club            string    `json:"club,omitempty"`
-		Licencia        string    `json:"licencia,omitempty"`
-		Instagram       string    `json:"instagram,omitempty"`
-		Flight          string    `json:"flight,omitempty"`
-		Plataforma      *int      `json:"plataforma,omitempty"`
-		PesoCorporal    *float64  `json:"pesoCorporal,omitempty"`
-		Primeros        struct {
-			SQ *float64 `json:"sq,omitempty"`
-			BP *float64 `json:"bp,omitempty"`
-			DL *float64 `json:"dl,omitempty"`
-		} `json:"primeros"`
-		RackSQ *int   `json:"rackSq,omitempty"`
-		RackBP string `json:"rackBp,omitempty"`
-	}
-	type cidIn struct {
-		CID uuid.UUID `path:"cid"`
-	}
 	type atletasOut struct {
 		Body struct {
 			Atletas []AtletaImport `json:"atletas"`
 		}
 	}
-	huma.Register(api, huma.Operation{OperationID: "openlifter-atletas", Method: http.MethodGet, Path: base + "/atletas", Summary: "Atletas confirmados para crear la inscripción de OpenLifter", Tags: tag, Security: bearer},
-		func(ctx context.Context, in *cidIn) (*atletasOut, error) {
+	type atletasIn struct {
+		CID  uuid.UUID `path:"cid"`
+		Mesa string    `query:"mesa" maxLength:"120" doc:"Clave de la mesa: si es de AEP 2 o AEP 3, solo los atletas de ese nivel más su padrón AEP"`
+	}
+	huma.Register(api, huma.Operation{OperationID: "openlifter-atletas", Method: http.MethodGet, Path: base + "/atletas", Summary: "Atletas confirmados (y padrón AEP del nivel de la mesa) para crear la inscripción de OpenLifter", Tags: tag, Security: bearer},
+		func(ctx context.Context, in *atletasIn) (*atletasOut, error) {
 			if _, err := operar(ctx, in.CID); err != nil {
 				return nil, err
 			}
@@ -550,14 +562,29 @@ func (s *Svc) register() {
 			if err != nil {
 				return nil, err
 			}
+			nivel := nivelMesa(in.Mesa)
+			var pad []lifterPadron
+			if nivel != "" {
+				if pad, err = s.padron(ctx, in.CID, nivel); err != nil {
+					return nil, err
+				}
+			}
 			o := &atletasOut{}
-			o.Body.Atletas = make([]AtletaImport, 0, len(ids))
+			o.Body.Atletas = make([]AtletaImport, 0, len(ids)+len(pad))
+			enLista := map[uuid.UUID]bool{}
 			for _, x := range ids {
+				if nivel != "" && x.Prueba != "" && x.Prueba != nivel {
+					continue // an athlete of the other level
+				}
+				enLista[x.ID] = true
 				a := AtletaImport{ID: x.ID, Nombre: x.nombreCompleto(), Sexo: x.Sexo, FechaNacimiento: x.FechaNacimiento, Categoria: x.Categoria, Division: x.Division,
 					Club: x.Club, Licencia: x.Licencia, Instagram: x.Instagram, Flight: x.Flight, Plataforma: x.Plataforma, PesoCorporal: x.PesoCorporal, RackSQ: x.RackSQ, RackBP: x.RackBP}
 				a.Primeros.SQ, a.Primeros.BP, a.Primeros.DL = x.Primeros.SQ, x.Primeros.BP, x.Primeros.DL
+				a.Prueba = x.Prueba
 				o.Body.Atletas = append(o.Body.Atletas, a)
 			}
+			o.Body.Atletas = append(o.Body.Atletas, padronImport(pad, nivel, enLista)...)
+			s.a.Log.Info("openlifter.atletas_import", "nivel", nivel, "atletas", len(o.Body.Atletas), "padron", len(pad))
 			return o, nil
 		})
 

@@ -132,5 +132,7 @@ spec:
     - from:
         - podSelector: { matchLabels: { grcup.dev/servicio: gateway } }
         - podSelector: { matchLabels: { grcup.dev/servicio: audit } }
+        # BIZ-210: athletes links the AEP roll with the entries of each level's desk.
+        - podSelector: { matchLabels: { grcup.dev/servicio: athletes } }
       ports:
         - { port: 8080, protocol: TCP }
