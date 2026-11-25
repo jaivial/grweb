@@ -49,6 +49,7 @@ type Marcador struct {
 	SesionEnCurso        string           `json:"sesionEnCurso" doc:"Id de la sesión que está en la tarima («» = ninguno)"`
 	Atletas              []MarcadorAtleta `json:"atletas"`
 	CategoriasPublicadas []string         `json:"categoriasPublicadas"`
+	Degradado            bool             `json:"degradado,omitempty" doc:"true = plan viejo de respaldo (schedule/athletes caídos): solo añadir opciones, nunca quitar"`
 }
 
 // fotoPublica is the photo only for a public profile (athletes already sends it only with image consent).
@@ -104,7 +105,7 @@ func (s *Svc) marcadorDelDia(ctx context.Context, cid uuid.UUID, dia string) (*M
 	if err != nil {
 		return nil, err
 	}
-	sub := &plan{Version: p.Version, Atletas: p.Atletas}
+	sub := &plan{Version: p.Version, Atletas: p.Atletas, Degradado: p.Degradado}
 	for i := range p.Sesiones {
 		if dia == "" || p.Sesiones[i].Dia == dia {
 			sub.Sesiones = append(sub.Sesiones, p.Sesiones[i])
@@ -112,7 +113,7 @@ func (s *Svc) marcadorDelDia(ctx context.Context, cid uuid.UUID, dia string) (*M
 	}
 	sub.index()
 
-	m := &Marcador{Fase: e.Fase, Atletas: []MarcadorAtleta{}, CategoriasPublicadas: []string{}}
+	m := &Marcador{Fase: e.Fase, Degradado: sub.Degradado, Atletas: []MarcadorAtleta{}, CategoriasPublicadas: []string{}}
 	if e.SesionID != nil {
 		m.SesionEnCurso = e.SesionID.String()
 	}
