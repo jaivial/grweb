@@ -10,7 +10,8 @@ import { Lightbox } from '../layout/lightbox';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
 import { Community, Related, type RelatedLink } from './landings';
-import { GIMNASIOS, detalleDe, mapaDe, type Sitio } from './donde-dormir-y-comer';
+import { Sitios } from './sitios';
+import { GIMNASIOS, HOTELES, detalleDe, mapaDe, type Sitio } from './donde-dormir-y-comer';
 
 
 const T = {
@@ -63,7 +64,7 @@ const T = {
 /** /como-llegar (Figma page 11, «ampliada»): address and map, transport, parking and accessibility, venue photos, where to stay. */
 @Component({
   selector: 'gr-como-llegar-page',
-  imports: [CdnPipe, RouterLink, LocPipe, Page, GrIcon, GrButton, GrCabecera, Related, Community, Lightbox],
+  imports: [CdnPipe, RouterLink, LocPipe, Page, GrIcon, GrButton, GrCabecera, Related, Community, Lightbox, Sitios],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = comp();
@@ -175,6 +176,7 @@ const T = {
               <p class="text-body-s text-text-tertiary">{{ t().alojTexto }}</p>
               <a grButton variant="outline" size="l" class="mt-1 w-full sm:w-auto sm:self-start" [routerLink]="'/donde-dormir-y-comer' | loc">{{ t().verAloj }}</a>
             </article>
+            <gr-sitios [sitios]="hoteles" icono="building" />
           </section>
           <section id="entrenar" class="flex flex-col gap-5 md:gap-7">
             <gr-cabecera [eyebrow]="t().entrenar" [titulo]="t().dondeEntrenar" [centro]="false" tam="m" />
@@ -213,6 +215,7 @@ export class ComoLlegarPage {
   /** Photo open in the lightbox (−1: closed). */
   protected readonly ver = signal(-1);
   protected readonly gimnasios = GIMNASIOS;
+  protected readonly hoteles = HOTELES;
   protected readonly mapa = mapaDe;
   protected readonly detalle = (s: Sitio) => detalleDe(s, this.i18n.lang());
   protected readonly enc = encodeURIComponent;
