@@ -2,10 +2,14 @@ package schedule
 
 import (
 	"context"
+	"slices"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+
+	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
 // Competitions of the event (Figma 56 «por competición»): AEP-2 runs the first day, AEP-3 the second one, the
@@ -83,4 +87,52 @@ func sesionesDePrueba(ctx context.Context, tx pgx.Tx, cid uuid.UUID, p string, a
 	}
 	_, err = tx.Exec(ctx, `DELETE FROM sesion_atletas WHERE competition_id = $1 AND atleta_id = ANY($2)`, cid, ids)
 	return out, quedan, err
+}
+
+// Weight classes per sex (same lists as the athletes service).
+var categoriasSexo = map[string][]string{
+	"F": {"-43", "-47", "-52", "-57", "-63", "-69", "-76", "-84", "+84"},
+	"M": {"-53", "-59", "-66", "-74", "-83", "-93", "-105", "-120", "+120"},
+}
+
+// niveles: AEP levels a session may have (” = sin competición).
+var niveles = []string{"", "aep1", "aep2", "aep3"}
+
+// categoriasSesion applies the BIZ-202 edit of a session: one sex, several weight classes of that sex, one AEP level.
+func categoriasSesion(f sesionRow, b sesionIn) (sexo string, cats []string, prueba string, err error) {
+	sexo, cats, prueba = f.Sexo, f.Categorias, f.Prueba
+	if b.Sexo != nil {
+		if sexo != *b.Sexo && b.Categorias == nil {
+			cats = nil // the old classes belong to the other sex
+		}
+		sexo = *b.Sexo
+	}
+	if b.Categorias != nil {
+		cats = *b.Categorias
+	}
+	if b.Nivel != nil {
+		prueba = *b.Nivel
+	}
+	if !slices.Contains(niveles, prueba) {
+		return "", nil, "", problem.Unprocessable("NIVEL_INVALIDO", "El nivel tiene que ser AEP-1, AEP-2 o AEP-3.")
+	}
+	if cats == nil {
+		cats = []string{}
+	}
+	if len(cats) > 0 && sexo == "" {
+		return "", nil, "", problem.Unprocessable("SEXO_REQUERIDO", "Elige el sexo de la sesión antes que sus categorías de peso.")
+	}
+	seen := map[string]bool{}
+	out := []string{}
+	for _, c := range cats {
+		if !slices.Contains(categoriasSexo[sexo], c) {
+			return "", nil, "", problem.Unprocessable("CATEGORIA_INVALIDA", "La categoría "+c+" kg no es de ese sexo.")
+		}
+		if !seen[c] {
+			seen[c] = true
+			out = append(out, c)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return catKey(out[i]) < catKey(out[j]) })
+	return sexo, out, prueba, nil
 }

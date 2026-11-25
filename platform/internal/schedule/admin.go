@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -18,6 +19,18 @@ import (
 )
 
 var tagAdmin = []string{"Horarios"}
+
+type sesionIn struct {
+	Dia          string    `json:"dia,omitempty" format:"date"`
+	Inicio       string    `json:"inicio,omitempty" pattern:"^[0-2][0-9]:[0-5][0-9]$" doc:"Hora local"`
+	DuracionMin  int       `json:"duracionMin,omitempty" minimum:"10" maximum:"600"`
+	PesajeInicio string    `json:"pesajeInicio,omitempty" pattern:"^([0-2][0-9]:[0-5][0-9])?$" doc:"Hora local (mismo día)"`
+	PesajeFin    string    `json:"pesajeFin,omitempty" pattern:"^([0-2][0-9]:[0-5][0-9])?$"`
+	Competicion  string    `json:"competicion,omitempty" enum:"aep1,aep2,aep3" doc:"Competición del sesion nuevo (solo al crear)"`
+	Sexo         *string   `json:"sexo,omitempty" enum:"F,M" doc:"BIZ-202: sexo de la sesión (solo uno)"`
+	Categorias   *[]string `json:"categorias,omitempty" maxItems:"9" doc:"BIZ-202: categorías de peso de la sesión, del mismo sexo"`
+	Nivel        *string   `json:"nivel,omitempty" doc:"BIZ-202: nivel AEP de la sesión: aep1, aep2, aep3 o vacío"`
+}
 
 const base = "/api/admin/competiciones/{cid}/horarios"
 
@@ -266,14 +279,6 @@ func (s *Svc) registerAdmin() {
 			return s.out(ctx, in.CID)
 		})
 
-	type sesionIn struct {
-		Dia          string `json:"dia,omitempty" format:"date"`
-		Inicio       string `json:"inicio,omitempty" pattern:"^[0-2][0-9]:[0-5][0-9]$" doc:"Hora local"`
-		DuracionMin  int    `json:"duracionMin,omitempty" minimum:"10" maximum:"600"`
-		PesajeInicio string `json:"pesajeInicio,omitempty" pattern:"^([0-2][0-9]:[0-5][0-9])?$" doc:"Hora local (mismo día)"`
-		PesajeFin    string `json:"pesajeFin,omitempty" pattern:"^([0-2][0-9]:[0-5][0-9])?$"`
-		Competicion  string `json:"competicion,omitempty" enum:"aep2,aep3" doc:"Competición del sesion nuevo (solo al crear)"`
-	}
 	type crearIn struct {
 		CID     uuid.UUID `path:"cid"`
 		IfMatch string    `header:"If-Match"`
@@ -351,8 +356,8 @@ func (s *Svc) registerAdmin() {
 					return err
 				}
 				var f sesionRow
-				if err := tx.QueryRow(ctx, `SELECT id, dia, duracion_min, inicio, pesaje_inicio, pesaje_fin FROM sesiones WHERE competition_id = $1 AND id = $2`, in.CID, in.ID).
-					Scan(&f.ID, &f.Dia, &f.DuracionMin, &f.Inicio, &f.PesajeIni, &f.PesajeFn); err != nil {
+				if err := tx.QueryRow(ctx, `SELECT id, prueba, sexo, categorias, dia, duracion_min, inicio, pesaje_inicio, pesaje_fin FROM sesiones WHERE competition_id = $1 AND id = $2`, in.CID, in.ID).
+					Scan(&f.ID, &f.Prueba, &f.Sexo, &f.Categorias, &f.Dia, &f.DuracionMin, &f.Inicio, &f.PesajeIni, &f.PesajeFn); err != nil {
 					if db.IsNoRows(err) {
 						return problem.NotFound("Esa sesión ya no existe.")
 					}
@@ -387,9 +392,17 @@ func (s *Svc) registerAdmin() {
 				if b.DuracionMin > 0 {
 					f.DuracionMin = b.DuracionMin
 				}
+				sexo, cats, prueba, err := categoriasSesion(f, b)
+				if err != nil {
+					return err
+				}
 				accion = "cambió el horario de la sesión de las " + hhmm(f.Inicio, loc)
-				_, err = tx.Exec(ctx, `UPDATE sesiones SET dia = $3, inicio = $4, duracion_min = $5, pesaje_inicio = $6, pesaje_fin = $7, updated_at = now()
-					WHERE competition_id = $1 AND id = $2`, in.CID, in.ID, dia, ini, f.DuracionMin, pi, pf)
+				_, err = tx.Exec(ctx, `UPDATE sesiones SET dia = $3, inicio = $4, duracion_min = $5, pesaje_inicio = $6, pesaje_fin = $7, sexo = $8, categorias = $9, prueba = $10, updated_at = now()
+					WHERE competition_id = $1 AND id = $2`, in.CID, in.ID, dia, ini, f.DuracionMin, pi, pf, sexo, cats, prueba)
+				if err == nil {
+					s.a.Log.Info("[BIZ-202] schedule_sesion_editada", "competition_id", in.CID, "sesion_id", in.ID, "dia", dia, "inicio", hhmm(ini, loc),
+						"pesaje", hhmm(pi, loc)+"–"+hhmm(pf, loc), "sexo", sexo, "categorias", strings.Join(cats, ","), "nivel", prueba)
+				}
 				return err
 			}, func() string { return accion })
 			if err != nil {
