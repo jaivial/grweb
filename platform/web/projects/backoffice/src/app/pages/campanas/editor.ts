@@ -186,7 +186,7 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
                   </div>
                 }
                 @case ('previa') {
-                  @if (previa(); as p) { <iframe [srcdoc]="seguro(p.emailHtml)" title="Vista previa del email" class="mx-auto block h-[900px] w-full border-0 bg-white" [style.max-width.px]="ancho() === 'escritorio' ? 640 : 390" sandbox=""></iframe> }
+                  @if (previa(); as p) { <iframe [srcdoc]="emailSeguro()" title="Vista previa del email" class="mx-auto block h-[900px] w-full border-0 bg-white" [style.max-width.px]="ancho() === 'escritorio' ? 640 : 390" sandbox=""></iframe> }
                   @else { <gr-skeleton class="mx-auto h-[600px] max-w-[600px]" /> }
                 }
                 @case ('html') { <pre class="max-h-[900px] overflow-auto rounded-md bg-[#141011] p-4 text-[11px] leading-4 whitespace-pre-wrap text-[#d8cfd1]">{{ previa()?.emailHtml }}</pre> }
@@ -301,7 +301,7 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
                   <div class="min-w-0">@if (escritorio()) { <p class="mb-2 text-center text-label-s">Email</p> }
                     <div class="mx-auto overflow-hidden rounded-lg border border-line-strong" [style.max-width.px]="escritorio() && ancho() === 'escritorio' ? 640 : 390">
                       <p class="truncate bg-bg-raised px-3 py-2 font-mono text-mono-xs text-text-tertiary">● ● ●  {{ f().asunto }}</p>
-                      <iframe #frEmail [srcdoc]="seguro(p.emailHtml)" title="Email" class="block w-full border-0 bg-white" scrolling="no" sandbox="allow-same-origin" (load)="ajustarAlto()"></iframe>
+                      <iframe #frEmail [srcdoc]="emailSeguro()" title="Email" class="block w-full border-0 bg-white" scrolling="no" sandbox="allow-same-origin" (load)="ajustarAlto()"></iframe>
                     </div></div>
                 }
                 @if (f().canales.includes('whatsapp')) {
@@ -572,6 +572,9 @@ export class CampanaEditorPage {
   private readonly frEmail = viewChild<ElementRef<HTMLIFrameElement>>('frEmail');
   protected readonly hist = signal<Bloque[][]>([]);
   protected readonly previa = signal<Previa | null>(null);
+  // stable SafeHtml per HTML string: a fresh object on every change detection reloads the iframe in a loop
+  private readonly emailHtml = computed(() => this.previa()?.emailHtml ?? '');
+  protected readonly emailSeguro = computed(() => this.san.bypassSecurityTrustHtml(this.emailHtml()));
   protected readonly error = signal('');
   protected readonly aud = signal<Audiencia | null>(null);
   protected readonly segs = signal<Segmento[]>([]);
@@ -813,7 +816,7 @@ export class CampanaEditorPage {
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.focus();
   }
-  protected seguro(h: string): SafeHtml { return this.san.bypassSecurityTrustHtml(h); }
+
   protected wa(t: string): SafeHtml { return this.san.bypassSecurityTrustHtml(waHtml(t)); }
   protected diaLargo(f?: string): string {
     if (!f) return '';
