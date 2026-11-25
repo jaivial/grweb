@@ -18,6 +18,7 @@ import { I18n, LocPipe } from '../core/i18n';
 import { Footer, Navbar } from '../layout/layout';
 import { NoEncontrada } from '../layout/no-encontrada';
 import { Campeonato, fechasHero } from './campeonato';
+import { SecMontaje } from './montaje';
 import { HeroTrophy } from './hero-trophy';
 import {
   SecAfiliaciones, SecAlta, SecAtletas, SecCategorias, SecEntradas, SecFaq, SecHorarios, SecLocalizacion, SecOrganizacion,
@@ -65,7 +66,7 @@ const T = {
  */
 @Component({
   selector: 'gr-home',
-  imports: [Navbar, Footer, GrAlert, GrIcon, RouterLink, LocPipe, HeroTrophy, Campeonato, SecAlta, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
+  imports: [Navbar, Footer, GrAlert, GrIcon, RouterLink, LocPipe, HeroTrophy, Campeonato, SecMontaje, SecAlta, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
     SecSorteo, SecPorra, SecFantasy, SecCategorias, SecHorarios, SecLocalizacion, SecFaq, SecCompeticiones],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -77,6 +78,8 @@ const T = {
       <gr-campeonato [comp]="c" [titulo]="$any(h?.secciones?.['campeonato']?.['titulo']) || t().campeonato"
         [subtitulo]="$any(h?.secciones?.['campeonato']?.['subtitulo']) || ''" [aviso]="$any(h?.secciones?.['campeonato']?.['aviso']) || ''" [fechas]="heroFechas()" [lugar]="heroLugar()"
         [patrocinadores]="h && h.orden.includes('patrocinadores') ? h.patrocinadores : []" [tituloPatrocinadores]="$any(h?.secciones?.['patrocinadores']?.['titulo']) || ''" />
+      <!-- BIZ-166 «Cómo será nuestro campeonato»: conceptual set-up clips (posters only until the user presses play) -->
+      @defer (on viewport; hydrate on viewport) { <gr-sec-montaje /> } @placeholder { <div id="montaje" class="min-h-[900px] md:min-h-[1200px]"></div> }
       @if (enVivo(); as v) {
         <!-- Event day: the broadcast also on the home («Directo › Retransmisión», switch «también en la home») -->
         <section class="mx-auto flex max-w-[1440px] flex-col gap-4 px-5 py-10 md:px-8 xl:px-[120px]" [attr.aria-label]="t().retransmision">
