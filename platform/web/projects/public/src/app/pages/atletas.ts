@@ -305,7 +305,7 @@ export class AtletasPage {
       let t: ReturnType<typeof setTimeout> | undefined;
       const recargar = () => {
         clearTimeout(t);
-        t = setTimeout(async () => { const l = await this.api.lista(); if (l) this.lista.set(l); }, 400);
+        t = setTimeout(async () => { const l = await this.api.lista(true); if (l) this.lista.set(l); }, 400);
       };
       for (const ev of EVENTOS_HORARIOS) es.addEventListener(ev, recargar);
       inject(DestroyRef).onDestroy(() => { clearTimeout(t); es.close(); });
@@ -596,7 +596,9 @@ export class AtletaPage {
           : { title: this.t().seoNoT, description: this.t().noExiste, path: '/atletas/' + slug, robots: 'noindex' });
         return;
       }
-      if (c?.fechaInicio) this.diaTxt.set(new Intl.DateTimeFormat(this.i18n.locale(), { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(c.fechaInicio)));
+      // The athlete's own day (Saturday or Sunday); the competition start only while no schedule is published.
+      const dia = f.jornada ? f.jornada + 'T12:00:00Z' : c?.fechaInicio;
+      if (dia) this.diaTxt.set(new Intl.DateTimeFormat(this.i18n.locale(), { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(dia)));
       const nombre = `${f.nombre} ${f.apellidos}`;
       // Sin categoría (atleta recién creado desde una solicitud) no se pinta «M  kg».
       const catTxt = f.categoria ? `${f.sexo} ${cat(f.categoria)} kg` : '';
