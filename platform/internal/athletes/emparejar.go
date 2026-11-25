@@ -169,6 +169,11 @@ func puntuar(nom, ape, rNom, rApe string) float64 {
 	return max(directo, cruzado)
 }
 
+// mismoTexto: identical but for case and spaces (accents count: «Lucia» is not «Lucía», the model decides).
+func mismoTexto(a, b string) bool {
+	return strings.EqualFold(strings.Join(strings.Fields(a), " "), strings.Join(strings.Fields(b), " "))
+}
+
 // ---- the decision ----
 
 type solEmp struct {
@@ -209,7 +214,7 @@ func (s *Svc) candidatosPadron(ctx context.Context, sol solEmp) ([]candidato, er
 		}
 		c.ID = c.uuid.String()
 		c.score = puntuar(sol.Nombre, sol.Apellidos, c.Nombre, c.Apellidos)
-		c.exacto = normNombre(sol.Nombre) == normNombre(c.Nombre) && normNombre(sol.Apellidos) == normNombre(c.Apellidos) && sol.anio == c.Anio
+		c.exacto = mismoTexto(sol.Nombre, c.Nombre) && mismoTexto(sol.Apellidos, c.Apellidos) && sol.anio == c.Anio
 		if c.score >= empMinNombre || c.exacto {
 			out = append(out, c)
 		}
