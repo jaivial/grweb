@@ -1,6 +1,6 @@
 import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PendingTasks, inject } from '@angular/core';
-import { GrButton, GrIcon, type GrIconName, CdnPipe, cdn } from '@grcup/ui';
+import { GrButton, GrIcon, type GrIconName, cdn } from '@grcup/ui';
 import { Cms } from '../core/cms';
 import { I18n, LocPipe, type Lang } from '../core/i18n';
 import { Seo } from '../core/seo';
@@ -8,6 +8,7 @@ import { GrCabecera } from '../home/bloques';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
 import { Related, type RelatedLink } from './landings';
+import { Sitios } from './sitios';
 
 /** A place of the guide: the lists below are data, change them there (no BO yet: see SeccionVisita/LugarVisita). */
 export interface Sitio {
@@ -57,7 +58,7 @@ export function detalleDe(s: Sitio, lang: Lang): string {
 const T = {
   es: {
     titulo: 'Alojamientos cerca', acento: 'del pabellón', visita: 'Visita', seccion: 'Cómo llegar',
-    mapa: 'Mapa', preparando: 'Estamos preparando la guía',
+    preparando: 'Estamos preparando la guía',
     pronto: 'Pronto publicaremos alojamientos, restaurantes y gimnasios cerca del pabellón. Mientras tanto, mira cómo llegar.', verComo: 'Ver cómo llegar',
     relacionados: [
       { titulo: 'Público', texto: 'Entrada y normas', ruta: '/publico' },
@@ -69,7 +70,7 @@ const T = {
   },
   en: {
     titulo: 'Accommodation near', acento: 'the sports hall', visita: 'Visit', seccion: 'Getting there',
-    mapa: 'Map', preparando: 'We’re putting the guide together',
+    preparando: 'We’re putting the guide together',
     pronto: 'We’ll soon publish places to stay, restaurants and gyms near the sports hall. In the meantime, see how to get there.', verComo: 'See how to get there',
     relacionados: [
       { titulo: 'Spectators', texto: 'Tickets and rules', ruta: '/publico' },
@@ -87,7 +88,7 @@ const T = {
  */
 @Component({
   selector: 'gr-donde-dormir-page',
-  imports: [CdnPipe, RouterLink, LocPipe, Page, GrIcon, GrButton, GrCabecera, Related],
+  imports: [RouterLink, LocPipe, Page, GrIcon, GrButton, GrCabecera, Related, Sitios],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page [title]="t().titulo" [accent]="t().acento" [eyebrow]="t().visita" [section]="t().seccion" [crumb]="t().titulo">
@@ -95,47 +96,7 @@ const T = {
         @for (b of secciones; track b.id; let i = $index) {
           <section [id]="b.id" class="flex scroll-mt-28 flex-col gap-6 md:gap-8">
             <gr-cabecera [eyebrow]="b.eyebrow[lang()]" [titulo]="b.titulo[lang()]" [texto]="b.texto[lang()]" [centro]="false" tam="m" />
-            <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              @for (s of b.sitios; track s.nombre) {
-                <li class="flex flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
-                  @if (s.imagen) {
-                  <div class="aspect-video bg-bg-elevated">
-                    <img [src]="s.imagen | cdn" [alt]="s.nombre" class="size-full object-cover" loading="lazy" />
-                  </div>
-                  } @else if (s.logo) {
-                  <div class="flex aspect-video items-center justify-center p-6" [class]="s.logoClaro ? 'bg-[#141112]' : 'bg-white'">
-                    <img [src]="s.logo" [alt]="s.nombre" class="size-full object-contain" loading="lazy" />
-                  </div>
-                  }
-                  <div class="flex flex-1 flex-col gap-2 p-5">
-                    <div class="flex items-center gap-2">
-                      <gr-icon [name]="b.icono" [size]="18" class="shrink-0 text-accent-text" />
-                      <h3 class="text-label-m">{{ s.nombre }}</h3>
-                    </div>
-                    <p class="text-body-s text-text-tertiary">{{ detalle(s) }}</p>
-                    @if (s.descripcion) { <p class="text-body-s text-text-secondary">{{ lang() === 'en' ? s.descripcionEn || s.descripcion : s.descripcion }}</p> }
-                    @if (s.distancia || s.precio) {
-                      <p class="flex flex-wrap items-center gap-x-1.5 text-body-xs text-text-secondary">
-                        @if (s.distancia) { <span>{{ s.distancia }}</span> }
-                        @if (s.distancia && s.precio) { <span aria-hidden="true">·</span> }
-                        @if (s.precio) { <span>{{ (lang() === 'en' && s.precioEn) || s.precio }}</span> }
-                      </p>
-                    }
-                    @if (s.telefono || s.email) {
-                      <p class="flex flex-wrap items-center gap-x-1.5 text-body-xs text-text-secondary">
-                        @if (s.telefono) { <a [href]="'tel:' + s.telefono.replaceAll(' ', '')" class="hover:underline">{{ s.telefono }}</a> }
-                        @if (s.telefono && s.email) { <span aria-hidden="true">·</span> }
-                        @if (s.email) { <a [href]="'mailto:' + s.email" class="hover:underline">{{ s.email }}</a> }
-                      </p>
-                    }
-                    <div class="mt-auto flex gap-4 pt-2">
-                      @if (s.web) { <a [href]="s.web" target="_blank" rel="noopener nofollow" class="inline-flex items-center gap-1.5 text-label-s text-accent-text hover:underline">Web<gr-icon name="external-link" [size]="14" /></a> }
-                      <a [href]="mapa(s)" target="_blank" rel="noopener nofollow" class="inline-flex items-center gap-1.5 text-label-s text-accent-text hover:underline">{{ t().mapa }}<gr-icon name="map-pin" [size]="14" /></a>
-                    </div>
-                  </div>
-                </li>
-              }
-            </ul>
+            <gr-sitios [sitios]="b.sitios" [icono]="b.icono" [conLogo]="b.id === 'gimnasios'" />
           </section>
         } @empty {
           <!-- Figma 393:136197 -->
@@ -156,8 +117,6 @@ export class DondeDormirPage {
   protected readonly t = this.i18n.dict(T);
   protected readonly lang = this.i18n.lang;
   protected readonly secciones = SECCIONES.filter((s) => s.sitios.length);
-  protected readonly mapa = mapaDe;
-  protected readonly detalle = (s: Sitio) => detalleDe(s, this.i18n.lang());
 
   constructor() {
     const cms = inject(Cms);
@@ -168,7 +127,7 @@ export class DondeDormirPage {
 }
 
 // Hotels: «Dónde alojarse» document (official hotel webs, 24 Nov 2026; GRS rates agreed by the group). Edit these lists.
-const HOTELES: Sitio[] = [
+export const HOTELES: Sitio[] = [
   {
     nombre: 'Hotel Key Reig', detalle: 'Carrer dels Llauradors, 13, 46440 Almussafes, Valencia',
     precio: 'Tarifa GRS: 60 € en habitación doble (precio especial de grupo)', precioEn: 'GRS rate: €60 per double room (special group price)',
