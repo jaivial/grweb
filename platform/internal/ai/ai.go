@@ -50,6 +50,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.http = &http.Client{Timeout: 90 * time.Second}
 	s.register()
 	s.registerCampana()
+	s.registerPadron()
 	return nil
 }
 

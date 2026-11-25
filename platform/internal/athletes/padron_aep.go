@@ -541,6 +541,7 @@ type LifterPadron struct {
 	LifterID      *int       `json:"openlifterLifterId,omitempty"`
 	AtletaID      *uuid.UUID `json:"atletaId,omitempty"`
 	EstadoEnlace  string     `json:"estadoEnlace"`
+	Nivel         string     `json:"nivel,omitempty"`
 }
 
 func (s *Svc) lifters(ctx context.Context, q querier, cid uuid.UUID, nivel string) ([]LifterPadron, error) {
