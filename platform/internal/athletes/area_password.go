@@ -139,7 +139,7 @@ func (s *Svc) registerAreaPassword() {
 			if len([]rune(in.Body.Password)) < 10 {
 				return nil, problem.Unprocessable("CONTRASENA_DEBIL", "La contraseña debe tener al menos 10 caracteres.")
 			}
-			if _, err := s.a.DB.Exec(ctx, `UPDATE atletas SET password_hash = $2, updated_at = now() WHERE id = $1`, r.ID, areaHash(in.Body.Password)); err != nil {
+			if _, err := s.a.DB.Exec(ctx, `UPDATE atletas SET password_hash = $2, password_temporal = false, updated_at = now() WHERE id = $1`, r.ID, areaHash(in.Body.Password)); err != nil {
 				return nil, err
 			}
 			p, err := s.panel(ctx, r)
