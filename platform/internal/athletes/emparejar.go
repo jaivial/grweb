@@ -344,6 +344,13 @@ func (s *Svc) emparejar(ctx context.Context, cid, id uuid.UUID) (string, error) 
 			if det.Motivo == "" {
 				det.Motivo = "Propuesta de la IA: revisa las diferencias."
 			}
+			if len(det.Discrepancias) > 0 {
+				difs := make([]string, len(det.Discrepancias))
+				for i, d := range det.Discrepancias {
+					difs[i] = strings.NewReplacer("anio", "año", "categoria", "categoría", "division", "división").Replace(d.Campo) + " " + d.Solicitud + " vs " + d.Padron
+				}
+				det.Motivo += " Requiere revisión: " + strings.Join(difs, ", ") + "."
+			}
 		default:
 			elegido = nil
 			det.Motivo = fmt.Sprintf("Confianza baja (%.0f %%).", confianza*100)
