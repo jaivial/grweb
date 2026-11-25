@@ -61,9 +61,7 @@ const T = {
     <div class="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-center lg:space-x-[140px]" aria-hidden="true">
       @for (m of colgantesA; track $index) {
         <!-- Desktop: the three medals; phone/tablet: only the central one here (the long side ones live next to the slider, below) -->
-        <span grMedalla metal="gold" [cara]="m.cara" [amp]="m.amp" [periodo]="m.per" [fase]="m.fase" class="colgante relative block w-[150px] shrink-0 lg:w-[300px]" [class.max-lg:hidden]="m.h > 500" [style.--t]="m.t" [style.--d]="m.d">
-          <img [src]="m.src" alt="" width="300" [attr.height]="m.h" class="block h-auto w-full" loading="lazy" decoding="async" />
-        </span>
+        <img grMedalla [amp]="m.amp" [periodo]="m.per" [fase]="m.fase" [src]="m.src" alt="" width="300" [attr.height]="m.h" class="colgante h-auto w-[150px] lg:w-[300px]" [class.max-lg:hidden]="m.h > 500" [style.--t]="m.t" [style.--d]="m.d" loading="lazy" decoding="async" />
       }
     </div>
     <div class="pointer-events-none absolute inset-x-0 top-0 z-30 h-28 bg-[linear-gradient(180deg,#141112_0%,#141112_40%,rgb(20_17_18/0.55)_72%,transparent)] lg:h-[180px]" aria-hidden="true"></div>
@@ -78,9 +76,7 @@ const T = {
         <div class="pointer-events-none absolute inset-x-0 bottom-[calc(100%-90px)] z-20 flex items-end justify-center -space-x-[41px] lg:hidden" aria-hidden="true">
           @for (m of colgantesLado; track $index) {
             @if ($index === 1) { <span class="block w-[150px] shrink-0"></span> }
-            <span grMedalla metal="gold" [cara]="m.cara" [amp]="m.amp" [periodo]="m.per" [fase]="m.fase" class="colgante relative block w-[150px] shrink-0" [style.--t]="m.t" [style.--d]="m.d">
-              <img [src]="m.src" alt="" width="300" [attr.height]="m.h" class="block h-auto w-full" loading="lazy" decoding="async" />
-            </span>
+            <img grMedalla [amp]="m.amp" [periodo]="m.per" [fase]="m.fase" [src]="m.src" alt="" width="300" [attr.height]="m.h" class="colgante h-auto w-[150px] shrink-0" [style.--t]="m.t" [style.--d]="m.d" loading="lazy" decoding="async" />
           }
         </div>
         <ul #pista class="relative z-10 -mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] md:-mx-8 md:w-[calc(100%+64px)] md:scroll-px-[calc(50vw-175px)] md:px-[calc(50vw-175px)] lg:mx-0 lg:w-full lg:justify-center lg:gap-10 lg:overflow-visible lg:px-0" (scroll)="alDesplazar($event)">
@@ -110,9 +106,7 @@ const T = {
         <div class="relative h-[334px] w-full max-w-[350px] lg:h-[700px] lg:max-w-none" aria-hidden="true">
           <div class="absolute top-4 left-1/2 flex h-[660px] w-max origin-top -translate-x-1/2 scale-50 items-start justify-center gap-[13px] lg:top-10 lg:scale-100 lg:gap-[67px]">
             @for (m of podio; track m.src) {
-              <span grMedalla [metal]="m.metal" [cara]="m.cara" [ancho]="m.w" [amp]="m.amp" [periodo]="m.per" [fase]="m.fase" class="colgante relative block shrink-0" [style.width.px]="m.w" [style.--t]="m.t" [style.--d]="m.d">
-                <img [src]="m.src" alt="" [attr.width]="m.w" [attr.height]="m.h" class="block h-auto w-full" loading="lazy" decoding="async" />
-              </span>
+              <img grMedalla [amp]="m.amp" [periodo]="m.per" [fase]="m.fase" [src]="m.src" alt="" [attr.width]="m.w" [attr.height]="m.h" class="colgante h-auto" [style.width.px]="m.w" [style.--t]="m.t" [style.--d]="m.d" loading="lazy" decoding="async" />
             }
           </div>
         </div>
@@ -180,17 +174,17 @@ export class SecPremios {
   /** Figma: −4° · 0 · +4° (with their vertical offsets inside the 340 × 480 holders). */
   protected readonly giro = ['lg:-rotate-4 lg:-translate-y-2.5', 'lg:translate-y-0', 'lg:rotate-4 lg:translate-y-2.5'];
   protected readonly colgantesA = [
-    { src: cdn('/img/home/medalla-oro-larga.webp'), h: 784, cara: [62, 530, 170, 163] as const, t: '6.2s', d: '-1s', amp: 4.5, per: 3.2, fase: 0.33 },
-    { src: cdn('/img/home/medalla-oro-corta.webp'), h: 429, cara: [62, 201, 170, 159] as const, t: '5.4s', d: '-3s', amp: 3.5, per: 3.6, fase: 0 },
-    { src: cdn('/img/home/medalla-oro-larga.webp'), h: 784, cara: [62, 530, 170, 163] as const, t: '6.8s', d: '-2s', amp: 5, per: 3, fase: 0.66 },
+    { src: cdn('/img/home/medalla-oro-larga.webp'), h: 784, t: '6.2s', d: '-1s', amp: 4.5, per: 3.2, fase: 0.33 },
+    { src: cdn('/img/home/medalla-oro-corta.webp'), h: 429, t: '5.4s', d: '-3s', amp: 3.5, per: 3.6, fase: 0 },
+    { src: cdn('/img/home/medalla-oro-larga.webp'), h: 784, t: '6.8s', d: '-2s', amp: 5, per: 3, fase: 0.66 },
   ];
   /** Phone/tablet: the two long side medals of block A (their own layer next to the slider). */
   protected readonly colgantesLado = this.colgantesA.filter((m) => m.h > 500);
-  /** B: silver 228 · gold 218 · bronze 228 (Figma 199:255, faces 199:259 · 275 · 267); swing, period and phase of page 79's table. */
+  /** B: silver 228 · gold 218 · bronze 228 (Figma 199:255); swing, period and phase of page 79's table. */
   protected readonly podio = [
-    { src: cdn('/img/home/medalla-plata.webp'), metal: 'silver' as const, cara: [47, 427, 129, 118] as const, w: 228, h: 617, t: '5.8s', d: '-2s', amp: 4.5, per: 3.2, fase: 0.33 },
-    { src: cdn('/img/home/medalla-oro-cat.webp'), metal: 'gold' as const, cara: [41, 401, 133, 124] as const, w: 218, h: 665, t: '6.4s', d: '-4s', amp: 3.5, per: 3.6, fase: 0 },
-    { src: cdn('/img/home/medalla-bronce.webp'), metal: 'bronze' as const, cara: [47, 406, 129, 121] as const, w: 228, h: 597, t: '6s', d: '-1s', amp: 5, per: 3, fase: 0.66 },
+    { src: cdn('/img/home/medalla-plata.webp'), w: 228, h: 617, t: '5.8s', d: '-2s', amp: 4.5, per: 3.2, fase: 0.33 },
+    { src: cdn('/img/home/medalla-oro-cat.webp'), w: 218, h: 665, t: '6.4s', d: '-4s', amp: 3.5, per: 3.6, fase: 0 },
+    { src: cdn('/img/home/medalla-bronce.webp'), w: 228, h: 597, t: '6s', d: '-1s', amp: 5, per: 3, fase: 0.66 },
   ];
   /** «Nube» 199:1739: [x, y, w, h, colour, opacity, blur] of each ellipse of the 1440 × 400 frame. */
   protected readonly nube: [number, number, number, number, string, number, number][] = [
