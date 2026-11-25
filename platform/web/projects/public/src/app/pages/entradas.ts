@@ -114,6 +114,10 @@ const T = {
       y: 'y',
       porConfirmar: 'Fecha por confirmar',
       premiosSorteo: 'premios y sorteo',
+      premiosSorteoC: 'Premios y sorteo',
+      porDia: 'Horario de cada día',
+      aforoDias: 'Aforo por día',
+      ambosDias: 'los dos días',
       eNombre: 'Nombre: escribe tu nombre.',
       eApellidos: 'Apellidos: escribe tus apellidos.',
       eEmail: 'Email: introduce un email válido.',
@@ -296,6 +300,10 @@ const T = {
       y: 'and',
       porConfirmar: 'Date to be confirmed',
       premiosSorteo: 'prizes and prize draw',
+      premiosSorteoC: 'Prizes and prize draw',
+      porDia: 'Times for each day',
+      aforoDias: 'Capacity per day',
+      ambosDias: 'both days',
       eNombre: 'First name: enter your first name.',
       eApellidos: 'Surname: enter your surname.',
       eEmail: 'Email: enter a valid email.',
@@ -517,11 +525,20 @@ export class TicketCard {
 /** Ticket line 1 without repeating the weekday (UX8-R1-7): «sáb 19 dic · Tarde». */
 const diaCorto = (iso: string, loc: string, mes: boolean) =>
   new Intl.DateTimeFormat(loc, { weekday: 'short', day: 'numeric', ...(mes ? { month: 'short' } : {}), timeZone: 'Europe/Madrid' }).format(new Date(iso)).replace(/[,.]/g, '').replace(/^\p{L}/u, (c) => c.toUpperCase());
-/** Ticket line 1; with a second day: «Sáb 19 y Dom 20 dic» (BIZ-163). */
-const lineaTicket = (inicio: string, nombre: string, loc = 'es-ES', inicio2?: string) => inicio2
-  ? diaCorto(inicio, loc, false) + (loc.startsWith('en') ? ' and ' : ' y ') + diaCorto(inicio2, loc, true) :
-  new Intl.DateTimeFormat(loc, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(inicio)).replace(/[,.]/g, '') +
-  ' · ' + nombre.replace(/^(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\s+/i, '').replace(/^\p{L}/u, (c) => c.toUpperCase());
+/** Ticket line 1; with a second day: «Sáb 19 y Dom 20 dic» (BIZ-163). A name that only repeats the day («Sábado 19») adds nothing (BIZ-209). */
+const lineaTicket = (inicio: string, nombre: string, loc = 'es-ES', inicio2?: string) => {
+  if (inicio2) return diaCorto(inicio, loc, false) + (loc.startsWith('en') ? ' and ' : ' y ') + diaCorto(inicio2, loc, true);
+  const resto = nombre.replace(/^(lunes|martes|miércoles|jueves|viernes|sábado|domingo|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s*/i, '').trim();
+  return new Intl.DateTimeFormat(loc, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(inicio)).replace(/[,.]/g, '') +
+    (/^\d*$/.test(resto) ? '' : ' · ' + resto.replace(/^\p{L}/u, (c) => c.toUpperCase()));
+};
+/** Ticket line 2: «Puertas 08:30 · hasta las 14:00»; two days: «Puertas 08:30 los dos días» or «Puertas sáb 08:30 · dom 09:00» (BIZ-209). */
+const lineaPuertas = (pg: { puertas: string; hasta: string; ambosDias: string }, loc: string, s: Pick<SesionPub, 'inicio' | 'puertas' | 'fin'>, s2?: Pick<SesionPub, 'inicio' | 'puertas'>) => {
+  if (!s2) return pg.puertas + ' ' + hora(s.puertas) + ' · ' + pg.hasta + ' ' + hora(s.fin);
+  if (hora(s.puertas) === hora(s2.puertas)) return pg.puertas + ' ' + hora(s.puertas) + ' ' + pg.ambosDias;
+  const wd = (iso: string) => new Intl.DateTimeFormat(loc, { weekday: 'short', timeZone: 'Europe/Madrid' }).format(new Date(iso)).replace('.', '');
+  return pg.puertas + ' ' + wd(s.inicio) + ' ' + hora(s.puertas) + ' · ' + wd(s2.inicio) + ' ' + hora(s2.puertas);
+};
 
 const titular = (m: { nombre: string; apellidos: string; personas: number }, lang = 'es') =>
   `${m.nombre} ${m.apellidos}`.trim() + (m.personas > 1 ? (lang === 'en' ? ` + ${m.personas - 1} guest${m.personas > 2 ? 's' : ''}` : ` + ${m.personas - 1} acompañante${m.personas > 2 ? 's' : ''}`) : '');
@@ -576,7 +593,18 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
             <ul class="flex flex-col gap-2 text-body-s text-text-secondary md:flex-row md:flex-wrap md:gap-x-6">
               <li class="flex items-center gap-2"><gr-icon name="calendar" [size]="16" class="text-accent-text" />{{ fechas() }}</li>
               <li class="flex items-center gap-2"><gr-icon name="map-pin" [size]="16" class="text-accent-text" />{{ comp.data()?.sede?.nombre || 'Almussafes' }}</li>
-              @if (puertas()) { <li class="flex items-center gap-2 md:basis-full"><gr-icon name="clock" [size]="16" class="text-accent-text" />{{ puertas() }}</li> }
+              @if (diasEvento().length > 1) {
+                <!-- BIZ-209: each day on its own card (date, doors, prizes) so both dates read at a glance -->
+                <li class="w-full md:basis-full"><ul class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3" [attr.aria-label]="t().pg.porDia">
+                  @for (x of diasEvento(); track x.dia) {
+                    <li class="flex min-w-0 flex-col gap-1 rounded-md border border-line-subtle bg-bg-card/80 px-3 py-2.5 sm:min-w-[184px]">
+                      <span class="flex items-center gap-2 text-label-m text-text-primary"><gr-icon name="calendar" [size]="16" class="text-accent-text" />{{ x.dia }}</span>
+                      @if (x.puertas) { <span class="flex items-center gap-2"><gr-icon name="clock" [size]="14" class="shrink-0 text-text-tertiary" />{{ t().pg.puertas }} {{ x.puertas }}</span> }
+                      @if (x.premios) { <span class="flex items-center gap-2"><gr-icon name="trophy" [size]="14" class="shrink-0 text-text-tertiary" />{{ t().pg.premiosSorteoC }} {{ x.premios }}</span> }
+                    </li>
+                  }
+                </ul></li>
+              } @else if (puertas()) { <li class="flex items-center gap-2 md:basis-full"><gr-icon name="clock" [size]="16" class="text-accent-text" />{{ puertas() }}</li> }
             </ul>
             <div class="mt-1 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
               @if (todasAgotadas()) {
@@ -593,11 +621,13 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                 <span class="text-body-s"><b class="font-semibold">{{ n(d!.personas) }} {{ t().pg.personas }}</b> {{ t().pg.yaTienen }}</span>
               </div>
             }
+            @if ((d?.sesiones?.length ?? 0) > 1) { <div class="w-full lg:hidden"><ng-container [ngTemplateOutlet]="aforoDias" /></div> }
           </div>
           <!-- Figma «Ticket» (rotated 4°) and «Aforo meter»: desktop only -->
           <div class="hidden flex-col gap-5 lg:flex">
             <gr-ticket class="rotate-[4deg]" [linea1]="ejemplo().l1" [linea2]="ejemplo().l2" [lugar]="comp.data()?.sede?.nombre ?? ''" [titular]="t().pg.ejTitular" codigo="" qr="E:ejemplo" />
-            @if (sesHero(); as s) { <ng-container [ngTemplateOutlet]="aforo" [ngTemplateOutletContext]="{ $implicit: s }" /> }
+            @if ((d?.sesiones?.length ?? 0) > 1) { <ng-container [ngTemplateOutlet]="aforoDias" /> }
+            @else if (sesHero(); as s) { <ng-container [ngTemplateOutlet]="aforo" [ngTemplateOutletContext]="{ $implicit: s }" /> }
           </div>
         </div>
       </section>
@@ -779,6 +809,19 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
         <p class="flex items-center gap-1.5 text-body-s text-text-secondary">@if (!s.libres) { <gr-icon name="bell" [size]="14" class="text-text-tertiary" /> }{{ s.libres ? t().pg.quedan(n(s.libres)) : t().pg.agotadasEspera }}</p>
       </div>
     </ng-template>
+    <ng-template #aforoDias>
+      <!-- BIZ-209: one capacity bar per date -->
+      <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card/90 p-4" [attr.aria-label]="t().pg.aforoDias">
+        <p class="flex items-center gap-2 text-label-s"><gr-icon name="users" [size]="16" class="text-accent-text" />{{ t().pg.aforoDias }}</p>
+        @for (s of d!.sesiones; track s.id) {
+          <div class="flex flex-col gap-1.5">
+            <p class="flex items-center justify-between gap-3"><span class="text-label-s">{{ linea(s.inicio, s.nombre, i18n.locale()) }}</span><span class="font-mono text-mono-s text-text-secondary">{{ n(s.ocupadas) }} / {{ n(s.aforo) }}</span></p>
+            <div class="h-1.5 rounded-full bg-white/10" role="progressbar" [attr.aria-valuenow]="s.ocupadas" aria-valuemin="0" [attr.aria-valuemax]="s.aforo" [attr.aria-label]="t().pg.aforo + ' · ' + linea(s.inicio, s.nombre, i18n.locale())"><div class="h-full rounded-full" [class]="s.estado === 'agotada' ? 'bg-text-tertiary' : 'bg-accent'" [style.width.%]="min(100, s.ocupadas * 100 / s.aforo)"></div></div>
+            <p class="flex items-center gap-1.5 text-body-xs text-text-tertiary">@if (!s.libres) { <gr-icon name="bell" [size]="12" /> }{{ s.libres ? t().pg.quedan(n(s.libres)) : t().pg.agotadasEspera }}</p>
+          </div>
+        }
+      </section>
+    </ng-template>
   `,
 })
 export class EntradasPage {
@@ -795,6 +838,7 @@ export class EntradasPage {
   private readonly enviarBtn = viewChild('enviarBtn', { read: ElementRef<HTMLElement> });
   protected readonly enviarVisible = signal(true);
   protected readonly hora = hora;
+  protected readonly linea = lineaTicket;
   protected readonly estado = ESTADO;
   protected readonly euros = (c: number) => euros(c, this.i18n.lang());
   protected readonly max = Math.max;
@@ -840,7 +884,7 @@ export class EntradasPage {
   protected readonly sesHero = computed(() => this.sesSel() ?? this.abiertas()[0] ?? this.data()?.sesiones[0]);
   protected readonly ejemplo = computed(() => {
     const x = this.sesHero();
-    return x ? { l1: lineaTicket(x.inicio, x.nombre, this.i18n.locale(), x.id === this.AMBOS ? this.par()?.[1].inicio : undefined), l2: this.t().pg.puertas + ' ' + hora(x.puertas) + (x.id === this.AMBOS ? '' : ' · ' + this.t().pg.hasta + ' ' + hora(x.fin)) } : { l1: this.t().pg.ejL1, l2: this.t().pg.ejL2 };
+    return x ? { l1: lineaTicket(x.inicio, x.nombre, this.i18n.locale(), x.id === this.AMBOS ? this.par()?.[1].inicio : undefined), l2: lineaPuertas(this.t().pg, this.i18n.locale(), x, x.id === this.AMBOS ? this.par()?.[1] : undefined) } : { l1: this.t().pg.ejL1, l2: this.t().pg.ejL2 };
   });
   protected readonly maxPersonas = computed(() => Math.min(this.sesSel()?.maxPorReserva ?? 6, Math.max(1, this.sesSel()?.estado === 'agotada' ? 6 : (this.sesSel()?.libres ?? 6))));
   protected readonly ciudad = computed(() => this.comp.data()?.sede?.ciudad || 'Almussafes');
@@ -867,6 +911,19 @@ export class EntradasPage {
     return [p && this.t().pg.puertas + ' ' + p.replace(/^0/, ''), premios && this.t().pg.premiosSorteo + ' ' + premios].filter(Boolean).join(' · ');
   });
   protected readonly diaSesiones = computed(() => { const s = this.data()?.sesiones[0]; return s ? dia(s.inicio, this.i18n.locale()).replace(/^\w/, (c) => c.toUpperCase()) : ''; });
+  /** BIZ-209: one entry per day with tickets — doors and prizes from the published schedule, else the session's doors. */
+  protected readonly diasEvento = computed(() => {
+    const loc = this.i18n.locale();
+    const ymd = (iso: string) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(new Date(iso));
+    const out = new Map<string, { dia: string; puertas: string; premios: string }>();
+    for (const s of this.data()?.sesiones ?? []) {
+      const k = ymd(s.inicio);
+      if (out.has(k)) continue;
+      const h = this.horarios()?.dias.find((x) => x.fecha === k);
+      out.set(k, { dia: diaCorto(s.inicio, loc, true), puertas: (h?.puertas ?? hora(s.puertas)).replace(/^0/, ''), premios: h?.agenda.find((a) => a.icono === 'trophy')?.hora.replace(/^0/, '') ?? '' });
+    }
+    return [...out.values()];
+  });
   /** SSR markup: submitting is blocked until Angular takes over (no native submit with personal data). */
   protected readonly hidratado = signal(false);
   /** Mobile bottom bar: below the hero, while the form is off screen. */
@@ -1029,7 +1086,7 @@ export class EntradasPage {
               <p class="text-body-m text-text-secondary">{{ t().cf.enviada(m.email) }} {{ t().cf.spam }}</p>
             </div>
             }
-            <gr-ticket class="w-full xl:w-[342px]" [linea1]="linea(m.sesion.inicio, m.sesion.nombre, i18n.locale(), m.sesion2?.inicio)" [puertaBtn]="true" [linea2]="t().pg.puertas + ' ' + hora(m.sesion.puertas) + (m.sesion2 ? '' : ' · ' + t().pg.hasta + ' ' + hora(m.sesion.fin))" [lugar]="m.lugar" [titular]="tit(m, i18n.lang())" [codigo]="m.codigo" [qr]="m.qr" [estado]="m.estado" />
+            <gr-ticket class="w-full xl:w-[342px]" [linea1]="linea(m.sesion.inicio, m.sesion.nombre, i18n.locale(), m.sesion2?.inicio)" [puertaBtn]="true" [linea2]="lineaP(t().pg, i18n.locale(), m.sesion, m.sesion2)" [lugar]="m.lugar" [titular]="tit(m, i18n.lang())" [codigo]="m.codigo" [qr]="m.qr" [estado]="m.estado" />
             @if (m.estado !== 'anulada') {
             <div class="grid w-full grid-cols-2 gap-2 xl:w-[342px]">
               <a [href]="ics()" class="flex h-12 items-center justify-center gap-2 rounded-md border border-line-strong text-label-s transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-accent"><gr-icon name="calendar" [size]="16" />{{ t().cf.cal }}</a>
@@ -1071,10 +1128,10 @@ export class ConfirmacionPage {
   protected readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(T);
   private readonly api = inject(EntradasPublic);
-  protected readonly hora = hora;
   protected readonly dia = dia;
   protected readonly tit = titular;
   protected readonly linea = lineaTicket;
+  protected readonly lineaP = lineaPuertas;
   protected readonly chip = 'flex h-11 items-center gap-2 rounded-md border border-line-strong px-4 transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-accent';
   protected readonly mia = signal<MiEntrada | null | undefined>(undefined);
   protected readonly copiado = signal(false);
@@ -1202,7 +1259,7 @@ export class OfertaPage {
             }
           </section>
         } @else {
-          <gr-ticket [linea1]="linea(m.sesion.inicio, m.sesion.nombre, i18n.locale(), m.sesion2?.inicio)" [puertaBtn]="true" [linea2]="t().pg.puertas + ' ' + hora(m.sesion.puertas) + (m.sesion2 ? '' : ' · ' + t().pg.hasta + ' ' + hora(m.sesion.fin))" [lugar]="m.lugar" [titular]="tit(m, i18n.lang())" [codigo]="m.codigo" [qr]="m.estado === 'anulada' ? '' : m.qr" [estado]="m.estado" [validadaEn]="validada(m.validadaAt, i18n.locale())" />
+          <gr-ticket [linea1]="linea(m.sesion.inicio, m.sesion.nombre, i18n.locale(), m.sesion2?.inicio)" [puertaBtn]="true" [linea2]="lineaP(t().pg, i18n.locale(), m.sesion, m.sesion2)" [lugar]="m.lugar" [titular]="tit(m, i18n.lang())" [codigo]="m.codigo" [qr]="m.estado === 'anulada' ? '' : m.qr" [estado]="m.estado" [validadaEn]="validada(m.validadaAt, i18n.locale())" />
           @if (m.puedeCambiar) {
             <section class="rounded-lg border border-line-subtle bg-bg-card p-6">
               <h2 class="text-ui-h5">{{ t().mi.cambia }}</h2>
@@ -1240,11 +1297,11 @@ export class MiEntradaPage {
   protected readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(T);
   private readonly api = inject(EntradasPublic);
-  protected readonly hora = hora;
   protected readonly validada = validada;
   protected readonly dia = dia;
   protected readonly tit = titular;
   protected readonly linea = lineaTicket;
+  protected readonly lineaP = lineaPuertas;
   protected readonly max = Math.max;
   protected readonly min = Math.min;
   /** «Sábado mañana» → «sábado por la mañana». */
