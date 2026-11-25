@@ -158,6 +158,12 @@ export function categoriaPorPeso(sexo: 'F' | 'M', peso: number, juvenil: boolean
 }
 
 /** REST client of the athletes service. */
+export interface PerfilExisteIn { ids?: string[]; todos?: boolean; whatsapp: boolean; incluirMenores: boolean; reenviar: boolean; simular?: boolean }
+export interface PerfilExisteOut {
+  enviables: number; emails: number; whatsapps: number; sinEmail: number; yaEnviados: number; conContrasena: number;
+  menores: number; menoresNombres: string[]; menoresIncluidos: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AtletasApi {
   private readonly http = inject(HttpClient);
@@ -186,9 +192,9 @@ export class AtletasApi {
   accionNecesaria(cid: string, body: { ids: string[]; accion: string; detalle: string; fecha: string; enlace: string }): Promise<{ emails: number; whatsapps: number; sinEmail: number }> {
     return firstValueFrom(this.http.post<{ emails: number; whatsapps: number; sinEmail: number }>(`${this.base(cid)}/accion-necesaria`, body));
   }
-  /** «Tu perfil de atleta ya existe»: new initial password per athlete + email (and WhatsApp if asked). */
-  perfilExiste(cid: string, body: { ids?: string[]; todos?: boolean; whatsapp: boolean }): Promise<{ emails: number; whatsapps: number; sinEmail: number }> {
-    return firstValueFrom(this.http.post<{ emails: number; whatsapps: number; sinEmail: number }>(`${this.base(cid)}/perfil-existe`, body));
+  /** «Tu perfil de atleta ya existe»: new initial password per athlete + email (and WhatsApp if asked). simular = only count. */
+  perfilExiste(cid: string, body: PerfilExisteIn): Promise<PerfilExisteOut> {
+    return firstValueFrom(this.http.post<PerfilExisteOut>(`${this.base(cid)}/perfil-existe`, body));
   }
   borrar(cid: string, id: string): Promise<unknown> { return firstValueFrom(this.http.delete(`${this.base(cid)}/${id}`)); }
 

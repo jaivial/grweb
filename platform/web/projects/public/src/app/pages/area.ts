@@ -27,6 +27,8 @@ interface Panel {
   };
   acreditacion: string;
   tienePassword?: boolean;
+  /** The password is the initial one the organisers sent: the area asks for a new one. */
+  passwordTemporal?: boolean;
   checklist: { clave: string; texto: string; hecho: boolean; accion?: 'pesaje' | 'perfil' }[];
   pesajeAbierto: boolean;
   avisos: string[];
@@ -155,6 +157,8 @@ const T = {
     demasiados: "Demasiados intentos. Espera unos minutos.",
     noEntrar: "No hemos podido entrar. Inténtalo de nuevo.",
     passCorta: "La contraseña debe tener al menos 10 caracteres.",
+    tempTitulo: "Cambia tu contraseña inicial",
+    tempTexto: "Has entrado con la contraseña que te enviamos por email. Por seguridad, elige ahora una tuya de al menos 10 caracteres.",
     passGuardada: "Contraseña guardada",
     caducada: "Tu sesión ha caducado.",
     rackSq: "Altura rack sentadilla",
@@ -316,6 +320,8 @@ const T = {
     demasiados: "Too many attempts. Please wait a few minutes.",
     noEntrar: "We couldn't sign you in. Please try again.",
     passCorta: "The password must be at least 10 characters long.",
+    tempTitulo: "Change your initial password",
+    tempTexto: "You signed in with the password we emailed you. For your security, choose your own now (at least 10 characters).",
     passGuardada: "Password saved",
     caducada: "Your session has expired.",
     rackSq: "Squat rack height",
@@ -489,6 +495,18 @@ const T = {
                       }
                     </ul>
                   </section>
+                  @if (p.passwordTemporal) {
+                    <!-- Initial password sent by the organisers: changing it is required before using the area -->
+                    <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 px-4">
+                      <form class="flex w-full max-w-md flex-col gap-4 rounded-xl border border-line-strong bg-bg-card p-6 shadow-card" role="dialog" aria-modal="true" aria-labelledby="temp-titulo" (ngSubmit)="guardarPassword()" novalidate>
+                        <div class="flex items-center gap-3"><span class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-accent-deep/40 text-accent-text"><gr-icon name="key" [size]="18" /></span><h2 id="temp-titulo" class="text-[18px] leading-tight font-semibold">{{ t().tempTitulo }}</h2></div>
+                        <p class="text-body-s text-text-secondary">{{ t().tempTexto }}</p>
+                        <gr-field [label]="t().nuevaPass" for="a-temppass"><input grInput id="a-temppass" name="nuevaTemp" type="password" autocomplete="new-password" minlength="10" [(ngModel)]="nuevaPassword" autofocus /></gr-field>
+                        @if (errorPassword()) { <p class="text-body-s text-accent-text" role="alert">{{ errorPassword() }}</p> }
+                        <button grButton variant="primary" type="submit" [block]="true" [loading]="busy()">{{ t().guardarPass }}</button>
+                      </form>
+                    </div>
+                  }
                   <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
                     <div class="flex items-center gap-3"><span class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-accent-deep/40 text-accent-text"><gr-icon name="key" [size]="18" /></span><h2 class="text-[18px] leading-tight font-semibold">{{ p.tienePassword ? t().cambiarPass : t().creaPass }}</h2></div>
                     <p class="text-body-s text-text-tertiary">{{ p.tienePassword ? t().yaPuedes : t().paraEntrar }}</p>

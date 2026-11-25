@@ -58,7 +58,7 @@ func unirCuentaFan(ctx context.Context, tx pgx.Tx, cid, atleta uuid.UUID, email,
 	}
 	if cuenta != nil {
 		if cuenta.PasswordHash != "" {
-			if _, err := tx.Exec(ctx, `UPDATE atletas SET password_hash = $2, updated_at = now() WHERE id = $1 AND password_hash IS NULL`, atleta, cuenta.PasswordHash); err != nil {
+			if _, err := tx.Exec(ctx, `UPDATE atletas SET password_hash = $2, updated_at = now() WHERE id = $1 AND COALESCE(password_hash, '') = ''`, atleta, cuenta.PasswordHash); err != nil {
 				return err
 			}
 		}
