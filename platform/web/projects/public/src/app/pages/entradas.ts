@@ -1128,7 +1128,6 @@ export class ConfirmacionPage {
   protected readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(T);
   private readonly api = inject(EntradasPublic);
-  protected readonly hora = hora;
   protected readonly dia = dia;
   protected readonly tit = titular;
   protected readonly linea = lineaTicket;
@@ -1298,7 +1297,6 @@ export class MiEntradaPage {
   protected readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(T);
   private readonly api = inject(EntradasPublic);
-  protected readonly hora = hora;
   protected readonly validada = validada;
   protected readonly dia = dia;
   protected readonly tit = titular;

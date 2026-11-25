@@ -816,7 +816,6 @@ export class CampanaEditorPage {
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.focus();
   }
-
   protected wa(t: string): SafeHtml { return this.san.bypassSecurityTrustHtml(waHtml(t)); }
   protected diaLargo(f?: string): string {
     if (!f) return '';
