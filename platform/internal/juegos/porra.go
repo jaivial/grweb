@@ -454,7 +454,9 @@ func liquidarMercadoTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada,
 	if ganadores == nil {
 		ganadores = []uuid.UUID{}
 	}
-	rows, err := tx.Query(ctx, `SELECT id, atleta_id, fan_id, importe FROM apuestas WHERE mercado_id = $1 ORDER BY fan_id, id`, mc.ID)
+	// The bets already refunded by the options sync (`devuelta_at` set) are not in the pot any more: their coins
+	// went back to the fan and must not pay out a second time nor dilute the winners (BIZ-200 R2-1).
+	rows, err := tx.Query(ctx, `SELECT id, atleta_id, fan_id, importe FROM apuestas WHERE mercado_id = $1 AND devuelta_at IS NULL ORDER BY fan_id, id`, mc.ID)
 	if err != nil {
 		return err
 	}

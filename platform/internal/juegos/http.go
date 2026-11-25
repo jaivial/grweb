@@ -124,8 +124,9 @@ type apuestaVista struct {
 	Atleta    string    `json:"atleta"`
 	Importe   int64     `json:"importe"`
 	Estado    string    `json:"estado" enum:"abierto,cerrado,liquidado"`
-	// Devuelto está a true cuando el bote del mercado volvió a las apuestas (nadie acertó al ganador o el staff
-	// anuló el mercado): la apuesta recuperó su importe (contract §6.2).
+	// Devuelto está a true cuando la apuesta recuperó su importe: su atleta salió del mercado (la sync de
+	// opciones se la devolvió, `devuelta_at`), o el bote del mercado volvió a las apuestas (nadie acertó al
+	// ganador o el staff anuló el mercado) (contract §6.2).
 	Devuelto  bool   `json:"devuelto,omitempty"`
 	CreatedAt string `json:"createdAt"`
 }
@@ -241,7 +242,7 @@ func (s *Svc) registerPublic() {
 				return nil, err
 			}
 			o.Body.Mejores = []mejoresCategoria{}
-			if m, err := s.marcador(ctx, c.ID, j.Dia); err == nil { // cached 1 s, the market above just read it
+			if m, _, err := s.marcador(ctx, c.ID, j.Dia); err == nil { // cached 1 s, the market above just read it
 				o.Body.Mejores = mejoresPorCategoria(m)
 			}
 			return o, nil
@@ -372,8 +373,8 @@ func (s *Svc) registerPublic() {
 			rows, err := s.a.DB.Query(ctx, `SELECT a.id, a.mercado_id, m.titulo, a.atleta_id, COALESCE(fa.nombre_publico,
 				(SELECT x.nombre_publico FROM fantasy_atletas x WHERE x.competition_id = a.competition_id AND x.atleta_id = a.atleta_id ORDER BY x.updated_at DESC LIMIT 1), ''),
 				a.importe, m.estado,
-				(m.estado = 'liquidado' AND COALESCE((SELECT sum(a2.importe) FROM apuestas a2
-					WHERE a2.mercado_id = m.id AND a2.atleta_id = ANY(m.ganador)), 0) = 0),
+				(a.devuelta_at IS NOT NULL OR (m.estado = 'liquidado' AND COALESCE((SELECT sum(a2.importe) FROM apuestas a2
+					WHERE a2.mercado_id = m.id AND a2.atleta_id = ANY(m.ganador) AND a2.devuelta_at IS NULL), 0) = 0)),
 				a.created_at::text
 				FROM apuestas a JOIN mercados m ON m.id = a.mercado_id
 				LEFT JOIN fantasy_atletas fa ON fa.jornada_id = a.jornada_id AND fa.atleta_id = a.atleta_id
@@ -732,7 +733,7 @@ func (s *Svc) registerPublic() {
 				return nil, problem.NotFound("Ese atleta no está en la jornada.")
 			}
 			o.Body.Intentos, o.Body.Eventos = map[string][]MarcadorIntento{}, []eventoNota{}
-			if m, err := s.marcador(ctx, c.ID, j.Dia); err == nil {
+			if m, _, err := s.marcador(ctx, c.ID, j.Dia); err == nil {
 				for i := range m.Atletas {
 					if m.Atletas[i].AtletaID == in.AID && m.Atletas[i].Intentos != nil {
 						o.Body.Intentos = m.Atletas[i].Intentos

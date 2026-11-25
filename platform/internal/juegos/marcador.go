@@ -50,10 +50,12 @@ type Marcador struct {
 const marcadorStale = 10 * time.Minute
 
 // marcador fetches the scoreboard of one competition day (cached 1 s per pod: the worker reloads at most once
-// per second and jornada, and the admin buttons reuse it). One call per key at a time (singleflight), 2 s budget
-// detached from the caller; on error it serves the last good scoreboard (up to 10 min) and retries at most every
-// 2 s, so a live/schedule outage never holds requests for the 10 s of the svcclient.
-func (s *Svc) marcador(_ context.Context, cid uuid.UUID, dia string) (*Marcador, error) {
+// per second and jornada, and the admin endpoints reuse it). One call per key at a time (singleflight), 2 s
+// budget detached from the caller; on error it serves the last good scoreboard (up to 10 min) and retries at
+// most every 2 s, so a live/schedule outage never holds requests for the 10 s of the svcclient. The second
+// return reports a degraded scoreboard (live down, the stale last-good one is being served): the markets sync
+// may then only create markets and add options, never remove options or annul and refund (BIZ-200 R2-5).
+func (s *Svc) marcador(_ context.Context, cid uuid.UUID, dia string) (*Marcador, bool, error) {
 	k := cid.String() + ":" + dia
 	s.marcMu.Lock()
 	e, ok := s.marc[k]
@@ -64,15 +66,15 @@ func (s *Svc) marcador(_ context.Context, cid uuid.UUID, dia string) (*Marcador,
 		s.marc[k] = marcEntrada{m: e.m, err: e.err, ok: e.ok, caido: true, exp: time.Now().Add(2 * time.Second)}
 		s.marcMu.Unlock()
 		go s.marcSF.Do(k, func() (any, error) { return s.cargarMarcador(cid, dia, k, e, ok), nil })
-		return e.m, e.err
+		return e.m, e.err == nil, e.err
 	}
 	s.marcMu.Unlock()
 	if fresca {
-		return e.m, e.err
+		return e.m, e.caido && e.err == nil, e.err
 	}
 	v, _, _ := s.marcSF.Do(k, func() (any, error) { return s.cargarMarcador(cid, dia, k, e, ok), nil })
 	n := v.(marcEntrada)
-	return n.m, n.err
+	return n.m, n.caido && n.err == nil, n.err
 }
 
 func (s *Svc) cargarMarcador(cid uuid.UUID, dia, k string, prev marcEntrada, hayPrev bool) marcEntrada {

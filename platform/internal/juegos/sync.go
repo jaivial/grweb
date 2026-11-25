@@ -28,9 +28,21 @@ type mercadoRow struct {
 // the porra markets (options, refunds and annulments, BIZ-200), published categories (porra liquidation) and the
 // automatic close of markets. Emits fantasy.nota, fantasy.clausula and porra.mercado.
 func (s *Svc) sincronizar(ctx context.Context, cid uuid.UUID, j jornada) error {
-	m, err := s.marcador(ctx, cid, j.Dia)
+	m, degradado, err := s.marcador(ctx, cid, j.Dia)
 	if err != nil {
 		return err
+	}
+	// BIZ-200 R2-6: the markets sync runs in its own transaction — a failure there (one odd day or market) is
+	// logged and must not block the notes, the automatic close or the liquidation of the jornada.
+	if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+		cfg, err := configJuegos(ctx, tx, cid)
+		if err != nil {
+			return err
+		}
+		_, err = sincronizarMercadosTx(ctx, tx, cid, j, cfg, m, degradado)
+		return err
+	}); err != nil && ctx.Err() == nil {
+		s.a.Log.Warn("mercados de la porra", "cid", cid, "jornada", j.ID, "err", err)
 	}
 	return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 		cfg, err := configJuegos(ctx, tx, cid)
@@ -41,11 +53,6 @@ func (s *Svc) sincronizar(ctx context.Context, cid uuid.UUID, j jornada) error {
 			return err
 		}
 		if err := aplicarNotasTx(ctx, tx, cid, j, cfg, m); err != nil {
-			return err
-		}
-		// BIZ-200: the porra markets follow the scoreboard (alta, edición, retirada o borrado de un atleta)
-		// before the automatic close, so a new verdict lands in an already up-to-date market.
-		if _, err := sincronizarMercadosTx(ctx, tx, cid, j, cfg, m); err != nil {
 			return err
 		}
 		mercados, err := cargarMercadosTx(ctx, tx, j.ID)
@@ -74,7 +81,9 @@ func subirAtletasTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, m 
 }
 
 func cargarMercadosTx(ctx context.Context, tx pgx.Tx, jid uuid.UUID) ([]mercadoRow, error) {
-	rows, err := tx.Query(ctx, `SELECT id, tipo, sexo, categoria, movimiento, estado, opciones FROM mercados WHERE jornada_id = $1 ORDER BY created_at`, jid)
+	// ORDER BY id: the stable lock order two concurrent syncs (worker dispatch, reconciler, admin endpoint) take
+	// the markets in, so they cannot deadlock each other (BIZ-200 R2-2).
+	rows, err := tx.Query(ctx, `SELECT id, tipo, sexo, categoria, movimiento, estado, opciones FROM mercados WHERE jornada_id = $1 ORDER BY id`, jid)
 	if err != nil {
 		return nil, err
 	}
