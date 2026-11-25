@@ -2,10 +2,11 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, u
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { GrAlert, GrButton, GrEmpty, GrIcon, GrInput, GrToasts } from '@grcup/ui';
+import { GrAlert, GrButton, GrEmpty, GrIcon, GrIconButton, GrToasts } from '@grcup/ui';
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
 import { webPublica } from '../../../core/web';
+import { BoDatePicker, BoSheet } from '../../../shared/kit';
 import { BoPageHeader, errText } from '../../../shared/ui';
 import { SoCard, SoGrupo, SoGuardar, SoNumber, SoSkelFilas, diaCorto, num, rangoError } from '../ui';
 import { JuegosApi, type ConfigJuegos, type Jornada, type PuntosCfg } from './api';
@@ -43,16 +44,16 @@ const cfgPorDefecto: ConfigJuegos = {
  */
 @Component({
   selector: 'bo-juegos-config',
-  imports: [FormsModule, NgTemplateOutlet, RouterLink, BoPageHeader, GrAlert, GrButton, GrEmpty, GrIcon, GrInput, SoCard, SoGrupo, SoGuardar, SoNumber, SoSkelFilas],
+  imports: [FormsModule, NgTemplateOutlet, RouterLink, BoDatePicker, BoPageHeader, BoSheet, GrAlert, GrButton, GrEmpty, GrIcon, GrIconButton, SoCard, SoGrupo, SoGuardar, SoNumber, SoSkelFilas],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-[1280px] flex-col gap-6" [class.pb-24]="!sucio()" [class.pb-44]="sucio()">
       <bo-page-header title="Juegos · Configuración" [badge]="jornadaActiva()" [badgeTone]="jornadaActiva().startsWith('Sin') ? 'neutral' : 'live'"
-        subtitle="Recompensas, puntos, cláusulas y límites · los acredita juegos-worker con ref idempotente (§6.4)"
         [crumbs]="[{ label: comps.current()?.nombreCorto || '', link: ['/', comps.current()?.slug, 'inicio'] }, 'Directo social', { label: 'Juegos', link: ['/', comps.current()?.slug, 'juegos'] }, 'Configuración']" [back]="['/', comps.current()?.slug, 'juegos']">
+        <button titleEnd grIconButton type="button" icon="info" label="Información de la configuración" (click)="info.set(true)"></button>
         <ng-container actions>
           <button grButton variant="secondary" icon="undo" [disabled]="!sucio()" (click)="restaurar()">Restaurar valores</button>
-          <button grButton variant="primary" icon="check" [loading]="guardando()" [disabled]="!sucio() || !puede() || !!invalido()" (click)="guardar()">Guardar cambios</button>
+          <button grButton variant="primary" [loading]="guardando()" [disabled]="!sucio() || !puede() || !!invalido()" (click)="guardar()">Guardar cambios</button>
         </ng-container>
       </bo-page-header>
 
@@ -62,11 +63,17 @@ const cfgPorDefecto: ConfigJuegos = {
         </gr-alert>
       }
 
-      <gr-alert tone="info" icon="scale" title="Las monedas de porra nunca se compran con dinero real">
-        Solo se acreditan por alta (100.000 por jornada), hitos de chat y premios de liquidación. Los donativos acreditan fantasy, nunca porra (§6.1 y §6.4).
-        Donaciones y juegos no comparten base de datos ni código de cartera.
-        <a alertAction [href]="web + '/fantasy/como-se-juega'" target="_blank" rel="noopener" class="mt-2 inline-flex items-center gap-1 text-label-s hover:underline">Ver reglas <gr-icon name="arrow-right" [size]="14" /></a>
-      </gr-alert>
+      <bo-sheet [(open)]="info" title="Información">
+        <p class="text-body-s text-text-tertiary">Recompensas, puntos, cláusulas y límites · los acredita juegos-worker con ref idempotente (§6.4)</p>
+        <div class="rounded-md border border-info/45 bg-info/8 p-4" role="status">
+          <p class="flex items-center gap-2 text-label-s text-info"><gr-icon name="scale" [size]="20" class="shrink-0" />Las monedas de porra nunca se compran con dinero real</p>
+          <p class="mt-2 text-body-s text-text-secondary">
+            Solo se acreditan por alta (100.000 por jornada), hitos de chat y premios de liquidación. Los donativos acreditan fantasy, nunca porra (§6.1 y §6.4).
+            Donaciones y juegos no comparten base de datos ni código de cartera.
+          </p>
+          <a [href]="web + '/fantasy/como-se-juega'" target="_blank" rel="noopener" class="mt-2 inline-flex items-center gap-1 text-label-s text-info hover:underline">Ver reglas <gr-icon name="arrow-right" [size]="14" /></a>
+        </div>
+      </bo-sheet>
 
       @if (cargando()) {
         <div class="overflow-hidden rounded-lg border border-line-subtle bg-bg-card"><so-skel-filas [n]="8" [avatar]="false" /></div>
@@ -136,10 +143,9 @@ const cfgPorDefecto: ConfigJuegos = {
             @for (j of jornadasAbiertas(); track j.id) {
               <div class="flex flex-wrap items-center gap-3">
                 <span class="min-w-0 flex-1 truncate text-body-s text-text-secondary">{{ j.nombre }} · {{ diaCorto(j.dia) }}</span>
-                <!-- texto hh:mm y no type=time: el nativo sigue el idioma del navegador (12 h AM/PM) -->
-                <input grInput type="text" inputmode="numeric" maxlength="5" placeholder="hh:mm" class="w-24 font-mono" [attr.aria-label]="'Hora de cierre de ' + j.nombre + ' (24 h)'"
-                  [disabled]="!puede()" [value]="j.horaCierre ?? ''" #hc />
-                <button grButton size="s" [disabled]="!puede()" [loading]="guardandoCierre() === j.id" (click)="guardarCierre(j, hc.value)">Guardar</button>
+                <bo-date-picker class="w-32" tipo="time" placeholder="Sin cuenta atrás" [aria-label]="'Hora de cierre de ' + j.nombre + ' (24 h)'"
+                  [disabled]="!puede()" [value]="horaCierre(j)" (valueChange)="setCierre(j, $event)" />
+                <button grButton size="s" [disabled]="!puede()" [loading]="guardandoCierre() === j.id" (click)="guardarCierre(j, horaCierre(j))">Guardar</button>
               </div>
             }
           </div>
@@ -203,6 +209,15 @@ export class JuegosConfigPage {
   protected readonly jornadas = signal<Jornada[]>([]);
   protected readonly jornadasAbiertas = computed(() => this.jornadas().filter((j) => j.estado !== 'cerrada'));
   protected readonly guardandoCierre = signal('');
+  protected readonly info = signal(false);
+  /** Hora de cierre editada por jornada, sin guardar. */
+  protected readonly cierres = signal<Record<string, string>>({});
+  protected setCierre(j: Jornada, hora: string): void {
+    this.cierres.update((m) => ({ ...m, [j.id]: hora }));
+  }
+  protected horaCierre(j: Jornada): string {
+    return this.cierres()[j.id] ?? j.horaCierre ?? '';
+  }
   protected readonly cargando = signal(true);
   protected readonly guardando = signal(false);
   protected readonly error = signal('');
@@ -343,6 +358,7 @@ export class JuegosConfigPage {
     try {
       await this.api.jornada(cid, j.id, { horaCierre: hora });
       this.jornadas.update((l) => l.map((x) => (x.id === j.id ? { ...x, horaCierre: hora } : x)));
+      this.cierres.update(({ [j.id]: _, ...resto }) => resto);
       this.toasts.success(hora ? `Cierre de ${j.nombre} a las ${hora}` : `Cierre de ${j.nombre} quitado`);
     } catch (e) {
       this.toasts.error(errText(e, 'No se pudo guardar la hora de cierre.'));
