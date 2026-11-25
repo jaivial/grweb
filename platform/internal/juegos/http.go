@@ -326,9 +326,19 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
+			// The name is kept on the bet (the scoreboard stops listing athletes who withdraw).
+			var nombre string
+			if m, _, err := s.marcador(ctx, c.ID, j.Dia); err == nil && m != nil {
+				for _, ma := range m.Atletas {
+					if ma.AtletaID == in.Body.AtletaID {
+						nombre = ma.NombrePublico
+						break
+					}
+				}
+			}
 			o := &apuestaOut{}
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				aid, err := s.apostarTx(ctx, tx, c.ID, *j, cfg, f.ID, f.Alias, in.Body.MercadoID, in.Body.AtletaID, in.Body.Importe)
+				aid, err := s.apostarTx(ctx, tx, c.ID, *j, cfg, f.ID, f.Alias, in.Body.MercadoID, in.Body.AtletaID, in.Body.Importe, nombre)
 				if err != nil {
 					return err
 				}
@@ -370,7 +380,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			rows, err := s.a.DB.Query(ctx, `SELECT a.id, a.mercado_id, m.titulo, a.atleta_id, COALESCE(fa.nombre_publico,
+			rows, err := s.a.DB.Query(ctx, `SELECT a.id, a.mercado_id, m.titulo, a.atleta_id, COALESCE(fa.nombre_publico, NULLIF(a.atleta_nombre, ''),
 				(SELECT x.nombre_publico FROM fantasy_atletas x WHERE x.competition_id = a.competition_id AND x.atleta_id = a.atleta_id ORDER BY x.updated_at DESC LIMIT 1), ''),
 				a.importe, m.estado,
 				(a.devuelta_at IS NOT NULL OR (m.estado = 'liquidado' AND COALESCE((SELECT sum(a2.importe) FROM apuestas a2

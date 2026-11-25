@@ -303,7 +303,7 @@ func cerrarMercado(m *Marcador, mc mercadoRow) bool {
 // coins with the atomic spend. Everything in one transaction; ref apuesta:<id> keeps the ledger exact.
 // The market row is read FOR SHARE: the bet and the close/liquidation of the market are serialized (a bet can
 // never slip into a market that is being closed or settled, contract §6.2).
-func (s *Svc) apostarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, fanID uuid.UUID, alias string, mercadoID, atletaID uuid.UUID, importe int64) (uuid.UUID, error) {
+func (s *Svc) apostarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, fanID uuid.UUID, alias string, mercadoID, atletaID uuid.UUID, importe int64, nombre string) (uuid.UUID, error) {
 	// ST2-R1-5: the jornada is re-read FOR SHARE inside the transaction (it was read before it): its close
 	// (PATCH, FOR UPDATE) waits for the bets in flight and no bet gets in after it.
 	j, err := scanJornada(tx.QueryRow(ctx, selJornada+` FROM jornadas WHERE id = $1 FOR SHARE`, j.ID))
@@ -359,8 +359,10 @@ func (s *Svc) apostarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada
 	if err := gastarTx(ctx, tx, j, fanID, Porra, importe, "apuesta", "apuesta:"+aid.String(), alias); err != nil {
 		return uuid.Nil, err
 	}
-	if _, err := tx.Exec(ctx, `INSERT INTO apuestas (id, competition_id, jornada_id, mercado_id, fan_id, atleta_id, importe, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7, clock_timestamp())`,
-		aid, cid, j.ID, mercadoID, fanID, atletaID, importe); err != nil {
+	if _, err := tx.Exec(ctx, `INSERT INTO apuestas (id, competition_id, jornada_id, mercado_id, fan_id, atleta_id, importe, created_at, atleta_nombre)
+		VALUES ($1,$2,$3,$4,$5,$6,$7, clock_timestamp(), COALESCE(NULLIF($8, ''), (SELECT x.nombre_publico FROM fantasy_atletas x
+			WHERE x.competition_id = $2 AND x.atleta_id = $6 ORDER BY (x.jornada_id = $3) DESC, x.updated_at DESC LIMIT 1), ''))`,
+		aid, cid, j.ID, mercadoID, fanID, atletaID, importe, nombre); err != nil {
 		return uuid.Nil, err
 	}
 	// Live odds for everybody (contract §6.2): new pot and per-athlete stake/odds of this market.
