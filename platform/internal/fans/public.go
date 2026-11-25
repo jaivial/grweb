@@ -540,10 +540,15 @@ func (s *Svc) canjear(ctx context.Context, slug, tok string) (*sesionOut, error)
 	} else if err != nil {
 		return nil, err
 	}
+	aid := uuid.Nil
 	row, err := scanFan(s.a.DB.QueryRow(ctx, selFan+` WHERE competition_id = $1 AND email_hash = $2`, cid, acc.EmailHash))
 	if errors.Is(err, pgx.ErrNoRows) {
 		if acc.Alias == "" { // link to reset the password of an account that does not exist
 			return nil, problem.Unprocessable("CUENTA_NO_ENCONTRADA", "No hay ninguna cuenta con ese email. Crea una cuenta desde «Crear cuenta».")
+		}
+		// The email of an athlete always gets the athlete account (and its welcome), even if it signed up as público.
+		if aid = s.atletaDeEmail(ctx, cid, acc.Email); aid != uuid.Nil {
+			acc.Tipo = fanauth.TipoAtleta
 		}
 		if row, err = s.crearFan(ctx, cid, acc); err != nil {
 			return nil, err
@@ -570,7 +575,10 @@ func (s *Svc) canjear(ctx context.Context, slug, tok string) (*sesionOut, error)
 	// público that turned out to belong to an athlete, and a público sign-up with the email of an athlete: one
 	// account per email, always the athlete's).
 	if row.Tipo != fanauth.TipoAtleta || row.AtletaID == uuid.Nil {
-		if aid := s.atletaDeEmail(ctx, cid, acc.Email); aid != uuid.Nil {
+		if aid == uuid.Nil {
+			aid = s.atletaDeEmail(ctx, cid, acc.Email)
+		}
+		if aid != uuid.Nil {
 			if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 				_, err := s.convertirAtleta(ctx, tx, cid, row.ID, aid, "")
 				return err
