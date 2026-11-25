@@ -1,6 +1,6 @@
 import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PendingTasks, inject } from '@angular/core';
-import { GrButton, GrIcon, type GrIconName, CdnPipe } from '@grcup/ui';
+import { GrButton, GrIcon, type GrIconName, CdnPipe, cdn } from '@grcup/ui';
 import { Cms } from '../core/cms';
 import { I18n, LocPipe, type Lang } from '../core/i18n';
 import { Seo } from '../core/seo';
@@ -199,7 +199,7 @@ export const GIMNASIOS: Sitio[] = [
   { nombre: 'Valhalla Gym Almussafes', logo: 'https://jaimedigitalstudio.b-cdn.net/grcup/gimnasios_donde_entrenar/logo-valhalla-gym-almussafes.webp', detalle: 'Carrer Sant Cristòfol, 61, Bajo, 46440 Almussafes', web: 'https://valhallagymalmussafes.es', maps: 'https://maps.app.goo.gl/7KYWNZ6vU88cCVJL8',
     descripcion: 'Gimnasio reciente con mucha variedad de máquinas.',
     descripcionEn: 'Recently opened gym with a wide variety of machines.' },
-  { nombre: 'Pabellón Municipal de Almussafes', detalle: 'Avda. Laura Méndez, s/n, 46440 Almussafes', web: 'https://almussafes.es', maps: 'https://maps.app.goo.gl/aidcANg9ngd7qvoz7',
+  { nombre: 'Pabellón Municipal de Almussafes', logo: cdn('/img/home/logo-almussafes-bn.webp'), logoClaro: true, detalle: 'Avda. Laura Méndez, s/n, 46440 Almussafes', web: 'https://almussafes.es', maps: 'https://maps.app.goo.gl/aidcANg9ngd7qvoz7',
     descripcion: 'Centro deportivo municipal: pabellón cubierto con acceso por la CV-42 desde la AP-7.',
     descripcionEn: 'Municipal sports centre: indoor hall reached via the CV-42 from the AP-7.' },
   { nombre: 'The Factory Workout', logo: 'https://jaimedigitalstudio.b-cdn.net/grcup/gimnasios_donde_entrenar/logo-the-factory-workout.webp', logoClaro: true, detalle: 'Carrer Montroi, 10, 46450 Benifaió', web: 'https://mimpalawellness.com/tfw', maps: 'https://maps.app.goo.gl/yGipVmFfo4M9G4Dt9',
