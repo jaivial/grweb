@@ -525,12 +525,14 @@ export class TicketCard {
 /** Ticket line 1 without repeating the weekday (UX8-R1-7): «sáb 19 dic · Tarde». */
 const diaCorto = (iso: string, loc: string, mes: boolean) =>
   new Intl.DateTimeFormat(loc, { weekday: 'short', day: 'numeric', ...(mes ? { month: 'short' } : {}), timeZone: 'Europe/Madrid' }).format(new Date(iso)).replace(/[,.]/g, '').replace(/^\p{L}/u, (c) => c.toUpperCase());
-/** Ticket line 1; with a second day: «Sáb 19 y Dom 20 dic» (BIZ-163). A name that only repeats the day («Sábado 19») adds nothing (BIZ-209). */
+/**
+ * Ticket line 1: «Sáb 19 dic · Tarde»; with a second day: «Sáb 19 y Dom 20 dic» (BIZ-163). The weekday and day number
+ * the session name repeats («Sábado 19 · jornada») are dropped, so only the extra part stays (BIZ-209).
+ */
 const lineaTicket = (inicio: string, nombre: string, loc = 'es-ES', inicio2?: string) => {
   if (inicio2) return diaCorto(inicio, loc, false) + (loc.startsWith('en') ? ' and ' : ' y ') + diaCorto(inicio2, loc, true);
-  const resto = nombre.replace(/^(lunes|martes|miércoles|jueves|viernes|sábado|domingo|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s*/i, '').trim();
-  return new Intl.DateTimeFormat(loc, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(inicio)).replace(/[,.]/g, '') +
-    (/^\d*$/.test(resto) ? '' : ' · ' + resto.replace(/^\p{L}/u, (c) => c.toUpperCase()));
+  const resto = nombre.replace(/^(lunes|martes|miércoles|jueves|viernes|sábado|domingo|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s*(\d{1,2}\b)?\s*[·,:–-]?\s*/i, '').trim();
+  return diaCorto(inicio, loc, true) + (resto ? ' · ' + resto.replace(/^\p{L}/u, (c) => c.toUpperCase()) : '');
 };
 /** Ticket line 2: «Puertas 08:30 · hasta las 14:00»; two days: «Puertas 08:30 los dos días» or «Puertas sáb 08:30 · dom 09:00» (BIZ-209). */
 const lineaPuertas = (pg: { puertas: string; hasta: string; ambosDias: string }, loc: string, s: Pick<SesionPub, 'inicio' | 'puertas' | 'fin'>, s2?: Pick<SesionPub, 'inicio' | 'puertas'>) => {
@@ -599,8 +601,8 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                   @for (x of diasEvento(); track x.dia) {
                     <li class="flex min-w-0 flex-col gap-1 rounded-md border border-line-subtle bg-bg-card/80 px-3 py-2.5 sm:min-w-[184px]">
                       <span class="flex items-center gap-2 text-label-m text-text-primary"><gr-icon name="calendar" [size]="16" class="text-accent-text" />{{ x.dia }}</span>
-                      @if (x.puertas) { <span class="flex items-center gap-2"><gr-icon name="clock" [size]="14" class="shrink-0 text-text-tertiary" />{{ t().pg.puertas }} {{ x.puertas }}</span> }
-                      @if (x.premios) { <span class="flex items-center gap-2"><gr-icon name="trophy" [size]="14" class="shrink-0 text-text-tertiary" />{{ t().pg.premiosSorteoC }} {{ x.premios }}</span> }
+                      @if (x.puertas) { <span class="flex items-start gap-2"><gr-icon name="clock" [size]="14" class="mt-[3px] shrink-0 text-text-tertiary" />{{ t().pg.puertas }} {{ x.puertas }}</span> }
+                      @if (x.premios) { <span class="flex items-start gap-2"><gr-icon name="trophy" [size]="14" class="mt-[3px] shrink-0 text-text-tertiary" />{{ t().pg.premiosSorteoC }} {{ x.premios }}</span> }
                     </li>
                   }
                 </ul></li>
