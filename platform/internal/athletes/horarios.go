@@ -105,6 +105,11 @@ func (s *Svc) registerHorarios() {
 						return err
 					}
 					if tag.RowsAffected() == 0 {
+						if afectado[a.AtletaID] { // BIZ-202: same time, but the session's classes or AEP level changed
+							if err := hist(ctx, tx, a.AtletaID, "Horario actualizado", fmt.Sprintf("v%d · %s %s%s", b.Version, dia(a.Inicio), hm(a.Inicio), sesionNivel(a))); err != nil {
+								return err
+							}
+						}
 						continue
 					}
 					o.Body.Actualizados++
