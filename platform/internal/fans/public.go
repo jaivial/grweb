@@ -155,6 +155,20 @@ func (s *Svc) registerPublic() {
 					return nil, problem.Unprocessable("ATLETA_NO_ENCONTRADO", "No te hemos encontrado entre los atletas inscritos con ese email. Puedes entrar como público.")
 				}
 			}
+			// Creating the account: a taken email or alias is refused before any link is sent (the form already
+			// asked /disponible; this keeps the rule when the check is skipped).
+			if alias != "" {
+				aliasTomado, emailTomado, err := s.ocupados(ctx, cid, alias, email, in.Body.Tipo)
+				if err != nil {
+					return nil, err
+				}
+				if emailTomado {
+					return nil, emailRegistrado()
+				}
+				if aliasTomado {
+					return nil, aliasOcupado()
+				}
+			}
 			tok := randomToken()
 			if err := s.a.DB.QueryRow(ctx, `INSERT INTO accesos (id, competition_id, token_hash, fan_email, email_hash, tipo, alias, ip, next, telefono, expires_at)
 				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now() + interval '30 minutes') RETURNING created_at`,
@@ -187,6 +201,70 @@ func (s *Svc) registerPublic() {
 				s.a.Log.Info("enlace mágico de fan (dev)", "alias", alias, "tipo", in.Body.Tipo, "enlace", link)
 			}
 			return nil, nil
+		})
+
+	// ---- comprobar alias y email antes de crear la cuenta ----
+	type campoLibre struct {
+		Libre   bool   `json:"libre"`
+		Codigo  string `json:"codigo,omitempty" doc:"ALIAS_NO_VALIDO, ALIAS_OCUPADO o EMAIL_REGISTRADO"`
+		Mensaje string `json:"mensaje,omitempty" doc:"Texto para mostrar bajo el campo"`
+	}
+	type disponibleIn struct {
+		SlugIn
+		Body struct {
+			Alias string `json:"alias,omitempty" maxLength:"40"`
+			Email string `json:"email,omitempty" maxLength:"254"`
+			Tipo  string `json:"tipo,omitempty" doc:"atleta o publico (un público que se da de alta como atleta no es un duplicado)"`
+		}
+	}
+	type disponibleOut struct {
+		Body struct {
+			Alias *campoLibre `json:"alias,omitempty"`
+			Email *campoLibre `json:"email,omitempty"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "fans-disponible", Method: http.MethodPost, Path: base + "/disponible",
+		Summary: "Comprobar si el alias y el email de una cuenta nueva están libres (antes de pedir el enlace)", Tags: tagFans},
+		func(ctx context.Context, in *disponibleIn) (*disponibleOut, error) {
+			cid, err := s.comps.ID(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			// It tells whether an email has an account: bounded per IP (the form asks on blur and on submit).
+			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "fans", "disponible", httpx.ClientIPFrom(ctx)), limiteDisponible, 10*time.Minute); !r.Allowed {
+				return nil, demasiados(r, "Demasiadas comprobaciones desde tu red")
+			}
+			o := &disponibleOut{}
+			alias := ""
+			if strings.TrimSpace(in.Body.Alias) != "" {
+				if alias = validarAlias(in.Body.Alias); alias == "" {
+					e := problem.Unprocessable("ALIAS_NO_VALIDO", "El alias debe tener entre 3 y 20 letras, números, espacios o _ . - , sin palabras prohibidas.")
+					o.Body.Alias = &campoLibre{Codigo: e.Code, Mensaje: e.Detail}
+				}
+			}
+			email := strings.ToLower(strings.TrimSpace(in.Body.Email))
+			if !strings.Contains(email, "@") {
+				email = ""
+			}
+			aliasTomado, emailTomado, err := s.ocupados(ctx, cid, alias, email, in.Body.Tipo)
+			if err != nil {
+				return nil, err
+			}
+			if alias != "" {
+				o.Body.Alias = &campoLibre{Libre: !aliasTomado}
+				if aliasTomado {
+					e := aliasOcupado()
+					o.Body.Alias.Codigo, o.Body.Alias.Mensaje = e.Code, e.Detail
+				}
+			}
+			if email != "" {
+				o.Body.Email = &campoLibre{Libre: !emailTomado}
+				if emailTomado {
+					e := emailRegistrado()
+					o.Body.Email.Codigo, o.Body.Email.Mensaje = e.Code, e.Detail
+				}
+			}
+			return o, nil
 		})
 
 	// ---- canje: GET del enlace o POST con el token ----
