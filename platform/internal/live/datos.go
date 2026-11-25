@@ -84,8 +84,11 @@ type plan struct {
 	Version  int                   `json:"version"`
 	Sesiones []sesion              `json:"sesiones"`
 	Atletas  map[uuid.UUID]*atleta `json:"atletas"`
-	porCat   map[string][]*atleta  `json:"-"`
-	fl       map[uuid.UUID]*sesion `json:"-"`
+	// Degradado marks a plan served from the stale fallback (planok:, up to 24 h): the consumers (the internal
+	// marcador, and through it the markets of juegos) must only add to it, never shrink (BIZ-200 R2-S1).
+	Degradado bool                  `json:"degradado,omitempty"`
+	porCat    map[string][]*atleta  `json:"-"`
+	fl        map[uuid.UUID]*sesion `json:"-"`
 }
 
 func (p *plan) index() {
@@ -161,11 +164,14 @@ func (s *Svc) cargarPlan(ctx context.Context, cid uuid.UUID) (*plan, error) {
 	return &p, nil
 }
 
-// planViejo loads the last good plan and caches it 5 s under key (the next retry of the upstreams).
+// planViejo loads the last good plan and caches it 5 s under key (the next retry of the upstreams). It comes back
+// marked Degradado so nobody shrinks from data that may be hours old (BIZ-200 R2-S1); the flag survives the 5 s
+// cache (JSON field of the plan).
 func (s *Svc) planViejo(ctx context.Context, cid uuid.UUID, key string, p *plan) bool {
 	if !s.cache.Get(ctx, "planok:"+cid.String(), p) {
 		return false
 	}
+	p.Degradado = true
 	s.cache.Set(ctx, key, *p, 5*time.Second)
 	return true
 }

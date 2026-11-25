@@ -103,7 +103,7 @@ func (s *Svc) clasificarSalas(ctx context.Context, q querier, cid uuid.UUID, j j
 	}
 	notas := map[uuid.UUID]notaAtleta{}
 	fotos := map[uuid.UUID]string{}
-	if m, err := s.marcador(ctx, cid, j.Dia); err == nil {
+	if m, _, err := s.marcador(ctx, cid, j.Dia); err == nil {
 		notas = notasDelMarcador(cfg.Puntos, m)
 		for i := range m.Atletas {
 			fotos[m.Atletas[i].AtletaID] = m.Atletas[i].FotoURL
@@ -430,7 +430,7 @@ func (s *Svc) finalizarSalasTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j 
 	}
 	// The snapshot keeps the judged attempts of every lined-up athlete with their hour (the detail of the game).
 	eventos := map[uuid.UUID][]eventoNota{}
-	if m, err := s.marcador(ctx, cid, j.Dia); err == nil {
+	if m, _, err := s.marcador(ctx, cid, j.Dia); err == nil {
 		if cfg, err := configJuegos(ctx, tx, cid); err == nil {
 			for i := range m.Atletas {
 				eventos[m.Atletas[i].AtletaID] = eventosNota(cfg.Puntos, &m.Atletas[i])

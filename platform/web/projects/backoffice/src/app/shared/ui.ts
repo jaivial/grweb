@@ -45,6 +45,7 @@ export type BoCrumb = string | { label: string; link: string | unknown[] };
       <div class="flex min-w-0 flex-wrap items-center gap-3">
         <h1 class="min-w-0 break-words" [class]="compact() ? 'text-ui-h3' : 'text-ui-h3 md:text-[28px]'">{{ title() }}</h1>
         @if (badge()) { <gr-badge [tone]="badgeTone()">{{ badge() }}</gr-badge> }
+        <ng-content select="[titleEnd]" />
       </div>
       <div class="flex min-w-0 flex-wrap gap-2"><ng-content select="[actions]" /></div>
     </div>

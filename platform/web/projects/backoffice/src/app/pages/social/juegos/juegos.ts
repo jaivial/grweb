@@ -38,12 +38,11 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
         [subtitle]="subtitulo()" [crumbs]="[comps.current()?.nombreCorto || '', 'Directo social', 'Juegos']">
         <ng-container actions>
           <a grButton icon="sliders" [routerLink]="['/', comps.current()?.slug, 'juegos', 'config']">Configuración</a>
-          <button grButton variant="primary" icon="zap" [loading]="ocupado()" [disabled]="!sel() || !puede()" (click)="generarMercados()">Generar mercados</button>
         </ng-container>
       </bo-page-header>
 
       @if (!puede()) {
-        <gr-alert tone="warning" title="Tu rol no puede gestionar los juegos">Hace falta el permiso «directo.operar». Puedes ver las jornadas y las clasificaciones, pero los botones de generar, cerrar y liquidar quedan desactivados.
+        <gr-alert tone="warning" title="Tu rol no puede gestionar los juegos">Hace falta el permiso «directo.operar». Puedes ver las jornadas y las clasificaciones, pero los botones de cerrar y liquidar quedan desactivados.
           <a alertAction [routerLink]="['/', comps.current()?.slug, 'equipo']" class="mt-2 inline-flex items-center gap-1 text-label-s hover:underline">Pedir acceso a un admin <gr-icon name="arrow-right" [size]="14" /></a>
         </gr-alert>
       }
@@ -117,9 +116,7 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
           <div class="flex min-w-0 flex-col gap-6">
             <so-card [titulo]="'Mercados de porra · ' + (sel()?.nombre || '—')" ayuda="El cierre es automático con el primer intento juzgado (§6.2) · cerrar, liquidar y anular a mano quedan auditados">
               @if (!mercados().length) {
-                <gr-empty icon="zap" title="No hay mercados" text="Genéralos desde el marcador de la jornada para que se pueda apostar.">
-                  <button grButton variant="primary" icon="zap" [loading]="ocupado()" [disabled]="!puede() || !sel()" (click)="generarMercados()">Generar mercados</button>
-                </gr-empty>
+                <gr-empty icon="zap" title="No hay mercados" text="Los mercados se crean y se actualizan solos con los atletas aprobados." />
               } @else {
                 @for (g of grupos(); track g.estado) {
                   <div class="flex flex-col gap-2">
@@ -339,28 +336,6 @@ export class JuegosPage {
       await this.cargarJornada(j.id);
     } catch (e) {
       this.toasts.error(errText(e, 'No se pudo cambiar el estado.'));
-    } finally {
-      this.ocupado.set(false);
-    }
-  }
-
-  protected async generarMercados(): Promise<void> {
-    const cid = this.cid();
-    const j = this.sel();
-    if (!cid || !j) return;
-    const ok = await this.confirm.ask({
-      title: '¿Generar los mercados?',
-      text: `Se crean los mercados de porra de «${j.nombre}» desde el marcador de la jornada (categorías, IPF GL y movimientos).`,
-      confirm: 'Generar',
-    });
-    if (!ok) return;
-    this.ocupado.set(true);
-    try {
-      const r = await this.api.generarMercados(cid, j.id);
-      this.toasts.success(`${r.creados} mercados generados`);
-      await this.cargarJornada(j.id);
-    } catch (e) {
-      this.toasts.error(errText(e, 'No se pudieron generar los mercados.'));
     } finally {
       this.ocupado.set(false);
     }
