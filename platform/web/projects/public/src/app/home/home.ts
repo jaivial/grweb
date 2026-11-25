@@ -2,7 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { isPlatformBrowser } from '@angular/common';
 import {
-  ChangeDetectionStrategy, Component, DestroyRef, Injector, PLATFORM_ID, PendingTasks, RESPONSE_INIT, afterNextRender, effect, inject, signal, untracked,
+  ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, RESPONSE_INIT, afterNextRender, effect, inject, signal, untracked,
 } from '@angular/core';
 import { GrAlert, GrIcon, embedVideo, fmtLongDate } from '@grcup/ui';
 import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
@@ -167,8 +167,6 @@ const T = {
 export class HomePage {
   protected cerrarSobre(): void {
     this.sobreCerrado.set(true);
-    this.sobreRo?.disconnect();
-    document.documentElement.style.removeProperty('--gr-sobre-h');
     try { localStorage.setItem('grcup_sobre_ok', '1'); } catch { /* storage blocked */ }
   }
 
@@ -182,8 +180,6 @@ export class HomePage {
   protected readonly sobreCerrado = signal(false);
   protected readonly consentimiento = inject(Consentimiento);
   protected readonly barraCta = inject(BarraCta);
-  /** F-R4-178-1/2: publishes the toast height (+ gap) as --gr-sobre-h so the hero controls sit above it. */
-  private sobreRo?: ResizeObserver;
   protected readonly cms = signal<HomeCms | null>(null);
   protected readonly heroFechas = signal('');
   protected readonly heroLugar = signal('');
@@ -201,13 +197,9 @@ export class HomePage {
   private pendientes = 0;
 
   constructor() {
-    const sobreDestroy = inject(DestroyRef);
-    const injector = inject(Injector);
     afterNextRender(() => {
       try { if (localStorage.getItem('grcup_sobre_ok')) this.sobreCerrado.set(true); } catch { /* storage blocked */ }
       this.consentimiento.cargar();
-      // the banner may swap (cookies + notice → notice only): measure the one rendered after these reads
-      afterNextRender(() => this.observarSobre(sobreDestroy), { injector });
     });
     // PendingTasks keeps the server render open until the data and the SEO tags are in place.
     const opt = <T,>(p: string, set: (v: T) => void) => firstValueFrom(this.http.get<T>(this.api(p))).catch((e: unknown) => {
@@ -292,15 +284,6 @@ export class HomePage {
         this.timers.push(final);
       });
     });
-  }
-
-  private observarSobre(destroy: DestroyRef): void {
-    const el = document.getElementById('sobre');
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const root = document.documentElement.style;
-    this.sobreRo = new ResizeObserver(() => root.setProperty('--gr-sobre-h', `${Math.ceil(window.innerHeight - el.getBoundingClientRect().top) + 12}px`));
-    this.sobreRo.observe(el);
-    destroy.onDestroy(() => { this.sobreRo?.disconnect(); root.removeProperty('--gr-sobre-h'); });
   }
 
   /** «19 de diciembre de 2026» / «19 December 2026». */
