@@ -1,8 +1,8 @@
 package openlifter
 
 // BIZ-210 · Padrón AEP: the roll of each competition level (athletes service, table inscripciones_aep) and the
-// OpenLifter meet of that level. The meet of a level is the desk whose key starts with «aep2 · » / «aep3 · » or
-// whose name says «AEP 2» / «AEP 3». The browser holds the meet, so this service never writes entries itself: it
+// OpenLifter meet of that level. The meet of a level is the meet with that level on one of its days (niveles.go),
+// or else the desk whose key starts with «aep2 · » / «aep3 · » or whose name says «AEP 2» / «AEP 3». The browser holds the meet, so this service never writes entries itself: it
 // finds the entry of every roll row (name and sex) and, through «Importar atletas» of the fork, offers the rows the
 // desk does not have yet; the fork reports back the entry it created for each one.
 
@@ -59,23 +59,45 @@ func nivelMesa(mesa string) string {
 	return ""
 }
 
-// mesaDeNivel is the most recently synchronised desk of a level in the competition ("" when there is none yet).
-func (s *Svc) mesaDeNivel(ctx context.Context, cid uuid.UUID, nivel string) (string, error) {
-	rows, err := s.a.DB.Query(ctx, `SELECT mesa FROM entradas WHERE competition_id = $1 GROUP BY mesa ORDER BY max(updated_at) DESC`, cid)
+// mesaDeNivel is the desk of a level in the competition ("" when there is none yet) and the OpenLifter day of the
+// level in it (0: every day of the desk is that level). A meet with the level on one of its days wins (the
+// predetermined one first); else the most recently synchronised desk whose key is of that level.
+func (s *Svc) mesaDeNivel(ctx context.Context, cid uuid.UUID, nivel string) (string, int, error) {
+	rows, err := s.a.DB.Query(ctx, `SELECT mesa, niveles FROM meets WHERE competition_id = $1 AND niveles <> '{}'::jsonb ORDER BY predeterminada DESC, updated_at DESC`, cid)
 	if err != nil {
-		return "", err
+		return "", 0, err
+	}
+	for rows.Next() {
+		var m string
+		var raw map[string]string
+		if err := rows.Scan(&m, &raw); err != nil {
+			rows.Close()
+			return "", 0, err
+		}
+		if d := leerNiveles(raw).dia(nivel); d > 0 {
+			rows.Close()
+			return m, d, nil
+		}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return "", 0, err
+	}
+	rows, err = s.a.DB.Query(ctx, `SELECT mesa FROM entradas WHERE competition_id = $1 GROUP BY mesa ORDER BY max(updated_at) DESC`, cid)
+	if err != nil {
+		return "", 0, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var m string
 		if err := rows.Scan(&m); err != nil {
-			return "", err
+			return "", 0, err
 		}
 		if nivelMesa(m) == nivel {
-			return m, nil
+			return m, 0, nil
 		}
 	}
-	return "", rows.Err()
+	return "", 0, rows.Err()
 }
 
 func (s *Svc) padron(ctx context.Context, cid uuid.UUID, nivel string) ([]lifterPadron, error) {
@@ -118,7 +140,7 @@ func (s *Svc) registerPadron() {
 			}
 			o := &padOut{}
 			o.Body.Enlaces = make([]enlace, 0, len(in.Body.Lifters))
-			mesa, err := s.mesaDeNivel(ctx, in.CID, in.Body.Nivel)
+			mesa, dia, err := s.mesaDeNivel(ctx, in.CID, in.Body.Nivel)
 			if err != nil {
 				return nil, err
 			}
@@ -132,6 +154,9 @@ func (s *Svc) registerPadron() {
 			porID := map[int]*fila{}
 			porNombre := map[string][]*fila{}
 			for _, f := range filas {
+				if dia > 0 && f.Datos.Day != dia {
+					continue // an entry of the other level's day
+				}
 				porID[f.EntryID] = f
 				if k := clave(f.Datos.Name); k != "" {
 					porNombre[k+"|"+f.Datos.Sex] = append(porNombre[k+"|"+f.Datos.Sex], f)
@@ -187,7 +212,7 @@ func (s *Svc) registerPadron() {
 			}
 			b := in.Body
 			o := &vincOut{}
-			mesa, err := s.mesaDeNivel(ctx, in.CID, b.Nivel)
+			mesa, _, err := s.mesaDeNivel(ctx, in.CID, b.Nivel)
 			if err != nil || mesa == "" {
 				return o, err
 			}
@@ -245,7 +270,11 @@ func (s *Svc) registerPadron() {
 			if _, err := operar(ctx, in.CID); err != nil {
 				return nil, err
 			}
-			if nivelMesa(in.Body.Mesa) == "" {
+			niv, err := nivelesDe(ctx, s.a.DB, in.CID, in.Body.Mesa)
+			if err != nil {
+				return nil, err
+			}
+			if len(niv.todos(in.Body.Mesa)) == 0 {
 				return nil, problem.Unprocessable("MESA_SIN_NIVEL", "Esta mesa no es de AEP 2 ni de AEP 3: empieza su clave por «aep2 · » o «aep3 · ».")
 			}
 			type e struct {
