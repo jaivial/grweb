@@ -142,13 +142,13 @@ const T = {
         @for (l of links(); track l.href; let i = $index) {
           <li [class]="i > 2 ? 'hidden lg:block' : ''">
             @if (i === 0) {
-              <button type="button" class="group inline-flex flex-col items-center gap-2 rounded-xs p-2 text-label-s pointer-coarse:min-h-11 text-text-secondary transition-colors hover:text-text-primary" [attr.aria-expanded]="mega()" aria-controls="mega-competicion" (click)="mega.set(!mega())">
+              <button type="button" class="group relative inline-flex items-center rounded-xs p-2 text-label-s pointer-coarse:min-h-11 text-text-secondary transition-colors hover:text-text-primary" [attr.aria-expanded]="mega()" aria-controls="mega-competicion" (click)="mega.set(!mega())">
                 <span class="inline-flex items-center gap-1">{{ l.label }}<gr-icon name="chevron-down" [size]="14" class="text-text-tertiary transition-transform" [class.rotate-180]="mega()" /></span>
-                <span class="h-0.5 w-6 rounded-[1px] bg-transparent transition-colors group-hover:bg-white/30" aria-hidden="true"></span>
+                <span class="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-[1px] bg-transparent transition-colors group-hover:bg-white/30" aria-hidden="true"></span>
               </button>
             } @else {
               <!-- Figma «Nav link»: 2 px indicator under the label (white 30 % on hover, accent on the current route) -->
-              <a [routerLink]="ruta(l.href) | loc" [fragment]="frag(l.href)" class="group inline-flex flex-col items-center justify-end gap-2 rounded-xs px-2 pt-2 pb-2 text-label-s pointer-coarse:min-h-11 transition-colors hover:text-text-primary" [class]="activo(l.href) ? 'text-text-primary' : 'text-text-secondary'" [attr.aria-current]="activo(l.href) ? 'page' : null">{{ l.label }}<span class="h-0.5 w-6 rounded-[1px] transition-colors" [class]="activo(l.href) ? 'bg-accent' : 'bg-transparent group-hover:bg-white/30'" aria-hidden="true"></span></a>
+              <a [routerLink]="ruta(l.href) | loc" [fragment]="frag(l.href)" class="group relative inline-flex items-center rounded-xs p-2 text-label-s pointer-coarse:min-h-11 transition-colors hover:text-text-primary" [class]="activo(l.href) ? 'text-text-primary' : 'text-text-secondary'" [attr.aria-current]="activo(l.href) ? 'page' : null">{{ l.label }}<span class="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-[1px] transition-colors" [class]="activo(l.href) ? 'bg-accent' : 'bg-transparent group-hover:bg-white/30'" aria-hidden="true"></span></a>
             }
           </li>
         }
