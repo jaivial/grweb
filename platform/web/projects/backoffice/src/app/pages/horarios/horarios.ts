@@ -9,7 +9,7 @@ import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrI
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { BoDatePicker } from '../../shared/kit';
+import { BoDatePicker, BoSheet } from '../../shared/kit';
 import { BoDrawer, BoPageHeader, BoTabBar, BoToggle, Confirm, errText, type BoTabOpcion } from '../../shared/ui';
 import { tabEnUrl } from '../../shared/tab-url';
 import {
@@ -42,7 +42,7 @@ const diaSiguiente = (f: string) => {
  */
 @Component({
   selector: 'bo-horarios',
-  imports: [FormsModule, RouterLink, DatePipe, A11yModule, CdkDropListGroup, CdkDropList, CdkDrag, CdkDragHandle, BoPageHeader, BoDrawer, BoToggle, BoTabBar, BoDatePicker,
+  imports: [FormsModule, RouterLink, DatePipe, A11yModule, CdkDropListGroup, CdkDropList, CdkDrag, CdkDragHandle, BoPageHeader, BoDrawer, BoToggle, BoTabBar, BoDatePicker, BoSheet,
     GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, GrSkeleton, GrSpinner],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
@@ -54,10 +54,10 @@ const diaSiguiente = (f: string) => {
   template: `
     @let b = raw();
     <div class="mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 pb-24">
-      <bo-page-header title="Horarios" [subtitle]="subtitulo()" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Horarios']" [badge]="estado().label" [badgeTone]="estado().tone">
+      <bo-page-header title="Horarios" [subtitle]="escritorio() ? subtitulo() : ''" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Horarios']" [badge]="estado().label" [badgeTone]="estado().tone">
         @if (b) {
           <ng-container actions>
-            <button grButton variant="ghost" icon="history" (click)="abrirHistorial()">Historial</button>
+            @if (escritorio()) { <button grButton variant="ghost" icon="history" (click)="abrirHistorial()">Historial</button> }
             <button grButton icon="eye" (click)="preview.set(true)" [disabled]="!dia()">Vista previa</button>
             @if (canEdit()) {
               <button grButton variant="primary" icon="send" (click)="abrirPublicar()" [disabled]="!b.sesiones.length || (b.publicado && !b.cambiosSinPublicar)">Publicar v{{ siguiente() }}</button>
@@ -89,17 +89,21 @@ const diaSiguiente = (f: string) => {
         <!-- Dates: one tab per date (phones: selector) + «Nueva fecha» -->
         <div class="flex min-w-0 flex-col gap-2 md:flex-row md:items-end">
           <bo-tab-bar class="min-w-0 flex-1" label="Fecha" [tabs]="tabs()" [value]="dia()" (valueChange)="elegirDia($event)" />
-          @if (canEdit()) { <button grButton variant="ghost" icon="plus" class="self-start md:self-auto" (click)="abrirNueva()">Nueva fecha</button> }
+          @if (canEdit() && escritorio()) { <button grButton variant="ghost" icon="plus" class="self-start md:self-auto" (click)="abrirNueva()">Nueva fecha</button> }
         </div>
 
-        <!-- Toolbar: wraps, never scrolls sideways -->
+        <!-- Toolbar: wraps, never scrolls sideways; tablet/phone: summary and actions in the «Ajustes» sheet -->
         <div class="flex flex-wrap items-center gap-2">
-          @if (canEdit() && dia()) {
-            @if (puedeGenerar()) { <button grButton icon="zap" (click)="generar()">Generar sesiones</button> }
-            <button grButton variant="ghost" icon="plus" (click)="nuevaSesion()">Sesión</button>
+          @if (escritorio()) {
+            @if (canEdit() && dia()) {
+              @if (puedeGenerar()) { <button grButton icon="zap" (click)="generar()">Generar sesiones</button> }
+              <button grButton variant="ghost" icon="plus" (click)="nuevaSesion()">Sesión</button>
+            }
+          } @else {
+            <button grButton variant="ghost" icon="settings" aria-haspopup="dialog" (click)="ajustesOpen.set(true)">Ajustes</button>
           }
           <button grButton variant="ghost" icon="filter" [attr.aria-expanded]="filtrosOpen()" aria-controls="h-filtros" (click)="filtrosOpen.set(!filtrosOpen())">Filtros{{ nFiltros() ? ' · ' + nFiltros() : '' }}</button>
-          @if (dia()) { <button grButton variant="ghost" icon="settings" (click)="abrirDia()">Ajustes de la fecha</button> }
+          @if (dia() && escritorio()) { <button grButton variant="ghost" icon="settings" (click)="abrirDia()">Ajustes de la fecha</button> }
         </div>
 
         @if (filtrosOpen()) {
@@ -137,15 +141,13 @@ const diaSiguiente = (f: string) => {
                 <section [id]="'sesion-' + f.id" class="rounded-lg border bg-bg-card p-3" [class]="bloquea(f) ? 'border-warning/70' : 'border-line-subtle'" [attr.aria-label]="'Sesión de las ' + hora(f.inicio)">
                   <header class="flex items-start gap-3">
                     <button type="button" class="flex min-w-0 flex-1 items-start gap-3 text-left" [attr.aria-expanded]="!plegada(f)" (click)="plegar(f)">
-                      <span class="font-mono text-ui-h4 text-accent-text">{{ hora(f.inicio) }}</span>
-                      <span class="min-w-0 flex-1">
-                        <span class="block text-label-m">{{ tituloCorto(f.titulo) }}{{ f.prueba ? ' · ' + nombrePrueba(f.prueba) : '' }}</span>
-                        <span class="block text-body-xs text-text-tertiary"><span [class.text-accent-text]="activos(f) > b.config.maxPorSesion">{{ activos(f) }} atletas</span> · pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }} · hasta ~{{ hora(f.fin) }}</span>
-                      </span>
+                      <span class="font-mono text-ui-h4 text-text-primary">{{ hora(f.inicio) }}</span>
+                      <span class="min-w-0 flex-1 text-label-m">{{ tituloCorto(f.titulo) }}{{ f.prueba ? ' · ' + nombrePrueba(f.prueba) : '' }}</span>
                       <gr-icon [name]="plegada(f) ? 'chevron-down' : 'chevron-up'" [size]="18" class="mt-1 shrink-0 text-text-tertiary" />
                     </button>
                     <button grIconButton icon="pencil" [label]="'Editar la sesión de las ' + hora(f.inicio)" (click)="abrirSesion(f)"></button>
                   </header>
+                  <div class="mt-1 text-body-xs text-text-tertiary"><span [class.text-accent-text]="activos(f) > b.config.maxPorSesion">{{ activos(f) }} atletas</span> · pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }} · hasta ~{{ hora(f.fin) }}</div>
                   @for (a of f.avisos.slice(0, 2); track a) { <p class="mt-2 flex items-start gap-1.5 text-body-xs text-warning"><gr-icon name="triangle-alert" [size]="12" class="mt-0.5 shrink-0" />{{ a }}</p> }
                   @if (!plegada(f)) {
                     <ol class="lista mt-3 flex min-h-14 flex-col gap-1.5" cdkDropList [cdkDropListData]="lista(f)" (cdkDropListDropped)="drop($event)" [cdkDropListDisabled]="!canEdit() || !!nFiltros()" [attr.aria-label]="'Atletas de la sesión de las ' + hora(f.inicio)">
@@ -393,6 +395,25 @@ const diaSiguiente = (f: string) => {
       }
     </bo-drawer>
 
+    <!-- Tablet/phone: summary, actions and history (bottom sheet on phones, side sheet ≥768 px) -->
+    <bo-sheet title="Ajustes" [(open)]="ajustesOpen">
+      <bo-tab-bar label="Ajustes" [tabs]="ajustesTabs" [(value)]="ajustesTab" />
+      @switch (ajustesTab()) {
+        @case ('resumen') { <p class="text-body-s text-text-secondary">{{ subtitulo() }}</p> }
+        @case ('acciones') {
+          <div class="flex flex-col gap-2">
+            @if (canEdit()) { <button grButton variant="ghost" icon="plus" (click)="ajustesOpen.set(false); abrirNueva()">Nueva fecha</button> }
+            @if (canEdit() && dia()) {
+              @if (puedeGenerar()) { <button grButton icon="zap" (click)="ajustesOpen.set(false); generar()">Generar sesiones</button> }
+              <button grButton variant="ghost" icon="plus" (click)="ajustesOpen.set(false); nuevaSesion()">Sesión</button>
+            }
+            @if (dia()) { <button grButton variant="ghost" icon="settings" (click)="ajustesOpen.set(false); abrirDia()">Ajustes de la fecha</button> }
+          </div>
+        }
+        @case ('historial') { <button grButton variant="ghost" icon="history" (click)="ajustesOpen.set(false); abrirHistorial()">Historial</button> }
+      }
+    </bo-sheet>
+
     <bo-drawer [(open)]="historialOpen" title="Historial de versiones">
       <ul class="flex flex-col gap-2">
         @for (v of versiones(); track v.numero) {
@@ -454,6 +475,10 @@ export class HorariosPage {
   protected readonly sesionOpen = signal(false);
   protected readonly moverOpen = signal(false);
   protected readonly historialOpen = signal(false);
+  protected readonly escritorio = signal(typeof matchMedia === 'undefined' || matchMedia('(min-width: 1024px)').matches);
+  protected readonly ajustesOpen = signal(false);
+  protected readonly ajustesTab = signal('resumen');
+  protected readonly ajustesTabs: BoTabOpcion[] = [{ value: 'resumen', label: 'Resumen' }, { value: 'acciones', label: 'Acciones' }, { value: 'historial', label: 'Historial' }];
   protected readonly preview = signal(false);
   protected readonly filtrosOpen = signal(false);
   protected readonly q = signal('');
@@ -561,6 +586,13 @@ export class HorariosPage {
       }
     });
     inject(DestroyRef).onDestroy(() => sub.unsubscribe());
+    const mq = typeof matchMedia === 'undefined' ? null : matchMedia('(min-width: 1024px)');
+    const alCambiar = () => {
+      this.escritorio.set(!!mq?.matches);
+      if (mq?.matches) this.ajustesOpen.set(false);
+    };
+    mq?.addEventListener('change', alCambiar);
+    inject(DestroyRef).onDestroy(() => mq?.removeEventListener('change', alCambiar));
   }
 
   protected async cargar(): Promise<void> {
