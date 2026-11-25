@@ -59,6 +59,7 @@ type Svc struct {
 	comp         *svcclient.Client
 	cms          *svcclient.Client
 	identity     *svcclient.Client
+	openlifter   *svcclient.Client
 	comps        *compref.Resolver
 	cache        *cache.Cache
 	qrKey        []byte
@@ -99,6 +100,7 @@ func (s *Svc) init(a *app.App) {
 	s.comp = svcclient.New(config.Str("UPSTREAM_COMPETITION", "http://competition:8080"), "athletes", "competition", a.Cfg.InternalToken)
 	s.cms = svcclient.New(config.Str("UPSTREAM_CMS", "http://cms:8080"), "athletes", "cms", a.Cfg.InternalToken)
 	s.identity = svcclient.New(config.Str("UPSTREAM_IDENTITY", "http://identity:8080"), "athletes", "identity", a.Cfg.InternalToken)
+	s.openlifter = svcclient.New(config.Str("UPSTREAM_OPENLIFTER", "http://openlifter:8080"), "athletes", "openlifter", a.Cfg.InternalToken)
 	s.comps = compref.New(s.comp, a.Log).Versioned(a.Redis, compref.VerKey(a.Keys.Of))
 	s.cache = &cache.Cache{R: a.Redis, Prefix: a.Keys.Of("cache", "athletes", "")}
 	s.fans = &fanauth.Verifier{Key: fanauth.Key(a.Cfg.InternalToken), Redis: a.Redis, Keys: a.Keys}
@@ -126,6 +128,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.init(a)
 	s.registerAdmin()
 	s.registerImport()
+	s.registerPadron()
 	s.registerPublic()
 	s.registerArea()
 	s.registerAreaPrueba()
