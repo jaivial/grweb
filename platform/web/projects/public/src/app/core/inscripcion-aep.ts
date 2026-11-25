@@ -5,13 +5,13 @@ import { I18n } from './i18n';
 /** BIZ-160: registration was done through the AEP and is closed; 152 athletes registered (AEP-2: 68, AEP-3: 84; lists below). */
 export const INSCRITOS_AEP = 152;
 export const LISTAS_AEP = [
-  'https://docs.google.com/spreadsheets/d/1iwVC8FDMmNe_pCTxgW-yP6PWocuFaeacKvk794VMJKQ/edit',
-  'https://docs.google.com/spreadsheets/d/1UjcPxcPgGVD2tUkI1YaIYKARqQh1ENPorGvPDtmxK0A/edit',
+  { nivel: 'AEP 2', url: 'https://jaimedigitalstudio.b-cdn.net/grcup/inscripciones/Inscripciones%20AEP%202%20-%20GR%20STRENGTH%20CUP%20II.xlsx' },
+  { nivel: 'AEP 3', url: 'https://jaimedigitalstudio.b-cdn.net/grcup/inscripciones/Inscripciones%20AEP%203%20-%20GR%20STRENGTH%20CUP%20II.xlsx' },
 ];
 
 const T = {
-  es: { cerradas: 'Inscripciones cerradas', txt: (n: number) => `Las inscripciones se hicieron a través de la AEP (Asociación Española de Powerlifting) y ya están cerradas: hay ${n} atletas inscritos.`, atletas: 'atletas inscritos', lista: (i: number) => `Lista de la AEP ${i}` },
-  en: { cerradas: 'Registration closed', txt: (n: number) => `Registration was handled by the AEP (Spanish Powerlifting Association) and is now closed: ${n} athletes are registered.`, atletas: 'registered athletes', lista: (i: number) => `AEP list ${i}` },
+  es: { cerradas: 'Inscripciones cerradas', txt: (n: number) => `Las inscripciones se hicieron a través de la AEP (Asociación Española de Powerlifting) y ya están cerradas: hay ${n} atletas inscritos.`, atletas: 'atletas inscritos', lista: (nivel: string) => `Lista de inscritos ${nivel} (Excel)` },
+  en: { cerradas: 'Registration closed', txt: (n: number) => `Registration was handled by the AEP (Spanish Powerlifting Association) and is now closed: ${n} athletes are registered.`, atletas: 'registered athletes', lista: (nivel: string) => `${nivel} registration list (Excel)` },
 };
 
 /** Clear «registration closed» notice with the AEP count and lists (home + /inscripcion). */
@@ -26,8 +26,8 @@ const T = {
       <p class="flex items-end gap-2"><span class="font-display text-[48px] leading-none text-accent-text md:text-[60px]">{{ n }}</span><span class="pb-1 text-display-2xs text-text-tertiary">{{ t().atletas }}</span></p>
       <p class="max-w-[600px] text-body-m text-text-secondary">{{ t().txt(n) }}</p>
       <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-        @for (u of listas; track u; let i = $index) {
-          <a [href]="u" target="_blank" rel="noopener" class="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-line-subtle bg-white/5 px-4 text-body-s font-semibold hover:bg-white/10">{{ t().lista(i + 1) }}<gr-icon name="arrow-right" [size]="16" /></a>
+        @for (l of listas; track l.url) {
+          <a [href]="l.url" target="_blank" rel="noopener" [attr.aria-label]="t().lista(l.nivel)" class="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-line-subtle bg-white/5 px-4 text-body-s font-semibold hover:bg-white/10">{{ l.nivel }}<gr-icon name="arrow-right" [size]="16" /></a>
         }
       </div>
     </div>
