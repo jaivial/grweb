@@ -10,6 +10,7 @@ import (
 	"errors"
 	"net/http"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -35,6 +36,7 @@ type Horario struct {
 	Version   int    `json:"version,omitempty"`
 	Sesiones  int    `json:"sesiones" doc:"Sesiones publicadas con atletas de esta mesa"`
 	Asignadas int    `json:"asignadas" doc:"Entradas con día, plataforma, flight y lote del horario"`
+	SinSesion int    `json:"sinSesion" doc:"Entradas que no están en ninguna sesión publicada (conservan su flight)"`
 	Aviso     string `json:"aviso,omitempty"`
 }
 
@@ -158,6 +160,7 @@ func asignarHorario(meet map[string]any, entradas []map[string]any, links map[in
 	})
 	dia := map[string]int{} // session date → OpenLifter day (1…lengthDays; extra dates go to the last day)
 	letras := map[int]int{}
+	enSesion := map[int]bool{}
 	for _, s := range lista {
 		if _, ok := dia[s.fecha]; !ok {
 			dia[s.fecha] = min(len(dia)+1, dias)
@@ -170,6 +173,8 @@ func asignarHorario(meet map[string]any, entradas []map[string]any, links map[in
 		letras[d]++
 		h.Sesiones++
 		for i, e := range s.ats {
+			id, _ := entryID(e)
+			enSesion[id] = true
 			if juzgada(e) {
 				continue
 			}
@@ -179,6 +184,11 @@ func asignarHorario(meet map[string]any, entradas []map[string]any, links map[in
 	}
 	if h.Sesiones == 0 {
 		h.Aviso = "El horario publicado no tiene sesiones con atletas de esta mesa" + mantener
+		return h
+	}
+	h.SinSesion = len(entradas) - len(enSesion)
+	if h.SinSesion > 0 {
+		h.Aviso = strconv.Itoa(h.SinSesion) + " atletas no están en ninguna sesión publicada: conservan el día, la plataforma y el flight de la inscripción."
 	}
 	return h
 }
