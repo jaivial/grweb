@@ -565,9 +565,8 @@ func (s *Svc) register() {
 			nivel := nivelMesa(in.Mesa)
 			var pad []lifterPadron
 			if nivel != "" {
-				if pad, err = s.padron(ctx, in.CID, nivel); err != nil {
-					return nil, err
-				}
+				// without the roll the desk still gets its athletes (the roll comes on the next load)
+				pad, _ = s.padron(ctx, in.CID, nivel)
 			}
 			o := &atletasOut{}
 			o.Body.Atletas = make([]AtletaImport, 0, len(ids)+len(pad))
