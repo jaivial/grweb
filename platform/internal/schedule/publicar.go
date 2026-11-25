@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -38,6 +39,8 @@ type SnapSesion struct {
 	Prueba       string       `json:"prueba,omitempty"`
 	Titulo       string       `json:"titulo"`
 	Sexo         string       `json:"sexo"`
+	SexoFijo     bool         `json:"sexoFijo,omitempty" doc:"BIZ-202: sexo y categorías fijados en el backoffice"`
+	Categorias   []string     `json:"categorias,omitempty"`
 	Inicio       time.Time    `json:"inicio"`
 	Fin          time.Time    `json:"fin"`
 	DuracionMin  int          `json:"duracionMin"`
@@ -128,7 +131,7 @@ func snapshot(b Borrador, byID map[uuid.UUID]atleta, numero int) Snapshot {
 			continue
 		}
 		sd := dia(f.Dia)
-		sd.Sesiones = append(sd.Sesiones, SnapSesion{ID: f.ID, Prueba: f.Prueba, Titulo: f.Titulo, Sexo: f.Sexo, Inicio: f.Inicio, Fin: f.Fin,
+		sd.Sesiones = append(sd.Sesiones, SnapSesion{ID: f.ID, Prueba: f.Prueba, Titulo: f.Titulo, Sexo: f.Sexo, SexoFijo: f.SexoFijo, Categorias: f.Categorias, Inicio: f.Inicio, Fin: f.Fin,
 			DuracionMin: f.DuracionMin, PesajeInicio: f.PesajeInicio, PesajeFin: f.PesajeFin, Atletas: as})
 	}
 	for _, a := range b.Agenda {
@@ -237,9 +240,24 @@ type Diff struct {
 // posicion is what an athlete sees of their schedule: when their session starts and their weigh-in (the session's
 // internal id does not matter: regenerating the draft creates new sessions at the same times).
 type posicion struct {
-	inicio time.Time
-	pesaje time.Time
-	lote   int
+	inicio    time.Time
+	pesaje    time.Time
+	lote      int
+	pesajeFin time.Time
+	sesion    string // BIZ-202: «Femenino −57 / −63 kg» (sex and weight classes of the session)
+	nivel     string // BIZ-202: AEP level of the session
+}
+
+// texto: «sáb 19/12 10:00 · pesaje 08:00–09:30 · Femenino −57 kg · AEP-2» (what the athlete is told).
+func (p posicion) texto(loc *time.Location) string {
+	t := diaCorto(p.inicio, loc) + " " + hhmm(p.inicio, loc) + " · pesaje " + hhmm(p.pesaje, loc) + "–" + hhmm(p.pesajeFin, loc)
+	if p.sesion != "" {
+		t += " · " + p.sesion
+	}
+	if p.nivel != "" {
+		t += " · " + nombrePrueba(p.nivel)
+	}
+	return t
 }
 
 func posiciones(sn *Snapshot) map[uuid.UUID]posicion {
@@ -250,7 +268,7 @@ func posiciones(sn *Snapshot) map[uuid.UUID]posicion {
 	for _, d := range sn.Dias {
 		for _, f := range d.Sesiones {
 			for _, a := range f.Atletas {
-				out[a.ID] = posicion{f.Inicio, f.PesajeInicio, a.Lote}
+				out[a.ID] = posicion{inicio: f.Inicio, pesaje: f.PesajeInicio, lote: a.Lote, pesajeFin: f.PesajeFin, sesion: f.Titulo, nivel: f.Prueba}
 			}
 		}
 	}
@@ -286,8 +304,8 @@ func diff(prev *Snapshot, cur Snapshot, byID map[uuid.UUID]atleta, loc *time.Loc
 		case !estaba:
 			d.Cambios = append(d.Cambios, Cambio{Tipo: "alta", Titulo: nombre(id), Antes: "—", Despues: pos(p), Atletas: 1})
 			d.afectados = append(d.afectados, id)
-		case !q.inicio.Equal(p.inicio) || !q.pesaje.Equal(p.pesaje):
-			k := q.inicio.String() + "|" + p.inicio.String() + "|" + q.pesaje.String() + "|" + p.pesaje.String()
+		case !q.inicio.Equal(p.inicio) || !q.pesaje.Equal(p.pesaje) || q.sesion != p.sesion || q.nivel != p.nivel:
+			k := q.inicio.String() + "|" + p.inicio.String() + "|" + q.pesaje.String() + "|" + p.pesaje.String() + "|" + q.sesion + "|" + p.sesion + "|" + q.nivel + "|" + p.nivel
 			g, ok := grupos[k]
 			if !ok {
 				g = &grupo{antes: q, despues: p}
@@ -304,6 +322,9 @@ func diff(prev *Snapshot, cur Snapshot, byID map[uuid.UUID]atleta, loc *time.Loc
 		a, b := pos(g.antes), pos(g.despues)
 		if !g.antes.pesaje.Equal(g.despues.pesaje) {
 			a, b = a+" · pesaje "+hhmm(g.antes.pesaje, loc), b+" · pesaje "+hhmm(g.despues.pesaje, loc)
+		}
+		if g.antes.sesion != g.despues.sesion || g.antes.nivel != g.despues.nivel { // BIZ-202
+			a, b = join(a, strings.TrimSpace(g.antes.sesion+" "+nombrePrueba(g.antes.nivel))), join(b, strings.TrimSpace(g.despues.sesion+" "+nombrePrueba(g.despues.nivel)))
 		}
 		if len(g.ids) == 1 {
 			d.Cambios = append(d.Cambios, Cambio{Tipo: "atleta", Titulo: nombre(g.ids[0]), Antes: a, Despues: b, Atletas: 1})
@@ -364,6 +385,9 @@ type asignacion struct {
 	Inicio       time.Time `json:"inicio"`
 	PesajeInicio time.Time `json:"pesajeInicio"`
 	PesajeFin    time.Time `json:"pesajeFin"`
+	Sesion       string    `json:"sesion,omitempty" doc:"BIZ-202: sexo y categorías de la sesión"`
+	Nivel        string    `json:"nivel,omitempty" doc:"BIZ-202: AEP-1/2/3"`
+	Antes        string    `json:"antes,omitempty" doc:"BIZ-202: horario publicado anterior (texto)"`
 }
 
 // aplicarIn is the body of athletes' PUT /internal/competiciones/{cid}/horarios.
@@ -472,7 +496,7 @@ func (s *Svc) preparar(ctx context.Context, cid uuid.UUID, prueba string) (Borra
 }
 
 func (s *Svc) publicar(ctx context.Context, cid uuid.UUID, ifm, prueba string, avisarAtletas, avisarSeguidores bool) (Publicado, error) {
-	b, _, _, sn, d, err := s.preparar(ctx, cid, prueba)
+	b, _, prev, sn, d, err := s.preparar(ctx, cid, prueba)
 	if err != nil {
 		return Publicado{}, err
 	}
@@ -488,6 +512,11 @@ func (s *Svc) publicar(ctx context.Context, cid uuid.UUID, ifm, prueba string, a
 	if !d.Primera && len(d.Cambios) == 0 {
 		return Publicado{}, problem.Conflict("SIN_CAMBIOS", "No hay cambios respecto a la versión publicada.")
 	}
+	antes := posiciones(nil)
+	if prev != nil {
+		antes = posiciones(&prev.Snapshot)
+	}
+	loc := s.loc(ctx, cid)
 	in := aplicarIn{Version: sn.Numero, Asignaciones: []asignacion{}, Afectados: d.afectados, AvisarAtletas: avisarAtletas, AvisarSeguidores: avisarSeguidores, Primera: d.Primera}
 	if in.Afectados == nil {
 		in.Afectados = []uuid.UUID{}
@@ -495,7 +524,11 @@ func (s *Svc) publicar(ctx context.Context, cid uuid.UUID, ifm, prueba string, a
 	for _, dd := range sn.Dias {
 		for _, f := range dd.Sesiones {
 			for _, a := range f.Atletas {
-				in.Asignaciones = append(in.Asignaciones, asignacion{a.ID, dd.Fecha, a.Lote, f.Inicio, f.PesajeInicio, f.PesajeFin})
+				as := asignacion{AtletaID: a.ID, Dia: dd.Fecha, Lote: a.Lote, Inicio: f.Inicio, PesajeInicio: f.PesajeInicio, PesajeFin: f.PesajeFin, Sesion: f.Titulo, Nivel: nombrePrueba(f.Prueba)}
+				if q, ok := antes[a.ID]; ok {
+					as.Antes = q.texto(loc)
+				}
+				in.Asignaciones = append(in.Asignaciones, as)
 			}
 		}
 	}
@@ -521,6 +554,7 @@ func (s *Svc) publicar(ctx context.Context, cid uuid.UUID, ifm, prueba string, a
 		if n != sn.Numero {
 			return problem.Conflict("PUBLICACION_EN_CURSO", "Otra persona acaba de publicar los horarios. Recarga para ver la versión nueva.")
 		}
+		s.a.Log.Info("[BIZ-202] schedule_publicar_avisos", "competition_id", cid, "version", sn.Numero, "prueba", prueba, "afectados", len(in.Afectados), "avisar_atletas", avisarAtletas)
 		if err := s.athletes.Do(ctx, http.MethodPut, "/internal/competiciones/"+cid.String()+"/horarios", in, &res); err != nil {
 			s.a.Log.Warn("athletes horarios", "err", err)
 			return problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No hemos podido actualizar las fichas de los atletas. Inténtalo en unos segundos.")
@@ -743,8 +777,12 @@ func restaurar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, sn Snapshot, prueb
 }
 
 func insertarSnap(ctx context.Context, tx pgx.Tx, cid uuid.UUID, fecha string, f SnapSesion) error {
-	if _, err := tx.Exec(ctx, `INSERT INTO sesiones (id, competition_id, dia, inicio, duracion_min, pesaje_inicio, pesaje_fin, prueba) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-		f.ID, cid, fecha, f.Inicio, f.DuracionMin, f.PesajeInicio, f.PesajeFin, f.Prueba); err != nil {
+	sexo, cats := "", []string{}
+	if f.SexoFijo { // BIZ-202: restoring keeps the session's own sex and weight classes
+		sexo, cats = f.Sexo, append(cats, f.Categorias...)
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO sesiones (id, competition_id, dia, inicio, duracion_min, pesaje_inicio, pesaje_fin, prueba, sexo, categorias) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+		f.ID, cid, fecha, f.Inicio, f.DuracionMin, f.PesajeInicio, f.PesajeFin, f.Prueba, sexo, cats); err != nil {
 		return err
 	}
 	for _, a := range f.Atletas {

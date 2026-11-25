@@ -86,6 +86,8 @@ type Sesion struct {
 	PesajeFin    time.Time      `json:"pesajeFin"`
 	Titulo       string         `json:"titulo" doc:"Femenino −57 / −63 kg"`
 	Sexo         string         `json:"sexo" doc:"F, M, X (mixto) o vacío"`
+	Categorias   []string       `json:"categorias" doc:"Categorías de peso elegidas para la sesión (vacío: las de sus atletas)"`
+	SexoFijo     bool           `json:"sexoFijo" doc:"El sexo y las categorías los fijó el backoffice"`
 	Atletas      []SesionAtleta `json:"atletas"`
 	Directo      Directo        `json:"directo"`
 	Publicado    bool           `json:"publicado" doc:"Está en la versión publicada (admite estado en directo)"`
@@ -171,19 +173,21 @@ func loadConfig(ctx context.Context, q querier, cid uuid.UUID) (Config, int, int
 type sesionRow struct {
 	ID                          uuid.UUID
 	Prueba                      string
+	Sexo                        string   // BIZ-202: set from the backoffice ('' = from its athletes)
+	Categorias                  []string // BIZ-202: weight classes of the session (empty = from its athletes)
 	Dia                         time.Time
 	DuracionMin                 int
 	Inicio, PesajeIni, PesajeFn time.Time
 }
 
 func loadSesiones(ctx context.Context, q querier, cid uuid.UUID) ([]sesionRow, map[uuid.UUID][]uuid.UUID, error) {
-	rows, err := q.Query(ctx, `SELECT id, prueba, dia, duracion_min, inicio, pesaje_inicio, pesaje_fin FROM sesiones WHERE competition_id = $1 ORDER BY dia, inicio, created_at`, cid)
+	rows, err := q.Query(ctx, `SELECT id, prueba, sexo, categorias, dia, duracion_min, inicio, pesaje_inicio, pesaje_fin FROM sesiones WHERE competition_id = $1 ORDER BY dia, inicio, created_at`, cid)
 	if err != nil {
 		return nil, nil, err
 	}
 	fl, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (sesionRow, error) {
 		var f sesionRow
-		err := r.Scan(&f.ID, &f.Prueba, &f.Dia, &f.DuracionMin, &f.Inicio, &f.PesajeIni, &f.PesajeFn)
+		err := r.Scan(&f.ID, &f.Prueba, &f.Sexo, &f.Categorias, &f.Dia, &f.DuracionMin, &f.Inicio, &f.PesajeIni, &f.PesajeFn)
 		return f, err
 	})
 	if err != nil {
@@ -351,6 +355,17 @@ func buildSesion(f sesionRow, ids []uuid.UUID, byID map[uuid.UUID]atleta, dir ma
 			out.Prueba = p // sesiones before sesiones.prueba: the competition of their athletes, only if all share it
 		}
 	}
+	out.Categorias = []string{}
+	if f.Sexo != "" {
+		// BIZ-202: the session's own sex and weight classes win over its athletes'.
+		out.SexoFijo, out.Categorias = true, append(out.Categorias, f.Categorias...)
+		cs := f.Categorias
+		if len(cs) == 0 {
+			cs = cats
+		}
+		out.Sexo, out.Titulo = titulo([]string{f.Sexo}, cs)
+		return out
+	}
 	out.Sexo, out.Titulo = titulo(sexos, cats)
 	return out
 }
@@ -483,6 +498,14 @@ func conflictos(cfg Config, loc *time.Location, fl []Sesion, sinSesion, sinCateg
 		if f.Sexo == "X" {
 			add(f, "sexo_mixto", false, "La sesión de las "+hhmm(f.Inicio, loc)+" mezcla categorías femeninas y masculinas", "Revisa si es intencionado.")
 		}
+		if f.SexoFijo {
+			for _, a := range f.Atletas {
+				if !a.Baja && a.Sexo != "" && a.Sexo != f.Sexo {
+					add(f, "sexo_mixto", false, "La sesión de las "+hhmm(f.Inicio, loc)+" tiene atletas de otro sexo", "Es una sesión "+map[string]string{"F": "femenina", "M": "masculina"}[f.Sexo]+": mueve a esos atletas o cambia su sexo.")
+					break
+				}
+			}
+		}
 		if d, ok := dias[f.Dia]; !ok {
 			add(f, "fuera_horario", false, "La sesión de las "+hhmm(f.Inicio, loc)+" está en un día sin competición", "Añade el día en los ajustes o muévelo.")
 		} else {
@@ -499,7 +522,7 @@ func conflictos(cfg Config, loc *time.Location, fl []Sesion, sinSesion, sinCateg
 	for i := range fl {
 		for j := i + 1; j < len(fl); j++ {
 			a, b := &fl[i], &fl[j]
-			if a.Dia == b.Dia && overlap(a.Inicio, a.Fin, b.Inicio, b.Fin) {
+			if a.Dia == b.Dia && !otroSexo(a, b) && overlap(a.Inicio, a.Fin, b.Inicio, b.Fin) {
 				add(b, "solape", true, fmt.Sprintf("Las sesiones de las %s y de las %s se solapan", hhmm(a.Inicio, loc), hhmm(b.Inicio, loc)),
 					fmt.Sprintf("Solo hay una tarima: la de las %s termina hacia las %s.", hhmm(a.Inicio, loc), hhmm(a.Fin, loc)))
 			}
@@ -509,7 +532,7 @@ func conflictos(cfg Config, loc *time.Location, fl []Sesion, sinSesion, sinCateg
 	for i := range fl {
 		var con []*Sesion
 		for j := range fl {
-			if i != j && overlap(fl[i].PesajeInicio, fl[i].PesajeFin, fl[j].PesajeInicio, fl[j].PesajeFin) {
+			if i != j && !otroSexo(&fl[i], &fl[j]) && overlap(fl[i].PesajeInicio, fl[i].PesajeFin, fl[j].PesajeInicio, fl[j].PesajeFin) {
 				con = append(con, &fl[j])
 			}
 		}
@@ -541,6 +564,11 @@ func conflictos(cfg Config, loc *time.Location, fl []Sesion, sinSesion, sinCateg
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Bloquea && !out[j].Bloquea })
 	return out
+}
+
+// otroSexo: a women's and a men's session (BIZ-202) may share a time slot and weigh-in (different platform room).
+func otroSexo(a, b *Sesion) bool {
+	return (a.Sexo == "F" && b.Sexo == "M") || (a.Sexo == "M" && b.Sexo == "F")
 }
 
 func maxT(a, b time.Time) time.Time {

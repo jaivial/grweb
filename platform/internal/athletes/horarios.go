@@ -26,6 +26,9 @@ type Asignacion struct {
 	Inicio       time.Time `json:"inicio"`
 	PesajeInicio time.Time `json:"pesajeInicio"`
 	PesajeFin    time.Time `json:"pesajeFin"`
+	Sesion       string    `json:"sesion,omitempty" doc:"BIZ-202: sexo y categorías de peso de la sesión"`
+	Nivel        string    `json:"nivel,omitempty" doc:"BIZ-202: AEP-1/2/3"`
+	Antes        string    `json:"antes,omitempty" doc:"BIZ-202: horario publicado anterior"`
 }
 
 // registerHorarios: schedule publishes a version → every confirmed athlete gets its date, lot and times (athletes not
@@ -102,11 +105,16 @@ func (s *Svc) registerHorarios() {
 						return err
 					}
 					if tag.RowsAffected() == 0 {
+						if afectado[a.AtletaID] { // BIZ-202: same time, but the session's classes or AEP level changed
+							if err := hist(ctx, tx, a.AtletaID, "Horario actualizado", fmt.Sprintf("v%d · %s %s%s", b.Version, dia(a.Inicio), hm(a.Inicio), sesionNivel(a))); err != nil {
+								return err
+							}
+						}
 						continue
 					}
 					o.Body.Actualizados++
-					if err := hist(ctx, tx, a.AtletaID, "Horario publicado", fmt.Sprintf("v%d · %s %s · lote %d · pesaje %s–%s",
-						b.Version, dia(a.Inicio), hm(a.Inicio), a.Lote, hm(a.PesajeInicio), hm(a.PesajeFin))); err != nil {
+					if err := hist(ctx, tx, a.AtletaID, "Horario publicado", fmt.Sprintf("v%d · %s %s · lote %d · pesaje %s–%s%s",
+						b.Version, dia(a.Inicio), hm(a.Inicio), a.Lote, hm(a.PesajeInicio), hm(a.PesajeFin), sesionNivel(a))); err != nil {
 						return err
 					}
 				}
@@ -127,6 +135,11 @@ func (s *Svc) registerHorarios() {
 					if tiene {
 						vars["lote"], vars["dia"], vars["hora"] = fmt.Sprint(a.Lote), dia(a.Inicio), hm(a.Inicio)
 						vars["pesaje"] = hm(a.PesajeInicio) + "–" + hm(a.PesajeFin)
+						// BIZ-202: previous schedule, sex / weight classes and AEP level of the session.
+						vars["sesion"], vars["nivel"], vars["antes"] = a.Sesion, a.Nivel, a.Antes
+						if vars["antes"] == "" {
+							vars["antes"] = "sin horario"
+						}
 					} else {
 						plantilla, plantillaSeg = "horario-sin-fecha", ""
 					}
@@ -143,6 +156,8 @@ func (s *Svc) registerHorarios() {
 									return err
 								}
 							}
+							s.a.Log.Info("[BIZ-202] athletes_aviso_horario_encolado", "competition_id", in.CID, "atleta_id", r.ID, "version", b.Version,
+								"plantilla", plantilla, "email", true, "whatsapp", r.Telefono != "", "antes", vars["antes"], "ahora", vars["dia"]+" "+vars["hora"], "sesion", vars["sesion"], "nivel", vars["nivel"])
 							o.Body.AvisosAtletas++
 						}
 					}
@@ -190,6 +205,17 @@ func (s *Svc) registerHorarios() {
 			})
 			return o, err
 		})
+}
+
+// sesionNivel: « · Femenino −57 kg · AEP-2» for the athlete's history (BIZ-202).
+func sesionNivel(a Asignacion) string {
+	t := ""
+	for _, x := range []string{a.Sesion, a.Nivel} {
+		if x != "" {
+			t += " · " + x
+		}
+	}
+	return t
 }
 
 var diasSemana = [...]string{"Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"}

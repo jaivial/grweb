@@ -13,7 +13,7 @@ import { BoDatePicker, BoSheet } from '../../shared/kit';
 import { BoDrawer, BoPageHeader, BoTabBar, BoToggle, Confirm, errText, type BoTabOpcion } from '../../shared/ui';
 import { tabEnUrl } from '../../shared/tab-url';
 import {
-  HorariosApi, cat, diaCorto, diaLargo, hora, kg, nombrePrueba, pruebaDeDia,
+  CATEGORIAS_SEXO, HorariosApi, cat, diaCorto, diaLargo, hora, kg, nombrePrueba, pruebaDeDia,
   type AgendaItem, type Borrador, type Config, type Diff, type Sesion, type SesionAtleta, type VersionInfo,
 } from './api';
 
@@ -111,7 +111,7 @@ const diaSiguiente = (f: string) => {
             <gr-field label="Buscar" for="f-q"><input grInput id="f-q" type="search" placeholder="Nombre o club" [ngModel]="q()" (ngModelChange)="q.set($event)" /></gr-field>
             <gr-field label="Sexo" for="f-s"><gr-select id="f-s" [ngModel]="fSexo()" (ngModelChange)="fSexo.set($event)"><option value="">Todos</option><option value="F">Femenino</option><option value="M">Masculino</option></gr-select></gr-field>
             <gr-field label="Categoría" for="f-c"><gr-select id="f-c" [ngModel]="fCat()" (ngModelChange)="fCat.set($event)"><option value="">Todas</option>@for (c of categorias(); track c) { <option [value]="c">{{ c }}</option> }</gr-select></gr-field>
-            <gr-field label="Competición" for="f-p"><gr-select id="f-p" [ngModel]="fPrueba()" (ngModelChange)="fPrueba.set($event)"><option value="">Todas</option><option value="aep2">AEP-2</option><option value="aep3">AEP-3</option><option value="-">Sin competición</option></gr-select></gr-field>
+            <gr-field label="Competición" for="f-p"><gr-select id="f-p" [ngModel]="fPrueba()" (ngModelChange)="fPrueba.set($event)"><option value="">Todas</option><option value="aep1">AEP-1</option><option value="aep2">AEP-2</option><option value="aep3">AEP-3</option><option value="-">Sin competición</option></gr-select></gr-field>
             @if (nFiltros()) {
               <p class="flex flex-wrap items-center gap-2 text-body-xs text-text-tertiary sm:col-span-2 lg:col-span-4">Con filtros no se puede arrastrar (el orden de salida es de toda la sesión): usa «Mover».
                 <button type="button" class="inline-flex h-11 items-center text-label-s text-accent-text hover:underline" (click)="limpiarFiltros()">Quitar filtros</button></p>
@@ -130,7 +130,7 @@ const diaSiguiente = (f: string) => {
                       <li cdkDrag [cdkDragData]="a" class="flex min-h-12 items-center gap-2 rounded-md border border-line-subtle bg-bg-card px-2 py-1">
                         <span cdkDragHandle class="hidden cursor-grab text-text-muted sm:block"><gr-icon name="grip" [size]="16" /></span>
                         <span class="min-w-0 flex-1"><span class="block truncate text-label-s">{{ a.nombre }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ a.sexo }} {{ cat(a.categoria) }}{{ a.prueba ? ' · ' + nombrePrueba(a.prueba) : '' }}{{ a.totalPrevisto ? ' · tot. prev. ' + kg(a.totalPrevisto) : '' }}</span></span>
-                        @if (canEdit()) { <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" [attr.aria-label]="'Mover a ' + a.nombre" (click)="abrirMover(a, null)"><gr-icon name="arrow-right" [size]="16" /></button> }
+                        @if (canEdit()) { <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" [attr.aria-label]="'Mover a ' + a.nombre" (click)="abrirMover(a, null)"><gr-icon name="arrow-left-right" [size]="16" /></button> }
                       </li>
                     }
                   </ul>
@@ -159,7 +159,7 @@ const diaSiguiente = (f: string) => {
                             <span class="block truncate text-label-s" [class.line-through]="a.baja">{{ a.nombre }}</span>
                             <span class="block truncate text-body-xs text-text-tertiary">{{ a.baja ? 'Ya no está confirmado: se quitará al publicar' : cat(a.categoria) + (a.totalPrevisto ? ' · tot. prev. ' + kg(a.totalPrevisto) : '') + (a.club ? ' · ' + a.club : '') }}</span>
                           </span>
-                          @if (canEdit() && !a.baja) { <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" [attr.aria-label]="'Mover a ' + a.nombre" (click)="abrirMover(a, f)"><gr-icon name="arrow-right" [size]="16" /></button> }
+                          @if (canEdit() && !a.baja) { <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" [attr.aria-label]="'Mover a ' + a.nombre" (click)="abrirMover(a, f)"><gr-icon name="arrow-left-right" [size]="16" /></button> }
                         </li>
                       } @empty {
                         <li class="rounded-md border border-dashed border-line-strong px-3 py-6 text-center text-body-xs text-text-tertiary">{{ nFiltros() ? 'Ningún atleta coincide con los filtros.' : 'Suelta aquí atletas' }}</li>
@@ -305,6 +305,20 @@ const diaSiguiente = (f: string) => {
             <gr-field label="Pesaje desde" for="s-pi"><bo-date-picker id="s-pi" tipo="time" [(ngModel)]="sEdit.pesajeInicio" [borrable]="false" [disabled]="!canEdit()" aria-label="Pesaje desde" /></gr-field>
             <gr-field label="Pesaje hasta" for="s-pf"><bo-date-picker id="s-pf" tipo="time" [(ngModel)]="sEdit.pesajeFin" [borrable]="false" [disabled]="!canEdit()" aria-label="Pesaje hasta" /></gr-field>
           </div>
+          <!-- BIZ-202: one sex per session, several weight classes of that sex, AEP level -->
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <gr-field label="Sexo" for="s-sexo"><gr-select id="s-sexo" [ngModel]="sEdit.sexo" (ngModelChange)="cambiarSexo($event)" [disabled]="!canEdit()"><option value="F">Femenino</option><option value="M">Masculino</option></gr-select></gr-field>
+            <gr-field label="Nivel" for="s-nivel"><gr-select id="s-nivel" [(ngModel)]="sEdit.nivel" [disabled]="!canEdit()"><option value="">Sin competición</option><option value="aep1">AEP-1</option><option value="aep2">AEP-2</option><option value="aep3">AEP-3</option></gr-select></gr-field>
+          </div>
+          <fieldset class="flex flex-col gap-2" [disabled]="!canEdit()">
+            <legend class="text-label-s">Categorías de peso</legend>
+            <div class="flex flex-wrap gap-2">
+              @for (c of categoriasSexo[sEdit.sexo]; track c) {
+                <button type="button" class="inline-flex h-11 min-w-16 items-center justify-center rounded-md border px-3 font-mono text-label-s" [class]="sEdit.categorias.includes(c) ? 'border-accent bg-accent-deep/30 text-text-primary' : 'border-line-subtle text-text-secondary hover:border-line-strong'" [attr.aria-pressed]="sEdit.categorias.includes(c)" (click)="alternarCategoria(c)">{{ cat(c) }}</button>
+              }
+            </div>
+            <p class="text-body-xs text-text-tertiary">{{ sEdit.categorias.length ? 'Sesión ' + (sEdit.sexo === 'F' ? 'femenina' : 'masculina') + ' ' + sEdit.categorias.map(cat).join(' / ') + ' kg' : 'Sin elegir: se usan las categorías de sus atletas.' }} Otra sesión a la misma hora puede ser del otro sexo.</p>
+          </fieldset>
           <p class="text-body-xs text-text-tertiary">Si cambias la hora y no tocas el pesaje, el pesaje se recalcula ({{ raw()?.config?.pesajeAntesMin }} min antes, {{ raw()?.config?.pesajeDuracionMin }} min).</p>
         </div>
       }
@@ -490,7 +504,9 @@ export class HorariosPage {
   protected readonly mSel = signal<{ a: SesionAtleta; desde: Sesion | null } | null>(null);
   protected mLote = 1;
   protected nuevaFecha = '';
-  protected sEdit = { dia: '', inicio: '', duracionMin: 0, pesajeInicio: '', pesajeFin: '' };
+  protected sEdit: { dia: string; inicio: string; duracionMin: number; pesajeInicio: string; pesajeFin: string; sexo: 'F' | 'M'; categorias: string[]; nivel: string } =
+    { dia: '', inicio: '', duracionMin: 0, pesajeInicio: '', pesajeFin: '', sexo: 'F', categorias: [], nivel: '' };
+  protected readonly categoriasSexo = CATEGORIAS_SEXO;
   protected dEditDia = { fecha: '', inicio: '', fin: '', puertas: '', pausaInicio: '', pausaFin: '' };
   protected notas = '';
   protected agendaDia: AgendaItem[] = [];
@@ -819,7 +835,8 @@ export class HorariosPage {
   // ---- session drawer ----
   protected abrirSesion(s: Sesion): void {
     this.sSel.set(s);
-    this.sEdit = { dia: s.dia, inicio: hora(s.inicio), duracionMin: s.duracionMin, pesajeInicio: hora(s.pesajeInicio), pesajeFin: hora(s.pesajeFin) };
+    const sexo = s.sexo === 'M' ? 'M' : 'F';
+    this.sEdit = { dia: s.dia, inicio: hora(s.inicio), duracionMin: s.duracionMin, pesajeInicio: hora(s.pesajeInicio), pesajeFin: hora(s.pesajeFin), sexo, categorias: [...(s.categorias ?? [])], nivel: s.prueba ?? '' };
     this.sesionOpen.set(true);
   }
   protected async guardarSesion(): Promise<void> {
@@ -828,11 +845,21 @@ export class HorariosPage {
     const e = this.sEdit;
     const cambiaHora = e.inicio !== hora(s.inicio) || e.dia !== s.dia;
     const pesajeTocado = e.pesajeInicio !== hora(s.pesajeInicio) || e.pesajeFin !== hora(s.pesajeFin);
-    const body = { dia: e.dia, inicio: e.inicio, duracionMin: +e.duracionMin, ...(pesajeTocado || !cambiaHora ? { pesajeInicio: e.pesajeInicio, pesajeFin: e.pesajeFin } : {}) };
+    // BIZ-202: sex and weight classes are sent when set before or changed now (otherwise they stay derived from the athletes).
+    const cambiaCats = s.sexoFijo || e.sexo !== s.sexo || e.categorias.join() !== (s.categorias ?? []).join();
+    const body = { dia: e.dia, inicio: e.inicio, duracionMin: +e.duracionMin, ...(pesajeTocado || !cambiaHora ? { pesajeInicio: e.pesajeInicio, pesajeFin: e.pesajeFin } : {}),
+      ...(cambiaCats ? { sexo: e.sexo, categorias: e.categorias } : {}), ...(e.nivel !== (s.prueba ?? '') ? { nivel: e.nivel } : {}) };
     if (await this.run(() => this.api.editarSesion(this.cid(), s.id, body), 'Sesión guardada')) {
       this.sesionOpen.set(false);
       if (e.dia !== this.dia()) this.dia.set(e.dia);
     }
+  }
+  protected cambiarSexo(sexo: 'F' | 'M'): void {
+    if (sexo !== this.sEdit.sexo) this.sEdit = { ...this.sEdit, sexo, categorias: [] }; // classes are of one sex only
+  }
+  protected alternarCategoria(c: string): void {
+    const cs = this.sEdit.categorias.includes(c) ? this.sEdit.categorias.filter((x) => x !== c) : [...this.sEdit.categorias, c];
+    this.sEdit = { ...this.sEdit, categorias: CATEGORIAS_SEXO[this.sEdit.sexo].filter((x) => cs.includes(x)) };
   }
   protected async borrarSesion(): Promise<void> {
     const s = this.sSel();
