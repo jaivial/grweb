@@ -43,9 +43,11 @@ export type BoCrumb = string | { label: string; link: string | unknown[] };
     <ng-content select="[pageTabs]" />
     <div class="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div class="flex min-w-0 flex-wrap items-center gap-3">
-        <h1 class="min-w-0 break-words" [class]="compact() ? 'text-ui-h3' : 'text-ui-h3 md:text-[28px]'">{{ title() }}</h1>
+        <div class="flex min-w-0 items-center gap-1">
+          <h1 class="min-w-0 break-words" [class]="compact() ? 'text-ui-h3' : 'text-ui-h3 md:text-[28px]'">{{ title() }}</h1>
+          <ng-content select="[titleEnd]" />
+        </div>
         @if (badge()) { <gr-badge [tone]="badgeTone()">{{ badge() }}</gr-badge> }
-        <ng-content select="[titleEnd]" />
       </div>
       <div class="flex min-w-0 flex-wrap gap-2"><ng-content select="[actions]" /></div>
     </div>

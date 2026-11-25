@@ -143,8 +143,10 @@ const cfgPorDefecto: ConfigJuegos = {
             @for (j of jornadasAbiertas(); track j.id) {
               <div class="flex flex-wrap items-center gap-3">
                 <span class="min-w-0 flex-1 truncate text-body-s text-text-secondary">{{ j.nombre }} · {{ diaCorto(j.dia) }}</span>
-                <bo-date-picker class="w-32" tipo="time" placeholder="Sin cuenta atrás" [aria-label]="'Hora de cierre de ' + j.nombre + ' (24 h)'"
-                  [disabled]="!puede()" [value]="horaCierre(j)" (valueChange)="setCierre(j, $event)" />
+                <div class="w-[210px] max-w-full">
+                  <bo-date-picker tipo="time" placeholder="Sin cuenta atrás" [aria-label]="'Hora de cierre de ' + j.nombre + ' (24 h)'"
+                    [disabled]="!puede()" [value]="horaCierre(j)" (valueChange)="setCierre(j, $event)" />
+                </div>
                 <button grButton size="s" [disabled]="!puede()" [loading]="guardandoCierre() === j.id" (click)="guardarCierre(j, horaCierre(j))">Guardar</button>
               </div>
             }
