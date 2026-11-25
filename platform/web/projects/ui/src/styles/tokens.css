@@ -190,6 +190,8 @@
   .prose-gr li + li { margin-top: 0.35em; }
   .prose-gr blockquote { border-left: 3px solid var(--color-accent); background: rgb(110 20 32 / 0.18); padding: 0.75em 1em; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
   .prose-gr table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
+  /* Phones: a wide table scrolls inside its own box instead of being cut by the column (BIZ-201 /cookies). */
+  @media (max-width: 767px) { .prose-gr table { display: block; max-width: 100%; overflow-x: auto; } }
   .prose-gr th, .prose-gr td { border-bottom: 1px solid var(--color-line-subtle); padding: 0.55em 0.75em; text-align: left; }
   .prose-gr th { color: var(--color-text-primary); font-weight: 600; }
   .prose-gr code { font-family: var(--font-mono); font-size: 0.9em; background: var(--color-bg-raised); padding: 0.1em 0.35em; border-radius: var(--radius-2xs); }
