@@ -243,6 +243,7 @@ type identidad struct {
 	Club            string    `json:"club"`
 	Instagram       string    `json:"instagram"`
 	Flight          string    `json:"flight"`
+	Prueba          string    `json:"prueba"`
 	Plataforma      *int      `json:"plataforma"`
 	PesoCorporal    *float64  `json:"pesoCorporal"`
 	Primeros        struct {

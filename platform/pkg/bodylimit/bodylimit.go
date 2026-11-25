@@ -29,6 +29,8 @@ type Rule struct {
 // Rules lists every route whose handler accepts more than Default.
 var Rules = []Rule{
 	{"athletes", http.MethodPost, "/api/admin/competiciones/*/atletas/importaciones", Import},
+	{"athletes", http.MethodPost, "/api/admin/competiciones/*/atletas/padron-aep/vista-previa", Import},
+	{"athletes", http.MethodPost, "/api/admin/competiciones/*/atletas/padron-aep/importar", Import},
 	{"athletes", http.MethodPost, "/api/area-atleta/foto", Foto},
 	{"athletes", http.MethodPost, "/api/competiciones/*/alta-atleta", Foto},
 	{"athletes", http.MethodPost, "/api/admin/competiciones/*/atletas/solicitudes/*/autorizacion", Foto},

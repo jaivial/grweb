@@ -56,6 +56,7 @@ type Identidad struct {
 	Club            string    `json:"club,omitempty"`
 	Instagram       string    `json:"instagram,omitempty"`
 	Jornada         string    `json:"jornada,omitempty"`
+	Prueba          string    `json:"prueba,omitempty" doc:"aep2, aep3 o vacío"`
 	Lote            *int      `json:"lote,omitempty"`
 	PesoCorporal    *float64  `json:"pesoCorporal,omitempty"`
 	Primeros        Marcas    `json:"primeros"`
@@ -82,7 +83,7 @@ func (s *Svc) registerOpenLifter() {
 			o := &idOut{Body: make([]Identidad, 0, len(list))}
 			for _, r := range list {
 				x := Identidad{ID: r.ID, Nombre: r.Nombre, Apellidos: r.Apellidos, Licencia: r.Licencia, Sexo: r.Sexo, Categoria: r.Categoria, Division: r.Division,
-					Club: r.Club, Instagram: r.Instagram, Jornada: r.Jornada, Lote: r.Lote, PesoCorporal: r.PesoCorporal,
+					Club: r.Club, Instagram: r.Instagram, Jornada: r.Jornada, Prueba: r.Prueba, Lote: r.Lote, PesoCorporal: r.PesoCorporal,
 					Primeros: Marcas{r.IntentoSQ, r.IntentoBP, r.IntentoDL}, RackSQ: r.RackSQ, RackBP: r.RackBP}
 				if r.Email != nil {
 					x.Email = *r.Email
