@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/jaivial/grweb/platform/pkg/app"
+	"github.com/jaivial/grweb/platform/pkg/config"
 	"github.com/jaivial/grweb/platform/pkg/db"
 )
 
@@ -76,6 +77,10 @@ var seedFigma = []seedAtleta{
 }
 
 func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
+	// Production never gets «Datos de ejemplo» athletes (deploy/limpieza/20261125-atletas-mock-prod removed them).
+	if config.Str("SERVICE_ENV", "dev") == "prod" {
+		return errors.New("seed-grcup de athletes no se ejecuta con SERVICE_ENV=prod (datos de ejemplo)")
+	}
 	s.init(a)
 	c, err := s.comps.Public(ctx, "grcup")
 	if err != nil {
