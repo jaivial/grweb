@@ -18,11 +18,14 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/events"
 )
 
-// tiposWorker is the event filter of the consumer (contract §6.4).
+// tiposWorker is the event filter of the consumer (contract §6.4). Prefix entries match every type under them
+// (`wants` compares with strings.HasPrefix): `athletes.` keeps the porra markets in sync with any change of an
+// athlete (BIZ-200: alta, edición, retirada, baja, borrado, importación), even ones added in the future.
 var tiposWorker = []string{
 	"chat.hito", "donacion.confirmada", "donacion.reembolsada",
 	"directo.intento", "directo.veredicto", "directo.correccion", "resultados.publicados",
 	"horarios.generados", "horarios.publicados", "horarios.dias",
+	"athletes.",
 }
 
 // comandoWorker runs the consumer loop; no public API, only health probes on HTTP_ADDR.
@@ -76,9 +79,13 @@ func (s *Svc) manejarEvento(sucias *sucias) events.Handler {
 		case "donacion.reembolsada":
 			return s.reembolsoDonacion(ctx, cid, e.Data)
 		case "horarios.generados", "horarios.publicados", "horarios.dias":
-			return s.reconciliarJornadas(ctx, cid) // a new or removed date: its jornada follows at once
-		default: // directo.intento | directo.veredicto | directo.correccion | resultados.publicados
-			sucias.marcar(cid)
+			if err := s.reconciliarJornadas(ctx, cid); err != nil {
+				return err // a new or removed date: its jornada follows at once
+			}
+			sucias.marcar(cid) // BIZ-200: the published plan changed the scoreboard, the markets follow
+			return nil
+		default: // directo.intento | directo.veredicto | directo.correccion | resultados.publicados | athletes.*
+			sucias.marcar(cid) // BIZ-200: any change of an athlete (alta, edición, retirada, borrado) resyncs
 			return nil
 		}
 	}
