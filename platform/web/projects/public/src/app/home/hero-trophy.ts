@@ -160,7 +160,9 @@ const PUFFS = [
     .gr-puff { background: radial-gradient(closest-side, rgb(138 138 138 / 0.2), rgb(120 120 120 / 0.16) 25%, rgb(100 100 100 / 0.09) 55%, rgb(90 90 90 / 0.03) 80%, transparent); }
     /* UX1-R1-7 / R2-2: short viewports (iPhone SE, zoom 200 %, landscape): compact intro so «Saltar intro» never sits on the text */
     @media (max-width: 767px) and (max-height: 700px) {
-      .gr-intro { top: 72px; justify-content: flex-start; padding-bottom: 0; }
+      /* BIZ-206: centred on the screen too; equal 76 px reserves (navbar / «Saltar intro») keep the true centre,
+         and «safe» falls back to the top when the text is taller than the space (zoom) so nothing is cut */
+      .gr-intro { padding-top: 76px; padding-bottom: 76px; justify-content: safe center; }
       .gr-intro > * + * { margin-top: 3svh !important; }
       .gr-intro > img:first-child { height: min(30vw, 18svh, 125px); }
     }
@@ -169,7 +171,7 @@ const PUFFS = [
       .gr-desliza { display: none; }
     }
     @media (max-height: 560px) {
-      .gr-intro { top: 64px; justify-content: flex-start; padding-bottom: 0; }
+      .gr-intro { top: 64px; justify-content: flex-start; padding-top: 0; padding-bottom: 0; }
       .gr-intro > * + * { margin-top: 12px !important; }
       .gr-intro > img:first-child { height: min(30vw, 14svh, 125px); }
       /* zoom 200 % / landscape: only logo, title and date fit above «Saltar intro»; the booking CTA stays in the navbar and the bottom bar */
