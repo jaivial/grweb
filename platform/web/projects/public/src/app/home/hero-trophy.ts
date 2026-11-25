@@ -117,7 +117,8 @@ const PUFFS = [
       <!-- Bottom fade (300 px, base) -->
       <div class="pointer-events-none absolute inset-x-0 bottom-0 h-[300px] bg-[linear-gradient(180deg,transparent,#141112)]"></div>
       <!-- Intro (Figma home R2): GRS CUP 2 logo and tagline; dates, place and organiser logos moved to «Campeonato» -->
-      <div class="gr-intro pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-5 pb-[calc(var(--gr-hero-h,100svh)*0.04)] text-center lg:pb-[calc(var(--gr-hero-h,100svh)*0.12)]" [style.opacity]="texto()">
+      <!-- BIZ-206: phones/tablets centre the logo + title on the screen (no bottom offset); the 12 % lift is for landscape desktops only -->
+      <div class="gr-intro pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-5 text-center lg:landscape:pb-[calc(var(--gr-hero-h,100svh)*0.12)]" [style.opacity]="texto()">
         <img [attr.srcset]="logoSrcset" sizes="(min-width: 768px) 318px, 201px" [src]="logo" alt="GRS Cup 2" class="h-[clamp(80px,30vw,125px)] w-auto select-none md:h-[198px]" draggable="false" fetchpriority="high" />
         @if (hero().eyebrow) { <p class="gr-intro-extra mt-10 text-label-xs tracking-[0.12em] text-accent-text uppercase">{{ hero().eyebrow }}</p> }
         <h2 class="max-w-[1000px] font-monster text-[clamp(22px,8vw,30px)] leading-[1.05] tracking-[-0.01em] uppercase [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-[56px]" [class]="hero().eyebrow ? 'mt-3' : 'mt-3 md:mt-1'">{{ titulo() || t().titulo }}</h2>
