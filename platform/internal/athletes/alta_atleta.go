@@ -205,6 +205,7 @@ type DatosAlta struct {
 	Entrenador      string          `json:"entrenador"`
 	AsignarHandler  bool            `json:"asignarHandler"` // «No tengo handler / Asignadme uno»: notified as a handler request
 	Prueba          string          `json:"prueba"`
+	Categoria       string          `json:"categoria"` // optional weight class (BIZ-211: compared with the AEP roll)
 	Frase           string          `json:"frase"`
 	Bio             string          `json:"bio"`
 	Instagram       string          `json:"instagram"`
@@ -686,11 +687,11 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 		}
 		_, err := tx.Exec(ctx, `INSERT INTO solicitudes_atleta (id, competition_id, match_atleta_id, match_tipo, licencia, nombre, apellidos, email, telefono, sexo,
 			fecha_nacimiento, club, ciudad, frase, bio, instagram, entrenador, historial, marca_sq, marca_bp, marca_dl, focal_x, focal_y, es_menor,
-			foto_clave, foto_sha256, estado, consentimientos, consentimiento_at, ip, user_agent, prueba)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,'pendiente',$27,now(),$28,$29,$30)`,
+			foto_clave, foto_sha256, estado, consentimientos, consentimiento_at, ip, user_agent, prueba, categoria)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,'pendiente',$27,now(),$28,$29,$30,$31)`,
 			id, c.ID, matchID, matchTipo, d.Licencia, d.Nombre, d.Apellidos, d.Email, d.Telefono, d.Sexo, fecha(d.FechaNacimiento),
 			d.Club, d.Ciudad, d.Frase, d.Bio, d.Instagram, d.Entrenador, d.Historial, d.MarcaSQ, d.MarcaBP, d.MarcaDL, d.FocalX, d.FocalY, menor,
-			fotoClave, fotoSHA, string(consJSON), anonIP(ip), ua, d.Prueba)
+			fotoClave, fotoSHA, string(consJSON), anonIP(ip), ua, d.Prueba, d.Categoria)
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -757,6 +758,8 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 		return nil, err
 	}
 	creada = true
+	// BIZ-211: compared with the AEP roll in the background (privacy and terms are accepted: checked above).
+	s.emparejarFondo(c.ID, id)
 	s.a.Log.Info("alta de atleta recibida", "id", id.String(), "competicion", c.ID.String(), "menor", menor, "match", matchTipo,
 		"foto", fotoClave != "", "request_id", httpx.RequestIDFrom(ctx))
 	out := &AltaOut{}
@@ -996,6 +999,7 @@ func (s *Svc) normalizaDatos(d DatosAlta) DatosAlta {
 	d.Ciudad = strings.TrimSpace(sinControl(d.Ciudad))
 	d.Entrenador = strings.TrimSpace(sinControl(d.Entrenador))
 	d.Prueba = strings.ToLower(strings.TrimSpace(d.Prueba))
+	d.Categoria = NormCategoria(sinControl(d.Categoria))
 	d.Frase = strings.TrimSpace(sinControl(d.Frase))
 	d.Bio = strings.TrimSpace(sinControl(d.Bio))
 	d.Instagram = normInstagram(d.Instagram)
@@ -1083,6 +1087,9 @@ func (s *Svc) validaDatos(d DatosAlta) []*huma.ErrorDetail {
 	}
 	if !pruebaValida(d.Prueba) {
 		add("prueba", "Elige AEP-2, AEP-3 o «Aún no lo sé».")
+	}
+	if d.Categoria != "" && (d.Sexo != "F" && d.Sexo != "M" || !categoriaValida(d.Sexo, d.Categoria)) {
+		add("categoria", "Elige una categoría de peso de tu sexo (por ejemplo -63 o +84).")
 	}
 	if len([]rune(d.Frase)) > 80 {
 		add("frase", "La frase es demasiado larga (80 caracteres como máximo).")

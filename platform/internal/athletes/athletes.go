@@ -60,6 +60,7 @@ type Svc struct {
 	cms          *svcclient.Client
 	identity     *svcclient.Client
 	openlifter   *svcclient.Client
+	ai           *svcclient.Client
 	comps        *compref.Resolver
 	cache        *cache.Cache
 	qrKey        []byte
@@ -101,6 +102,7 @@ func (s *Svc) init(a *app.App) {
 	s.cms = svcclient.New(config.Str("UPSTREAM_CMS", "http://cms:8080"), "athletes", "cms", a.Cfg.InternalToken)
 	s.identity = svcclient.New(config.Str("UPSTREAM_IDENTITY", "http://identity:8080"), "athletes", "identity", a.Cfg.InternalToken)
 	s.openlifter = svcclient.New(config.Str("UPSTREAM_OPENLIFTER", "http://openlifter:8080"), "athletes", "openlifter", a.Cfg.InternalToken)
+	s.ai = svcclient.New(config.Str("UPSTREAM_AI", "http://ai:8080"), "athletes", "ai", a.Cfg.InternalToken)
 	s.comps = compref.New(s.comp, a.Log).Versioned(a.Redis, compref.VerKey(a.Keys.Of))
 	s.cache = &cache.Cache{R: a.Redis, Prefix: a.Keys.Of("cache", "athletes", "")}
 	s.fans = &fanauth.Verifier{Key: fanauth.Key(a.Cfg.InternalToken), Redis: a.Redis, Keys: a.Keys}
@@ -143,6 +145,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerAltaAtleta()
 	s.registerHandlerGratis()
 	s.registerAltaAtletaAdmin()
+	s.registerEmparejamiento()
 	s.registerAltaCupos()
 	a.Go(s.expirador)
 	// Places changed in the backoffice (competition service): publish the new counter to the open pages.
