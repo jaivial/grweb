@@ -644,7 +644,7 @@ func (s *Svc) register() {
 							return err
 						}
 					}
-					if len(b.Meet) > 0 {
+					if nombre, _ := b.Meet["name"].(string); strings.TrimSpace(nombre) != "" { // not OpenLifter's empty «New Meet»
 						if err := guardarSetup(ctx, tx, in.CID, b.Mesa, por, b.Meet); err != nil {
 							return err
 						}
