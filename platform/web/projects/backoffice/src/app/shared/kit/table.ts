@@ -83,7 +83,7 @@ export class BoModalForm {
   selector: 'bo-filter-sheet',
   imports: [A11yModule, GrButton, GrIconButton],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '(document:keydown.escape)': 'open() && open.set(false)' },
+  host: { '(document:keydown.escape)': '!$event.defaultPrevented && open() && open.set(false)' },
   template: `
     @if (open()) {
       <div class="fixed inset-0 z-50 flex items-end bg-black/60 md:items-stretch md:justify-end" (click)="open.set(false)">
