@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import {
-  Activity, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Award, Bell, Building2, Heart, Calendar, CalendarDays, Camera, Car, Check, ChevronDown, ChevronLeft,
+  Activity, ArrowDown, ArrowLeftRight, ArrowLeft, ArrowRight, ArrowUp, Award, Bell, Building2, Heart, Calendar, CalendarDays, Camera, Car, Check, ChevronDown, ChevronLeft,
   ChevronRight, ChevronsUpDown, Dumbbell, CircleAlert, CircleCheck, CircleHelp, CircleX, Clock, DoorOpen, Download, Eye, ExternalLink, Gift, Globe,
   GripVertical, History, House, Info, KeyRound, LayoutTemplate, LoaderCircle, Lock, LogOut, Mail, MapPin, Menu, Minus, PanelLeft, Pencil, Plane, Plug,
   Plus, Pause, Play, Monitor, Copy, Save, Maximize2, Radio, RefreshCw, Scale, ScanLine, Search, Send, Settings, Shield, ShieldAlert, Smartphone, Sparkles, Star, Ticket, Trash2, Undo2, CalendarPlus,
@@ -17,7 +17,7 @@ const Instagram: IconNode = [
 
 /** Icons available in the platform (lucide, stroke 2 — Figma «Icon» / «BO / Nav icon»). */
 export const GR_ICONS = {
-  activity: Activity, 'arrow-down': ArrowDown, 'arrow-left': ArrowLeft, 'arrow-right': ArrowRight, 'arrow-up': ArrowUp, award: Award, bell: Bell,
+  activity: Activity, 'arrow-down': ArrowDown, 'arrow-left': ArrowLeft, 'arrow-left-right': ArrowLeftRight, 'arrow-right': ArrowRight, 'arrow-up': ArrowUp, award: Award, bell: Bell,
   calendar: Calendar, 'calendar-days': CalendarDays, camera: Camera, car: Car, check: Check, 'chevron-down': ChevronDown, 'chevron-left': ChevronLeft,
   'chevron-right': ChevronRight, 'chevrons-up-down': ChevronsUpDown, 'circle-alert': CircleAlert, 'circle-check': CircleCheck,
   help: CircleHelp, 'circle-x': CircleX, clock: Clock, download: Download, 'external-link': ExternalLink, gift: Gift,

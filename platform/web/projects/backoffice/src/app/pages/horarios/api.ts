@@ -9,11 +9,11 @@ export interface Directo { estado: 'programado' | 'en_curso' | 'finalizado'; ret
 /** A session (time slot) of a date: one platform, no flight letter. */
 export interface Sesion {
   id: string; prueba: string; dia: string; inicio: string; fin: string; duracionMin: number; pesajeInicio: string; pesajeFin: string;
-  titulo: string; sexo: 'F' | 'M' | 'X' | ''; atletas: SesionAtleta[]; directo: Directo; publicado: boolean; avisos: string[];
+  titulo: string; sexo: 'F' | 'M' | 'X' | ''; categorias: string[]; sexoFijo: boolean; atletas: SesionAtleta[]; directo: Directo; publicado: boolean; avisos: string[];
 }
 export interface AgendaItem { dia: string; hora: string; titulo: string; icono?: string }
 export interface Conflicto {
-  tipo: 'exceso' | 'solape' | 'solape_pesaje' | 'sexo_mixto' | 'fuera_horario' | 'pausa' | 'baja' | 'sin_sesion' | 'vacio';
+  tipo: 'exceso' | 'solape' | 'solape_pesaje' | 'sexo_mixto' | 'categoria' | 'fuera_horario' | 'pausa' | 'baja' | 'sin_sesion' | 'vacio';
   bloquea: boolean; sesionId?: string; sesion?: string; prueba?: string; titulo: string; detalle: string;
 }
 export interface VersionInfo { numero: number; prueba: string; numeroPrueba: number; estado: 'publicada' | 'sustituida' | 'retirada'; at: string; por: string; cambios: number; avisos: number; seguidores: number }
@@ -24,7 +24,13 @@ export interface Borrador {
 export interface Cambio { tipo: 'atleta' | 'sesion' | 'alta' | 'baja' | 'agenda'; titulo: string; antes: string; despues: string; atletas: number }
 export interface Diff { prueba: string; desde: number; siguiente: number; primera: boolean; cambios: Cambio[]; afectados: number; conEmail: number; seguidores: number; bloqueantes: number; atletas: number }
 export interface Publicado { version: number; prueba: string; numeroPrueba: number; cambios: number; avisos: number; seguidores: number }
-export interface SesionEdit { dia?: string; inicio?: string; duracionMin?: number; pesajeInicio?: string; pesajeFin?: string; competicion?: string }
+export interface SesionEdit { dia?: string; inicio?: string; duracionMin?: number; pesajeInicio?: string; pesajeFin?: string; competicion?: string; sexo?: 'F' | 'M'; categorias?: string[]; nivel?: string }
+
+/** BIZ-202: weight classes per sex (same lists as the backend). */
+export const CATEGORIAS_SEXO: Record<'F' | 'M', string[]> = {
+  F: ['-43', '-47', '-52', '-57', '-63', '-69', '-76', '-84', '+84'],
+  M: ['-53', '-59', '-66', '-74', '-83', '-93', '-105', '-120', '+120'],
+};
 
 /** Schedule planner API (schedule service). Every draft change sends If-Match with the revision. */
 @Injectable({ providedIn: 'root' })

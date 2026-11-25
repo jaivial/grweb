@@ -4,11 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { urlSort } from '../../shared/url-sort';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton, GrToasts, fmtNumber, fmtShortDate, type GrTone, GrSelect } from '@grcup/ui';
+import { GrAlert, GrAvatar, GrBadge, GrButton, GrIconButton, GrEmpty, GrIcon, GrKpi, GrSkeleton, GrToasts, fmtNumber, fmtShortDate, type GrTone, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { BO_ROW, BoCheckbox, BoEmptyState, BoFilterPill, BoPagination, BoSearch, BoSkeleton, BoSortHeader, BoTableToolbar } from '../../shared/kit';
+import { BO_ROW, BoCheckbox, BoEmptyState, BoSheet, BoPagination, BoSearch, BoSkeleton, BoSortHeader, BoTableToolbar, BoToggleRow } from '../../shared/kit';
 import { BoPageHeader, BoToggle, errText, BoTabsMovil, BoTabs, type BoTab } from '../../shared/ui';
 import { SolicitudesContador } from '../../core/solicitudes';
 import { AtletasApi, cat, diaFecha, type ItemLista, type Lista } from './api';
@@ -32,16 +32,14 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
 /** «Atletas» (Figma page 55 · «Atletas · lista», «casos límite», «vacío y carga»). */
 @Component({
   selector: 'bo-atletas',
-  imports: [AccionNecesariaDialogo, BoTabs, BoTabsMovil, GrSelect, FormsModule, RouterLink, A11yModule, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoFilterPill, BoSkeleton, BoEmptyState, BoCheckbox, BoSortHeader, BoToggle, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrIcon, GrKpi, GrSkeleton],
+  imports: [AccionNecesariaDialogo, BoTabs, BoTabsMovil, GrSelect, FormsModule, RouterLink, A11yModule, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSheet, BoToggleRow, BoSkeleton, BoEmptyState, BoCheckbox, BoSortHeader, BoToggle, GrAlert, GrAvatar, GrBadge, GrButton, GrIconButton, GrEmpty, GrIcon, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
     <div class="mx-auto flex max-w-[1280px] flex-col gap-6">
       <bo-page-header title="Atletas" [subtitle]="subtitulo()" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Atletas']">
-        @if (canEdit() && l?.pestanas?.todos) { <button actions grButton icon="download" [loading]="exporting()" (click)="exportar()">Exportar</button> }
-        @if (canEdit()) { <a actions grButton variant="primary" routerLink="importar">Importar acta AEP</a> }
+        @if (canEdit()) { <bo-tabs pageTabs label="Atletas" [alwaysTabs]="true" [tabs]="secciones()" /> }
       </bo-page-header>
-      @if (canEdit()) { <bo-tabs label="Atletas" [tabs]="secciones()" /> }
 
       @if (sobreaforo(); as s) {
         <gr-alert tone="warning" [title]="'Cupo superado: ' + s.confirmados + ' confirmados para ' + s.plazas + ' plazas'">Sobran {{ s.confirmados - s.plazas }}. Revisa el cupo de la AEP en Inscripción o da de baja a quien no tenga plaza.</gr-alert>
@@ -100,24 +98,34 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
             <bo-table-toolbar noun="atletas" [total]="l?.total ?? 0" [selected]="sel().size" [loading]="cargando()" [filtered]="filtrado()" (reset)="limpiar()" (clear)="limpiarSel()">
               @if (canEdit()) { <button bulk grButton variant="secondary" icon="download" [loading]="exporting()" (click)="exportar([...sel()])">Exportar selección</button> }
               @if (canEdit()) { <button bulk grButton variant="secondary" icon="send" (click)="accionIds.set([...sel()])">Pedir una acción</button> }
-              <bo-search filters class="w-full md:w-[280px]" placeholder="Buscar atleta, club o licencia…" [shortcut]="false" [value]="q()" (valueChange)="buscar($event)" [loading]="cargando() && !!q()" />
-              <gr-select filters tipo="filtro" [ngModel]="sexo()" (ngModelChange)="sexo.set($event); recargar(1)" aria-label="Sexo">
-                <option value="">Sexo</option><option value="F">Femenino</option><option value="M">Masculino</option>
+              <button filters grButton icon="filter" [attr.aria-expanded]="filtros()" aria-haspopup="dialog" (click)="filtros.set(true)">
+                Filtros @if (nFiltros()) { <span class="rounded-2xs bg-accent-deep/50 px-1.5 text-mono-xs text-accent-text">{{ nFiltros() }}</span> }
+              </button>
+              @if (canEdit()) { <button filters grIconButton icon="more" label="Más acciones" aria-haspopup="dialog" [attr.aria-expanded]="acciones()" (click)="acciones.set(true)"></button> }
+            </bo-table-toolbar>
+            <bo-sheet title="Filtrar atletas" [(open)]="filtros" [filtered]="filtrado()" (reset)="limpiar()"
+              [resultLabel]="cargando() ? 'Buscando…' : 'Ver ' + fmtNumber(l?.total ?? 0) + ' atletas'">
+              <bo-search class="w-full" placeholder="Buscar atleta, club o licencia…" [shortcut]="false" [value]="q()" (valueChange)="buscar($event)" [loading]="cargando() && !!q()" />
+              <gr-select tipo="campo" [ngModel]="sexo()" (ngModelChange)="sexo.set($event); recargar(1)" aria-label="Sexo">
+                <option value="">Sexo: todos</option><option value="F">Femenino</option><option value="M">Masculino</option>
               </gr-select>
-              <gr-select filters tipo="filtro" [ngModel]="categoria()" (ngModelChange)="categoria.set($event); recargar(1)" aria-label="Categoría">
-                <option value="">Categoría</option>
+              <gr-select tipo="campo" [ngModel]="categoria()" (ngModelChange)="categoria.set($event); recargar(1)" aria-label="Categoría">
+                <option value="">Categoría: todas</option>
                 @for (c of l?.categorias ?? []; track c) { <option [value]="c">{{ cat(c) }}</option> }
               </gr-select>
               @if (l?.jornadas?.length) {
-                <gr-select filters tipo="filtro" [ngModel]="jornada()" (ngModelChange)="jornada.set($event); recargar(1)" aria-label="Fecha">
-                  <option value="">Fecha</option>
+                <gr-select tipo="campo" [ngModel]="jornada()" (ngModelChange)="jornada.set($event); recargar(1)" aria-label="Fecha">
+                  <option value="">Fecha: todas</option>
                   @for (f of l!.jornadas; track f) { <option [value]="f">{{ diaFecha(f) }}</option> }
                 </gr-select>
               }
-              <bo-filter-pill filters label="Perfil incompleto" [count]="incompletos() ? 1 : 0" (open)="incompletos.set(!incompletos()); recargar(1)" />
-            </bo-table-toolbar>
+              <bo-toggle-row label="Perfil incompleto" description="Solo atletas con el perfil público sin completar" [value]="incompletos()" (changed)="incompletos.set($event); recargar(1)" />
+            </bo-sheet>
           } @else {
-            <h2 class="mt-2 text-ui-h5">Reserva AEP <span class="text-body-xs text-text-tertiary">· al dar de baja a un confirmado, promociona al primero</span></h2>
+            <div class="mt-2 flex items-center gap-3">
+              <h2 class="min-w-0 flex-1 text-ui-h5">Reserva AEP <span class="text-body-xs text-text-tertiary">· al dar de baja a un confirmado, promociona al primero</span></h2>
+              @if (canEdit()) { <button grIconButton icon="more" label="Más acciones" aria-haspopup="dialog" [attr.aria-expanded]="acciones()" (click)="acciones.set(true)"></button> }
+            </div>
           }
 
           <section class="rounded-lg border border-line-subtle bg-bg-card" [attr.aria-busy]="cargando()">
@@ -213,6 +221,10 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
       }
     </div>
 
+    <bo-sheet title="Acciones" [(open)]="acciones">
+      @if (lista()?.pestanas?.todos) { <button grButton icon="download" [block]="true" [loading]="exporting()" (click)="exportar()">Exportar atletas</button> }
+      <a grButton variant="primary" icon="upload" [block]="true" routerLink="importar">Importar acta AEP</a>
+    </bo-sheet>
     @if (accionIds(); as ids) {
       <bo-accion-necesaria [ids]="ids" (cerrar)="accionIds.set(null)" (enviado)="accionIds.set(null); limpiarSel()" />
     }
@@ -274,7 +286,12 @@ export class AtletasPage {
   protected readonly diaFecha = diaFecha;
   protected readonly incompletos = signal(false);
   protected readonly row = BO_ROW;
-  protected readonly filtrado = computed(() => !!(this.q() || this.sexo() || this.categoria() || this.jornada() || this.incompletos()));
+  protected readonly filtrado = computed(() => this.nFiltros() > 0);
+  /** BIZ-194: filters live in a side/bottom sheet opened from «Filtros». */
+  protected readonly filtros = signal(false);
+  /** Exportar / Importar live in the «⋯» panel. */
+  protected readonly acciones = signal(false);
+  protected readonly nFiltros = computed(() => [this.q(), this.sexo(), this.categoria(), this.jornada(), this.incompletos()].filter(Boolean).length);
   protected limpiar(): void {
     this.q.set(''); this.sexo.set(''); this.categoria.set(''); this.jornada.set(''); this.incompletos.set(false);
     void this.router.navigate([], { relativeTo: this.route, queryParams: { q: null }, queryParamsHandling: 'merge', replaceUrl: true });

@@ -166,7 +166,7 @@ func (s *Svc) registerAdmin() {
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-admin-mercados-generar", Method: http.MethodPost, Path: base + "/mercados/generar",
-		Summary: "Generar los mercados de la porra desde el marcador", Tags: tagJuegos, Security: bearer},
+		Summary: "Sincronizar los mercados de la porra con el marcador (crea los que faltan y ajusta los abiertos)", Tags: tagJuegos, Security: bearer},
 		func(ctx context.Context, in *jornadaBodyIn) (*generadosOut, error) {
 			if err := operar(ctx, in.CID); err != nil {
 				return nil, err
@@ -175,7 +175,11 @@ func (s *Svc) registerAdmin() {
 			if err != nil {
 				return nil, err
 			}
-			n, err := s.generarMercados(ctx, in.CID, *j)
+			// A closed jornada must not get (new) open markets: only abierta and en_juego change anything (S2 R#1).
+			if !j.jugable() {
+				return nil, problem.Conflict("JORNADA_NO_JUGABLE", "La jornada está cerrada: sus mercados no cambian.")
+			}
+			n, err := s.sincronizarMercados(ctx, in.CID, *j)
 			if err != nil {
 				return nil, err
 			}
@@ -233,7 +237,7 @@ func (s *Svc) registerAdmin() {
 		// back), so it still works when live does not answer.
 		m := &Marcador{}
 		if accion == "liquidar" && !devolver {
-			if m, err = s.marcador(ctx, in.CID, j.Dia); err != nil {
+			if m, _, err = s.marcador(ctx, in.CID, j.Dia); err != nil {
 				return problem.New(http.StatusServiceUnavailable, "MARCADOR_NO_DISPONIBLE", "No se pudo leer el marcador del directo. Reintenta en unos segundos.")
 			}
 		}

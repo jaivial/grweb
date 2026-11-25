@@ -95,7 +95,7 @@ export function escritorio(): Signal<boolean> {
         [class]="t === 'chat' ? 'h-[max(360px,calc(100dvh-382px))] md:h-[600px] lg:h-auto' : 'min-h-[480px] md:min-h-[600px]'">
         @switch (t) {
           @case ('chat') { @defer (on immediate) { <gr-chat-view (donar)="donar.set(true)" /> } }
-          @case ('donantes') { @defer (on immediate) { <gr-donantes-view [diaSala]="hoy" [jornadaId]="jornadaId()" (donar)="donar.set(true)" /> } }
+          @case ('donantes') { @defer (on immediate) { <gr-donantes-view [diaSala]="hoy" [jornadaId]="jornadaPorra()?.id ?? ''" (donar)="donar.set(true)" /> } }
           @case ('porra') { @defer (on immediate) { <gr-porra-view [jornadaId]="jornadaPorra()?.id ?? ''" [jornadaNombre]="jornadaPorra()?.nombre ?? ''" [cargada]="jornadasCargadas()" /> } }
           @case ('tarima') { @if (directo(); as d) { @defer (on immediate) { <gr-tarima-view class="px-4 py-4 md:px-5" [directo]="d" [conexion]="conexion()" /> } } }
         }
@@ -139,8 +139,6 @@ export class PanelSocial {
 
   /** Today (Madrid): the day of the chat room and of the games. */
   protected readonly hoy = diaDeHoy();
-  /** The jornada of today (its id is needed by the games). */
-  protected readonly jornadaId = computed(() => this.jornadas().find((j) => j.dia === this.hoy)?.id ?? '');
   /** The porra of today; without a jornada today it falls back to the open one (never a 404 «no jornada today»). */
   protected readonly jornadaPorra = computed<Jornada | undefined>(() => {
     const l = this.jornadas();

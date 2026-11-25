@@ -47,7 +47,7 @@ type atletaMercado struct {
 // mercadoFantasy lists the athletes of a jornada with clause and grade and, inside a room (salaID), the owner
 // (public alias) and the protection. Without a room every athlete shows as free.
 func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, salaID, fanID uuid.UUID) ([]atletaMercado, error) {
-	m, err := s.marcador(ctx, cid, j.Dia)
+	m, _, err := s.marcador(ctx, cid, j.Dia)
 	if err != nil {
 		// live down and no last good scoreboard: the market still lists clauses and owners, without grades or
 		// photos (ST3-R2-2), instead of failing the page.

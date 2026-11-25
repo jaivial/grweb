@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injectable, PLATFORM_ID, PendingTasks, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injectable, PLATFORM_ID, PendingTasks, afterNextRender, computed, effect, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { GrButton, GrIcon, GrLogo, LOGO, LOGO_SRCSET, srcsetLogo, CdnPipe } from '@grcup/ui';
@@ -11,6 +11,8 @@ import { I18n, LocPipe, sinPrefijo } from '../core/i18n';
 import { FanSession } from '../core/fan';
 import { Newsletter } from './newsletter';
 import { AccesoModal } from '../pages/directo-social/acceso-modal';
+import { Consentimiento } from '../core/consentimiento';
+import { CookiesBanner } from './cookies';
 
 export interface NavLink {
   label: string;
@@ -53,6 +55,7 @@ const T = {
         { label: 'En directo', desc: 'Streaming y marcador', href: '/en-directo' },
         { label: 'Sorteo', desc: 'Rifa presencial en efectivo', href: '/sorteo' },
         { label: 'Galería', desc: 'Fotos de la competición', href: '/galeria' },
+        { label: 'Cómo será', desc: 'El montaje de la GRS Cup 2', href: '/#montaje' },
       ] },
       { titulo: 'Visita y comunidad', items: [
         { label: 'Entradas', desc: 'Gratis con reserva', href: '/entradas' },
@@ -65,7 +68,7 @@ const T = {
     /** Groups of the mobile menu (Figma «Mobile menu v3»): the footer columns, shorter. */
     grupos: [
       { titulo: 'Competición', items: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },
-      { titulo: 'El campeonato', items: [{ label: 'Resultados', href: '/resultados' }, { label: 'Galería', href: '/galeria' }, { label: 'Edición 2025', href: '/ediciones/2025' }] },
+      { titulo: 'El campeonato', items: [{ label: 'Cómo será', href: '/#montaje' }, { label: 'Resultados', href: '/resultados' }, { label: 'Galería', href: '/galeria' }, { label: 'Edición 2025', href: '/ediciones/2025' }] },
       { titulo: 'Juegos', items: [{ label: 'GRS Fantasy', href: '/fantasy' }, { label: 'Porra', href: '/porra' }, { label: 'Rifa', href: '/sorteo' }] },
       { titulo: 'Visita y comunidad', items: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Blog', href: '/blog' }] },
     ] as Grupo[],
@@ -98,6 +101,7 @@ const T = {
         { label: 'Live', desc: 'Streaming and scoreboard', href: '/en-directo' },
         { label: 'Raffle', desc: 'In-person cash raffle', href: '/sorteo' },
         { label: 'Gallery', desc: 'Photos of the competition', href: '/galeria' },
+        { label: 'What it will look like', desc: 'The GRS Cup 2 set-up', href: '/#montaje' },
       ] },
       { titulo: 'Visit and community', items: [
         { label: 'Tickets', desc: 'Free with booking', href: '/entradas' },
@@ -109,7 +113,7 @@ const T = {
     ],
     grupos: [
       { titulo: 'Competition', items: [{ label: 'Weight classes', href: '/categorias-de-peso' }, { label: 'Qualifying totals', href: '/marcas-minimas' }, { label: 'Rules', href: '/reglamento' }, { label: 'Athlete sign-up', href: '/alta-atleta' }] },
-      { titulo: 'The championship', items: [{ label: 'Results', href: '/resultados' }, { label: 'Gallery', href: '/galeria' }, { label: '2025 edition', href: '/ediciones/2025' }] },
+      { titulo: 'The championship', items: [{ label: 'What it will look like', href: '/#montaje' }, { label: 'Results', href: '/resultados' }, { label: 'Gallery', href: '/galeria' }, { label: '2025 edition', href: '/ediciones/2025' }] },
       { titulo: 'Games', items: [{ label: 'GRS Fantasy', href: '/fantasy' }, { label: 'Pool', href: '/porra' }, { label: 'Raffle', href: '/sorteo' }] },
       { titulo: 'Visit and community', items: [{ label: 'Getting there', href: '/como-llegar' }, { label: 'FAQ', href: '/preguntas-frecuentes' }, { label: 'Blog', href: '/blog' }] },
     ],
@@ -140,13 +144,13 @@ const T = {
         @for (l of links(); track l.href; let i = $index) {
           <li [class]="i > 2 ? 'hidden lg:block' : ''">
             @if (i === 0) {
-              <button type="button" class="group inline-flex flex-col items-center gap-2 rounded-xs p-2 text-label-s pointer-coarse:min-h-11 text-text-secondary transition-colors hover:text-text-primary" [attr.aria-expanded]="mega()" aria-controls="mega-competicion" (click)="mega.set(!mega())">
+              <button type="button" class="group relative inline-flex items-center rounded-xs p-2 text-label-s pointer-coarse:min-h-11 text-text-secondary transition-colors hover:text-text-primary" [attr.aria-expanded]="mega()" aria-controls="mega-competicion" (click)="mega.set(!mega())">
                 <span class="inline-flex items-center gap-1">{{ l.label }}<gr-icon name="chevron-down" [size]="14" class="text-text-tertiary transition-transform" [class.rotate-180]="mega()" /></span>
-                <span class="h-0.5 w-6 rounded-[1px] bg-transparent transition-colors group-hover:bg-white/30" aria-hidden="true"></span>
+                <span class="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-[1px] bg-transparent transition-colors group-hover:bg-white/30" aria-hidden="true"></span>
               </button>
             } @else {
               <!-- Figma «Nav link»: 2 px indicator under the label (white 30 % on hover, accent on the current route) -->
-              <a [routerLink]="ruta(l.href) | loc" [fragment]="frag(l.href)" class="group inline-flex flex-col items-center justify-end gap-2 rounded-xs px-2 pt-2 pb-2 text-label-s pointer-coarse:min-h-11 transition-colors hover:text-text-primary" [class]="activo(l.href) ? 'text-text-primary' : 'text-text-secondary'" [attr.aria-current]="activo(l.href) ? 'page' : null">{{ l.label }}<span class="h-0.5 w-6 rounded-[1px] transition-colors" [class]="activo(l.href) ? 'bg-accent' : 'bg-transparent group-hover:bg-white/30'" aria-hidden="true"></span></a>
+              <a [routerLink]="ruta(l.href) | loc" [fragment]="frag(l.href)" class="group relative inline-flex items-center rounded-xs p-2 text-label-s pointer-coarse:min-h-11 transition-colors hover:text-text-primary" [class]="activo(l.href) ? 'text-text-primary' : 'text-text-secondary'" [attr.aria-current]="activo(l.href) ? 'page' : null">{{ l.label }}<span class="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-[1px] transition-colors" [class]="activo(l.href) ? 'bg-accent' : 'bg-transparent group-hover:bg-white/30'" aria-hidden="true"></span></a>
             }
           </li>
         }
@@ -165,7 +169,7 @@ const T = {
           <div class="flex w-[194px] flex-col gap-1 lg:w-[250px]">
             <p class="mb-1.5 text-label-xs text-text-muted">{{ col.titulo }}</p>
             @for (it of col.items; track it.href) {
-              <a [routerLink]="ruta(it.href) | loc" (click)="mega.set(false)" class="flex flex-col gap-1 rounded-sm p-2 transition-colors hover:bg-white/5"><span class="text-label-s">{{ it.label }}</span><span class="text-body-xs text-text-tertiary">{{ it.desc }}</span></a>
+              <a [routerLink]="ruta(it.href) | loc" [fragment]="frag(it.href)" (click)="mega.set(false)" class="flex flex-col gap-1 rounded-sm p-2 transition-colors hover:bg-white/5"><span class="text-label-s">{{ it.label }}</span><span class="text-body-xs text-text-tertiary">{{ it.desc }}</span></a>
             }
           </div>
         }
@@ -206,7 +210,7 @@ const T = {
                 @if (grupo() === gi) {
                   <ul animate.enter="gr-desplegar" class="flex flex-col gap-1">
                     @for (it of g.items; track it.href) {
-                      <li><a [routerLink]="ruta(it.href) | loc" (click)="open.set(false)" class="flex h-11 items-center justify-between rounded-sm px-3 text-body-m text-text-secondary hover:bg-white/4 hover:text-text-primary" [class.bg-white/4]="activo(it.href)" [attr.aria-current]="activo(it.href) ? 'page' : null">{{ it.label }}<gr-icon name="arrow-right" [size]="14" class="text-text-tertiary" /></a></li>
+                      <li><a [routerLink]="ruta(it.href) | loc" [fragment]="frag(it.href)" (click)="open.set(false)" class="flex h-11 items-center justify-between rounded-sm px-3 text-body-m text-text-secondary hover:bg-white/4 hover:text-text-primary" [class.bg-white/4]="activo(it.href)" [attr.aria-current]="activo(it.href) ? 'page' : null">{{ it.label }}<gr-icon name="arrow-right" [size]="14" class="text-text-tertiary" /></a></li>
                     }
                   </ul>
                 }
@@ -372,6 +376,7 @@ const FT = {
       { titulo: 'Legal', links: [{ label: 'Privacidad', href: '/privacidad' }, { label: 'Términos', href: '/terminos' }, { label: 'Consentimiento de datos', href: '/consentimiento-datos' }, { label: 'Política del concurso', href: '/politica-concurso' }] },
     ] as { titulo: string; links: NavLink[] }[],
     patrocinadores: 'Patrocinadores', derechos: 'GRStrength. Todos los derechos reservados.', stripe: 'Pagos seguros con Stripe',
+    configurarCookies: 'Configurar cookies',
     barraTitulo: 'Entrada gratuita', barraTexto: '1 minuto · aforo limitado', reservar: 'Reservar', arriba: 'Volver arriba',
   },
   en: {
@@ -383,6 +388,7 @@ const FT = {
       { titulo: 'Legal', links: [{ label: 'Privacy', href: '/privacidad' }, { label: 'Terms', href: '/terminos' }, { label: 'Data consent', href: '/consentimiento-datos' }, { label: 'Raffle terms', href: '/politica-concurso' }] },
     ],
     patrocinadores: 'Sponsors', derechos: 'GRStrength. All rights reserved.', stripe: 'Secure payments with Stripe',
+    configurarCookies: 'Cookie settings',
     barraTitulo: 'Free entry', barraTexto: '1 minute · limited capacity', reservar: 'Book', arriba: 'Back to top',
   },
 };
@@ -390,7 +396,7 @@ const FT = {
 /** Footer (Figma «Footer»). */
 @Component({
   selector: 'gr-footer',
-  imports: [CdnPipe, RouterLink, LocPipe, GrLogo, GrIcon, Newsletter, Overlays],
+  imports: [CdnPipe, RouterLink, LocPipe, GrLogo, GrIcon, Newsletter, Overlays, CookiesBanner],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block border-t border-line-subtle bg-bg-deep' },
   template: `
@@ -430,7 +436,7 @@ const FT = {
         </ul>
       }
       <div class="flex flex-col items-center gap-1 border-t border-line-subtle pt-5 text-center text-body-xs text-text-muted md:flex-row md:justify-between md:gap-3 md:text-left">
-        <p>© {{ year }} GRS Cup 2 · {{ t().derechos }} · <a [routerLink]="'/cookies' | loc" class="-my-3.5 inline-flex min-h-11 items-center hover:text-text-secondary">Cookies</a></p>
+        <p>© {{ year }} GRS Cup 2 · {{ t().derechos }} · <a [routerLink]="'/cookies' | loc" class="-my-3.5 inline-flex min-h-11 items-center hover:text-text-secondary">Cookies</a> · <button type="button" (click)="consentimiento.reabrir()" class="-my-3.5 inline-flex min-h-11 items-center hover:text-text-secondary">{{ t().configurarCookies }}</button></p>
         @if (stripe()) { <p class="inline-flex h-[29px] items-center gap-1.5 rounded-pill bg-white/5 px-3 text-text-tertiary"><gr-icon name="lock" [size]="12" />{{ t().stripe }}</p> }
       </div>
     </div>
@@ -447,11 +453,16 @@ const FT = {
       <!-- UX1-R1-4: iOS pattern - only while scrolling back up, past three screens -->
       <button type="button" (click)="arriba()" [attr.aria-label]="t().arriba" class="fixed right-4 bottom-[calc(84px+env(safe-area-inset-bottom))] z-40 flex size-11 items-center justify-center rounded-full border border-line-strong bg-bg-raised shadow-card transition-opacity duration-200 md:hidden" [class.opacity-0]="!fab()" [class.pointer-events-none]="!fab()" [attr.inert]="!fab() || null"><gr-icon name="arrow-up" [size]="20" /></button>
     }
+    <!-- BIZ-201: cookie banner on every page (the home renders its own, merged with the BIZ-178 notice) -->
+    @if (cookies() && consentimiento.pendiente()) { <gr-cookies [sobreBarra]="barra()" /> }
     <!-- Modal de acceso al directo y avisos: una sola instancia en toda la web -->
     <gr-overlays />
   `,
 })
 export class Footer {
+  /** Renders the site-wide cookie banner (false on the home, which merges it with its own notice). */
+  readonly cookies = input(true);
+  protected readonly consentimiento = inject(Consentimiento);
   private readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(FT);
   private readonly seo = inject(Seo);
@@ -491,6 +502,7 @@ export class Footer {
     void inject(PendingTasks).run(() => this.comp.load());
     // Sponsor logos are decoration: a failure must never turn the page into an error.
     void firstValueFrom(this.http.get<Patrocinador[]>(`/api/competiciones/${COMPETITION_SLUG}/patrocinadores`)).then((l) => this.logos.set(l ?? []), () => undefined);
+    afterNextRender(() => this.consentimiento.cargar());
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       this.url.set(this.router.url);
       const sub = this.router.events.subscribe(() => { this.url.set(this.router.url); setTimeout(onScroll); });

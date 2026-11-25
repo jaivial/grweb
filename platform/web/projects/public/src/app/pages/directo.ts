@@ -1,4 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
+import { VideoConsentido } from '../layout/cookies';
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -103,7 +104,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
  *  provisional ranking) and finished (replay, results, previous edition). */
 @Component({
   selector: 'gr-en-directo',
-  imports: [RouterLink, LocPipe, Page, GrAlert, GrIcon, GrSkeleton, Related, Community, PanelSocial, TarimaView],
+  imports: [RouterLink, LocPipe, Page, GrAlert, GrIcon, GrSkeleton, Related, Community, PanelSocial, TarimaView, VideoConsentido],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page title="GRS Cup 2" [accent]="t().enDirecto" [section]="t().seccion" [crumb]="t().crumb" [cabecera]="false">
@@ -119,7 +120,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
           <!-- Figma 27 mobile: the video full width right under the navbar, then the title -->
           <section class="relative -mx-5 mt-1.5 h-[218px] overflow-hidden md:h-auto md:aspect-video border-y border-line-subtle bg-black md:mx-0 md:mt-0 md:rounded-xl md:border lg:col-start-1 lg:row-start-1" [attr.aria-label]="t().retransmision">
             @if (video(); as v) {
-              <iframe [src]="v" class="absolute inset-0 size-full border-0" [title]="t().iframe" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+              <gr-video-consentido [src]="v" [titulo]="t().iframe" />
             } @else {
               <!-- Figma «Video»: the full venue as the poster (bright while live, dimmed before and after) -->
               <img [src]="poster" [attr.srcset]="poster + ' 640w, ' + posterL + ' 1300w'" sizes="(min-width: 1024px) 800px, 100vw" alt="Tarima de la GRS Cup 2" class="absolute inset-0 size-full object-cover" [class.opacity-50]="d.fase !== 'en_directo'" />

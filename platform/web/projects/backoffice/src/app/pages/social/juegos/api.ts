@@ -34,6 +34,7 @@ export interface Mercado {
   bote: number;
   apuestas: number;
   ganador?: string[];
+  devuelto?: boolean;
 }
 
 export interface FilaPorra {
@@ -128,10 +129,6 @@ export class JuegosApi {
 
   jornada(cid: string, jid: string, cambios: { nombre?: string; estado?: EstadoJornada; horaCierre?: string }): Promise<void> {
     return firstValueFrom(this.http.patch<void>(`${this.b(cid)}/jornadas/${jid}`, cambios));
-  }
-
-  generarMercados(cid: string, jornada: string): Promise<{ creados: number }> {
-    return firstValueFrom(this.http.post<{ creados: number }>(`${this.b(cid)}/mercados/generar`, { jornada }));
   }
 
   cerrarMercado(cid: string, mid: string): Promise<void> {

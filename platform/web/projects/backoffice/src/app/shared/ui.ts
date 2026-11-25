@@ -40,9 +40,13 @@ export type BoCrumb = string | { label: string; link: string | unknown[] };
         </nav>
       </div>
     }
+    <ng-content select="[pageTabs]" />
     <div class="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div class="flex min-w-0 flex-wrap items-center gap-3">
-        <h1 class="min-w-0 break-words" [class]="compact() ? 'text-ui-h3' : 'text-ui-h3 md:text-[28px]'">{{ title() }}</h1>
+        <div class="flex min-w-0 items-center gap-1">
+          <h1 class="min-w-0 break-words" [class]="compact() ? 'text-ui-h3' : 'text-ui-h3 md:text-[28px]'">{{ title() }}</h1>
+          <ng-content select="[titleEnd]" />
+        </div>
         @if (badge()) { <gr-badge [tone]="badgeTone()">{{ badge() }}</gr-badge> }
       </div>
       <div class="flex min-w-0 flex-wrap gap-2"><ng-content select="[actions]" /></div>
@@ -85,21 +89,24 @@ const etiquetaTab = (t: { label: string; count?: number | null }) => (t.count !=
 
 /**
  * Router tabs with optional counters (Figma «BO / Tab»). Desktop (≥ 768 px): a tab row (wraps, never scrolls sideways).
- * Phones: a selector («Sección: Reservas ▾») that opens the bottom sheet of `gr-select`.
+ * Phones: a selector («Sección: Reservas ▾») that opens the bottom sheet of `gr-select`, unless `alwaysTabs` (few
+ * tabs): then the row shows at every width, the tabs sharing it equally on phones.
  */
 @Component({
   selector: 'bo-tabs',
   imports: [RouterLink, RouterLinkActive, GrSelect],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'block md:border-b md:border-line-subtle' },
+  host: { class: 'block border-line-subtle md:border-b', '[class.border-b]': 'alwaysTabs()' },
   template: `
-    <gr-select class="w-full md:hidden" [aria-label]="label()" [value]="activa()" (valorChange)="ir($event)">
-      @for (t of tabs(); track t.path) { <option [value]="t.path">{{ etiqueta(t) }}</option> }
-    </gr-select>
-    <nav class="hidden flex-wrap gap-1 md:flex" [attr.aria-label]="label()">
+    @if (!alwaysTabs()) {
+      <gr-select class="w-full md:hidden" [aria-label]="label()" [value]="activa()" (valorChange)="ir($event)">
+        @for (t of tabs(); track t.path) { <option [value]="t.path">{{ etiqueta(t) }}</option> }
+      </gr-select>
+    }
+    <nav class="flex-wrap gap-1 md:flex" [class]="alwaysTabs() ? 'grid auto-cols-fr grid-flow-col md:flex' : 'hidden'" [attr.aria-label]="label()">
       @for (t of tabs(); track t.path) {
         <a [routerLink]="t.path" routerLinkActive #a="routerLinkActive" [routerLinkActiveOptions]="{ exact: !!t.exact }" [attr.aria-current]="a.isActive ? 'page' : null"
-          class="${TAB}" [class]="a.isActive ? '${TAB_ON}' : '${TAB_OFF}'">
+          class="${TAB} justify-center md:justify-start" [class]="a.isActive ? '${TAB_ON}' : '${TAB_OFF}'">
           {{ t.label }}
           @if (t.count !== undefined && t.count !== null) {
             <span class="text-mono-xs" [class]="a.isActive ? 'text-accent-text' : 'text-text-tertiary'">{{ t.count }}</span>
@@ -113,6 +120,8 @@ const etiquetaTab = (t: { label: string; count?: number | null }) => (t.count !=
 export class BoTabs {
   readonly tabs = input.required<BoTab[]>();
   readonly label = input('Sección');
+  /** Show the tab row on phones too (no selector). */
+  readonly alwaysTabs = input(false);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly url = toSignal(this.router.events.pipe(filter((e) => e instanceof NavigationEnd), map(() => this.router.url)), { initialValue: this.router.url });
@@ -196,12 +205,14 @@ export interface BoTabOpcion { value: string; label: string; count?: number | nu
   selector: 'bo-tab-bar',
   imports: [GrSelect],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'block md:border-b md:border-line-subtle' },
+  host: { class: 'block border-line-subtle md:border-b', '[class.border-b]': 'alwaysTabs()' },
   template: `
-    <gr-select class="w-full md:hidden" [aria-label]="label()" [value]="value()" (valorChange)="value.set($event)">
-      @for (t of tabs(); track t.value) { <option [value]="t.value" [disabled]="t.disabled">{{ etiqueta(t) }}</option> }
-    </gr-select>
-    <div class="hidden flex-wrap gap-1 md:flex" role="tablist" [attr.aria-label]="label()">
+    @if (!alwaysTabs()) {
+      <gr-select class="w-full md:hidden" [aria-label]="label()" [value]="value()" (valorChange)="value.set($event)">
+        @for (t of tabs(); track t.value) { <option [value]="t.value" [disabled]="t.disabled">{{ etiqueta(t) }}</option> }
+      </gr-select>
+    }
+    <div class="flex-wrap gap-1 md:flex" [class]="alwaysTabs() ? 'grid auto-cols-fr grid-flow-col md:flex' : 'hidden'" role="tablist" [attr.aria-label]="label()">
       @for (t of tabs(); track t.value) {
         <button type="button" role="tab" [attr.aria-selected]="t.value === value()" [disabled]="t.disabled" (click)="value.set(t.value)"
           class="${TAB} disabled:opacity-40" [class]="t.value === value() ? '${TAB_ON}' : '${TAB_OFF}'">
@@ -217,6 +228,8 @@ export class BoTabBar {
   readonly tabs = input.required<BoTabOpcion[]>();
   readonly value = model.required<string>();
   readonly label = input('Sección');
+  /** Show the tab row on phones too (no selector), for a few short tabs. */
+  readonly alwaysTabs = input(false);
   protected readonly etiqueta = etiquetaTab;
 }
 
@@ -249,7 +262,7 @@ export class BoToggle {
   selector: 'bo-drawer',
   imports: [A11yModule, GrIconButton, GrBadge],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '(document:keydown.escape)': 'open() && close()' },
+  host: { '(document:keydown.escape)': 'onEscape()' },
   template: `
     @if (open()) {
       <div class="fixed inset-0 z-40 bg-black/60" (click)="close()"></div>
@@ -277,6 +290,8 @@ export class BoDrawer {
   close(): void {
     this.open.set(false);
   }
+  // void on purpose: a listener expression that returns false calls preventDefault() and blocks other Escape handlers
+  protected onEscape(): void { if (this.open()) this.close(); }
 }
 
 export interface ConfirmRequest {

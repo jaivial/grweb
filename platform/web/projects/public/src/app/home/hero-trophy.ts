@@ -117,7 +117,8 @@ const PUFFS = [
       <!-- Bottom fade (300 px, base) -->
       <div class="pointer-events-none absolute inset-x-0 bottom-0 h-[300px] bg-[linear-gradient(180deg,transparent,#141112)]"></div>
       <!-- Intro (Figma home R2): GRS CUP 2 logo and tagline; dates, place and organiser logos moved to «Campeonato» -->
-      <div class="gr-intro pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-5 pb-[calc(var(--gr-hero-h,100svh)*0.04+var(--gr-sobre-h,0px))] text-center lg:pb-[calc(var(--gr-hero-h,100svh)*0.12)]" [style.opacity]="texto()">
+      <!-- BIZ-206: phones/tablets centre the logo + title on the screen (no bottom offset); the 12 % lift is for landscape desktops only -->
+      <div class="gr-intro pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-5 text-center lg:landscape:pb-[calc(var(--gr-hero-h,100svh)*0.12)]" [style.opacity]="texto()">
         <img [attr.srcset]="logoSrcset" sizes="(min-width: 768px) 318px, 201px" [src]="logo" alt="GRS Cup 2" class="h-[clamp(80px,30vw,125px)] w-auto select-none md:h-[198px]" draggable="false" fetchpriority="high" />
         @if (hero().eyebrow) { <p class="gr-intro-extra mt-10 text-label-xs tracking-[0.12em] text-accent-text uppercase">{{ hero().eyebrow }}</p> }
         <h2 class="max-w-[1000px] font-monster text-[clamp(22px,8vw,30px)] leading-[1.05] tracking-[-0.01em] uppercase [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-[56px]" [class]="hero().eyebrow ? 'mt-3' : 'mt-3 md:mt-1'">{{ titulo() || t().titulo }}</h2>
@@ -126,11 +127,11 @@ const PUFFS = [
         }
       </div>
       @if (!reduced()) {
-        <div class="gr-desliza absolute inset-x-0 bottom-[calc(110px+var(--gr-sobre-h,0px))] flex flex-col items-center gap-2 text-label-xs text-text-tertiary transition-opacity duration-500 md:inset-x-auto md:bottom-9 md:bottom-[calc(36px+var(--gr-sobre-h,0px))] md:left-[120px] md:h-11 md:flex-row" [style.opacity]="pista()">
+        <div class="gr-desliza absolute inset-x-0 bottom-[110px] flex flex-col items-center gap-2 text-label-xs text-text-tertiary transition-opacity duration-500 md:inset-x-auto md:bottom-9 md:left-[120px] md:h-11 md:flex-row" [style.opacity]="pista()">
           {{ t().desliza }}<gr-icon name="arrow-down" [size]="18" class="animate-bounce text-text-muted [animation-iteration-count:3]" />
         </div>
         <button type="button" (click)="skip()" [class.invisible]="finished()"
-          class="absolute bottom-[calc(24px+max(env(safe-area-inset-bottom),var(--gr-sobre-h,0px)))] left-1/2 inline-flex h-11 -translate-x-1/2 items-center gap-2 rounded-pill border border-white/15 bg-[rgb(44_40_41/0.85)] px-4 text-label-s hover:border-white/30 md:right-[120px] md:bottom-[calc(36px+var(--gr-sobre-h,0px))] md:left-auto md:translate-x-0">
+          class="absolute bottom-[calc(24px+env(safe-area-inset-bottom))] left-1/2 inline-flex h-11 -translate-x-1/2 items-center gap-2 rounded-pill border border-white/15 bg-[rgb(44_40_41/0.85)] px-4 text-label-s hover:border-white/30 md:right-[120px] md:bottom-9 md:left-auto md:translate-x-0">
           {{ t().saltar }}<gr-icon name="arrow-down" [size]="16" />
         </button>
         <!-- «Hero preload»: trophy icon and download progress until the first video seek completes -->
@@ -159,7 +160,9 @@ const PUFFS = [
     .gr-puff { background: radial-gradient(closest-side, rgb(138 138 138 / 0.2), rgb(120 120 120 / 0.16) 25%, rgb(100 100 100 / 0.09) 55%, rgb(90 90 90 / 0.03) 80%, transparent); }
     /* UX1-R1-7 / R2-2: short viewports (iPhone SE, zoom 200 %, landscape): compact intro so «Saltar intro» never sits on the text */
     @media (max-width: 767px) and (max-height: 700px) {
-      .gr-intro { top: 72px; justify-content: flex-start; padding-bottom: 0; }
+      /* BIZ-206: centred on the screen too; equal 76 px reserves (navbar / «Saltar intro») keep the true centre,
+         and «safe» falls back to the top when the text is taller than the space (zoom) so nothing is cut */
+      .gr-intro { padding-top: 76px; padding-bottom: 76px; justify-content: safe center; }
       .gr-intro > * + * { margin-top: 3svh !important; }
       .gr-intro > img:first-child { height: min(30vw, 18svh, 125px); }
     }
@@ -168,7 +171,7 @@ const PUFFS = [
       .gr-desliza { display: none; }
     }
     @media (max-height: 560px) {
-      .gr-intro { top: 64px; justify-content: flex-start; padding-bottom: 0; }
+      .gr-intro { top: 64px; justify-content: flex-start; padding-top: 0; padding-bottom: 0; }
       .gr-intro > * + * { margin-top: 12px !important; }
       .gr-intro > img:first-child { height: min(30vw, 14svh, 125px); }
       /* zoom 200 % / landscape: only logo, title and date fit above «Saltar intro»; the booking CTA stays in the navbar and the bottom bar */
@@ -335,7 +338,25 @@ export class HeroTrophy {
       const opts = { passive: true } as const;
       window.addEventListener('scroll', this.wake, opts);
       window.addEventListener('resize', this.wake, opts);
+      // F-R13-01: a router link to an anchor of this page (mega menu «Cómo será» → /#montaje) while the intro is still on
+      // screen, or to the fragment already in the URL (same-URL navigation: no router scroll), goes straight to the
+      // section like «Saltar intro». Runs after RouterLink's handler (it prevents the default); menus close on that click.
+      const alAncla = (ev: MouseEvent) => {
+        const a = (ev.target as Element | null)?.closest?.('a[href*="#"]') as HTMLAnchorElement | null;
+        if (!a || !ev.defaultPrevented || a.target || a.pathname !== location.pathname || !a.hash) return;
+        const id = decodeURIComponent(a.hash.slice(1));
+        requestAnimationFrame(() => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          const margen = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
+          if (this.finished() && Math.abs(el.getBoundingClientRect().top - margen) < 2) return;
+          this.saltar = true;
+          el.scrollIntoView({ behavior: this.reduced() || !this.finished() ? 'instant' : 'smooth' });
+        });
+      };
+      document.addEventListener('click', alAncla);
       destroy.onDestroy(() => {
+        document.removeEventListener('click', alAncla);
         window.removeEventListener('scroll', this.wake);
         window.removeEventListener('resize', this.wake);
       });

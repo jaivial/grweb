@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { fmtNumber, type GrTone, GrAlert, GrAvatar, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
 import { Auth } from '../../core/auth';
@@ -9,7 +9,7 @@ import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { urlSort } from '../../shared/url-sort';
 import { BO_ROW, BoMenu, type BoMenuItem, BoCapacityMeter, BoCheckbox, BoModalForm, BoSessionCard, type BoSesion, BoSortHeader, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoTableToolbar, BoDatePicker } from '../../shared/kit';
-import { BoDrawer, BoPageHeader, BoTabs, BoToggle, type BoTab, Confirm, errText, BoTablaMovil } from '../../shared/ui';
+import { BoDrawer, BoPageHeader, BoTabs, BoToggle, type BoCrumb, type BoTab, Confirm, errText, BoTablaMovil } from '../../shared/ui';
 import { problemOf } from '../../core/api';
 import {
   ESTADO_ENTRADA, ESTADO_SESION, EntradasApi, RESULTADO, aLocal, deLocal, diaHora, diaMes, fechaCorta, hora,
@@ -37,7 +37,7 @@ const ORDEN_RESERVAS = ['titular', 'codigo', 'sesion', 'personas', 'estado', 'fe
   template: `
     @let r = resumen();
     <div class="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
-      <bo-page-header [class.max-md:hidden]="tab() === 'reservas'" title="Entradas y aforo" [subtitle]="r ? n(r.reservas) + ' reservas · ' + n(r.personas) + ' personas · ' + n(r.plazas) + ' plazas en ' + r.sesiones.length + ' sesiones' : ''" [crumbs]="[comps.current()?.nombreCorto || '', 'Público', 'Entradas y aforo']">
+      <bo-page-header title="Entradas y aforo" [subtitle]="r ? n(r.reservas) + ' reservas · ' + n(r.personas) + ' personas · ' + n(r.plazas) + ' plazas en ' + r.sesiones.length + ' sesiones' : ''" [crumbs]="crumbs()">
         @if (canEdit()) {
           <ng-container actions>
             <button grButton icon="download" (click)="exportar()">Exportar CSV</button>
@@ -285,6 +285,7 @@ export class EntradasPage {
   private readonly toasts = inject(GrToasts);
   private readonly confirm = inject(Confirm);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   protected readonly comps = inject(Competitions);
   protected readonly est = ESTADO_SESION;
   protected readonly estE = ESTADO_ENTRADA;
@@ -333,6 +334,8 @@ export class EntradasPage {
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((p) => {
       const q = p.get('q') ?? '';
       if (this.tab() === 'reservas' && q !== (this.f().q ?? '')) this.filtrar({ q });
+      const sesion = p.get('sesion') ?? '';
+      if (this.tab() === 'reservas' && sesion !== (this.f().sesion ?? '')) this.filtrar({ sesion });
     });
     effect(() => {
       if (!this.cid()) return;
@@ -360,6 +363,17 @@ export class EntradasPage {
   protected readonly tabsNav = computed<BoTab[]>(() => {
     const p = this.resumen()?.pestanas as Record<string, number> | undefined;
     return this.tabs.map((t) => ({ label: t.label, path: this.ruta(t.v).join('/').replace(/^\/\//, '/'), exact: t.v === 'sesiones', count: t.v !== 'ajustes' && p ? p[t.v] : null }));
+  });
+  /** Migas: en una pestaña que no es «Sesiones» o en las reservas de una sesión, enlazan al nivel anterior (flecha atrás). */
+  protected readonly crumbs = computed<BoCrumb[]>(() => {
+    const base: BoCrumb[] = [this.comps.current()?.nombreCorto || '', 'Público'];
+    const t = this.tab();
+    if (t === 'sesiones') return [...base, 'Entradas y aforo'];
+    const label = this.tabs.find((x) => x.v === t)!.label;
+    const id = t === 'reservas' ? this.f().sesion : '';
+    const entradas = { label: 'Entradas y aforo', link: this.ruta('sesiones') };
+    if (!id) return [...base, entradas, label];
+    return [...base, entradas, { label, link: this.ruta('reservas') }, this.resumen()?.sesiones.find((x) => x.id === id)?.nombre ?? 'Sesión'];
   });
   protected ruta(t: Tab): string[] {
     return ['/', this.comps.current()?.slug ?? '', 'entradas', ...(t === 'sesiones' ? [] : [t])];
@@ -457,13 +471,14 @@ export class EntradasPage {
     this.filtrar({});
   }
   protected filtrar(p: Partial<{ sesion: string; estado: string; origen: string; q: string; pagina: number }>, reset = true): void {
+    if (p.sesion !== undefined && p.sesion !== (this.f().sesion ?? ''))
+      void this.router.navigate([], { relativeTo: this.route, queryParams: { sesion: p.sesion || null }, queryParamsHandling: 'merge', replaceUrl: true });
     this.f.set({ ...this.f(), ...p, ...(reset ? { pagina: 1 } : {}) });
     clearTimeout(this.t);
     this.t = setTimeout(() => void this.cargarLista(), p.q !== undefined ? 250 : 0);
   }
   protected verReservas(id: string): void {
-    this.tab.set('reservas');
-    this.filtrar({ sesion: id });
+    void this.router.navigate(this.ruta('reservas'), { queryParams: { sesion: id } });
   }
   protected limpiarSel(): void {
     this.sel.set(new Set());

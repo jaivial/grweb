@@ -44,7 +44,7 @@ var errEmpezada = problem.Conflict("SALA_EMPEZADA", "La jornada ya ha empezado: 
 
 // atletasDelDia counts the athletes of the day (the scoreboard, or what was already synced if it is down or empty).
 func (s *Svc) atletasDelDia(ctx context.Context, cid uuid.UUID, j jornada) int {
-	if m, err := s.marcador(ctx, cid, j.Dia); err == nil && len(m.Atletas) > 0 {
+	if m, _, err := s.marcador(ctx, cid, j.Dia); err == nil && len(m.Atletas) > 0 {
 		return len(m.Atletas)
 	}
 	var n int

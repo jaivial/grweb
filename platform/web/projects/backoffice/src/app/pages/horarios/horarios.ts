@@ -9,11 +9,11 @@ import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrI
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
-import { BoDatePicker } from '../../shared/kit';
+import { BoDatePicker, BoSheet } from '../../shared/kit';
 import { BoDrawer, BoPageHeader, BoTabBar, BoToggle, Confirm, errText, type BoTabOpcion } from '../../shared/ui';
 import { tabEnUrl } from '../../shared/tab-url';
 import {
-  HorariosApi, cat, diaCorto, diaLargo, hora, kg, nombrePrueba, pruebaDeDia,
+  CATEGORIAS_SEXO, HorariosApi, cat, diaCorto, diaLargo, hora, kg, nombrePrueba, pruebaDeDia,
   type AgendaItem, type Borrador, type Config, type Diff, type Sesion, type SesionAtleta, type VersionInfo,
 } from './api';
 
@@ -42,7 +42,7 @@ const diaSiguiente = (f: string) => {
  */
 @Component({
   selector: 'bo-horarios',
-  imports: [FormsModule, RouterLink, DatePipe, A11yModule, CdkDropListGroup, CdkDropList, CdkDrag, CdkDragHandle, BoPageHeader, BoDrawer, BoToggle, BoTabBar, BoDatePicker,
+  imports: [FormsModule, RouterLink, DatePipe, A11yModule, CdkDropListGroup, CdkDropList, CdkDrag, CdkDragHandle, BoPageHeader, BoDrawer, BoToggle, BoTabBar, BoDatePicker, BoSheet,
     GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, GrSkeleton, GrSpinner],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
@@ -54,10 +54,10 @@ const diaSiguiente = (f: string) => {
   template: `
     @let b = raw();
     <div class="mx-auto flex w-full max-w-[1200px] min-w-0 flex-col gap-5 pb-24">
-      <bo-page-header title="Horarios" [subtitle]="subtitulo()" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Horarios']" [badge]="estado().label" [badgeTone]="estado().tone">
+      <bo-page-header title="Horarios" [subtitle]="escritorio() ? subtitulo() : ''" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Horarios']" [badge]="estado().label" [badgeTone]="estado().tone">
         @if (b) {
           <ng-container actions>
-            <button grButton variant="ghost" icon="history" (click)="abrirHistorial()">Historial</button>
+            @if (escritorio()) { <button grButton variant="ghost" icon="history" (click)="abrirHistorial()">Historial</button> }
             <button grButton icon="eye" (click)="preview.set(true)" [disabled]="!dia()">Vista previa</button>
             @if (canEdit()) {
               <button grButton variant="primary" icon="send" (click)="abrirPublicar()" [disabled]="!b.sesiones.length || (b.publicado && !b.cambiosSinPublicar)">Publicar v{{ siguiente() }}</button>
@@ -89,17 +89,21 @@ const diaSiguiente = (f: string) => {
         <!-- Dates: one tab per date (phones: selector) + «Nueva fecha» -->
         <div class="flex min-w-0 flex-col gap-2 md:flex-row md:items-end">
           <bo-tab-bar class="min-w-0 flex-1" label="Fecha" [tabs]="tabs()" [value]="dia()" (valueChange)="elegirDia($event)" />
-          @if (canEdit()) { <button grButton variant="ghost" icon="plus" class="self-start md:self-auto" (click)="abrirNueva()">Nueva fecha</button> }
+          @if (canEdit() && escritorio()) { <button grButton variant="ghost" icon="plus" class="self-start md:self-auto" (click)="abrirNueva()">Nueva fecha</button> }
         </div>
 
-        <!-- Toolbar: wraps, never scrolls sideways -->
+        <!-- Toolbar: wraps, never scrolls sideways; tablet/phone: summary and actions in the «Ajustes» sheet -->
         <div class="flex flex-wrap items-center gap-2">
-          @if (canEdit() && dia()) {
-            @if (puedeGenerar()) { <button grButton icon="zap" (click)="generar()">Generar sesiones</button> }
-            <button grButton variant="ghost" icon="plus" (click)="nuevaSesion()">Sesión</button>
+          @if (escritorio()) {
+            @if (canEdit() && dia()) {
+              @if (puedeGenerar()) { <button grButton icon="zap" (click)="generar()">Generar sesiones</button> }
+              <button grButton variant="ghost" icon="plus" (click)="nuevaSesion()">Sesión</button>
+            }
+          } @else {
+            <button grButton variant="ghost" icon="settings" aria-haspopup="dialog" (click)="ajustesOpen.set(true)">Ajustes</button>
           }
           <button grButton variant="ghost" icon="filter" [attr.aria-expanded]="filtrosOpen()" aria-controls="h-filtros" (click)="filtrosOpen.set(!filtrosOpen())">Filtros{{ nFiltros() ? ' · ' + nFiltros() : '' }}</button>
-          @if (dia()) { <button grButton variant="ghost" icon="settings" (click)="abrirDia()">Ajustes de la fecha</button> }
+          @if (dia() && escritorio()) { <button grButton variant="ghost" icon="settings" (click)="abrirDia()">Ajustes de la fecha</button> }
         </div>
 
         @if (filtrosOpen()) {
@@ -107,7 +111,7 @@ const diaSiguiente = (f: string) => {
             <gr-field label="Buscar" for="f-q"><input grInput id="f-q" type="search" placeholder="Nombre o club" [ngModel]="q()" (ngModelChange)="q.set($event)" /></gr-field>
             <gr-field label="Sexo" for="f-s"><gr-select id="f-s" [ngModel]="fSexo()" (ngModelChange)="fSexo.set($event)"><option value="">Todos</option><option value="F">Femenino</option><option value="M">Masculino</option></gr-select></gr-field>
             <gr-field label="Categoría" for="f-c"><gr-select id="f-c" [ngModel]="fCat()" (ngModelChange)="fCat.set($event)"><option value="">Todas</option>@for (c of categorias(); track c) { <option [value]="c">{{ c }}</option> }</gr-select></gr-field>
-            <gr-field label="Competición" for="f-p"><gr-select id="f-p" [ngModel]="fPrueba()" (ngModelChange)="fPrueba.set($event)"><option value="">Todas</option><option value="aep2">AEP-2</option><option value="aep3">AEP-3</option><option value="-">Sin competición</option></gr-select></gr-field>
+            <gr-field label="Competición" for="f-p"><gr-select id="f-p" [ngModel]="fPrueba()" (ngModelChange)="fPrueba.set($event)"><option value="">Todas</option><option value="aep1">AEP-1</option><option value="aep2">AEP-2</option><option value="aep3">AEP-3</option><option value="-">Sin competición</option></gr-select></gr-field>
             @if (nFiltros()) {
               <p class="flex flex-wrap items-center gap-2 text-body-xs text-text-tertiary sm:col-span-2 lg:col-span-4">Con filtros no se puede arrastrar (el orden de salida es de toda la sesión): usa «Mover».
                 <button type="button" class="inline-flex h-11 items-center text-label-s text-accent-text hover:underline" (click)="limpiarFiltros()">Quitar filtros</button></p>
@@ -126,7 +130,7 @@ const diaSiguiente = (f: string) => {
                       <li cdkDrag [cdkDragData]="a" class="flex min-h-12 items-center gap-2 rounded-md border border-line-subtle bg-bg-card px-2 py-1">
                         <span cdkDragHandle class="hidden cursor-grab text-text-muted sm:block"><gr-icon name="grip" [size]="16" /></span>
                         <span class="min-w-0 flex-1"><span class="block truncate text-label-s">{{ a.nombre }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ a.sexo }} {{ cat(a.categoria) }}{{ a.prueba ? ' · ' + nombrePrueba(a.prueba) : '' }}{{ a.totalPrevisto ? ' · tot. prev. ' + kg(a.totalPrevisto) : '' }}</span></span>
-                        @if (canEdit()) { <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" [attr.aria-label]="'Mover a ' + a.nombre" (click)="abrirMover(a, null)"><gr-icon name="arrow-right" [size]="16" /></button> }
+                        @if (canEdit()) { <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" [attr.aria-label]="'Mover a ' + a.nombre" (click)="abrirMover(a, null)"><gr-icon name="arrow-left-right" [size]="16" /></button> }
                       </li>
                     }
                   </ul>
@@ -137,15 +141,13 @@ const diaSiguiente = (f: string) => {
                 <section [id]="'sesion-' + f.id" class="rounded-lg border bg-bg-card p-3" [class]="bloquea(f) ? 'border-warning/70' : 'border-line-subtle'" [attr.aria-label]="'Sesión de las ' + hora(f.inicio)">
                   <header class="flex items-start gap-3">
                     <button type="button" class="flex min-w-0 flex-1 items-start gap-3 text-left" [attr.aria-expanded]="!plegada(f)" (click)="plegar(f)">
-                      <span class="font-mono text-ui-h4 text-accent-text">{{ hora(f.inicio) }}</span>
-                      <span class="min-w-0 flex-1">
-                        <span class="block text-label-m">{{ tituloCorto(f.titulo) }}{{ f.prueba ? ' · ' + nombrePrueba(f.prueba) : '' }}</span>
-                        <span class="block text-body-xs text-text-tertiary"><span [class.text-accent-text]="activos(f) > b.config.maxPorSesion">{{ activos(f) }} atletas</span> · pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }} · hasta ~{{ hora(f.fin) }}</span>
-                      </span>
+                      <span class="font-mono text-ui-h4 text-text-primary">{{ hora(f.inicio) }}</span>
+                      <span class="min-w-0 flex-1 text-label-m">{{ tituloCorto(f.titulo) }}{{ f.prueba ? ' · ' + nombrePrueba(f.prueba) : '' }}</span>
                       <gr-icon [name]="plegada(f) ? 'chevron-down' : 'chevron-up'" [size]="18" class="mt-1 shrink-0 text-text-tertiary" />
                     </button>
                     <button grIconButton icon="pencil" [label]="'Editar la sesión de las ' + hora(f.inicio)" (click)="abrirSesion(f)"></button>
                   </header>
+                  <div class="mt-1 text-body-xs text-text-tertiary"><span [class.text-accent-text]="activos(f) > b.config.maxPorSesion">{{ activos(f) }} {{ activos(f) === 1 ? 'atleta' : 'atletas' }}</span> · pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }} · hasta ~{{ hora(f.fin) }}</div>
                   @for (a of f.avisos.slice(0, 2); track a) { <p class="mt-2 flex items-start gap-1.5 text-body-xs text-warning"><gr-icon name="triangle-alert" [size]="12" class="mt-0.5 shrink-0" />{{ a }}</p> }
                   @if (!plegada(f)) {
                     <ol class="lista mt-3 flex min-h-14 flex-col gap-1.5" cdkDropList [cdkDropListData]="lista(f)" (cdkDropListDropped)="drop($event)" [cdkDropListDisabled]="!canEdit() || !!nFiltros()" [attr.aria-label]="'Atletas de la sesión de las ' + hora(f.inicio)">
@@ -157,7 +159,7 @@ const diaSiguiente = (f: string) => {
                             <span class="block truncate text-label-s" [class.line-through]="a.baja">{{ a.nombre }}</span>
                             <span class="block truncate text-body-xs text-text-tertiary">{{ a.baja ? 'Ya no está confirmado: se quitará al publicar' : cat(a.categoria) + (a.totalPrevisto ? ' · tot. prev. ' + kg(a.totalPrevisto) : '') + (a.club ? ' · ' + a.club : '') }}</span>
                           </span>
-                          @if (canEdit() && !a.baja) { <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" [attr.aria-label]="'Mover a ' + a.nombre" (click)="abrirMover(a, f)"><gr-icon name="arrow-right" [size]="16" /></button> }
+                          @if (canEdit() && !a.baja) { <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" [attr.aria-label]="'Mover a ' + a.nombre" (click)="abrirMover(a, f)"><gr-icon name="arrow-left-right" [size]="16" /></button> }
                         </li>
                       } @empty {
                         <li class="rounded-md border border-dashed border-line-strong px-3 py-6 text-center text-body-xs text-text-tertiary">{{ nFiltros() ? 'Ningún atleta coincide con los filtros.' : 'Suelta aquí atletas' }}</li>
@@ -303,6 +305,20 @@ const diaSiguiente = (f: string) => {
             <gr-field label="Pesaje desde" for="s-pi"><bo-date-picker id="s-pi" tipo="time" [(ngModel)]="sEdit.pesajeInicio" [borrable]="false" [disabled]="!canEdit()" aria-label="Pesaje desde" /></gr-field>
             <gr-field label="Pesaje hasta" for="s-pf"><bo-date-picker id="s-pf" tipo="time" [(ngModel)]="sEdit.pesajeFin" [borrable]="false" [disabled]="!canEdit()" aria-label="Pesaje hasta" /></gr-field>
           </div>
+          <!-- BIZ-202: one sex per session, several weight classes of that sex, AEP level -->
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <gr-field label="Sexo" for="s-sexo"><gr-select id="s-sexo" [ngModel]="sEdit.sexo" (ngModelChange)="cambiarSexo($event)" [disabled]="!canEdit()"><option value="F">Femenino</option><option value="M">Masculino</option></gr-select></gr-field>
+            <gr-field label="Nivel" for="s-nivel"><gr-select id="s-nivel" [(ngModel)]="sEdit.nivel" [disabled]="!canEdit()"><option value="">Sin competición</option><option value="aep1">AEP-1</option><option value="aep2">AEP-2</option><option value="aep3">AEP-3</option></gr-select></gr-field>
+          </div>
+          <fieldset class="flex flex-col gap-2" [disabled]="!canEdit()">
+            <legend class="text-label-s">Categorías de peso</legend>
+            <div class="flex flex-wrap gap-2">
+              @for (c of categoriasSexo[sEdit.sexo]; track c) {
+                <button type="button" class="inline-flex h-11 min-w-16 items-center justify-center rounded-md border px-3 font-mono text-label-s" [class]="sEdit.categorias.includes(c) ? 'border-accent bg-accent-deep/30 text-text-primary' : 'border-line-subtle text-text-secondary hover:border-line-strong'" [attr.aria-pressed]="sEdit.categorias.includes(c)" (click)="alternarCategoria(c)">{{ cat(c) }}</button>
+              }
+            </div>
+            <p class="text-body-xs text-text-tertiary">{{ sEdit.categorias.length ? 'Sesión ' + (sEdit.sexo === 'F' ? 'femenina' : 'masculina') + ' ' + sEdit.categorias.map(cat).join(' / ') + ' kg.' : 'Sin elegir: se usan las categorías de sus atletas.' }} Otra sesión a la misma hora puede ser del otro sexo.</p>
+          </fieldset>
           <p class="text-body-xs text-text-tertiary">Si cambias la hora y no tocas el pesaje, el pesaje se recalcula ({{ raw()?.config?.pesajeAntesMin }} min antes, {{ raw()?.config?.pesajeDuracionMin }} min).</p>
         </div>
       }
@@ -393,6 +409,25 @@ const diaSiguiente = (f: string) => {
       }
     </bo-drawer>
 
+    <!-- Tablet/phone: summary, actions and history (bottom sheet on phones, side sheet ≥768 px) -->
+    <bo-sheet title="Ajustes" [(open)]="ajustesOpen">
+      <bo-tab-bar label="Ajustes" [alwaysTabs]="true" [tabs]="ajustesTabs" [(value)]="ajustesTab" />
+      @switch (ajustesTab()) {
+        @case ('resumen') { <p class="text-body-s text-text-secondary">{{ subtitulo() }}</p> }
+        @case ('acciones') {
+          <div class="flex flex-col gap-2">
+            @if (canEdit()) { <button grButton variant="ghost" icon="plus" (click)="ajustesOpen.set(false); abrirNueva()">Nueva fecha</button> }
+            @if (canEdit() && dia()) {
+              @if (puedeGenerar()) { <button grButton icon="zap" (click)="ajustesOpen.set(false); generar()">Generar sesiones</button> }
+              <button grButton variant="ghost" icon="plus" (click)="ajustesOpen.set(false); nuevaSesion()">Sesión</button>
+            }
+            @if (dia()) { <button grButton variant="ghost" icon="settings" (click)="ajustesOpen.set(false); abrirDia()">Ajustes de la fecha</button> }
+          </div>
+        }
+        @case ('historial') { <button grButton variant="ghost" icon="history" (click)="ajustesOpen.set(false); abrirHistorial()">Historial</button> }
+      }
+    </bo-sheet>
+
     <bo-drawer [(open)]="historialOpen" title="Historial de versiones">
       <ul class="flex flex-col gap-2">
         @for (v of versiones(); track v.numero) {
@@ -454,6 +489,10 @@ export class HorariosPage {
   protected readonly sesionOpen = signal(false);
   protected readonly moverOpen = signal(false);
   protected readonly historialOpen = signal(false);
+  protected readonly escritorio = signal(typeof matchMedia === 'undefined' || matchMedia('(min-width: 1024px)').matches);
+  protected readonly ajustesOpen = signal(false);
+  protected readonly ajustesTab = signal('resumen');
+  protected readonly ajustesTabs: BoTabOpcion[] = [{ value: 'resumen', label: 'Resumen' }, { value: 'acciones', label: 'Acciones' }, { value: 'historial', label: 'Historial' }];
   protected readonly preview = signal(false);
   protected readonly filtrosOpen = signal(false);
   protected readonly q = signal('');
@@ -465,7 +504,10 @@ export class HorariosPage {
   protected readonly mSel = signal<{ a: SesionAtleta; desde: Sesion | null } | null>(null);
   protected mLote = 1;
   protected nuevaFecha = '';
-  protected sEdit = { dia: '', inicio: '', duracionMin: 0, pesajeInicio: '', pesajeFin: '' };
+  protected sEdit: { dia: string; inicio: string; duracionMin: number; pesajeInicio: string; pesajeFin: string; sexo: 'F' | 'M'; categorias: string[]; nivel: string } =
+    { dia: '', inicio: '', duracionMin: 0, pesajeInicio: '', pesajeFin: '', sexo: 'F', categorias: [], nivel: '' };
+  protected readonly categoriasSexo = CATEGORIAS_SEXO;
+  private sIni = { sexo: 'F', categorias: '' };
   protected dEditDia = { fecha: '', inicio: '', fin: '', puertas: '', pausaInicio: '', pausaFin: '' };
   protected notas = '';
   protected agendaDia: AgendaItem[] = [];
@@ -561,6 +603,13 @@ export class HorariosPage {
       }
     });
     inject(DestroyRef).onDestroy(() => sub.unsubscribe());
+    const mq = typeof matchMedia === 'undefined' ? null : matchMedia('(min-width: 1024px)');
+    const alCambiar = () => {
+      this.escritorio.set(!!mq?.matches);
+      if (mq?.matches) this.ajustesOpen.set(false);
+    };
+    mq?.addEventListener('change', alCambiar);
+    inject(DestroyRef).onDestroy(() => mq?.removeEventListener('change', alCambiar));
   }
 
   protected async cargar(): Promise<void> {
@@ -787,7 +836,12 @@ export class HorariosPage {
   // ---- session drawer ----
   protected abrirSesion(s: Sesion): void {
     this.sSel.set(s);
-    this.sEdit = { dia: s.dia, inicio: hora(s.inicio), duracionMin: s.duracionMin, pesajeInicio: hora(s.pesajeInicio), pesajeFin: hora(s.pesajeFin) };
+    const sexo = s.sexo === 'M' ? 'M' : 'F';
+    // BIZ-202 QA: without its own classes, preselect the ones of its athletes (what the title shows).
+    const propias = s.sexoFijo && s.categorias?.length ? s.categorias : s.atletas.filter((a) => !a.baja && a.sexo === sexo).map((a) => a.categoria);
+    const categorias = CATEGORIAS_SEXO[sexo].filter((c) => propias.includes(c));
+    this.sIni = { sexo, categorias: categorias.join() };
+    this.sEdit = { dia: s.dia, inicio: hora(s.inicio), duracionMin: s.duracionMin, pesajeInicio: hora(s.pesajeInicio), pesajeFin: hora(s.pesajeFin), sexo, categorias, nivel: s.prueba ?? '' };
     this.sesionOpen.set(true);
   }
   protected async guardarSesion(): Promise<void> {
@@ -796,11 +850,21 @@ export class HorariosPage {
     const e = this.sEdit;
     const cambiaHora = e.inicio !== hora(s.inicio) || e.dia !== s.dia;
     const pesajeTocado = e.pesajeInicio !== hora(s.pesajeInicio) || e.pesajeFin !== hora(s.pesajeFin);
-    const body = { dia: e.dia, inicio: e.inicio, duracionMin: +e.duracionMin, ...(pesajeTocado || !cambiaHora ? { pesajeInicio: e.pesajeInicio, pesajeFin: e.pesajeFin } : {}) };
+    // BIZ-202: sex and weight classes are sent when set before or changed now (otherwise they stay derived from the athletes).
+    const cambiaCats = s.sexoFijo || e.sexo !== this.sIni.sexo || e.categorias.join() !== this.sIni.categorias;
+    const body = { dia: e.dia, inicio: e.inicio, duracionMin: +e.duracionMin, ...(pesajeTocado || !cambiaHora ? { pesajeInicio: e.pesajeInicio, pesajeFin: e.pesajeFin } : {}),
+      ...(cambiaCats ? { sexo: e.sexo, categorias: e.categorias } : {}), ...(e.nivel !== (s.prueba ?? '') ? { nivel: e.nivel } : {}) };
     if (await this.run(() => this.api.editarSesion(this.cid(), s.id, body), 'Sesión guardada')) {
       this.sesionOpen.set(false);
       if (e.dia !== this.dia()) this.dia.set(e.dia);
     }
+  }
+  protected cambiarSexo(sexo: 'F' | 'M'): void {
+    if (sexo !== this.sEdit.sexo) this.sEdit = { ...this.sEdit, sexo, categorias: [] }; // classes are of one sex only
+  }
+  protected alternarCategoria(c: string): void {
+    const cs = this.sEdit.categorias.includes(c) ? this.sEdit.categorias.filter((x) => x !== c) : [...this.sEdit.categorias, c];
+    this.sEdit = { ...this.sEdit, categorias: CATEGORIAS_SEXO[this.sEdit.sexo].filter((x) => cs.includes(x)) };
   }
   protected async borrarSesion(): Promise<void> {
     const s = this.sSel();

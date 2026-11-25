@@ -18,11 +18,14 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/events"
 )
 
-// tiposWorker is the event filter of the consumer (contract §6.4).
+// tiposWorker is the event filter of the consumer (contract §6.4). Prefix entries match every type under them
+// (`wants` compares with strings.HasPrefix): `athletes.` keeps the porra markets in sync with any change of an
+// athlete (BIZ-200: alta, edición, retirada, baja, borrado, importación), even ones added in the future.
 var tiposWorker = []string{
 	"chat.hito", "donacion.confirmada", "donacion.reembolsada",
 	"directo.intento", "directo.veredicto", "directo.correccion", "resultados.publicados",
 	"horarios.generados", "horarios.publicados", "horarios.dias",
+	"athletes.",
 }
 
 // comandoWorker runs the consumer loop; no public API, only health probes on HTTP_ADDR.
@@ -36,11 +39,18 @@ func (s *Svc) comandoWorker(ctx context.Context, a *app.App, _ []string) error {
 	return ctx.Err()
 }
 
+// tardiaPlan: `live` caches the competition plan for 15 s and nothing invalidates it when an athlete changes, so
+// the sync right after the event may still read the old plan. A second pass this much later re-reads it fresh
+// (BIZ-200 R2-4: the markets follow an athlete change in ~1 s or, if the plan cache was warm, ~16-17 s).
+const tardiaPlan = 16 * time.Second
+
 // sucias coalesces the live events of a competition: many events per second end in one scoreboard reload per
 // jornada (contract §6.4: «como mucho una recarga por segundo y jornada»). The debounce loop polls every second.
+// The `tardias` are the second passes: competitions whose plan cache needs to be re-read after 16 s.
 type sucias struct {
-	mu sync.Mutex
-	m  map[uuid.UUID]int
+	mu      sync.Mutex
+	m       map[uuid.UUID]int
+	tardias map[uuid.UUID]time.Time
 }
 
 func (x *sucias) marcar(cid uuid.UUID) {
@@ -51,12 +61,50 @@ func (x *sucias) marcar(cid uuid.UUID) {
 	x.mu.Unlock()
 }
 
+// marcarTardia schedules one second pass of a competition ~16 s after the event, when the plan cache of `live`
+// has expired (BIZ-200 R2-4). The earliest request wins: one pass per burst of events.
+func (x *sucias) marcarTardia(cid uuid.UUID) {
+	x.mu.Lock()
+	t, ok := x.tardias[cid]
+	if !ok || time.Now().Add(tardiaPlan).Before(t) {
+		if x.tardias == nil {
+			x.tardias = map[uuid.UUID]time.Time{}
+		}
+		x.tardias[cid] = time.Now().Add(tardiaPlan)
+	}
+	x.mu.Unlock()
+}
+
+// reintentar puts a failed competition back in the queue keeping its retry count, so the `n < 10` cap of despacho
+// actually stops a persistently failing sync (BIZ-200 R2-S2: marcar alone reset the count to 0 every tick).
+func (x *sucias) reintentar(cid uuid.UUID, n int) {
+	x.mu.Lock()
+	x.m[cid] = n + 1
+	x.mu.Unlock()
+}
+
 // tomar returns and clears the pending competitions.
 func (x *sucias) tomar() map[uuid.UUID]int {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	out := x.m
 	x.m = map[uuid.UUID]int{}
+	return out
+}
+
+// tomarTardias returns the competitions whose second pass is due (and clears them).
+func (x *sucias) tomarTardias() []uuid.UUID {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	now := time.Now()
+	var out []uuid.UUID
+	for cid, t := range x.tardias {
+		if now.Before(t) {
+			continue
+		}
+		out = append(out, cid)
+		delete(x.tardias, cid)
+	}
 	return out
 }
 
@@ -76,9 +124,15 @@ func (s *Svc) manejarEvento(sucias *sucias) events.Handler {
 		case "donacion.reembolsada":
 			return s.reembolsoDonacion(ctx, cid, e.Data)
 		case "horarios.generados", "horarios.publicados", "horarios.dias":
-			return s.reconciliarJornadas(ctx, cid) // a new or removed date: its jornada follows at once
-		default: // directo.intento | directo.veredicto | directo.correccion | resultados.publicados
-			sucias.marcar(cid)
+			if err := s.reconciliarJornadas(ctx, cid); err != nil {
+				return err // a new or removed date: its jornada follows at once
+			}
+			sucias.marcar(cid)       // BIZ-200: the published plan changed the scoreboard, the markets follow
+			sucias.marcarTardia(cid) // BIZ-200 R2-4: second pass once the plan cache of live has expired
+			return nil
+		default: // directo.intento | directo.veredicto | directo.correccion | resultados.publicados | athletes.*
+			sucias.marcar(cid)       // BIZ-200: any change of an athlete (alta, edición, retirada, borrado) resyncs
+			sucias.marcarTardia(cid) // BIZ-200 R2-4: the plan of live may still be 15 s old right after the event
 			return nil
 		}
 	}
@@ -95,12 +149,15 @@ func (s *Svc) despacho(ctx context.Context, sucias *sucias) {
 			return
 		case <-t.C:
 		}
+		for _, cid := range sucias.tomarTardias() {
+			sucias.marcar(cid) // due second passes (BIZ-200 R2-4) join the debounced queue of this same tick
+		}
 		for cid, n := range sucias.tomar() {
 			if err := s.sincronizarActiva(ctx, cid); err != nil {
 				if ctx.Err() == nil {
 					s.a.Log.Warn("sincronización del marcador", "cid", cid, "err", err)
 					if n < 10 {
-						sucias.marcar(cid) // retry on the next tick; the reconciler is the last resort
+						sucias.reintentar(cid, n) // retry on the next tick; the reconciler is the last resort
 					}
 				}
 				continue
@@ -112,13 +169,25 @@ func (s *Svc) despacho(ctx context.Context, sucias *sucias) {
 	}
 }
 
-// sincronizarActiva applies the scoreboard to the active jornada of a competition (no active jornada: nothing).
+// sincronizarActiva applies the scoreboard to the active jornada of a competition and keeps the markets of every
+// other open jornada in step with the marcador of its own day (BIZ-200 R2-3: a future jornada the staff already
+// opened also builds and maintains its markets before its day arrives). A failure of those other days is logged
+// (one line per day inside) but does not fail the whole sync nor skips the classification event of today; the
+// reconciler retries them every 30 s (BIZ-200 R2-S2).
 func (s *Svc) sincronizarActiva(ctx context.Context, cid uuid.UUID) error {
 	j, err := s.jornadaActiva(ctx, s.a.DB, cid)
-	if err != nil || j == nil {
+	if err != nil {
 		return err
 	}
-	return s.sincronizar(ctx, cid, *j)
+	if j != nil {
+		if err := s.sincronizar(ctx, cid, *j); err != nil {
+			return err
+		}
+	}
+	if err := s.sincronizarMercadosAbiertas(ctx, cid, j); err != nil && ctx.Err() == nil {
+		s.a.Log.Warn("mercados de las jornadas abiertas", "cid", cid, "err", err)
+	}
+	return nil
 }
 
 // jornadaActiva: dia = today (Europe/Madrid) with estado abierta or en_juego (contract §2).
@@ -214,9 +283,17 @@ func (s *Svc) reconciler(ctx context.Context) {
 			}
 		}
 		rows.Close()
+		vistas := map[uuid.UUID]bool{}
 		for _, j := range js {
 			if err := s.sincronizar(ctx, j.CompetitionID, j); err != nil && ctx.Err() == nil {
 				s.a.Log.Warn("reconciliación del marcador", "cid", j.CompetitionID, "err", err)
+			}
+			// BIZ-200 R2-3: the markets of the other open jornadas (days to come) follow their own marcador too.
+			if !vistas[j.CompetitionID] {
+				vistas[j.CompetitionID] = true
+				if err := s.sincronizarMercadosAbiertas(ctx, j.CompetitionID, &j); err != nil && ctx.Err() == nil {
+					s.a.Log.Warn("mercados de las jornadas abiertas", "cid", j.CompetitionID, "err", err)
+				}
 			}
 			// BIZ-143: the first session of the day starts the rooms (at most 30 s late; the endpoints already
 			// refuse room changes from the exact minute).
@@ -224,6 +301,30 @@ func (s *Svc) reconciler(ctx context.Context) {
 				if err := s.iniciarSalas(ctx, j.CompetitionID, j); err != nil && ctx.Err() == nil {
 					s.a.Log.Warn("inicio de las salas", "cid", j.CompetitionID, "err", err)
 				}
+			}
+		}
+		// BIZ-200 R2-3: competitions without a jornada today but with an open one of another day (a future day
+		// the staff already opened) keep their markets in step here too. The rows are collected first (R2-S4):
+		// syncing with the rows open would hold a second connection of the pool.
+		rows, err = s.a.DB.Query(ctx, selJornada+` FROM jornadas
+			WHERE estado IN ('abierta','en_juego') AND dia <> (now() AT TIME ZONE 'Europe/Madrid')::date ORDER BY id`)
+		if err != nil {
+			continue
+		}
+		var futuras []jornada
+		for rows.Next() {
+			if j, err := scanJornada(rows); err == nil {
+				futuras = append(futuras, j)
+			}
+		}
+		rows.Close()
+		for _, j := range futuras {
+			if vistas[j.CompetitionID] {
+				continue // its markets were already synced above with today's pass
+			}
+			vistas[j.CompetitionID] = true
+			if err := s.sincronizarMercadosAbiertas(ctx, j.CompetitionID, nil); err != nil && ctx.Err() == nil {
+				s.a.Log.Warn("mercados de las jornadas abiertas", "cid", j.CompetitionID, "err", err)
 			}
 		}
 	}

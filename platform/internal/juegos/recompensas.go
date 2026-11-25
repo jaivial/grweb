@@ -39,7 +39,7 @@ func decodificar[D any](e json.RawMessage) (*D, error) {
 }
 
 // jornadaParaEvento finds the jornada of a reward: the one of the event day when it is playable, else the active
-// one of today (Europe/Madrid). nil when there is none: the chat answers that no reward is credited (contract §2).
+// one of today (Europe/Madrid), else the next open one. nil when there is none: the chat answers that no reward is credited (contract §2).
 func (s *Svc) jornadaParaEvento(ctx context.Context, q querier, cid uuid.UUID, dia string) (*jornada, error) {
 	sel := func(where string, args ...any) (*jornada, error) {
 		j, err := scanJornada(q.QueryRow(ctx, selJornada+" FROM jornadas WHERE "+where, args...))
@@ -53,7 +53,9 @@ func (s *Svc) jornadaParaEvento(ctx context.Context, q querier, cid uuid.UUID, d
 			return j, nil
 		}
 	}
-	j, err := sel(`competition_id = $1 AND estado IN ('abierta','en_juego') AND dia = (now() AT TIME ZONE 'Europe/Madrid')::date`, cid)
+	// BIZ-203: before the competition, the next jornada the staff already opened collects the rewards.
+	j, err := sel(`competition_id = $1 AND estado IN ('abierta','en_juego') AND dia >= (now() AT TIME ZONE 'Europe/Madrid')::date
+		ORDER BY dia LIMIT 1`, cid)
 	if err != nil {
 		return nil, nil // no active jornada: nothing is credited
 	}

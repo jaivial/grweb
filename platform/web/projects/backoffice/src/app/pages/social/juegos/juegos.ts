@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrIcon, GrIconButton, GrKpi, GrToasts, type GrTone } from '@grcup/ui';
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
+import { Realtime } from '../../../core/realtime';
 import { BoPageHeader, Confirm, errText } from '../../../shared/ui';
 import { SoCard, SoPuesto, SoSkelFilas, SoSkelKpis, compacto, diaCorto, num } from '../ui';
 import { JuegosApi, type Clasificaciones, type EstadoJornada, type Jornada, type Mercado } from './api';
@@ -21,6 +22,9 @@ const MERCADO: Record<Mercado['estado'], { l: string; tone: GrTone; grupo: strin
   liquidado: { l: 'Liquidado', tone: 'info', grupo: 'LIQUIDADOS', punto: 'bg-info' },
 };
 
+/** Liquidado sin ganador (o anulado por el staff): el bote volvió a las apuestas. */
+const ANULADO = { l: 'Anulado', tone: 'neutral' as GrTone };
+
 const MONEDAS = new Intl.NumberFormat('es-ES');
 
 /**
@@ -38,12 +42,11 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
         [subtitle]="subtitulo()" [crumbs]="[comps.current()?.nombreCorto || '', 'Directo social', 'Juegos']">
         <ng-container actions>
           <a grButton icon="sliders" [routerLink]="['/', comps.current()?.slug, 'juegos', 'config']">Configuración</a>
-          <button grButton variant="primary" icon="zap" [loading]="ocupado()" [disabled]="!sel() || !puede()" (click)="generarMercados()">Generar mercados</button>
         </ng-container>
       </bo-page-header>
 
       @if (!puede()) {
-        <gr-alert tone="warning" title="Tu rol no puede gestionar los juegos">Hace falta el permiso «directo.operar». Puedes ver las jornadas y las clasificaciones, pero los botones de generar, cerrar y liquidar quedan desactivados.
+        <gr-alert tone="warning" title="Tu rol no puede gestionar los juegos">Hace falta el permiso «directo.operar». Puedes ver las jornadas y las clasificaciones, pero los botones de cerrar y liquidar quedan desactivados.
           <a alertAction [routerLink]="['/', comps.current()?.slug, 'equipo']" class="mt-2 inline-flex items-center gap-1 text-label-s hover:underline">Pedir acceso a un admin <gr-icon name="arrow-right" [size]="14" /></a>
         </gr-alert>
       }
@@ -117,9 +120,7 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
           <div class="flex min-w-0 flex-col gap-6">
             <so-card [titulo]="'Mercados de porra · ' + (sel()?.nombre || '—')" ayuda="El cierre es automático con el primer intento juzgado (§6.2) · cerrar, liquidar y anular a mano quedan auditados">
               @if (!mercados().length) {
-                <gr-empty icon="zap" title="No hay mercados" text="Genéralos desde el marcador de la jornada para que se pueda apostar.">
-                  <button grButton variant="primary" icon="zap" [loading]="ocupado()" [disabled]="!puede() || !sel()" (click)="generarMercados()">Generar mercados</button>
-                </gr-empty>
+                <gr-empty icon="zap" title="No hay mercados" text="Los mercados se crean y se actualizan solos con los atletas aprobados." />
               } @else {
                 @for (g of grupos(); track g.estado) {
                   <div class="flex flex-col gap-2">
@@ -147,7 +148,7 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
                                 <button grButton size="s" variant="primary" icon="circle-check" [disabled]="!puede()" (click)="liquidar(m)">Liquidar</button>
                                 <button grIconButton icon="undo" [label]="'Anular y devolver ' + m.titulo" [disabled]="!puede()" (click)="devolver(m)"></button>
                               } @else {
-                                <span class="text-body-xs text-text-muted">Bote repartido</span>
+                                <span class="text-body-xs text-text-muted">{{ m.devuelto ? 'Devuelto' : 'Bote repartido' }}</span>
                               }
                             </div>
                           </div>
@@ -208,9 +209,10 @@ export class JuegosPage {
   protected readonly cargando = signal(true);
   protected readonly ocupado = signal(false);
   protected readonly error = signal('');
+  private t: ReturnType<typeof setTimeout> | undefined;
 
   protected readonly est = (e: EstadoJornada) => ESTADOS[e];
-  protected readonly mer = (m: Mercado) => MERCADO[m.estado];
+  protected readonly mer = (m: Mercado) => (m.estado === 'liquidado' && m.devuelto ? ANULADO : MERCADO[m.estado]);
   protected readonly fmt = (v: number) => MONEDAS.format(v);
   protected readonly num = num;
   protected readonly diaCorto = diaCorto;
@@ -242,7 +244,7 @@ export class JuegosPage {
       .filter((g) => g.items.length),
   );
   protected readonly apuestas = computed(() => this.mercados().reduce((a, m) => a + m.apuestas, 0));
-  protected readonly bote = computed(() => compacto(this.mercados().reduce((a, m) => a + m.bote, 0)));
+  protected readonly bote = computed(() => compacto(this.mercados().reduce((a, m) => a + (m.devuelto ? 0 : m.bote), 0)));
   protected readonly monedas = computed(() => {
     const p = this.clasif().porra.reduce((a, f) => a + f.saldo, 0);
     const f = this.clasif().fantasy.reduce((a, x) => a + (x.lider?.saldo ?? 0), 0);
@@ -254,6 +256,15 @@ export class JuegosPage {
       const cid = this.cid();
       if (!cid) return;
       untracked(() => void this.cargar());
+    });
+    const sub = inject(Realtime).events.subscribe((e) => {
+      if (!e.tipo.startsWith('porra.') || !this.seleccionada()) return;
+      clearTimeout(this.t);
+      this.t = setTimeout(() => void this.cargarJornada(this.seleccionada()), 500);
+    });
+    inject(DestroyRef).onDestroy(() => {
+      clearTimeout(this.t);
+      sub.unsubscribe();
     });
   }
 
@@ -339,28 +350,6 @@ export class JuegosPage {
       await this.cargarJornada(j.id);
     } catch (e) {
       this.toasts.error(errText(e, 'No se pudo cambiar el estado.'));
-    } finally {
-      this.ocupado.set(false);
-    }
-  }
-
-  protected async generarMercados(): Promise<void> {
-    const cid = this.cid();
-    const j = this.sel();
-    if (!cid || !j) return;
-    const ok = await this.confirm.ask({
-      title: '¿Generar los mercados?',
-      text: `Se crean los mercados de porra de «${j.nombre}» desde el marcador de la jornada (categorías, IPF GL y movimientos).`,
-      confirm: 'Generar',
-    });
-    if (!ok) return;
-    this.ocupado.set(true);
-    try {
-      const r = await this.api.generarMercados(cid, j.id);
-      this.toasts.success(`${r.creados} mercados generados`);
-      await this.cargarJornada(j.id);
-    } catch (e) {
-      this.toasts.error(errText(e, 'No se pudieron generar los mercados.'));
     } finally {
       this.ocupado.set(false);
     }

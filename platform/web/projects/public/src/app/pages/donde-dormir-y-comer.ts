@@ -1,6 +1,6 @@
 import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, PendingTasks, inject } from '@angular/core';
-import { GrButton, GrIcon, type GrIconName, CdnPipe } from '@grcup/ui';
+import { GrButton, GrIcon, type GrIconName, cdn } from '@grcup/ui';
 import { Cms } from '../core/cms';
 import { I18n, LocPipe, type Lang } from '../core/i18n';
 import { Seo } from '../core/seo';
@@ -8,6 +8,7 @@ import { GrCabecera } from '../home/bloques';
 import { Page } from '../layout/page';
 import { applySeo } from './content';
 import { Related, type RelatedLink } from './landings';
+import { Sitios } from './sitios';
 
 /** A place of the guide: the lists below are data, change them there (no BO yet: see SeccionVisita/LugarVisita). */
 export interface Sitio {
@@ -30,6 +31,8 @@ export interface Sitio {
   logo?: string;
   /** Logo is light (white/grey): paint its panel dark (#141112) instead of white. */
   logoClaro?: boolean;
+  /** Version of a dark logo for black panels (/como-llegar paints every logo on black). */
+  logoOscuro?: string;
   /** Exact Google Maps link (overrides the search built by mapaDe). */
   maps?: string;
   descripcion?: string;
@@ -57,7 +60,7 @@ export function detalleDe(s: Sitio, lang: Lang): string {
 const T = {
   es: {
     titulo: 'Alojamientos cerca', acento: 'del pabellón', visita: 'Visita', seccion: 'Cómo llegar',
-    mapa: 'Mapa', preparando: 'Estamos preparando la guía',
+    preparando: 'Estamos preparando la guía',
     pronto: 'Pronto publicaremos alojamientos, restaurantes y gimnasios cerca del pabellón. Mientras tanto, mira cómo llegar.', verComo: 'Ver cómo llegar',
     relacionados: [
       { titulo: 'Público', texto: 'Entrada y normas', ruta: '/publico' },
@@ -69,7 +72,7 @@ const T = {
   },
   en: {
     titulo: 'Accommodation near', acento: 'the sports hall', visita: 'Visit', seccion: 'Getting there',
-    mapa: 'Map', preparando: 'We’re putting the guide together',
+    preparando: 'We’re putting the guide together',
     pronto: 'We’ll soon publish places to stay, restaurants and gyms near the sports hall. In the meantime, see how to get there.', verComo: 'See how to get there',
     relacionados: [
       { titulo: 'Spectators', texto: 'Tickets and rules', ruta: '/publico' },
@@ -87,7 +90,7 @@ const T = {
  */
 @Component({
   selector: 'gr-donde-dormir-page',
-  imports: [CdnPipe, RouterLink, LocPipe, Page, GrIcon, GrButton, GrCabecera, Related],
+  imports: [RouterLink, LocPipe, Page, GrIcon, GrButton, GrCabecera, Related, Sitios],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page [title]="t().titulo" [accent]="t().acento" [eyebrow]="t().visita" [section]="t().seccion" [crumb]="t().titulo">
@@ -95,47 +98,7 @@ const T = {
         @for (b of secciones; track b.id; let i = $index) {
           <section [id]="b.id" class="flex scroll-mt-28 flex-col gap-6 md:gap-8">
             <gr-cabecera [eyebrow]="b.eyebrow[lang()]" [titulo]="b.titulo[lang()]" [texto]="b.texto[lang()]" [centro]="false" tam="m" />
-            <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              @for (s of b.sitios; track s.nombre) {
-                <li class="flex flex-col overflow-hidden rounded-lg border border-line-subtle bg-bg-card">
-                  @if (s.imagen) {
-                  <div class="aspect-video bg-bg-elevated">
-                    <img [src]="s.imagen | cdn" [alt]="s.nombre" class="size-full object-cover" loading="lazy" />
-                  </div>
-                  } @else if (s.logo) {
-                  <div class="flex aspect-video items-center justify-center p-6" [class]="s.logoClaro ? 'bg-[#141112]' : 'bg-white'">
-                    <img [src]="s.logo" [alt]="s.nombre" class="size-full object-contain" loading="lazy" />
-                  </div>
-                  }
-                  <div class="flex flex-1 flex-col gap-2 p-5">
-                    <div class="flex items-center gap-2">
-                      <gr-icon [name]="b.icono" [size]="18" class="shrink-0 text-accent-text" />
-                      <h3 class="text-label-m">{{ s.nombre }}</h3>
-                    </div>
-                    <p class="text-body-s text-text-tertiary">{{ detalle(s) }}</p>
-                    @if (s.descripcion) { <p class="text-body-s text-text-secondary">{{ lang() === 'en' ? s.descripcionEn || s.descripcion : s.descripcion }}</p> }
-                    @if (s.distancia || s.precio) {
-                      <p class="flex flex-wrap items-center gap-x-1.5 text-body-xs text-text-secondary">
-                        @if (s.distancia) { <span>{{ s.distancia }}</span> }
-                        @if (s.distancia && s.precio) { <span aria-hidden="true">·</span> }
-                        @if (s.precio) { <span>{{ (lang() === 'en' && s.precioEn) || s.precio }}</span> }
-                      </p>
-                    }
-                    @if (s.telefono || s.email) {
-                      <p class="flex flex-wrap items-center gap-x-1.5 text-body-xs text-text-secondary">
-                        @if (s.telefono) { <a [href]="'tel:' + s.telefono.replaceAll(' ', '')" class="hover:underline">{{ s.telefono }}</a> }
-                        @if (s.telefono && s.email) { <span aria-hidden="true">·</span> }
-                        @if (s.email) { <a [href]="'mailto:' + s.email" class="hover:underline">{{ s.email }}</a> }
-                      </p>
-                    }
-                    <div class="mt-auto flex gap-4 pt-2">
-                      @if (s.web) { <a [href]="s.web" target="_blank" rel="noopener nofollow" class="inline-flex items-center gap-1.5 text-label-s text-accent-text hover:underline">Web<gr-icon name="external-link" [size]="14" /></a> }
-                      <a [href]="mapa(s)" target="_blank" rel="noopener nofollow" class="inline-flex items-center gap-1.5 text-label-s text-accent-text hover:underline">{{ t().mapa }}<gr-icon name="map-pin" [size]="14" /></a>
-                    </div>
-                  </div>
-                </li>
-              }
-            </ul>
+            <gr-sitios [sitios]="b.sitios" [icono]="b.icono" [conLogo]="b.id === 'gimnasios'" />
           </section>
         } @empty {
           <!-- Figma 393:136197 -->
@@ -156,8 +119,6 @@ export class DondeDormirPage {
   protected readonly t = this.i18n.dict(T);
   protected readonly lang = this.i18n.lang;
   protected readonly secciones = SECCIONES.filter((s) => s.sitios.length);
-  protected readonly mapa = mapaDe;
-  protected readonly detalle = (s: Sitio) => detalleDe(s, this.i18n.lang());
 
   constructor() {
     const cms = inject(Cms);
@@ -168,7 +129,7 @@ export class DondeDormirPage {
 }
 
 // Hotels: «Dónde alojarse» document (official hotel webs, 24 Nov 2026; GRS rates agreed by the group). Edit these lists.
-const HOTELES: Sitio[] = [
+export const HOTELES: Sitio[] = [
   {
     nombre: 'Hotel Key Reig', detalle: 'Carrer dels Llauradors, 13, 46440 Almussafes, Valencia',
     precio: 'Tarifa GRS: 60 € en habitación doble (precio especial de grupo)', precioEn: 'GRS rate: €60 per double room (special group price)',
@@ -193,13 +154,13 @@ export const GIMNASIOS: Sitio[] = [
   { nombre: 'F.E.R Entrenamiento', logo: 'https://jaimedigitalstudio.b-cdn.net/grcup/gimnasios_donde_entrenar/logo-fer-entrenamiento.webp', logoClaro: true, detalle: 'Polígono Industrial Canyada dels Codonyers, calle 13, nº 11, nave 9, 46220 Picassent', web: 'https://ferentrenamiento.wodbuster.com', maps: 'https://maps.app.goo.gl/U6JRbXb7iw7wTuC78',
     descripcion: 'Abierto 24 h. 400 m² de material, clases de crosstraining y sala de musculación. Tarifa «Open Powerlifting» de 40 €/mes con acceso a la zona de material de competición.',
     descripcionEn: 'Open 24 h. 400 m² of equipment, crosstraining classes and a weights room. «Open Powerlifting» plan at €40/month with access to the competition equipment area.' },
-  { nombre: 'NewQ Almussafes Fitness', logo: 'https://jaimedigitalstudio.b-cdn.net/grcup/gimnasios_donde_entrenar/logo-newq-almussafes.webp', detalle: 'Ronda Síndic Antoni Albuixech, 123, 46440 Almussafes', web: 'https://newquo.es', maps: 'https://maps.app.goo.gl/T5FYoVatjRhNw5Y76',
+  { nombre: 'NewQ Almussafes Fitness', logo: 'https://jaimedigitalstudio.b-cdn.net/grcup/gimnasios_donde_entrenar/logo-newq-almussafes.webp', logoOscuro: 'https://jaimedigitalstudio.b-cdn.net/grcup/gimnasios_donde_entrenar/logo-newq-almussafes-claro.webp', detalle: 'Ronda Síndic Antoni Albuixech, 123, 46440 Almussafes', web: 'https://newquo.es', maps: 'https://maps.app.goo.gl/T5FYoVatjRhNw5Y76',
     descripcion: 'Gimnasio con clases colectivas variadas y monitores; máquinas nuevas tras una reforma.',
     descripcionEn: 'Gym with a variety of group classes and instructors; new machines after a refurbishment.' },
   { nombre: 'Valhalla Gym Almussafes', logo: 'https://jaimedigitalstudio.b-cdn.net/grcup/gimnasios_donde_entrenar/logo-valhalla-gym-almussafes.webp', detalle: 'Carrer Sant Cristòfol, 61, Bajo, 46440 Almussafes', web: 'https://valhallagymalmussafes.es', maps: 'https://maps.app.goo.gl/7KYWNZ6vU88cCVJL8',
     descripcion: 'Gimnasio reciente con mucha variedad de máquinas.',
     descripcionEn: 'Recently opened gym with a wide variety of machines.' },
-  { nombre: 'Pabellón Municipal de Almussafes', detalle: 'Avda. Laura Méndez, s/n, 46440 Almussafes', web: 'https://almussafes.es', maps: 'https://maps.app.goo.gl/aidcANg9ngd7qvoz7',
+  { nombre: 'Pabellón Municipal de Almussafes', logo: cdn('/img/home/logo-almussafes-bn.webp'), logoClaro: true, detalle: 'Avda. Laura Méndez, s/n, 46440 Almussafes', web: 'https://almussafes.es', maps: 'https://maps.app.goo.gl/aidcANg9ngd7qvoz7',
     descripcion: 'Centro deportivo municipal: pabellón cubierto con acceso por la CV-42 desde la AP-7.',
     descripcionEn: 'Municipal sports centre: indoor hall reached via the CV-42 from the AP-7.' },
   { nombre: 'The Factory Workout', logo: 'https://jaimedigitalstudio.b-cdn.net/grcup/gimnasios_donde_entrenar/logo-the-factory-workout.webp', logoClaro: true, detalle: 'Carrer Montroi, 10, 46450 Benifaió', web: 'https://mimpalawellness.com/tfw', maps: 'https://maps.app.goo.gl/yGipVmFfo4M9G4Dt9',

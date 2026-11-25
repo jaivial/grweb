@@ -41,6 +41,8 @@ type row struct {
 	HoraInicio       *time.Time `db:"hora_inicio"`
 	PesajeInicio     *time.Time `db:"pesaje_inicio"`
 	PesajeFin        *time.Time `db:"pesaje_fin"`
+	Sesion           string     `db:"sesion"`
+	SesionNivel      string     `db:"sesion_nivel"`
 	PesoCorporal     *float64   `db:"peso_corporal"`
 	RackSQ           *int       `db:"rack_sq"`
 	RackBP           string     `db:"rack_bp"`
@@ -80,7 +82,7 @@ type row struct {
 }
 
 const selRow = `SELECT a.id, a.competition_id, a.licencia, a.nombre, a.apellidos, a.email::text AS email, a.telefono, a.sexo, a.fecha_nacimiento,
-	a.categoria, a.division, a.club, a.ciudad, a.estado, a.prueba, a.orden_reserva, a.origen, COALESCE(a.jornada::text, '') AS jornada, a.lote, a.hora_inicio, a.pesaje_inicio, a.pesaje_fin,
+	a.categoria, a.division, a.club, a.ciudad, a.estado, a.prueba, a.orden_reserva, a.origen, COALESCE(a.jornada::text, '') AS jornada, a.lote, a.hora_inicio, a.pesaje_inicio, a.pesaje_fin, a.sesion, a.sesion_nivel,
 	a.peso_corporal::float8 AS peso_corporal, a.rack_sq, a.rack_bp, a.seguros_bp, a.intento_sq::float8 AS intento_sq, a.intento_bp::float8 AS intento_bp,
 	a.intento_dl::float8 AS intento_dl, a.pesaje_estado, a.pesaje_sugerencia, a.pesado_at, a.pesado_por, a.version, a.created_at, a.updated_at,
 	p.slug, p.foto_url, p.focal_x, p.focal_y, p.frase, p.bio, p.instagram, p.entrenador, p.historial,
@@ -285,6 +287,8 @@ type Atleta struct {
 	HoraInicio      *time.Time   `json:"horaInicio,omitempty"`
 	PesajeInicio    *time.Time   `json:"pesajeInicio,omitempty"`
 	PesajeFin       *time.Time   `json:"pesajeFin,omitempty"`
+	Sesion          string       `json:"sesion,omitempty" doc:"BIZ-202: sesión publicada (sexo y categorías de peso)"`
+	SesionNivel     string       `json:"sesionNivel,omitempty" doc:"BIZ-202: nivel AEP de la sesión publicada"`
 	Pesaje          Pesaje       `json:"pesaje"`
 	Perfil          Perfil       `json:"perfil"`
 	TotalPrevisto   *float64     `json:"totalPrevisto,omitempty"`
@@ -300,7 +304,7 @@ func (r row) admin(compDate time.Time) Atleta {
 		ID: r.ID, Licencia: r.Licencia, Nombre: r.Nombre, Apellidos: r.Apellidos, NombreCompleto: r.nombreCompleto(), Telefono: r.Telefono,
 		Sexo: r.Sexo, Edad: r.edad(compDate), Menor: r.menor(compDate), Categoria: r.Categoria, Division: r.Division, DivisionNombre: DivisionNombre(r.Division),
 		Club: r.Club, Ciudad: r.Ciudad, Estado: r.Estado, Prueba: r.Prueba, OrdenReserva: r.OrdenReserva, Origen: r.Origen,
-		Jornada: r.Jornada, Lote: r.Lote, HoraInicio: r.HoraInicio, PesajeInicio: r.PesajeInicio, PesajeFin: r.PesajeFin,
+		Jornada: r.Jornada, Lote: r.Lote, HoraInicio: r.HoraInicio, PesajeInicio: r.PesajeInicio, PesajeFin: r.PesajeFin, Sesion: r.Sesion, SesionNivel: r.SesionNivel,
 		Pesaje: Pesaje{Peso: r.PesoCorporal, RackSQ: r.RackSQ, RackBP: r.RackBP, SegurosBP: r.SegurosBP, Intentos: Marcas{r.IntentoSQ, r.IntentoBP, r.IntentoDL},
 			Estado: r.PesajeEstado, Sugerencia: r.PesajeSugerencia, At: r.PesadoAt, Por: r.PesadoPor},
 		Perfil: Perfil{Slug: r.Slug, FotoURL: r.FotoURL, FocalX: r.FocalX, FocalY: r.FocalY, Frase: r.Frase, Bio: r.Bio, Instagram: r.Instagram, Entrenador: r.Entrenador,

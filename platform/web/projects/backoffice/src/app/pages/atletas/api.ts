@@ -86,6 +86,9 @@ export interface Atleta {
   jornada: string;
   lote?: number;
   horaInicio?: string;
+  /** BIZ-202: published session (sex and weight classes) and its AEP level. */
+  sesion?: string;
+  sesionNivel?: string;
   pesajeInicio?: string;
   pesajeFin?: string;
   pesaje: { peso?: number; rackSq?: number; rackBp: string; segurosBp?: number; intentos: Marcas; estado: 'pendiente' | 'ok' | 'fuera' | 'no_compite'; sugerencia: string; at?: string; por: string };

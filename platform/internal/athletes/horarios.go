@@ -26,6 +26,9 @@ type Asignacion struct {
 	Inicio       time.Time `json:"inicio"`
 	PesajeInicio time.Time `json:"pesajeInicio"`
 	PesajeFin    time.Time `json:"pesajeFin"`
+	Sesion       string    `json:"sesion,omitempty" doc:"BIZ-202: sexo y categorías de peso de la sesión"`
+	Nivel        string    `json:"nivel,omitempty" doc:"BIZ-202: AEP-1/2/3"`
+	Antes        string    `json:"antes,omitempty" doc:"BIZ-202: horario publicado anterior"`
 }
 
 // registerHorarios: schedule publishes a version → every confirmed athlete gets its date, lot and times (athletes not
@@ -79,7 +82,7 @@ func (s *Svc) registerHorarios() {
 			}
 			err := s.change(ctx, in.CID, "", nil, func(tx pgx.Tx) error {
 				// Clear whoever no longer has a date.
-				rows, err := tx.Query(ctx, `UPDATE atletas SET jornada = NULL, lote = NULL, hora_inicio = NULL, pesaje_inicio = NULL, pesaje_fin = NULL, updated_at = now(), version = version + 1
+				rows, err := tx.Query(ctx, `UPDATE atletas SET jornada = NULL, lote = NULL, hora_inicio = NULL, pesaje_inicio = NULL, pesaje_fin = NULL, sesion = '', sesion_nivel = '', updated_at = now(), version = version + 1
 					WHERE competition_id = $1 AND jornada IS NOT NULL AND NOT (id = ANY($2)) RETURNING id`, in.CID, ids)
 				if err != nil {
 					return err
@@ -95,18 +98,24 @@ func (s *Svc) registerHorarios() {
 					}
 				}
 				for _, a := range b.Asignaciones {
-					tag, err := tx.Exec(ctx, `UPDATE atletas SET jornada = $3::date, lote = $4, hora_inicio = $5, pesaje_inicio = $6, pesaje_fin = $7, updated_at = now(), version = version + 1
-						WHERE competition_id = $1 AND id = $2 AND (jornada, lote, hora_inicio, pesaje_inicio, pesaje_fin) IS DISTINCT FROM ($3::date, $4, $5, $6, $7)`,
-						in.CID, a.AtletaID, a.Dia, a.Lote, a.Inicio, a.PesajeInicio, a.PesajeFin)
+					// BIZ-202: the profile also keeps the session (sex / weight classes) and its AEP level.
+					tag, err := tx.Exec(ctx, `UPDATE atletas SET jornada = $3::date, lote = $4, hora_inicio = $5, pesaje_inicio = $6, pesaje_fin = $7, sesion = $8, sesion_nivel = $9, updated_at = now(), version = version + 1
+						WHERE competition_id = $1 AND id = $2 AND (jornada, lote, hora_inicio, pesaje_inicio, pesaje_fin, sesion, sesion_nivel) IS DISTINCT FROM ($3::date, $4, $5, $6, $7, $8, $9)`,
+						in.CID, a.AtletaID, a.Dia, a.Lote, a.Inicio, a.PesajeInicio, a.PesajeFin, a.Sesion, a.Nivel)
 					if err != nil {
 						return err
 					}
 					if tag.RowsAffected() == 0 {
+						if afectado[a.AtletaID] { // BIZ-202: same time, but the session's classes or AEP level changed
+							if err := hist(ctx, tx, a.AtletaID, "Horario actualizado", fmt.Sprintf("v%d · %s %s%s", b.Version, dia(a.Inicio), hm(a.Inicio), sesionNivel(a))); err != nil {
+								return err
+							}
+						}
 						continue
 					}
 					o.Body.Actualizados++
-					if err := hist(ctx, tx, a.AtletaID, "Horario publicado", fmt.Sprintf("v%d · %s %s · lote %d · pesaje %s–%s",
-						b.Version, dia(a.Inicio), hm(a.Inicio), a.Lote, hm(a.PesajeInicio), hm(a.PesajeFin))); err != nil {
+					if err := hist(ctx, tx, a.AtletaID, "Horario publicado", fmt.Sprintf("v%d · %s %s · lote %d · pesaje %s–%s%s",
+						b.Version, dia(a.Inicio), hm(a.Inicio), a.Lote, hm(a.PesajeInicio), hm(a.PesajeFin), sesionNivel(a))); err != nil {
 						return err
 					}
 				}
@@ -127,22 +136,32 @@ func (s *Svc) registerHorarios() {
 					if tiene {
 						vars["lote"], vars["dia"], vars["hora"] = fmt.Sprint(a.Lote), dia(a.Inicio), hm(a.Inicio)
 						vars["pesaje"] = hm(a.PesajeInicio) + "–" + hm(a.PesajeFin)
+						// BIZ-202: previous schedule, sex / weight classes and AEP level of the session.
+						vars["sesion"], vars["nivel"], vars["antes"] = a.Sesion, a.Nivel, a.Antes
+						if vars["antes"] == "" {
+							vars["antes"] = "sin horario"
+						}
 					} else {
 						plantilla, plantillaSeg = "horario-sin-fecha", ""
 					}
-					if b.AvisarAtletas && r.Email != nil && *r.Email != "" && r.Estado == "confirmado" {
+					conEmail := r.Email != nil && *r.Email != ""
+					if b.AvisarAtletas && (conEmail || r.Telefono != "") && r.Estado == "confirmado" { // BIZ-202: WhatsApp also without email
 						vars["enlace"] = s.webURL + "/area-atleta"
 						if ok, err := s.avisoNuevo(ctx, tx, in.CID, b.Version, r.ID); err != nil {
 							return err
 						} else if ok {
-							if err := email(ctx, tx, in.CID, *r.Email, plantilla, vars); err != nil {
-								return err
+							if conEmail {
+								if err := email(ctx, tx, in.CID, *r.Email, plantilla, vars); err != nil {
+									return err
+								}
 							}
 							if r.Telefono != "" { // the same notice by WhatsApp (interactive buttons) when there is a phone
 								if err := whatsapp(ctx, tx, in.CID, r.Telefono, false, plantilla, vars, ""); err != nil {
 									return err
 								}
 							}
+							s.a.Log.Info("[BIZ-202] athletes_aviso_horario_encolado", "competition_id", in.CID, "atleta_id", r.ID, "version", b.Version,
+								"plantilla", plantilla, "email", conEmail, "whatsapp", r.Telefono != "", "antes", vars["antes"], "ahora", vars["dia"]+" "+vars["hora"], "sesion", vars["sesion"], "nivel", vars["nivel"])
 							o.Body.AvisosAtletas++
 						}
 					}
@@ -190,6 +209,17 @@ func (s *Svc) registerHorarios() {
 			})
 			return o, err
 		})
+}
+
+// sesionNivel: « · Femenino −57 kg · AEP-2» for the athlete's history (BIZ-202).
+func sesionNivel(a Asignacion) string {
+	t := ""
+	for _, x := range []string{a.Sesion, a.Nivel} {
+		if x != "" {
+			t += " · " + x
+		}
+	}
+	return t
 }
 
 var diasSemana = [...]string{"Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"}

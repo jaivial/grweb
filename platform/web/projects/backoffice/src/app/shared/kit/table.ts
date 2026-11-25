@@ -49,7 +49,7 @@ export class BoTableToolbar {
   selector: 'bo-modal-form',
   imports: [A11yModule, GrIconButton],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '(document:keydown.escape)': 'open() && !busy() && open.set(false)' },
+  host: { '(document:keydown.escape)': 'onEscape()' },
   template: `
     @if (open()) {
       <div class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4" (click)="!busy() && open.set(false)">
@@ -73,4 +73,47 @@ export class BoModalForm {
   readonly busy = input(false);
   /** Not «submit»: the native submit event of the <form> bubbles to the host and would fire it twice. */
   readonly enviar = output<void>();
+  // void on purpose: a listener expression that returns false calls preventDefault() and blocks other Escape handlers
+  protected onEscape(): void { if (this.open() && !this.busy()) this.open.set(false); }
+}
+
+/**
+ * Panel opened from a toolbar button (filters, more actions): side sheet on the right from 768 px, bottom sheet on
+ * phones. Content projected; with `resultLabel` a footer with «Limpiar filtros» (when `filtered`) and that button (closes).
+ */
+@Component({
+  selector: 'bo-sheet',
+  imports: [A11yModule, GrButton, GrIconButton],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '(document:keydown.escape)': 'onEscape($event)' },
+  template: `
+    @if (open()) {
+      <div class="fixed inset-0 z-50 flex items-end bg-black/60 md:items-stretch md:justify-end" (click)="open.set(false)">
+        <aside class="flex max-h-[85dvh] w-full flex-col rounded-t-[20px] border-t border-line-strong bg-bg-card pb-[env(safe-area-inset-bottom)] shadow-card md:h-full md:max-h-none md:w-[400px] md:rounded-none md:border-t-0 md:border-l"
+          role="dialog" aria-modal="true" [attr.aria-label]="title()" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
+          <div class="flex shrink-0 items-center gap-3 px-5 pt-4 pb-2">
+            <h2 class="min-w-0 flex-1 text-ui-h5 text-text-primary">{{ title() }}</h2>
+            <button grIconButton type="button" icon="x" label="Cerrar" (click)="open.set(false)"></button>
+          </div>
+          <div class="flex flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-5 pt-3 pb-6"><ng-content /></div>
+          @if (resultLabel()) {
+            <div class="flex shrink-0 gap-2 border-t border-line-subtle px-5 py-4">
+              @if (filtered()) { <button grButton variant="ghost" type="button" (click)="reset.emit()">Limpiar filtros</button> }
+              <button grButton variant="primary" type="button" class="ml-auto" (click)="open.set(false)">{{ resultLabel() }}</button>
+            </div>
+          }
+        </aside>
+      </div>
+    }
+  `,
+})
+export class BoSheet {
+  readonly open = model(false);
+  readonly title = input('Filtros');
+  readonly filtered = input(false);
+  /** Footer button label; empty = no footer (actions panel). */
+  readonly resultLabel = input('');
+  readonly reset = output<void>();
+  // void on purpose: a listener expression that returns false calls preventDefault() and blocks other Escape handlers
+  protected onEscape(e: Event): void { if (!e.defaultPrevented && this.open()) this.open.set(false); }
 }
