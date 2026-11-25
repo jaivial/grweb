@@ -70,7 +70,8 @@ export class AtletasPublic {
   private readonly fallo = inject(FalloApi);
   readonly failed = signal(false);
 
-  lista(): Promise<ListaPub | null> { return this.get<ListaPub>('/atletas'); }
+  /** `fresca`: after a live schedule event, skip the 60 s HTTP cache (browser and edge), like /horarios. */
+  lista(fresca = false): Promise<ListaPub | null> { return this.get<ListaPub>('/atletas', fresca); }
   ficha(slug: string): Promise<FichaPub | null> { return this.get<FichaPub>(`/atletas/${slug}`); }
   participantes(): Promise<Participantes | null> { return this.get<Participantes>('/participantes'); }
   async seguir(slug: string, email: string): Promise<void> {
@@ -87,9 +88,10 @@ export class AtletasPublic {
     if (this.res && !this.failed() && (this.res.status ?? 200) < 400) this.res.status = 404;
   }
 
-  private async get<T>(path: string): Promise<T | null> {
+  private async get<T>(path: string, fresca = false): Promise<T | null> {
     try {
-      return await firstValueFrom(this.http.get<T>(base + path));
+      const opts = fresca ? { params: { v: Date.now() }, headers: { 'Cache-Control': 'no-cache' } } : {};
+      return await firstValueFrom(this.http.get<T>(base + path, opts));
     } catch (e) {
       if (esNoEncontrado(e)) return null;
       this.failed.set(true);
