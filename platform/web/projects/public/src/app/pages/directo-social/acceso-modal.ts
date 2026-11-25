@@ -358,8 +358,9 @@ export class AccesoModal {
     if (!b.alias && !b.email) return true;
     try {
       const r = await this.fan.disponible(b);
-      // the answer is for these values: ignore it if the user kept typing meanwhile
-      if (this.alias().trim() !== alias || this.email().trim() !== email) return true;
+      // the answer is for these values and this form: ignore it if the user kept typing or left «Crear cuenta»
+      // meanwhile (e.g. «Entrar con este email»: its click blurs the alias field and starts a check)
+      if (this.modo() !== 'crear' || this.alias().trim() !== alias || this.email().trim() !== email) return true;
       if (r.alias && !r.alias.libre) this.errorAlias.set(mensajeCampo(r.alias));
       if (r.email && !r.email.libre) { this.error.set(mensajeCampo(r.email)); this.emailRegistrado.set(true); }
       return (!r.alias || r.alias.libre) && (!r.email || r.email.libre);
