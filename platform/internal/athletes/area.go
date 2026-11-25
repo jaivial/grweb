@@ -91,6 +91,8 @@ type Panel struct {
 	Referido      *ReferidoArea `json:"referido,omitempty" doc:"Invita y ahorra (inscripción propia con referidos)"`
 	Prueba        *PruebaArea   `json:"prueba,omitempty" doc:"Tu competición: AEP-2 o AEP-3"`
 	TienePassword bool          `json:"tienePassword" doc:"Ya puede entrar con email y contraseña"`
+	// PasswordTemporal: the password is the initial one the organisers sent; the area asks for a new one.
+	PasswordTemporal bool `json:"passwordTemporal,omitempty" doc:"Entró con la contraseña inicial: debe cambiarla"`
 }
 
 // ReferidoArea is the «Invita y ahorra» card of the athlete area.
@@ -138,6 +140,7 @@ func (s *Svc) panel(ctx context.Context, r row) (Panel, error) {
 	}
 	p.Prueba = s.pruebaArea(ctx, r.CompetitionID, r.ID, r.Prueba)
 	p.TienePassword = s.tienePassword(ctx, r.ID)
+	_ = s.a.DB.QueryRow(ctx, `SELECT password_temporal FROM atletas WHERE id = $1`, r.ID).Scan(&p.PasswordTemporal)
 	if r.Estado == "reserva" {
 		p.Avisos = append(p.Avisos, fmt.Sprintf("Estás en la lista de reserva (puesto %d). Te avisaremos por email si queda una plaza libre.", deref(r.OrdenReserva)))
 	}

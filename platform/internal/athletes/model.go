@@ -189,7 +189,12 @@ func (r row) incidencias(compDate time.Time) []Incidencia {
 		return out
 	}
 	if r.menor(compDate) && r.AutorizacionURL == "" {
-		out = append(out, Incidencia{"menor_sin_autorizacion", fmt.Sprintf("%s es menor de edad (%d años): perfil público y foto desactivados hasta tener la autorización del tutor.", r.Nombre, *r.edad(compDate))})
+		// Without a birth date a sub-junior is a possible minor: never dereference the missing age.
+		texto := fmt.Sprintf("%s es un posible menor (sub-júnior sin fecha de nacimiento): perfil público y foto desactivados hasta tener la fecha o la autorización del tutor.", r.Nombre)
+		if e := r.edad(compDate); e != nil {
+			texto = fmt.Sprintf("%s es menor de edad (%d años): perfil público y foto desactivados hasta tener la autorización del tutor.", r.Nombre, *e)
+		}
+		out = append(out, Incidencia{"menor_sin_autorizacion", texto})
 	}
 	if err := ValidarCategoria(r.Sexo, r.Categoria, r.Division); err != nil {
 		out = append(out, Incidencia{"categoria_invalida", "Categoría: " + err.Error() + "."})

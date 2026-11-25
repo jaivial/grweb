@@ -138,10 +138,10 @@ func (s *Svc) fanAdmin(ctx context.Context, cid, id uuid.UUID) (FanAdmin, error)
 // registerCuentas: create, edit (password included), delete and send a password-reset link (backoffice «Fans»).
 func (s *Svc) registerCuentas(api huma.API, base string, operar func(context.Context, uuid.UUID) error) {
 	sec := []map[string][]string{{"bearer": {}}}
-	type cidIn struct {
+	type CidIn struct {
 		CID uuid.UUID `path:"cid"`
 	}
-	type fanIn struct {
+	type FanIn struct {
 		CID   uuid.UUID `path:"cid"`
 		FanID uuid.UUID `path:"fanId"`
 	}
@@ -151,7 +151,7 @@ func (s *Svc) registerCuentas(api huma.API, base string, operar func(context.Con
 
 	// ---- crear ----
 	type crearIn struct {
-		cidIn
+		CidIn
 		Body CuentaIn
 	}
 	huma.Register(api, huma.Operation{OperationID: "fans-admin-crear", Method: http.MethodPost, Path: base,
@@ -189,7 +189,7 @@ func (s *Svc) registerCuentas(api huma.API, base string, operar func(context.Con
 
 	// ---- editar ----
 	type editarIn struct {
-		fanIn
+		FanIn
 		Body CuentaIn
 	}
 	huma.Register(api, huma.Operation{OperationID: "fans-admin-editar", Method: http.MethodPatch, Path: base + "/{fanId}",
@@ -249,7 +249,7 @@ func (s *Svc) registerCuentas(api huma.API, base string, operar func(context.Con
 	// ---- borrar ----
 	huma.Register(api, huma.Operation{OperationID: "fans-admin-borrar", Method: http.MethodDelete, Path: base + "/{fanId}",
 		Summary: "Borrar una cuenta de directo (cierra sus sesiones y anula sus enlaces pendientes)", Tags: tagAdmin, Security: sec, DefaultStatus: http.StatusNoContent},
-		func(ctx context.Context, in *fanIn) (*struct{}, error) {
+		func(ctx context.Context, in *FanIn) (*struct{}, error) {
 			if err := operar(ctx, in.CID); err != nil {
 				return nil, err
 			}
@@ -276,7 +276,7 @@ func (s *Svc) registerCuentas(api huma.API, base string, operar func(context.Con
 	// ---- enlace para cambiar la contraseña ----
 	huma.Register(api, huma.Operation{OperationID: "fans-admin-reset", Method: http.MethodPost, Path: base + "/{fanId}/reset-contrasena",
 		Summary: "Enviar al fan un enlace para crear o cambiar su contraseña (caduca en 30 minutos)", Tags: tagAdmin, Security: sec, DefaultStatus: http.StatusAccepted},
-		func(ctx context.Context, in *fanIn) (*struct{}, error) {
+		func(ctx context.Context, in *FanIn) (*struct{}, error) {
 			if err := operar(ctx, in.CID); err != nil {
 				return nil, err
 			}

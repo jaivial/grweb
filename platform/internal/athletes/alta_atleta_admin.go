@@ -157,6 +157,7 @@ type DetalleSolicitud struct {
 	Diferencias     []Diferencia         `json:"diferencias"`
 	Consentimientos []ConsentimientoItem `json:"consentimientos"`
 	CuentaPublico   bool                 `json:"cuentaPublico" doc:"El email ya tiene una cuenta de público del directo: al aprobar pasa a ser de atleta"`
+	AtletaEmail     string               `json:"atletaEmail,omitempty" doc:"Nombre del atleta que ya tiene este email: al aprobar se enlaza a él, sin duplicado ni avisos"`
 }
 
 // Candidato is an athlete the reviewer can link the request to.
@@ -553,6 +554,11 @@ func (s *Svc) detalleSolicitud(ctx context.Context, cid, id uuid.UUID) (DetalleS
 		d.Consentimientos = append(d.Consentimientos, ConsentimientoItem{Casilla: c, Aceptado: p.Aceptado, Version: p.Version, Hash: p.Hash, At: p.At, IP: p.IP})
 	}
 	if sol.Estado != "aprobada" && sol.Estado != "rechazada" {
+		var n string
+		if err := s.a.DB.QueryRow(ctx, `SELECT trim(nombre || ' ' || apellidos) FROM atletas WHERE competition_id = $1 AND email = $2 AND estado <> 'baja' ORDER BY estado = 'confirmado' DESC, created_at LIMIT 1`,
+			cid, normEmail(sol.Email)).Scan(&n); err == nil {
+			d.AtletaEmail = n
+		}
 		if c, err := cuentaFanDe(ctx, s.fansSvc, cid, sol.Email); err == nil && c != nil && c.Tipo == "publico" {
 			d.CuentaPublico = true
 		}
@@ -802,6 +808,22 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		perfilNuevo := false
 		if destino == nil && sol.MatchAtletaID != nil && sol.MatchTipo != "nombre" {
 			destino = sol.MatchAtletaID
+		}
+		// One athlete per email: a request whose email already belongs to an athlete of the competition is linked to
+		// that athlete (no duplicate) and nobody is notified (the athlete already has their access).
+		if destino == nil {
+			var existente uuid.UUID
+			err := tx.QueryRow(ctx, `SELECT id FROM atletas WHERE competition_id = $1 AND email = $2 AND estado <> 'baja' ORDER BY estado = 'confirmado' DESC, created_at LIMIT 1`,
+				cid, normEmail(sol.Email)).Scan(&existente)
+			if err == nil {
+				destino = &existente
+				avisarEmail, avisarWhatsApp = false, false
+				if err := hist(ctx, tx, existente, "Solicitud de alta enlazada por email", "El email de la solicitud ya era de este atleta: sin duplicado y sin avisos"); err != nil {
+					return err
+				}
+			} else if !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			}
 		}
 		if destino == nil {
 			if !nuevo {
