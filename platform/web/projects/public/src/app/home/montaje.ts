@@ -62,9 +62,8 @@ const T = {
                 (play)="marcar(x.id, true)" (pause)="marcar(x.id, false)" (error)="fallo(x.id)">
                 <source [src]="x.web" type="video/mp4" (error)="fallo(x.id)" />
               </video>
-              <span class="pointer-events-none absolute bottom-3 left-3 rounded-sm bg-black/55 px-2.5 py-1 text-label-s text-white backdrop-blur-sm" aria-hidden="true">{{ nombre }}</span>
-              <button type="button" (click)="alternar(x.id)" class="absolute right-3 bottom-3 flex size-11 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm transition-colors hover:bg-black/75 focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transition-none" [attr.aria-label]="sonando()[x.id] ? t().pausar(nombre) : t().reproducir(nombre)">
-                <gr-icon [name]="sonando()[x.id] ? 'pause' : 'play'" [size]="18" />
+              <button type="button" (click)="alternar(x.id)" class="absolute right-2 bottom-2 flex size-8 items-center justify-center rounded-full bg-black/45 md:right-3 md:bottom-3 text-white backdrop-blur-sm transition-colors hover:bg-black/75 focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transition-none" [attr.aria-label]="sonando()[x.id] ? t().pausar(nombre) : t().reproducir(nombre)">
+                <gr-icon [name]="sonando()[x.id] ? 'pause' : 'play'" [size]="14" />
               </button>
             }
           </li>
