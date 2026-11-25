@@ -115,6 +115,16 @@ patches:
       - op: add
         path: /spec/template/spec/containers/0/envFrom/-
         value: { secretRef: { name: grcup-google, optional: true } }
+  # WhatsApp managed by the platform (BIZ-214): messaging reaches the in-cluster evo-weai with its global key. Only in
+  # production: QA has no linked number and keeps WHATSAPP_SIMULADO (with these variables it would leave simulation).
+  - target: { kind: Deployment, name: messaging }
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: EVO_WEAI_URL, value: "http://evo-weai:8080" }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: EVO_WEAI_API_KEY, valueFrom: { secretKeyRef: { name: grcup-weai, key: WEAI_API_KEY } } }
   # Fixed ClusterIPs for the host nginx (QA uses 10.43.240.x).
   - target: { kind: Service, name: gateway }
     patch: |-
