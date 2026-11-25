@@ -90,23 +90,25 @@ func flightDe(n int) string {
 	return string(rune('A'+n/26%26)) + string(rune('A'+n%26))
 }
 
-// asignarHorario gives the linked entries of the published sessions of this meet (its days and level) the day,
-// platform 1, the flight (one letter per session of the day, in start order) and the lot of the schedule.
+// asignarHorario gives the linked entries of the published sessions of this meet the day, platform 1, the flight
+// (one letter per session of the day, in start order) and the lot of the schedule. A desk of a level (AEP 2 / AEP 3)
+// takes the sessions of its level, whatever their date (its days are the session dates in order); any other desk
+// takes the sessions that fall on the meet's days.
 func asignarHorario(meet map[string]any, entradas []map[string]any, links map[int]uuid.UUID, sn *horarioPublicado, nivel string) Horario {
 	const mantener = ": se mantienen el día, la plataforma y el flight de la inscripción."
 	if sn == nil {
 		return Horario{Aviso: "Los horarios de la competición aún no están publicados" + mantener}
 	}
 	h := Horario{Publicado: true, Version: sn.Numero}
-	fecha, _ := meet["date"].(string)
-	inicio, err := time.Parse("2006-01-02", fecha)
-	if err != nil {
-		h.Aviso = "La competición de OpenLifter no tiene fecha" + mantener
-		return h
-	}
 	dias := 1
 	if f, ok := meet["lengthDays"].(float64); ok && f >= 1 {
 		dias = int(f)
+	}
+	fecha, _ := meet["date"].(string)
+	inicio, errFecha := time.Parse("2006-01-02", fecha)
+	if nivel == "" && errFecha != nil {
+		h.Aviso = "La competición de OpenLifter no tiene fecha" + mantener
+		return h
 	}
 	porAtleta := map[uuid.UUID]map[string]any{}
 	for _, e := range entradas {
@@ -117,7 +119,8 @@ func asignarHorario(meet map[string]any, entradas []map[string]any, links map[in
 		}
 	}
 	type ses struct {
-		dia    int
+		fecha  string
+		dia    int // by date (desk without level)
 		inicio time.Time
 		ats    []map[string]any
 		lotes  []int
@@ -128,15 +131,15 @@ func asignarHorario(meet map[string]any, entradas []map[string]any, links map[in
 		if err != nil {
 			continue
 		}
-		dia := int(f.Sub(inicio).Hours()/24) + 1
-		if dia < 1 || dia > dias {
+		n := int(f.Sub(inicio).Hours()/24) + 1
+		if nivel == "" && (n < 1 || n > dias) {
 			continue
 		}
 		for _, x := range d.Sesiones {
 			if nivel != "" && x.Prueba != "" && x.Prueba != nivel {
 				continue
 			}
-			s := ses{dia: dia, inicio: x.Inicio}
+			s := ses{fecha: d.Fecha, dia: n, inicio: x.Inicio}
 			for _, a := range x.Atletas {
 				if e := porAtleta[a.ID]; e != nil {
 					s.ats, s.lotes = append(s.ats, e), append(s.lotes, a.Lote)
@@ -148,21 +151,29 @@ func asignarHorario(meet map[string]any, entradas []map[string]any, links map[in
 		}
 	}
 	sort.SliceStable(lista, func(i, j int) bool {
-		if lista[i].dia != lista[j].dia {
-			return lista[i].dia < lista[j].dia
+		if lista[i].fecha != lista[j].fecha {
+			return lista[i].fecha < lista[j].fecha
 		}
 		return lista[i].inicio.Before(lista[j].inicio)
 	})
-	n := map[int]int{}
+	dia := map[string]int{} // session date → OpenLifter day (1…lengthDays; extra dates go to the last day)
+	letras := map[int]int{}
 	for _, s := range lista {
-		flight := flightDe(n[s.dia])
-		n[s.dia]++
+		if _, ok := dia[s.fecha]; !ok {
+			dia[s.fecha] = min(len(dia)+1, dias)
+			if nivel == "" {
+				dia[s.fecha] = s.dia
+			}
+		}
+		d := dia[s.fecha]
+		flight := flightDe(letras[d])
+		letras[d]++
 		h.Sesiones++
 		for i, e := range s.ats {
 			if juzgada(e) {
 				continue
 			}
-			e["day"], e["platform"], e["flight"], e["lot"] = s.dia, 1, flight, s.lotes[i]
+			e["day"], e["platform"], e["flight"], e["lot"] = d, 1, flight, s.lotes[i]
 			h.Asignadas++
 		}
 	}
