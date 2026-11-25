@@ -307,7 +307,10 @@ func (s *Svc) registerPreparadas() {
 				}
 			}
 			var sn *horarioPublicado
-			if err := s.schedule.Do(ctx, http.MethodGet, "/internal/competiciones/"+in.CID.String()+"/horarios/publicados", nil, &sn); err != nil {
+			// a slow schedule must not hold the desk: 3 s, then the meet opens with its own flights
+			hctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			defer cancel()
+			if err := s.schedule.Do(hctx, http.MethodGet, "/internal/competiciones/"+in.CID.String()+"/horarios/publicados", nil, &sn); err != nil {
 				s.a.Log.Warn("horarios publicados", "err", err)
 				m.Horario = Horario{Aviso: "No se pudieron leer los horarios: se mantienen el día, la plataforma y el flight de la inscripción."}
 			} else {
