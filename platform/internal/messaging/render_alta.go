@@ -15,6 +15,8 @@ var (
 	reNum   = regexp.MustCompile(`^(\d+)\.\s+(.*)$`)
 	reHead  = regexp.MustCompile(`^\*\*([^*]+)\*\*$`)
 	altaGrp = "solicitudes-atleta"
+	// disenoAtleta: other athlete-account templates that use the same layout.
+	disenoAtleta = map[string]bool{"atleta-perfil-existe": true}
 )
 
 const (
@@ -26,7 +28,7 @@ const (
 // renderizarDe renders a catalogue template with its layout.
 func renderizarDe(t Plantilla, c Contenido, vars map[string]string, m Marca) (Render, error) {
 	r, err := renderizar(c, vars, t.Variables, m, t.Esencial, t.QR)
-	if err != nil || t.Auto != altaGrp {
+	if err != nil || (t.Auto != altaGrp && !disenoAtleta[t.Clave]) {
 		return r, err
 	}
 	r.HTML = altaHTML(t.Clave, c, vars, t.Variables, m)

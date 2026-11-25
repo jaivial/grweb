@@ -84,6 +84,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerAdmin()
 	s.registerAvisos()
 	s.registerTelefono()
+	s.registerCuentaAtleta()
 	return nil
 }
 

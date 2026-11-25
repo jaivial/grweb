@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/jaivial/grweb/platform/pkg/crypto"
 	"github.com/jaivial/grweb/platform/pkg/events"
 )
 
@@ -143,7 +144,8 @@ func (s *Svc) procesar(ctx context.Context, p pendiente) {
 		s.procesarWA(ctx, p, t)
 		return
 	}
-	r, err := renderizarDe(t.Plantilla, t.Contenido, p.vars, s.marca(ctx, p.cid))
+	// Secret variables (an initial password) travel sealed: opened only here, for the body that is sent.
+	r, err := renderizarDe(t.Plantilla, t.Contenido, crypto.AbrirVars(s.a.Cfg.InternalToken, p.clave, p.vars), s.marca(ctx, p.cid))
 	if err != nil {
 		// A template edited with a variable the producer does not send: pause it, keep its messages queued.
 		_, _ = s.a.DB.Exec(ctx, `INSERT INTO plantilla_estado (competition_id, clave, estado, error) VALUES ($1,$2,'error',$3)
@@ -229,7 +231,7 @@ func (s *Svc) procesarWA(ctx context.Context, p pendiente, t plantillaEfectiva) 
 		s.fin(ctx, p, "omitido", "La plantilla no tiene versión de WhatsApp", nil, "")
 		return
 	}
-	texto, err := renderizarWA(t.WA.Texto, p.vars, t.Variables)
+	texto, err := renderizarWA(t.WA.Texto, crypto.AbrirVars(s.a.Cfg.InternalToken, p.clave, p.vars), t.Variables)
 	if err != nil {
 		_, _ = s.a.DB.Exec(ctx, `INSERT INTO plantilla_estado (competition_id, clave, estado, error) VALUES ($1,$2,'error',$3)
 			ON CONFLICT (competition_id, clave) DO UPDATE SET estado = 'error', error = EXCLUDED.error, updated_at = now()`, p.cid, p.clave, err.Error())
@@ -258,13 +260,18 @@ func (s *Svc) procesarWA(ctx context.Context, p pendiente, t plantillaEfectiva) 
 		if c.Modo == "simulado" {
 			detalle = "Simulado (WhatsApp sin número conectado)"
 		}
+		// The stored copy never keeps a secret variable in clear.
+		guardado := texto
+		if g, err := renderizarWA(t.WA.Texto, crypto.OcultarVars(p.vars), t.Variables); err == nil {
+			guardado = g
+		}
 		s.fin(ctx, p, "enviado", detalle, func(tx pgx.Tx) error {
 			if p.cid == uuid.Nil || p.prueba {
 				return nil
 			}
 			return events.Enqueue(ctx, tx, events.New(ctx, "messaging.enviado", map[string]any{"para": p.destino, "canal": "whatsapp", "plantilla": p.clave, "asunto": t.Nombre},
 				events.Competition(p.cid.String()), events.Audience(events.Internal)))
-		}, ", asunto = $4, proveedor_id = $5, enviado_at = now(), contenido = $6", t.Nombre, id, Contenido{Cuerpo: texto})
+		}, ", asunto = $4, proveedor_id = $5, enviado_at = now(), contenido = $6", t.Nombre, id, Contenido{Cuerpo: guardado})
 		return
 	}
 	var ew *errWA

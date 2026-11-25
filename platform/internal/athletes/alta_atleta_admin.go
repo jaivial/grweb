@@ -156,6 +156,7 @@ type DetalleSolicitud struct {
 	Atleta          *AtletaEnlace        `json:"atleta"`
 	Diferencias     []Diferencia         `json:"diferencias"`
 	Consentimientos []ConsentimientoItem `json:"consentimientos"`
+	CuentaPublico   bool                 `json:"cuentaPublico" doc:"El email ya tiene una cuenta de público del directo: al aprobar pasa a ser de atleta"`
 }
 
 // Candidato is an athlete the reviewer can link the request to.
@@ -551,6 +552,11 @@ func (s *Svc) detalleSolicitud(ctx context.Context, cid, id uuid.UUID) (DetalleS
 		p := cons[c]
 		d.Consentimientos = append(d.Consentimientos, ConsentimientoItem{Casilla: c, Aceptado: p.Aceptado, Version: p.Version, Hash: p.Hash, At: p.At, IP: p.IP})
 	}
+	if sol.Estado != "aprobada" && sol.Estado != "rechazada" {
+		if c, err := cuentaFanDe(ctx, s.fansSvc, cid, sol.Email); err == nil && c != nil && c.Tipo == "publico" {
+			d.CuentaPublico = true
+		}
+	}
 	// The linked athlete and the differences.
 	if sol.MatchAtletaID != nil {
 		a, err := getRow(ctx, s.a.DB, cid, *sol.MatchAtletaID)
@@ -769,6 +775,13 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 	} else {
 		anio = time.Now().Year()
 	}
+	// One account per email: the fan account of the request's email (read before the transaction; fans is another service).
+	var cuenta *cuentaFan
+	if pre, err := getSolicitud(ctx, s.a.DB, cid, id); err == nil {
+		if cuenta, err = cuentaFanDe(ctx, s.fansSvc, cid, pre.Email); err != nil {
+			s.a.Log.Warn("fans por-email no disponible al aprobar", "solicitud", id.String(), "err", err)
+		}
+	}
 	err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 		sol, err := s.lockSolicitud(ctx, tx, cid, id, ifm)
 		if err != nil {
@@ -845,6 +858,10 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 				}
 				fotoPublicada = url
 			}
+		}
+		// A público account with the same email becomes this athlete's account (no second account).
+		if err := unirCuentaFan(ctx, tx, cid, *destino, sol.Email, sol.Telefono, cuenta); err != nil {
+			return err
 		}
 		// The history of the athlete and the closed request.
 		if err := hist(ctx, tx, *destino, "Perfil creado o actualizado desde una solicitud de alta", "revisado por "+por); err != nil {

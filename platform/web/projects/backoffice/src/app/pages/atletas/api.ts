@@ -186,6 +186,10 @@ export class AtletasApi {
   accionNecesaria(cid: string, body: { ids: string[]; accion: string; detalle: string; fecha: string; enlace: string }): Promise<{ emails: number; whatsapps: number; sinEmail: number }> {
     return firstValueFrom(this.http.post<{ emails: number; whatsapps: number; sinEmail: number }>(`${this.base(cid)}/accion-necesaria`, body));
   }
+  /** «Tu perfil de atleta ya existe»: new initial password per athlete + email (and WhatsApp if asked). */
+  perfilExiste(cid: string, body: { ids?: string[]; todos?: boolean; whatsapp: boolean }): Promise<{ emails: number; whatsapps: number; sinEmail: number }> {
+    return firstValueFrom(this.http.post<{ emails: number; whatsapps: number; sinEmail: number }>(`${this.base(cid)}/perfil-existe`, body));
+  }
   borrar(cid: string, id: string): Promise<unknown> { return firstValueFrom(this.http.delete(`${this.base(cid)}/${id}`)); }
 
   subirActa(cid: string, file: File): Promise<Importacion> {
