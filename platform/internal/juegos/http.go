@@ -392,7 +392,27 @@ func (s *Svc) registerPublic() {
 				}
 				o.Body.Apuestas = append(o.Body.Apuestas, v)
 			}
-			return o, rows.Err()
+			if err := rows.Err(); err != nil {
+				return nil, err
+			}
+			// Athletes missing from fantasy_atletas still have their name on the day's scoreboard.
+			var nombres map[uuid.UUID]string
+			for i := range o.Body.Apuestas {
+				a := &o.Body.Apuestas[i]
+				if a.Atleta != "" {
+					continue
+				}
+				if nombres == nil {
+					nombres = map[uuid.UUID]string{}
+					if m, _, err := s.marcador(ctx, c.ID, j.Dia); err == nil {
+						for _, ma := range m.Atletas {
+							nombres[ma.AtletaID] = ma.NombrePublico
+						}
+					}
+				}
+				a.Atleta = nombres[a.AtletaID]
+			}
+			return o, nil
 		})
 
 	// clasificación de la porra (contract §6.2: saldo, desempate por quién llegó antes; top 50 + mi puesto).
