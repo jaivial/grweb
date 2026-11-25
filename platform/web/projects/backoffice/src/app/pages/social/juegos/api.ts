@@ -34,6 +34,7 @@ export interface Mercado {
   bote: number;
   apuestas: number;
   ganador?: string[];
+  devuelto?: boolean;
 }
 
 export interface FilaPorra {
