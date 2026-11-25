@@ -24,7 +24,7 @@
 | `chat` *(paso 17)* | Salas por jornada, mensajes (WebSocket, SSE y REST), moderación, límites, contadores e hitos de recompensa |
 | `donaciones` *(paso 17)* | Donativos con Stripe (o pasarela simulada), webhook, ranking de donantes, reembolsos |
 | `patrocinio` *(paso 17)* | Banners de patrocinadores, tiers y pesos, cola con apariciones garantizadas por jornada, clics |
-| `juegos` *(paso 17)* | Jornadas, carteras (porra y fantasy), mercados, cláusulas, puntos, premios y clasificaciones; `juegos worker` consume los eventos de recompensas y liquidación |
+| `juegos` *(paso 17)* | Jornadas, carteras (porra y fantasy), mercados (se generan y mantienen al día solos con los cambios de atletas, BIZ-200), cláusulas, puntos, premios y clasificaciones; `juegos worker` consume los eventos de recompensas, liquidación y cambios de atletas |
 
 ## 2. API actual (.NET) → servicio (174 endpoints: 118 migran, 43 se retiran, 13 por decidir)
 
@@ -344,7 +344,7 @@ Rutas nuevas en el `routeTable` del gateway (antes del catch-all de `competition
 | `juegos.porra.devolucion` | `juegos` | Admin (`directo.operar`) | { mercadoId, jornadaId, por } (anular y devolver desde el backoffice) |
 | `fantasy.clausula` | `juegos-worker` | Public | { jornadaId, atletaId, clausula, delta } |
 | `fantasy.fichaje` | `juegos` | Public | { jornadaId, atletaId, tipo, aliasDe, aliasA, precio } |
-| `porra.mercado` | `juegos` | Public | { mercadoId, estado } |
+| `porra.mercado` | `juegos` | Public | { mercadoId, estado, bote?, opciones? } (las opciones, con el bote y las cuotas, cuando cambia el mercado o sus cuotas) |
 | `juegos.clasificacion` | `juegos` | Public | { jornadaId, ranking } (máx. uno cada 5 s por jornada) |
 
-Consumidores: `chat` inyecta `donacion.confirmada`, `patrocinio.banner` y `fans.baneado` en la sala; `juegos-worker` consume `chat.hito`, `donacion.confirmada\|reembolsada` y los veredictos de `live` para recompensas, cláusulas y puntos (idempotentes por `ref`).
+Consumidores: `chat` inyecta `donacion.confirmada`, `patrocinio.banner` y `fans.baneado` en la sala; `juegos-worker` consume `chat.hito`, `donacion.confirmada\|reembolsada`, los veredictos de `live`, cualquier `athletes.*` (alta, edición, retirada, baja, borrado, importación de atletas, BIZ-200) y `horarios.generados\|publicados\|dias` para recompensas, cláusulas, puntos y los mercados de la porra siempre al día (idempotentes por `ref`).
