@@ -308,7 +308,7 @@ Rutas nuevas en el `routeTable` del gateway (antes del catch-all de `competition
 | `juegos` | `saldos` | JornadaId, FanId, Moneda (porra\|fantasy), Saldo ≥ 0, Version |
 | `juegos` | `movimientos` | Id, JornadaId, FanId, Moneda, Importe, Motivo, Ref (único), CreatedAt |
 | `juegos` | `mercados` | Id, JornadaId, Tipo (categoria\|gl\|movimiento), Sexo, Categoria, Movimiento, Estado (abierto\|cerrado\|liquidado), Resultado |
-| `juegos` | `apuestas` | Id, MercadoId, FanId, AtletaId, Importe, CreatedAt |
+| `juegos` | `apuestas` | Id, MercadoId, FanId, AtletaId, Importe, DevueltaAt (apuesta devuelta por la sync de opciones o una anulación: no cuenta en liquidación, bote ni «mis apuestas»), CreatedAt |
 | `juegos` | `fantasy_atletas` | JornadaId, AtletaId, NombrePublico, Sexo, Categoria, Clausula, DuenoFanId, Titular, ProtegidoHasta, Version · PK(jornada_id, atleta_id) |
 | `juegos` | `fichajes` | Id, JornadaId, AtletaId, DeFan, AFan, Tipo (compra\|venta\|clausulazo), Precio, CreatedAt |
 | `juegos` | `historial_clausulas` | JornadaId, AtletaId, Clausula, Delta, Motivo, CreatedAt |
@@ -347,4 +347,4 @@ Rutas nuevas en el `routeTable` del gateway (antes del catch-all de `competition
 | `porra.mercado` | `juegos` | Public | { mercadoId, estado, bote?, opciones? } (las opciones, con el bote y las cuotas, cuando cambia el mercado o sus cuotas) |
 | `juegos.clasificacion` | `juegos` | Public | { jornadaId, ranking } (máx. uno cada 5 s por jornada) |
 
-Consumidores: `chat` inyecta `donacion.confirmada`, `patrocinio.banner` y `fans.baneado` en la sala; `juegos-worker` consume `chat.hito`, `donacion.confirmada\|reembolsada`, los veredictos de `live`, cualquier `athletes.*` (alta, edición, retirada, baja, borrado, importación de atletas, BIZ-200) y `horarios.generados\|publicados\|dias` para recompensas, cláusulas, puntos y los mercados de la porra siempre al día (idempotentes por `ref`).
+Consumidores: `chat` inyecta `donacion.confirmada`, `patrocinio.banner` y `fans.baneado` en la sala; `juegos-worker` consume `chat.hito`, `donacion.confirmada\|reembolsada`, los veredictos de `live`, cualquier `athletes.*` (alta, edición, retirada, baja, borrado, importación de atletas, BIZ-200) y `horarios.generados\|publicados\|dias` para recompensas, cláusulas, puntos y los mercados de la porra siempre al día en todas las jornadas abiertas (idempotentes por `ref`; segunda pasada ~16 s tras el evento porque `live` cachea el plan 15 s).
