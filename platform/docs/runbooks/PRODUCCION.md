@@ -114,11 +114,8 @@ ROOT_EMAIL=… ROOT_NOMBRE=… deploy/scripts/secretos.sh prod
 
 **Vincular el número:**
 
-1. Copiar la `WEAI_API_KEY` del Secret a la integración «WhatsApp» de la competición (*Sistema › Integraciones*):
-   proveedor `evo-weai`, URL `http://evo-weai:8080` (la interna del cluster), clave = `WEAI_API_KEY`.
-   ```bash
-   k get secret grcup-weai -o jsonpath='{.data.WEAI_API_KEY}' | base64 -d
-   ```
+1. Nada que copiar: el overlay de producción da a `messaging` `EVO_WEAI_URL=http://evo-weai:8080` (la interna del
+   cluster) y `EVO_WEAI_API_KEY` ← `grcup-weai/WEAI_API_KEY` (BIZ-214). El backoffice no tiene formulario de URL/clave.
 2. *Sistema › WhatsApp* → «Crear instancia» (crea `grcup-<slug>` en evo-weai, idempotente) → «Vincular con QR» o
    «Vincular con código».
 3. «Avisos de solicitudes de atleta»: teléfonos de los organizadores y los interruptores de los mensajes del alta.
