@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/jaivial/grweb/platform/pkg/auth"
+	"github.com/jaivial/grweb/platform/pkg/crypto"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/problem"
@@ -486,7 +487,9 @@ func (s *Svc) registerAdmin() {
 			if err := s.a.DB.QueryRow(ctx, `SELECT vars, contenido FROM mensajes WHERE id = $1`, in.ID).Scan(&vars, &enviado); err != nil {
 				return nil, err
 			}
-			// Access links (magic links, payment links, unsubscribe) belong to the recipient: never shown to staff.
+			// Access links (magic links, payment links, unsubscribe) belong to the recipient: never shown to staff,
+			// and a secret variable (an initial password) only shows as dots.
+			vars = crypto.OcultarVars(vars)
 			for k := range vars {
 				if k == "enlace" || k == "url" || k == "baja" {
 					vars[k] = "https://enlace-privado.invalid/"
