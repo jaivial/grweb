@@ -946,7 +946,7 @@ export class SolicitudesPage {
         ...destino.cuerpo, cambios, avisarEmail: this.avisarEmail(), avisarWhatsApp: this.avisarWhatsApp(),
       });
       this.dialogo.set(null);
-      this.toasts.success(res.publica ? 'Aprobada y publicada' : 'Aprobada · ficha privada', this.avisarEmail() ? `Le hemos escrito a ${d.email}.` : '');
+      this.toasts.success(res.publica ? 'Aprobada y publicada' : 'Aprobada · ficha privada', d.atletaEmail ? 'Enlazada al atleta que ya tenía este email: sin avisos.' : this.avisarEmail() ? `Le hemos escrito a ${d.email}.` : '');
       await this.cargar();
       await this.recargarDetalle();
     } catch (e) {
@@ -974,7 +974,7 @@ export class SolicitudesPage {
       return { texto: `Se creará un atleta nuevo (${d ? this.nombreCompleto(d) : 'la solicitud'})`, cuerpo: { nuevo: true } };
     }
     return {
-      texto: `Se actualizará el atleta enlazado (${d.atleta.nombre}${d.atleta.licencia ? ' · ' + d.atleta.licencia : ''})`,
+      texto: `Se actualizará el atleta enlazado (${d.atleta.nombre}${d.atleta.licencia ? ' · ' + d.atleta.licencia : ''})${d.atletaEmail ? ': ya tiene este email, así que no se le envía ningún aviso' : ''}`,
       cuerpo: { atletaId: d.atleta.id },
     };
   }
