@@ -173,5 +173,7 @@ spec:
         - podSelector: { matchLabels: { grcup.dev/servicio: live } }
         - podSelector: { matchLabels: { grcup.dev/servicio: messaging } }
         - podSelector: { matchLabels: { grcup.dev/servicio: juegos } }
+        # the desk opens a prepared meet with the flights of the published schedule
+        - podSelector: { matchLabels: { grcup.dev/servicio: openlifter } }
       ports:
         - { port: 8080, protocol: TCP }

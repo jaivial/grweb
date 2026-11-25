@@ -227,6 +227,15 @@ type Entrada struct {
 	SquatStatus           []int     `json:"squatStatus" maxItems:"5"`
 	BenchStatus           []int     `json:"benchStatus" maxItems:"5"`
 	DeadliftStatus        []int     `json:"deadliftStatus" maxItems:"5"`
+	// Rest of the OpenLifter entry, so the server copy opens the meet without a file (empty ones are left out:
+	// the prepared registration in meets keeps them).
+	Age       int      `json:"age,omitempty"`
+	Country   string   `json:"country,omitempty" maxLength:"100"`
+	State     string   `json:"state,omitempty" maxLength:"100"`
+	Equipment string   `json:"equipment,omitempty" maxLength:"20"`
+	Events    []string `json:"events,omitempty" maxItems:"10"`
+	Paid      bool     `json:"paid,omitempty"`
+	Guest     bool     `json:"guest,omitempty"`
 }
 
 // identidad is an athlete as athletes reports it (internal, personal data).

@@ -44,6 +44,7 @@ type Svc struct {
 	a        *app.App
 	athletes *svcclient.Client
 	live     *svcclient.Client
+	schedule *svcclient.Client
 	idMu     sync.Mutex
 	ids      map[uuid.UUID]idCache
 }
@@ -67,8 +68,10 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.a = a
 	s.athletes = svcclient.New(config.Str("UPSTREAM_ATHLETES", "http://athletes:8080"), "openlifter", "athletes", a.Cfg.InternalToken)
 	s.live = svcclient.New(config.Str("UPSTREAM_LIVE", "http://live:8080"), "openlifter", "live", a.Cfg.InternalToken)
+	s.schedule = svcclient.New(config.Str("UPSTREAM_SCHEDULE", "http://schedule:8080"), "openlifter", "schedule", a.Cfg.InternalToken)
 	s.register()
 	s.registerPadron()
+	s.registerPreparadas()
 	return nil
 }
 
@@ -590,12 +593,13 @@ func (s *Svc) register() {
 	type syncIn struct {
 		CID  uuid.UUID `path:"cid"`
 		Body struct {
-			Mesa        string    `json:"mesa" minLength:"1" maxLength:"120" doc:"Clave de la competición de OpenLifter (nombre y fecha)"`
-			Dispositivo string    `json:"dispositivo" maxLength:"64" doc:"Identificador del navegador de la mesa"`
-			Rev         int64     `json:"rev" minimum:"0" doc:"Revisión creciente de este dispositivo"`
-			Grupo       *Grupo    `json:"grupo,omitempty"`
-			Entradas    []Entrada `json:"entradas" maxItems:"1000" doc:"Entradas cambiadas (o todas)"`
-			Borradas    []int     `json:"borradas,omitempty" maxItems:"1000"`
+			Mesa        string         `json:"mesa" minLength:"1" maxLength:"120" doc:"Clave de la competición de OpenLifter (nombre y fecha)"`
+			Dispositivo string         `json:"dispositivo" maxLength:"64" doc:"Identificador del navegador de la mesa"`
+			Rev         int64          `json:"rev" minimum:"0" doc:"Revisión creciente de este dispositivo"`
+			Grupo       *Grupo         `json:"grupo,omitempty"`
+			Entradas    []Entrada      `json:"entradas" maxItems:"1000" doc:"Entradas cambiadas (o todas)"`
+			Borradas    []int          `json:"borradas,omitempty" maxItems:"1000"`
+			Meet        map[string]any `json:"meet,omitempty" doc:"«meet» de OpenLifter, cuando cambia: el servidor guarda el setup (Competiciones preparadas)"`
 		}
 	}
 	type estadoOut struct{ Body Estado }
@@ -637,6 +641,11 @@ func (s *Svc) register() {
 						e := &b.Entradas[i]
 						if _, err := tx.Exec(ctx, `INSERT INTO entradas (competition_id, mesa, entry_id, datos) VALUES ($1,$2,$3,$4)
 							ON CONFLICT (competition_id, mesa, entry_id) DO UPDATE SET datos = $4, updated_at = now()`, in.CID, b.Mesa, e.ID, e); err != nil {
+							return err
+						}
+					}
+					if nombre, _ := b.Meet["name"].(string); strings.TrimSpace(nombre) != "" { // not OpenLifter's empty «New Meet»
+						if err := guardarSetup(ctx, tx, in.CID, b.Mesa, por, b.Meet); err != nil {
 							return err
 						}
 					}
