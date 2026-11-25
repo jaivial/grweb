@@ -2,7 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { isPlatformBrowser } from '@angular/common';
 import {
-  ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, RESPONSE_INIT, afterNextRender, effect, inject, signal, untracked,
+  ChangeDetectionStrategy, Component, DestroyRef, Injector, PLATFORM_ID, PendingTasks, RESPONSE_INIT, afterNextRender, effect, inject, signal, untracked,
 } from '@angular/core';
 import { GrAlert, GrIcon, embedVideo, fmtLongDate } from '@grcup/ui';
 import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
@@ -15,7 +15,10 @@ import type { Horarios } from '../core/horarios';
 import { JuegosEnVivo } from '../core/juegos';
 import { Seo } from '../core/seo';
 import { I18n, LocPipe } from '../core/i18n';
-import { Footer, Navbar } from '../layout/layout';
+import { BarraCta, Footer, Navbar } from '../layout/layout';
+import { CookiesBanner, VideoConsentido } from '../layout/cookies';
+import { Consentimiento } from '../core/consentimiento';
+import { NgTemplateOutlet } from '@angular/common';
 import { NoEncontrada } from '../layout/no-encontrada';
 import { Campeonato, fechasHero } from './campeonato';
 import { SecMontaje } from './montaje';
@@ -66,7 +69,7 @@ const T = {
  */
 @Component({
   selector: 'gr-home',
-  imports: [Navbar, Footer, GrAlert, GrIcon, RouterLink, LocPipe, HeroTrophy, Campeonato, SecMontaje, SecAlta, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
+  imports: [Navbar, Footer, CookiesBanner, VideoConsentido, NgTemplateOutlet, GrAlert, GrIcon, RouterLink, LocPipe, HeroTrophy, Campeonato, SecMontaje, SecAlta, SecEntradas, SecAtletas, SecPremios, SecOrganizacion, SecAfiliaciones,
     SecSorteo, SecPorra, SecFantasy, SecCategorias, SecHorarios, SecLocalizacion, SecFaq, SecCompeticiones],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -88,7 +91,7 @@ const T = {
             <a [routerLink]="'/en-directo' | loc" class="text-label-m text-accent-text hover:underline">{{ t().verDirecto }}</a>
           </div>
           <div class="relative aspect-video overflow-hidden rounded-lg border border-line-subtle bg-black">
-            <iframe [src]="v" class="absolute inset-0 size-full border-0" [title]="t().retransmision" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+            <gr-video-consentido [src]="v" [titulo]="t().retransmision" />
           </div>
         </section>
       }
@@ -132,22 +135,31 @@ const T = {
         @if (!h.orden.includes('competiciones')) { @defer (on immediate; hydrate on viewport) { <gr-sec-competiciones /> } }
       }
     </main>
-    @defer (on immediate; hydrate on viewport) { <gr-footer /> }
-    @if (!sobreCerrado()) {
-      <!-- BIZ-178: Google brand verification — on first visit (server HTML too) the home names the app, its purpose and its use of Google data, with the privacy link. Full texts stay in the DOM inside <details>. -->
+    @defer (on immediate; hydrate on viewport) { <gr-footer [cookies]="false" /> }
+    <!-- BIZ-178: Google brand verification — on first visit (server HTML too) the home names the app, its purpose and its use of Google data, with the privacy link. Full texts stay in the DOM inside <details>.
+         BIZ-201: it is merged with the cookie banner (one single banner); once cookies are decided elsewhere it keeps its own «Entendido». -->
+    <ng-template #sobre>
+      <p class="font-semibold text-text-primary">GRS Cup 2</p>
+      <p class="mt-1 text-text-secondary">{{ t().sobreCorto }}</p>
+      <details class="mt-2 text-text-secondary">
+        <summary class="cursor-pointer text-text-primary underline">{{ t().sobreMas }}</summary>
+        <div class="mt-2 flex flex-col gap-2"><p>{{ t().sobreTexto }}</p><p>{{ t().sobreGoogle }}</p><p>{{ t().sobreUsoApis }}</p></div>
+      </details>
+      <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-text-tertiary">
+        <a class="underline" [routerLink]="'/privacidad' | loc">{{ t().sobrePrivacidad }}</a>
+        <a class="underline" [routerLink]="'/terminos' | loc">{{ t().sobreTerminos }}</a>
+      </div>
+    </ng-template>
+    @if (!consentimiento.cargado() || consentimiento.pendiente()) {
+      <gr-cookies id="sobre" [sobreBarra]="barraCta.visible()" (elegido)="cerrarSobre()">
+        <ng-container *ngTemplateOutlet="sobre" />
+        <hr class="my-3 border-white/10" />
+      </gr-cookies>
+    } @else if (!sobreCerrado()) {
       <section id="sobre" role="region" [attr.aria-label]="t().sobreTitulo"
         class="fixed inset-x-3 bottom-3 z-40 max-h-[70vh] overflow-y-auto rounded-lg border border-white/15 bg-black p-4 text-sm shadow-lg md:inset-x-auto md:left-6 md:bottom-6 md:max-w-md">
-        <p class="font-semibold text-text-primary">GRS Cup 2</p>
-        <p class="mt-1 text-text-secondary">{{ t().sobreCorto }}</p>
-        <details class="mt-2 text-text-secondary">
-          <summary class="cursor-pointer text-text-primary underline">{{ t().sobreMas }}</summary>
-          <div class="mt-2 flex flex-col gap-2"><p>{{ t().sobreTexto }}</p><p>{{ t().sobreGoogle }}</p><p>{{ t().sobreUsoApis }}</p></div>
-        </details>
-        <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-text-tertiary">
-          <a class="underline" [routerLink]="'/privacidad' | loc">{{ t().sobrePrivacidad }}</a>
-          <a class="underline" [routerLink]="'/terminos' | loc">{{ t().sobreTerminos }}</a>
-          <button type="button" class="ml-auto min-h-11 rounded-md bg-accent px-4 font-semibold text-text-on-accent" (click)="cerrarSobre()">{{ t().sobreEntendido }}</button>
-        </div>
+        <ng-container *ngTemplateOutlet="sobre" />
+        <button type="button" class="mt-3 ml-auto flex min-h-11 items-center rounded-md bg-accent px-4 font-semibold text-text-on-accent" (click)="cerrarSobre()">{{ t().sobreEntendido }}</button>
       </section>
     }
   `,
@@ -168,6 +180,8 @@ export class HomePage {
   protected readonly introDone = signal(false);
   /** BIZ-178 notice: open on the server and on first visit; closed once acknowledged (localStorage). */
   protected readonly sobreCerrado = signal(false);
+  protected readonly consentimiento = inject(Consentimiento);
+  protected readonly barraCta = inject(BarraCta);
   /** F-R4-178-1/2: publishes the toast height (+ gap) as --gr-sobre-h so the hero controls sit above it. */
   private sobreRo?: ResizeObserver;
   protected readonly cms = signal<HomeCms | null>(null);
@@ -188,14 +202,12 @@ export class HomePage {
 
   constructor() {
     const sobreDestroy = inject(DestroyRef);
+    const injector = inject(Injector);
     afterNextRender(() => {
       try { if (localStorage.getItem('grcup_sobre_ok')) this.sobreCerrado.set(true); } catch { /* storage blocked */ }
-      const el = this.sobreCerrado() ? null : document.getElementById('sobre');
-      if (!el || typeof ResizeObserver === 'undefined') return;
-      const root = document.documentElement.style;
-      this.sobreRo = new ResizeObserver(() => root.setProperty('--gr-sobre-h', `${Math.ceil(window.innerHeight - el.getBoundingClientRect().top) + 12}px`));
-      this.sobreRo.observe(el);
-      sobreDestroy.onDestroy(() => { this.sobreRo?.disconnect(); root.removeProperty('--gr-sobre-h'); });
+      this.consentimiento.cargar();
+      // the banner may swap (cookies + notice → notice only): measure the one rendered after these reads
+      afterNextRender(() => this.observarSobre(sobreDestroy), { injector });
     });
     // PendingTasks keeps the server render open until the data and the SEO tags are in place.
     const opt = <T,>(p: string, set: (v: T) => void) => firstValueFrom(this.http.get<T>(this.api(p))).catch((e: unknown) => {
@@ -280,6 +292,15 @@ export class HomePage {
         this.timers.push(final);
       });
     });
+  }
+
+  private observarSobre(destroy: DestroyRef): void {
+    const el = document.getElementById('sobre');
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const root = document.documentElement.style;
+    this.sobreRo = new ResizeObserver(() => root.setProperty('--gr-sobre-h', `${Math.ceil(window.innerHeight - el.getBoundingClientRect().top) + 12}px`));
+    this.sobreRo.observe(el);
+    destroy.onDestroy(() => { this.sobreRo?.disconnect(); root.removeProperty('--gr-sobre-h'); });
   }
 
   /** «19 de diciembre de 2026» / «19 December 2026». */
