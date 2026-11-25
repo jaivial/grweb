@@ -75,6 +75,14 @@ func (x *sucias) marcarTardia(cid uuid.UUID) {
 	x.mu.Unlock()
 }
 
+// reintentar puts a failed competition back in the queue keeping its retry count, so the `n < 10` cap of despacho
+// actually stops a persistently failing sync (BIZ-200 R2-S2: marcar alone reset the count to 0 every tick).
+func (x *sucias) reintentar(cid uuid.UUID, n int) {
+	x.mu.Lock()
+	x.m[cid] = n + 1
+	x.mu.Unlock()
+}
+
 // tomar returns and clears the pending competitions.
 func (x *sucias) tomar() map[uuid.UUID]int {
 	x.mu.Lock()
@@ -149,7 +157,7 @@ func (s *Svc) despacho(ctx context.Context, sucias *sucias) {
 				if ctx.Err() == nil {
 					s.a.Log.Warn("sincronización del marcador", "cid", cid, "err", err)
 					if n < 10 {
-						sucias.marcar(cid) // retry on the next tick; the reconciler is the last resort
+						sucias.reintentar(cid, n) // retry on the next tick; the reconciler is the last resort
 					}
 				}
 				continue
@@ -163,7 +171,9 @@ func (s *Svc) despacho(ctx context.Context, sucias *sucias) {
 
 // sincronizarActiva applies the scoreboard to the active jornada of a competition and keeps the markets of every
 // other open jornada in step with the marcador of its own day (BIZ-200 R2-3: a future jornada the staff already
-// opened also builds and maintains its markets before its day arrives).
+// opened also builds and maintains its markets before its day arrives). A failure of those other days is logged
+// (one line per day inside) but does not fail the whole sync nor skips the classification event of today; the
+// reconciler retries them every 30 s (BIZ-200 R2-S2).
 func (s *Svc) sincronizarActiva(ctx context.Context, cid uuid.UUID) error {
 	j, err := s.jornadaActiva(ctx, s.a.DB, cid)
 	if err != nil {
@@ -174,7 +184,10 @@ func (s *Svc) sincronizarActiva(ctx context.Context, cid uuid.UUID) error {
 			return err
 		}
 	}
-	return s.sincronizarMercadosAbiertas(ctx, cid, j)
+	if err := s.sincronizarMercadosAbiertas(ctx, cid, j); err != nil && ctx.Err() == nil {
+		s.a.Log.Warn("mercados de las jornadas abiertas", "cid", cid, "err", err)
+	}
+	return nil
 }
 
 // jornadaActiva: dia = today (Europe/Madrid) with estado abierta or en_juego (contract §2).
@@ -291,17 +304,21 @@ func (s *Svc) reconciler(ctx context.Context) {
 			}
 		}
 		// BIZ-200 R2-3: competitions without a jornada today but with an open one of another day (a future day
-		// the staff already opened) keep their markets in step here too.
+		// the staff already opened) keep their markets in step here too. The rows are collected first (R2-S4):
+		// syncing with the rows open would hold a second connection of the pool.
 		rows, err = s.a.DB.Query(ctx, selJornada+` FROM jornadas
 			WHERE estado IN ('abierta','en_juego') AND dia <> (now() AT TIME ZONE 'Europe/Madrid')::date ORDER BY id`)
 		if err != nil {
 			continue
 		}
+		var futuras []jornada
 		for rows.Next() {
-			j, err := scanJornada(rows)
-			if err != nil {
-				continue
+			if j, err := scanJornada(rows); err == nil {
+				futuras = append(futuras, j)
 			}
+		}
+		rows.Close()
+		for _, j := range futuras {
 			if vistas[j.CompetitionID] {
 				continue // its markets were already synced above with today's pass
 			}
@@ -310,7 +327,6 @@ func (s *Svc) reconciler(ctx context.Context) {
 				s.a.Log.Warn("mercados de las jornadas abiertas", "cid", j.CompetitionID, "err", err)
 			}
 		}
-		rows.Close()
 	}
 }
 
