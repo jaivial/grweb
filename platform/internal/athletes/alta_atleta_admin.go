@@ -817,7 +817,6 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 				cid, normEmail(sol.Email)).Scan(&existente)
 			if err == nil {
 				destino = &existente
-				avisarEmail, avisarWhatsApp = false, false
 				if err := hist(ctx, tx, existente, "Solicitud de alta enlazada por email", "El email de la solicitud ya era de este atleta: sin duplicado y sin avisos"); err != nil {
 					return err
 				}
@@ -842,6 +841,16 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 			}
 			if n == 0 {
 				return problem.NotFound("Ese atleta no está en esta competición.")
+			}
+		}
+		// An athlete that already had this email keeps their access: approving the request notifies nobody.
+		if !perfilNuevo && normEmail(sol.Email) != "" {
+			var actual string
+			if err := tx.QueryRow(ctx, `SELECT COALESCE(email::text, '') FROM atletas WHERE id = $1`, *destino).Scan(&actual); err != nil {
+				return err
+			}
+			if normEmail(actual) == normEmail(sol.Email) {
+				avisarEmail, avisarWhatsApp = false, false
 			}
 		}
 		// The profile: the declared data, the corrections of the reviewer and never an empty value.
