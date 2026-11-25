@@ -252,6 +252,21 @@ export class HomePage {
     const vivo = inject(JuegosEnVivo);
     const destroy = inject(DestroyRef);
     destroy.onDestroy(() => this.timers.forEach(clearTimeout));
+    // Schedule published / withdrawn / changed / «Publicar horarios» switched (same public stream): reload the
+    // summary past the 15 s HTTP cache; the section appears or goes back to the fallback without a page reload.
+    let horariosVistos = 0;
+    let horariosEspera: ReturnType<typeof setTimeout> | undefined;
+    destroy.onDestroy(() => clearTimeout(horariosEspera));
+    effect(() => {
+      const v = vivo.versionHorarios();
+      if (!this.browser || v === horariosVistos) return;
+      horariosVistos = v;
+      clearTimeout(horariosEspera);
+      horariosEspera = setTimeout(() => {
+        void firstValueFrom(this.http.get<Horarios>(this.api('/horarios'), { params: { resumen: 'true', v: Date.now() }, headers: { 'Cache-Control': 'no-cache' } }))
+          .then((h) => this.horarios.set(h)).catch(() => undefined);
+      }, 400);
+    });
     const directo = inject(DirectoPublic);
     const san = inject(DomSanitizer);
     afterNextRender(() => {

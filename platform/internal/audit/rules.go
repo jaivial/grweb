@@ -228,6 +228,11 @@ func resumen(e events.Event) string {
 		return fmt.Sprintf("publicó la versión v%v de los horarios", d["version"])
 	case "horarios.retirados":
 		return "retiró los horarios publicados"
+	case "horarios.visibilidad":
+		if d["visible"] == true {
+			return "activó «Publicar horarios» (los horarios se ven en la web)"
+		}
+		return "desactivó «Publicar horarios» (la web muestra «Próximamente»)"
 	case "horarios.sesion":
 		cuando := "la sesión de las " + str(d["hora"]) + " (" + str(d["dia"]) + ")"
 		switch str(d["estado"]) {
