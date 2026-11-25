@@ -620,6 +620,11 @@ func (s *Svc) registerEmparejamiento() {
 			go func() {
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 				defer cancel()
+				defer func() {
+					if r := recover(); r != nil {
+						s.a.Log.Error("emparejamiento.panico", "lote", len(ids), "err", fmt.Sprint(r))
+					}
+				}()
 				for _, id := range ids {
 					if _, err := s.emparejar(ctx, in.CID, id); err != nil {
 						s.a.Log.Warn("emparejamiento.fallo", "solicitud", id.String(), "err", err)
