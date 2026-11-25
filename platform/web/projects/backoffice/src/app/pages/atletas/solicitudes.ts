@@ -9,6 +9,7 @@ import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { problemOf } from '../../core/api';
 import { BoPageHeader, BoTabs, errText, type BoTab } from '../../shared/ui';
+import { BoSheet } from '../../shared/kit';
 import { SolicitudesContador } from '../../core/solicitudes';
 import {
   SolicitudesApi,
@@ -28,7 +29,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
  */
 @Component({
   selector: 'bo-solicitudes',
-  imports: [A11yModule, FormsModule, RouterLink, SolicitudesLista, SolicitudesDialogo, SolicitudesCupos, BoPageHeader, BoTabs, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, GrSkeleton],
+  imports: [A11yModule, FormsModule, RouterLink, SolicitudesLista, SolicitudesDialogo, SolicitudesCupos, BoPageHeader, BoTabs, BoSheet, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'onEscape($event)' },
   template: `
@@ -37,9 +38,6 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
       <bo-page-header title="Solicitudes de atleta" subtitle="Altas enviadas desde el formulario público · se revisan a mano antes de publicar"
         [back]="false" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', { label: 'Atletas', link: secciones()[0].path }, 'Solicitudes']">
         @if (puede()) { <bo-tabs pageTabs label="Atletas" [alwaysTabs]="true" [tabs]="secciones()" /> }
-        @if (puede() && l !== null && l !== undefined) {
-          <ng-container actions><button grButton icon="download" [loading]="exporting()" (click)="exportar()">Exportar CSV</button></ng-container>
-        }
       </bo-page-header>
 
       @if (!puede()) {
@@ -58,18 +56,14 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
         }
         <p class="sr-only" aria-live="polite">{{ anuncio() }}</p>
 
-        <nav class="flex flex-wrap gap-2 md:gap-1 md:overflow-x-auto md:border-b md:border-line-subtle [scrollbar-width:none]" aria-label="Estado de las solicitudes">
-          @for (t of pestanas; track t.k) {
-            <button type="button" (click)="irPestana(t.k)" [attr.aria-current]="pestana() === t.k ? 'page' : null"
-              class="relative flex h-6 shrink-0 items-center gap-1 rounded-xs border px-2 text-mono-xs uppercase whitespace-nowrap md:h-11 md:gap-2 md:rounded-none md:border-0 md:px-3 md:text-label-s md:normal-case"
-              [class]="pestana() === t.k ? 'border-accent-text text-accent-text md:text-text-primary' : 'border-line-strong text-text-tertiary md:hover:text-text-primary'">
-              <span class="md:hidden">{{ t.c }}</span><span class="hidden md:inline">{{ t.l }}</span>
-              <span class="md:hidden">·</span>
-              <span class="md:rounded-2xs md:px-1.5 md:text-mono-xs" [class]="destacado(t.k) ? 'bg-accent-deep/50 text-accent-text' : 'text-text-secondary md:bg-bg-raised'">{{ contador(t.k) }}</span>
-              @if (pestana() === t.k) { <span class="absolute inset-x-2 bottom-0 hidden h-0.5 rounded-t-2xs bg-accent md:block"></span> }
-            </button>
-          }
-        </nav>
+        <div class="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Filtros de las solicitudes">
+          <button grButton icon="filter" aria-haspopup="dialog" [attr.aria-expanded]="filtros()" (click)="filtros.set(true)">
+            Filtros @if (nFiltros()) { <span class="rounded-2xs bg-accent-deep/50 px-1.5 text-mono-xs text-accent-text">{{ nFiltros() }}</span> }
+          </button>
+          <button grIconButton icon="more" label="Más acciones" aria-haspopup="dialog" [attr.aria-expanded]="acciones()" (click)="acciones.set(true)"></button>
+          @if (nFiltros()) { <button grButton variant="ghost" (click)="limpiar()">Limpiar filtros</button> }
+          @if (l) { <span class="ml-auto text-body-xs text-text-tertiary" aria-live="polite">{{ pestanaActual() }} · {{ visibles().length }} de {{ l.total }}</span> }
+        </div>
 
         @if (l === undefined) {
           <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -105,33 +99,6 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
 
           <bo-solicitudes-cupos class="hidden md:block" [cid]="cid()" [puede]="puede()" />
 
-          <div class="hidden flex-wrap items-center gap-2 md:flex">
-            <label class="relative block w-full max-w-xs">
-              <span class="sr-only">Buscar en solicitudes</span>
-              <gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
-              <input grInput type="search" class="pl-9" placeholder="Buscar en solicitudes…" [ngModel]="q()" (ngModelChange)="buscar($event)" />
-            </label>
-            <gr-select tipo="filtro" etiqueta="+ Coincidencia" [ngModel]="fMatch()" (ngModelChange)="fMatch.set($event); recargar(1)" aria-label="Coincidencia">
-              <option value="">Coincidencia</option>
-              <option value="licencia">Licencia</option>
-              <option value="email">Email</option>
-              <option value="nombre">Sugerida</option>
-              <option value="ninguna">Sin coincidencia</option>
-            </gr-select>
-            <gr-select tipo="filtro" etiqueta="+ Menor de edad" [ngModel]="fMenor()" (ngModelChange)="fMenor.set($event); recargar(1)" aria-label="Menor de edad">
-              <option value="">Menor de edad</option>
-              <option value="si">Sí</option>
-              <option value="no">No</option>
-            </gr-select>
-            <gr-select tipo="filtro" etiqueta="+ Recibida" [ngModel]="fRecibida()" (ngModelChange)="fRecibida.set($event)" aria-label="Recibida">
-              <option value="">Recibida</option>
-              <option value="hoy">Hoy</option>
-              <option value="7">Últimos 7 días</option>
-              <option value="30">Este mes</option>
-            </gr-select>
-            <span class="ml-auto text-body-xs text-text-tertiary">{{ visibles().length }} de {{ l.total }}</span>
-            <button grIconButton icon="download" label="Exportar CSV" (click)="exportar()"></button>
-          </div>
 
           @if (!visibles().length) {
             <section class="mx-auto w-full max-w-2xl rounded-lg border border-line-subtle bg-bg-card p-8 text-center">
@@ -146,6 +113,48 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
         }
       }
     </div>
+
+    <bo-sheet title="Filtrar solicitudes" [(open)]="filtros" [filtered]="nFiltros() > 0" (reset)="limpiar()"
+      [resultLabel]="'Ver ' + visibles().length + ' solicitudes'">
+      <div class="flex flex-col gap-2">
+        <span class="text-label-s text-text-primary" id="sol-estado">Estado</span>
+        <div class="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="sol-estado">
+          @for (t of pestanas; track t.k) {
+            <button type="button" role="radio" [attr.aria-checked]="pestana() === t.k" (click)="irPestana(t.k)"
+              class="flex h-11 items-center gap-2 rounded-sm border px-3 text-label-s whitespace-nowrap focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]"
+              [class]="pestana() === t.k ? 'border-accent-text bg-accent-deep/20 text-accent-text' : 'border-line-strong text-text-secondary hover:text-text-primary'">
+              {{ t.l }} <span class="text-mono-xs" [class]="destacado(t.k) ? 'text-accent-text' : 'text-text-tertiary'">{{ contador(t.k) }}</span>
+            </button>
+          }
+        </div>
+      </div>
+      <label class="relative block w-full">
+        <span class="sr-only">Buscar en solicitudes</span>
+        <gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
+        <input grInput type="search" class="pl-9" placeholder="Buscar en solicitudes…" [ngModel]="q()" (ngModelChange)="buscar($event)" />
+      </label>
+      <gr-select tipo="campo" [ngModel]="fMatch()" (ngModelChange)="fMatch.set($event); recargar(1)" aria-label="Coincidencia">
+        <option value="">Coincidencia: todas</option>
+        <option value="licencia">Licencia</option>
+        <option value="email">Email</option>
+        <option value="nombre">Sugerida</option>
+        <option value="ninguna">Sin coincidencia</option>
+      </gr-select>
+      <gr-select tipo="campo" [ngModel]="fMenor()" (ngModelChange)="fMenor.set($event); recargar(1)" aria-label="Menor de edad">
+        <option value="">Menor de edad: todas</option>
+        <option value="si">Sí</option>
+        <option value="no">No</option>
+      </gr-select>
+      <gr-select tipo="campo" [ngModel]="fRecibida()" (ngModelChange)="fRecibida.set($event)" aria-label="Recibida">
+        <option value="">Recibida: cualquier fecha</option>
+        <option value="hoy">Hoy</option>
+        <option value="7">Últimos 7 días</option>
+        <option value="30">Este mes</option>
+      </gr-select>
+    </bo-sheet>
+    <bo-sheet title="Acciones" [(open)]="acciones">
+      <button grButton icon="download" [block]="true" [loading]="exporting()" [disabled]="!lista()" (click)="exportar()">Exportar CSV</button>
+    </bo-sheet>
 
     <!-- ===== Review (Figma 171:81822 desktop 520 px · mobile full screen): one scroll, actions on one row ===== -->
     @if (abierto()) {
@@ -469,10 +478,19 @@ export class SolicitudesPage {
   protected readonly por = signal(6);
   protected cambios = { frase: '', bio: '', instagram: '', club: '', ciudad: '', entrenador: '', marcaSQ: null as number | null, marcaBP: null as number | null, marcaDL: null as number | null };
 
-  protected readonly pestanas: { k: Pestana; l: string; c: string }[] = [
-    { k: 'todas', l: 'Todas', c: 'Todas' }, { k: 'pendiente', l: 'Nuevas', c: 'Nuevas' }, { k: 'revision', l: 'En revisión', c: 'En revisión' },
-    { k: 'menor', l: 'Menor · sin autorización', c: 'Menores' }, { k: 'aprobada', l: 'Aprobadas', c: 'Aprobadas' }, { k: 'rechazada', l: 'Rechazadas', c: 'Rechazadas' },
+  protected readonly pestanas: { k: Pestana; l: string }[] = [
+    { k: 'todas', l: 'Todas' }, { k: 'pendiente', l: 'Nuevas' }, { k: 'revision', l: 'En revisión' },
+    { k: 'menor', l: 'Menor · sin autorización' }, { k: 'aprobada', l: 'Aprobadas' }, { k: 'rechazada', l: 'Rechazadas' },
   ];
+  /** BIZ-194: status, search and filters live in the «Filtros» panel; Exportar in the «⋯» panel. */
+  protected readonly filtros = signal(false);
+  protected readonly acciones = signal(false);
+  protected readonly pestanaActual = computed(() => this.pestanas.find((t) => t.k === this.pestana())?.l ?? '');
+  protected readonly nFiltros = computed(() => [this.pestana() !== 'todas', this.q(), this.fMatch(), this.fMenor(), this.fRecibida()].filter(Boolean).length);
+  protected limpiar(): void {
+    this.q.set(''); this.fMatch.set(''); this.fMenor.set(''); this.fRecibida.set('');
+    this.irPestana('todas');
+  }
   protected readonly kpiEtiquetas = [{ l: 'Pendientes de revisar' }, { l: 'En revisión' }, { l: 'Aprobadas' }, { l: 'Rechazadas' }];
   protected readonly hace = fmtAgo;
   protected readonly match = matchTxt;

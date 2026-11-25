@@ -76,11 +76,11 @@ export class BoModalForm {
 }
 
 /**
- * Filters panel opened from a «Filtros» button: side sheet on the right from 768 px, bottom sheet on phones.
- * Fields projected; footer has «Limpiar filtros» (when `filtered`) and «Ver resultados» (closes).
+ * Panel opened from a toolbar button (filters, more actions): side sheet on the right from 768 px, bottom sheet on
+ * phones. Content projected; with `resultLabel` a footer with «Limpiar filtros» (when `filtered`) and that button (closes).
  */
 @Component({
-  selector: 'bo-filter-sheet',
+  selector: 'bo-sheet',
   imports: [A11yModule, GrButton, GrIconButton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': '!$event.defaultPrevented && open() && open.set(false)' },
@@ -93,20 +93,23 @@ export class BoModalForm {
             <h2 class="min-w-0 flex-1 text-ui-h5 text-text-primary">{{ title() }}</h2>
             <button grIconButton type="button" icon="x" label="Cerrar" (click)="open.set(false)"></button>
           </div>
-          <div class="flex flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-5 py-3"><ng-content /></div>
-          <div class="flex shrink-0 gap-2 border-t border-line-subtle px-5 py-4">
-            @if (filtered()) { <button grButton variant="ghost" type="button" (click)="reset.emit()">Limpiar filtros</button> }
-            <button grButton variant="primary" type="button" class="ml-auto" (click)="open.set(false)">{{ resultLabel() }}</button>
-          </div>
+          <div class="flex flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-5 pt-3 pb-6"><ng-content /></div>
+          @if (resultLabel()) {
+            <div class="flex shrink-0 gap-2 border-t border-line-subtle px-5 py-4">
+              @if (filtered()) { <button grButton variant="ghost" type="button" (click)="reset.emit()">Limpiar filtros</button> }
+              <button grButton variant="primary" type="button" class="ml-auto" (click)="open.set(false)">{{ resultLabel() }}</button>
+            </div>
+          }
         </aside>
       </div>
     }
   `,
 })
-export class BoFilterSheet {
+export class BoSheet {
   readonly open = model(false);
   readonly title = input('Filtros');
   readonly filtered = input(false);
-  readonly resultLabel = input('Ver resultados');
+  /** Footer button label; empty = no footer (actions panel). */
+  readonly resultLabel = input('');
   readonly reset = output<void>();
 }
