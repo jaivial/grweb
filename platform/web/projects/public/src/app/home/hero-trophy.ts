@@ -335,7 +335,25 @@ export class HeroTrophy {
       const opts = { passive: true } as const;
       window.addEventListener('scroll', this.wake, opts);
       window.addEventListener('resize', this.wake, opts);
+      // F-R13-01: a router link to an anchor of this page (mega menu «Cómo será» → /#montaje) while the intro is still on
+      // screen, or to the fragment already in the URL (same-URL navigation: no router scroll), goes straight to the
+      // section like «Saltar intro». Runs after RouterLink's handler (it prevents the default); menus close on that click.
+      const alAncla = (ev: MouseEvent) => {
+        const a = (ev.target as Element | null)?.closest?.('a[href*="#"]') as HTMLAnchorElement | null;
+        if (!a || !ev.defaultPrevented || a.target || a.pathname !== location.pathname || !a.hash) return;
+        const id = decodeURIComponent(a.hash.slice(1));
+        requestAnimationFrame(() => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          const margen = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
+          if (this.finished() && Math.abs(el.getBoundingClientRect().top - margen) < 2) return;
+          this.saltar = true;
+          el.scrollIntoView({ behavior: this.reduced() || !this.finished() ? 'instant' : 'smooth' });
+        });
+      };
+      document.addEventListener('click', alAncla);
       destroy.onDestroy(() => {
+        document.removeEventListener('click', alAncla);
         window.removeEventListener('scroll', this.wake);
         window.removeEventListener('resize', this.wake);
       });

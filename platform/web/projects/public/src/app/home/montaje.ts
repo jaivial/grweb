@@ -91,7 +91,7 @@ const T = {
       </div>
       <div role="tablist" [attr.aria-label]="t().vistas" class="grid grid-cols-3 gap-2 md:gap-4" (keydown)="teclas($event)">
         @for (x of vistas; track x.id; let i = $index) {
-          <button #tab type="button" role="tab" [id]="'montaje-tab-' + x.id" aria-controls="montaje-panel" [attr.aria-selected]="i === sel()" [tabindex]="i === sel() ? 0 : -1" (click)="elegir(i)"
+          <button #tab type="button" role="tab" [id]="'montaje-tab-' + x.id" [attr.aria-label]="t().nombres[x.id]" aria-controls="montaje-panel" [attr.aria-selected]="i === sel()" [tabindex]="i === sel() ? 0 : -1" (click)="elegir(i)"
             class="flex min-w-0 flex-col gap-2 rounded-md border p-1.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:transition-none md:p-2"
             [class]="i === sel() ? 'border-accent bg-white/6' : 'border-line-subtle hover:border-white/30'">
             <img [src]="x.poster" alt="" width="1280" height="720" loading="lazy" decoding="async" class="aspect-video w-full rounded-sm object-cover" />
