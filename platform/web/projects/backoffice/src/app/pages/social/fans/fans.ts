@@ -71,7 +71,7 @@ type Tipo = 'atleta' | 'publico';
           } @else {
             <div class="hidden overflow-x-auto md:block">
               <table class="w-full table-fixed text-left text-body-s">
-                <colgroup><col /><col class="w-[96px]" /><col /><col class="w-[200px]" /><col class="w-[232px]" /></colgroup>
+                <colgroup><col /><col class="w-[96px]" /><col /><col class="w-[200px]" /><col class="w-[112px] xl:w-[232px]" /></colgroup>
                 <thead class="border-b border-line-subtle bg-bg-surface font-mono text-mono-xs text-text-tertiary">
                   <tr><th class="px-5 py-3 font-medium">Alias</th><th class="px-3 py-3 font-medium">Tipo</th><th class="px-3 py-3 font-medium">Email</th><th class="px-3 py-3 font-medium">Estado</th><th class="px-5 py-3 text-right font-medium">Acción</th></tr>
                 </thead>
@@ -98,12 +98,12 @@ type Tipo = 'atleta' | 'publico';
                       <td class="px-5 py-2.5 text-right">
                         <span class="inline-flex items-center justify-end gap-1">
                         <button type="button" class="inline-flex h-8 items-center gap-1.5 rounded-sm px-2.5 text-label-s text-text-secondary transition-colors hover:bg-bg-raised hover:text-text-primary disabled:opacity-40"
-                          [disabled]="!puede()" [attr.aria-label]="'Editar a ' + f.alias" (click)="abrirEditar(f)"><gr-icon name="pencil" [size]="16" />Editar</button>
+                          [disabled]="!puede()" [attr.aria-label]="'Editar a ' + f.alias" (click)="abrirEditar(f)"><gr-icon name="pencil" [size]="16" /><span class="hidden xl:inline">Editar</span></button>
                         @if (ban) {
-                          <button grButton size="s" icon="undo" [disabled]="!puede()" [attr.aria-label]="'Levantar el baneo de ' + f.alias" (click)="desbanear(f)">Levantar baneo</button>
+                          <button grButton size="s" icon="undo" [disabled]="!puede()" [attr.aria-label]="'Levantar el baneo de ' + f.alias" (click)="desbanear(f)"><span class="hidden xl:inline">Levantar baneo</span></button>
                         } @else {
                           <button type="button" class="inline-flex h-8 items-center gap-1.5 rounded-sm px-2.5 text-label-s text-text-secondary transition-colors hover:bg-bg-raised hover:text-accent-text disabled:opacity-40"
-                            [disabled]="!puede()" [attr.aria-label]="'Banear a ' + f.alias" (click)="abrirBanear(f)"><so-icon name="ban" [size]="16" />Banear</button>
+                            [disabled]="!puede()" [attr.aria-label]="'Banear a ' + f.alias" (click)="abrirBanear(f)"><so-icon name="ban" [size]="16" /><span class="hidden xl:inline">Banear</span></button>
                         }
                         </span>
                       </td>

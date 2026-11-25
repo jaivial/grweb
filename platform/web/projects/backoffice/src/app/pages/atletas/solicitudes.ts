@@ -966,6 +966,10 @@ export class SolicitudesPage {
       const nombre = c?.nombre ?? elegido;
       return { texto: `Se actualizará el atleta ${nombre}${c?.licencia ? ' · ' + c.licencia : ''}`, cuerpo: { atletaId: elegido } };
     }
+    if (d?.atletaEmail && (this.nuevoAtleta() || !d.atleta)) {
+      // the backend links a request whose email already belongs to an athlete (no duplicate, no notices)
+      return { texto: `Se enlazará al atleta ${d.atletaEmail}, que ya tiene este email: sin duplicado y sin enviarle avisos`, cuerpo: { nuevo: true } };
+    }
     if (this.nuevoAtleta() || !d?.atleta) {
       return { texto: `Se creará un atleta nuevo (${d ? this.nombreCompleto(d) : 'la solicitud'})`, cuerpo: { nuevo: true } };
     }
