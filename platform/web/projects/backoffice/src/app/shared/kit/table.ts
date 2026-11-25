@@ -74,3 +74,39 @@ export class BoModalForm {
   /** Not «submit»: the native submit event of the <form> bubbles to the host and would fire it twice. */
   readonly enviar = output<void>();
 }
+
+/**
+ * Filters panel opened from a «Filtros» button: side sheet on the right from 768 px, bottom sheet on phones.
+ * Fields projected; footer has «Limpiar filtros» (when `filtered`) and «Ver resultados» (closes).
+ */
+@Component({
+  selector: 'bo-filter-sheet',
+  imports: [A11yModule, GrButton, GrIconButton],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '(document:keydown.escape)': '!$event.defaultPrevented && open() && open.set(false)' },
+  template: `
+    @if (open()) {
+      <div class="fixed inset-0 z-50 flex items-end bg-black/60 md:items-stretch md:justify-end" (click)="open.set(false)">
+        <aside class="flex max-h-[85dvh] w-full flex-col rounded-t-[20px] border-t border-line-strong bg-bg-card pb-[env(safe-area-inset-bottom)] shadow-card md:h-full md:max-h-none md:w-[400px] md:rounded-none md:border-t-0 md:border-l"
+          role="dialog" aria-modal="true" [attr.aria-label]="title()" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
+          <div class="flex shrink-0 items-center gap-3 px-5 pt-4 pb-2">
+            <h2 class="min-w-0 flex-1 text-ui-h5 text-text-primary">{{ title() }}</h2>
+            <button grIconButton type="button" icon="x" label="Cerrar" (click)="open.set(false)"></button>
+          </div>
+          <div class="flex flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-5 py-3"><ng-content /></div>
+          <div class="flex shrink-0 gap-2 border-t border-line-subtle px-5 py-4">
+            @if (filtered()) { <button grButton variant="ghost" type="button" (click)="reset.emit()">Limpiar filtros</button> }
+            <button grButton variant="primary" type="button" class="ml-auto" (click)="open.set(false)">{{ resultLabel() }}</button>
+          </div>
+        </aside>
+      </div>
+    }
+  `,
+})
+export class BoFilterSheet {
+  readonly open = model(false);
+  readonly title = input('Filtros');
+  readonly filtered = input(false);
+  readonly resultLabel = input('Ver resultados');
+  readonly reset = output<void>();
+}

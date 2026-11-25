@@ -34,13 +34,13 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
   template: `
     @let l = lista();
     <div class="mx-auto flex max-w-[1280px] flex-col gap-4 pb-24 md:gap-5">
-      <bo-page-header class="hidden md:flex" title="Solicitudes de atleta" subtitle="Altas enviadas desde el formulario público · se revisan a mano antes de publicar"
-        [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', 'Atletas', 'Solicitudes']">
+      <bo-page-header title="Solicitudes de atleta" subtitle="Altas enviadas desde el formulario público · se revisan a mano antes de publicar"
+        [back]="false" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', { label: 'Atletas', link: secciones()[0].path }, 'Solicitudes']">
+        @if (puede()) { <bo-tabs pageTabs label="Atletas" [alwaysTabs]="true" [tabs]="secciones()" /> }
         @if (puede() && l !== null && l !== undefined) {
           <ng-container actions><button grButton icon="download" [loading]="exporting()" (click)="exportar()">Exportar CSV</button></ng-container>
         }
       </bo-page-header>
-      @if (puede()) { <bo-tabs label="Atletas" [tabs]="secciones()" /> }
 
       @if (!puede()) {
         <section class="mx-auto w-full max-w-2xl rounded-lg border border-line-subtle bg-bg-card p-8 text-center">
