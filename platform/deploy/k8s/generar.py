@@ -70,6 +70,7 @@ LLAMADAS = {
     "competition": ["ai", "athletes", "chat", "cms", "crm", "donaciones", "fans", "juegos", "live", "messaging", "patrocinio", "raffle", "realtime", "schedule", "ticketing"],
     "athletes": ["crm", "fans", "live", "openlifter", "schedule"],
     "cms": ["athletes", "crm", "ticketing"],
+    "fans": ["athletes", "cms"],
     "crm": ["messaging"],
     "messaging": ["ai", "crm", "evo-weai"],
     "raffle": ["crm"],

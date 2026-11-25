@@ -566,17 +566,20 @@ func (s *Svc) canjear(ctx context.Context, slug, tok string) (*sesionOut, error)
 		WHERE id = $1 AND competition_id = $2 RETURNING password_hash = ''`, row.ID, cid, acc.Alias == "").Scan(&sinClave); err != nil {
 		return nil, err
 	}
-	// Insignia de atleta: re-check on every redemption (covers late registration uploads and links
-	// requested as público that turned out to belong to an athlete).
-	if acc.Tipo == fanauth.TipoAtleta && (row.Tipo != fanauth.TipoAtleta || row.AtletaID == uuid.Nil) {
-		if aid, err := s.atletas.porEmail(ctx, cid, acc.Email); err != nil {
-			s.a.Log.Warn("athletes por-email no disponible", "err", err)
-		} else if aid != uuid.Nil {
-			if err := s.a.DB.QueryRow(ctx, `UPDATE fans SET tipo = 'atleta', atleta_id = $3, updated_at = now() WHERE id = $1 AND competition_id = $2 RETURNING version`,
-				row.ID, cid, aid).Scan(&row.Version); err != nil {
+	// Insignia de atleta: re-check on every redemption (covers late registration uploads, links requested as
+	// público that turned out to belong to an athlete, and a público sign-up with the email of an athlete: one
+	// account per email, always the athlete's).
+	if row.Tipo != fanauth.TipoAtleta || row.AtletaID == uuid.Nil {
+		if aid := s.atletaDeEmail(ctx, cid, acc.Email); aid != uuid.Nil {
+			if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				_, err := s.convertirAtleta(ctx, tx, cid, row.ID, aid, "")
+				return err
+			}); err != nil {
 				return nil, err
 			}
-			row.Tipo, row.AtletaID = fanauth.TipoAtleta, aid
+			if row, err = scanFan(s.a.DB.QueryRow(ctx, selFan+` WHERE id = $1`, row.ID)); err != nil {
+				return nil, err
+			}
 		}
 	}
 	t, err := s.firmar(row)
