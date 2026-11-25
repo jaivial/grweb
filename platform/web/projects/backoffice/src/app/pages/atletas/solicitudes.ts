@@ -198,6 +198,9 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
               <button alertAction type="button" class="mt-2 inline-flex h-9 items-center gap-1 text-label-s text-accent-text" (click)="recargarDetalle()">Refrescar <gr-icon name="arrow-right" [size]="14" /></button>
             </gr-alert>
           }
+          @if (d.atletaEmail && d.estado !== 'aprobada' && d.estado !== 'rechazada') {
+            <gr-alert tone="info" title="Este email ya es de un atleta: {{ d.atletaEmail }}">Al aprobar, la solicitud se enlaza a ese atleta: no se crea un duplicado y no se le envía ningún aviso.</gr-alert>
+          }
           @if (d.cuentaPublico) {
             <gr-alert tone="info" title="Este email ya tiene una cuenta de público del directo">Al aprobar, su cuenta de público pasará a ser de atleta: mismo alias, misma contraseña, sus apuestas y su equipo de GRS Fantasy. No se crea una segunda cuenta.</gr-alert>
           }

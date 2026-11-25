@@ -103,6 +103,8 @@ export interface SolicitudDetalle extends SolicitudItem {
   consentimientos: Consentimiento[];
   /** The email already has a público account of the live stream: approving turns it into the athlete's account. */
   cuentaPublico?: boolean;
+  /** Name of the athlete that already has this email: approving links the request to them (no duplicate, no notices). */
+  atletaEmail?: string;
   motivoRechazo: string;
   revisadoAt: string;
   revisadoPor: string;
