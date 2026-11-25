@@ -18,6 +18,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -72,8 +73,9 @@ type App struct {
 	Metrics  *httpx.Metrics
 	Ready    []func(ctx context.Context) error
 
-	wg      sync.WaitGroup
-	workers []func(ctx context.Context)
+	wg       sync.WaitGroup
+	workers  []func(ctx context.Context)
+	caliente atomic.Bool // the warm floor of the pool was open once (readyz)
 }
 
 // Go registers a background worker started with the server and stopped on shutdown.
@@ -354,10 +356,14 @@ func (a *App) readyz(w http.ResponseWriter, r *http.Request) {
 		}
 		// ST3-R7-1/R7-2: a pod scaled out mid-burst took traffic while its warm floor of connections was still
 		// opening in the background, so its first requests paid TCP + auth (p95 swings of ~450 ms). It is ready
-		// once that floor is open.
-		if st := a.DB.Stat(); st.TotalConns() < a.DB.Config().MinConns {
-			http.Error(w, "postgres: calentando el pool", http.StatusServiceUnavailable)
-			return
+		// once that floor is open. Only at boot: every 30 min MaxConnLifetime closes the floor at once and pgx only
+		// refills it on its next health check (up to 1 min), which took every pod out of its Service each time.
+		if !a.caliente.Load() {
+			if a.DB.Stat().TotalConns() < a.DB.Config().MinConns {
+				http.Error(w, "postgres: calentando el pool", http.StatusServiceUnavailable)
+				return
+			}
+			a.caliente.Store(true)
 		}
 	}
 	if a.Redis != nil {
