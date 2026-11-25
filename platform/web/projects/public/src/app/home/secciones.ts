@@ -629,7 +629,7 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
           @for (r of filas(); track r.t + (r.flight?.id ?? r.item?.titulo)) {
             @if (r.item; as it) {
               <li class="flex items-center gap-4 rounded-lg border border-line-subtle px-4 py-3">
-                <span class="text-mono-s text-accent-text tabular-nums">{{ r.t }}</span>
+                <span class="w-12 font-mono text-mono-xs text-accent-text">{{ r.t }}</span>
                 <gr-icon [name]="it.icono" [size]="16" class="shrink-0 text-text-tertiary" />
                 <span class="text-body-s text-text-secondary">{{ it.titulo }}</span>
               </li>
@@ -639,11 +639,11 @@ interface FilaHorario { t: string; flight?: PubFlight; item?: { titulo: string; 
               <li class="overflow-hidden rounded-xl border bg-bg-card" [class]="f.estado === 'en_curso' ? 'border-accent/70' : 'border-line-subtle'" [class.opacity-60]="f.estado === 'finalizado'">
                 <div class="flex w-full items-center gap-4 p-4 md:px-5">
                   <span class="flex min-w-0 flex-1 flex-col gap-1">
-                    <span class="flex items-center gap-2"><span class="text-label-xs tracking-[0.08em] uppercase">{{ f.sexo === 'F' ? tx().femenino : tx().masculino }}</span>@if (ep(f); as e) { <span class="inline-flex h-[22px] items-center rounded-[6px] border border-white/40 px-2 text-label-xs">{{ e }}</span> }</span>
-                    <span class="text-ui-h5">{{ pesos(f) }}</span>
+                    <span class="flex items-center gap-2"><span class="text-label-xs text-white uppercase">{{ f.sexo === 'F' ? tx().femenino : tx().masculino }}</span>@if (ep(f); as e) { <span class="inline-flex h-5 items-center rounded-sm border border-accent/50 px-1.5 text-mono-xs text-accent-text">{{ e }}</span> }</span>
+                    <span class="text-display-2xs">{{ pesos(f) }}</span>
                     <span class="text-body-xs text-text-tertiary">{{ f.total }} atletas · Pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }}</span>
                   </span>
-                  <span class="flex items-center gap-2 font-mono text-[26px] font-semibold tabular-nums md:text-[30px]"><gr-icon name="clock" [size]="22" />{{ hora(f.inicioEstimado || f.inicio) }}</span>
+                  <span class="flex shrink-0 items-center gap-2 text-ui-h3 tabular-nums"><gr-icon name="clock" [size]="22" class="text-text-tertiary" />{{ hora(f.inicioEstimado || f.inicio) }}</span>
                 </div>
                 @if (abierto) {
                   @if (ats(f).length) {
