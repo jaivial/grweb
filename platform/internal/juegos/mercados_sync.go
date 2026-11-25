@@ -112,8 +112,9 @@ func mercadosDeseados(m *Marcador) (map[claveMercado][]uuid.UUID, map[claveMerca
 // `porra.mercado` per changed market. A degraded marcador (live/schedule down, `marcadorStale` serving the last
 // good one) can only grow markets: it creates the missing ones and adds athletes, but never removes options nor
 // annuls and refunds anything (BIZ-200 R2-5). With an empty marcador and markets already holding options the sync
-// does nothing at all. The markets are locked in a stable order (keys sorted, rows read ORDER BY id) so two
-// concurrent syncs (worker dispatch, reconciler, admin endpoint) cannot deadlock each other (BIZ-200 R2-2).
+// does nothing at all. The lock order is stable for a given marcador (the main loop walks the sorted keys, then
+// the orphan markets in id order), so two concurrent syncs with the same scoreboard (worker dispatch, reconciler,
+// admin endpoint) cannot deadlock each other (BIZ-200 R2-2).
 func sincronizarMercadosTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, m *Marcador, degradado bool) (int, error) {
 	actuales, err := cargarMercadosTx(ctx, tx, j.ID)
 	if err != nil {

@@ -308,7 +308,7 @@ Rutas nuevas en el `routeTable` del gateway (antes del catch-all de `competition
 | `juegos` | `saldos` | JornadaId, FanId, Moneda (porra\|fantasy), Saldo ≥ 0, Version |
 | `juegos` | `movimientos` | Id, JornadaId, FanId, Moneda, Importe, Motivo, Ref (único), CreatedAt |
 | `juegos` | `mercados` | Id, JornadaId, Tipo (categoria\|gl\|movimiento), Sexo, Categoria, Movimiento, Estado (abierto\|cerrado\|liquidado), Resultado |
-| `juegos` | `apuestas` | Id, MercadoId, FanId, AtletaId, Importe, DevueltaAt (apuesta devuelta por la sync de opciones o una anulación: no cuenta en liquidación, bote ni «mis apuestas»), CreatedAt |
+| `juegos` | `apuestas` | Id, MercadoId, FanId, AtletaId, Importe, DevueltaAt (apuesta devuelta por la sync de opciones: no cuenta en liquidación ni bote; en «mis apuestas» aparece con `devuelto: true`), CreatedAt |
 | `juegos` | `fantasy_atletas` | JornadaId, AtletaId, NombrePublico, Sexo, Categoria, Clausula, DuenoFanId, Titular, ProtegidoHasta, Version · PK(jornada_id, atleta_id) |
 | `juegos` | `fichajes` | Id, JornadaId, AtletaId, DeFan, AFan, Tipo (compra\|venta\|clausulazo), Precio, CreatedAt |
 | `juegos` | `historial_clausulas` | JornadaId, AtletaId, Clausula, Delta, Motivo, CreatedAt |
