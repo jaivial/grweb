@@ -35,6 +35,8 @@ type CuentaIn struct {
 type datosCuenta struct {
 	email, alias, tipo, telefono, password string
 	atletaID                               uuid.UUID
+	// actual is the account being edited (nil when creating): its athlete link stays while email and tipo do not change.
+	actual *fanRow
 }
 
 // validarCuenta checks the fields present in in and fills d (which starts with the current values).
@@ -79,6 +81,10 @@ func (s *Svc) validarCuenta(ctx context.Context, cid, fanID uuid.UUID, in Cuenta
 	}
 	if n > 0 {
 		return aliasOcupado()
+	}
+	if a := d.actual; a != nil && a.Tipo == fanauth.TipoAtleta && a.AtletaID != uuid.Nil && d.tipo == a.Tipo && d.email == strings.ToLower(a.Email) {
+		d.atletaID = a.AtletaID
+		return nil
 	}
 	d.atletaID = uuid.Nil
 	// One account per email: the email of an athlete is always an atleta account.
@@ -198,13 +204,9 @@ func (s *Svc) registerCuentas(api huma.API, base string, operar func(context.Con
 			} else if err != nil {
 				return nil, err
 			}
-			d := datosCuenta{email: strings.ToLower(row.Email), alias: row.Alias, tipo: row.Tipo, telefono: row.Telefono}
+			d := datosCuenta{email: strings.ToLower(row.Email), alias: row.Alias, tipo: row.Tipo, telefono: row.Telefono, actual: &row}
 			if err := s.validarCuenta(ctx, in.CID, row.ID, in.Body, &d); err != nil {
 				return nil, err
-			}
-			// The athlete match is kept when nothing that decides it changed (athletes may be slow, not wrong).
-			if d.tipo == row.Tipo && d.email == strings.ToLower(row.Email) && row.AtletaID != uuid.Nil {
-				d.atletaID = row.AtletaID
 			}
 			var campos []string
 			for _, c := range []struct {
