@@ -49,7 +49,7 @@ export class BoTableToolbar {
   selector: 'bo-modal-form',
   imports: [A11yModule, GrIconButton],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '(document:keydown.escape)': 'open() && !busy() && open.set(false)' },
+  host: { '(document:keydown.escape)': 'onEscape()' },
   template: `
     @if (open()) {
       <div class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4" (click)="!busy() && open.set(false)">
@@ -73,6 +73,8 @@ export class BoModalForm {
   readonly busy = input(false);
   /** Not «submit»: the native submit event of the <form> bubbles to the host and would fire it twice. */
   readonly enviar = output<void>();
+  // void on purpose: a listener expression that returns false calls preventDefault() and blocks other Escape handlers
+  protected onEscape(): void { if (this.open() && !this.busy()) this.open.set(false); }
 }
 
 /**
@@ -83,7 +85,7 @@ export class BoModalForm {
   selector: 'bo-sheet',
   imports: [A11yModule, GrButton, GrIconButton],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '(document:keydown.escape)': '!$event.defaultPrevented && open() && open.set(false)' },
+  host: { '(document:keydown.escape)': 'onEscape($event)' },
   template: `
     @if (open()) {
       <div class="fixed inset-0 z-50 flex items-end bg-black/60 md:items-stretch md:justify-end" (click)="open.set(false)">
@@ -112,4 +114,6 @@ export class BoSheet {
   /** Footer button label; empty = no footer (actions panel). */
   readonly resultLabel = input('');
   readonly reset = output<void>();
+  // void on purpose: a listener expression that returns false calls preventDefault() and blocks other Escape handlers
+  protected onEscape(e: Event): void { if (!e.defaultPrevented && this.open()) this.open.set(false); }
 }
