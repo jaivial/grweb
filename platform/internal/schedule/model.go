@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -104,7 +105,7 @@ type AgendaItem struct {
 
 // Conflicto is a problem of the draft. Blocking ones must be solved before publishing.
 type Conflicto struct {
-	Tipo     string     `json:"tipo" enum:"exceso,solape,solape_pesaje,sexo_mixto,fuera_horario,pausa,baja,sin_sesion,vacio"`
+	Tipo     string     `json:"tipo" enum:"exceso,solape,solape_pesaje,sexo_mixto,categoria,fuera_horario,pausa,baja,sin_sesion,vacio"`
 	Bloquea  bool       `json:"bloquea"`
 	SesionID *uuid.UUID `json:"sesionId,omitempty"`
 	Sesion   string     `json:"sesion,omitempty"`
@@ -504,6 +505,16 @@ func conflictos(cfg Config, loc *time.Location, fl []Sesion, sinSesion, sinCateg
 					add(f, "sexo_mixto", false, "La sesión de las "+hhmm(f.Inicio, loc)+" tiene atletas de otro sexo", "Es una sesión "+map[string]string{"F": "femenina", "M": "masculina"}[f.Sexo]+": mueve a esos atletas o cambia su sexo.")
 					break
 				}
+			}
+			// BIZ-202 QA: athletes whose weight class is not one of the session's.
+			fuera := 0
+			for _, a := range f.Atletas {
+				if !a.Baja && len(f.Categorias) > 0 && a.Sexo == f.Sexo && !slices.Contains(f.Categorias, a.Categoria) {
+					fuera++
+				}
+			}
+			if fuera > 0 {
+				add(f, "categoria", false, fmt.Sprintf("La sesión de las %s tiene %s", hhmm(f.Inicio, loc), plural(fuera, "atleta de otra categoría", "atletas de otra categoría")), "No están entre las categorías de la sesión: muévelos o añade su categoría.")
 			}
 		}
 		if d, ok := dias[f.Dia]; !ok {

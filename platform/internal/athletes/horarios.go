@@ -82,7 +82,7 @@ func (s *Svc) registerHorarios() {
 			}
 			err := s.change(ctx, in.CID, "", nil, func(tx pgx.Tx) error {
 				// Clear whoever no longer has a date.
-				rows, err := tx.Query(ctx, `UPDATE atletas SET jornada = NULL, lote = NULL, hora_inicio = NULL, pesaje_inicio = NULL, pesaje_fin = NULL, updated_at = now(), version = version + 1
+				rows, err := tx.Query(ctx, `UPDATE atletas SET jornada = NULL, lote = NULL, hora_inicio = NULL, pesaje_inicio = NULL, pesaje_fin = NULL, sesion = '', sesion_nivel = '', updated_at = now(), version = version + 1
 					WHERE competition_id = $1 AND jornada IS NOT NULL AND NOT (id = ANY($2)) RETURNING id`, in.CID, ids)
 				if err != nil {
 					return err
@@ -98,9 +98,10 @@ func (s *Svc) registerHorarios() {
 					}
 				}
 				for _, a := range b.Asignaciones {
-					tag, err := tx.Exec(ctx, `UPDATE atletas SET jornada = $3::date, lote = $4, hora_inicio = $5, pesaje_inicio = $6, pesaje_fin = $7, updated_at = now(), version = version + 1
-						WHERE competition_id = $1 AND id = $2 AND (jornada, lote, hora_inicio, pesaje_inicio, pesaje_fin) IS DISTINCT FROM ($3::date, $4, $5, $6, $7)`,
-						in.CID, a.AtletaID, a.Dia, a.Lote, a.Inicio, a.PesajeInicio, a.PesajeFin)
+					// BIZ-202: the profile also keeps the session (sex / weight classes) and its AEP level.
+					tag, err := tx.Exec(ctx, `UPDATE atletas SET jornada = $3::date, lote = $4, hora_inicio = $5, pesaje_inicio = $6, pesaje_fin = $7, sesion = $8, sesion_nivel = $9, updated_at = now(), version = version + 1
+						WHERE competition_id = $1 AND id = $2 AND (jornada, lote, hora_inicio, pesaje_inicio, pesaje_fin, sesion, sesion_nivel) IS DISTINCT FROM ($3::date, $4, $5, $6, $7, $8, $9)`,
+						in.CID, a.AtletaID, a.Dia, a.Lote, a.Inicio, a.PesajeInicio, a.PesajeFin, a.Sesion, a.Nivel)
 					if err != nil {
 						return err
 					}
@@ -143,13 +144,16 @@ func (s *Svc) registerHorarios() {
 					} else {
 						plantilla, plantillaSeg = "horario-sin-fecha", ""
 					}
-					if b.AvisarAtletas && r.Email != nil && *r.Email != "" && r.Estado == "confirmado" {
+					conEmail := r.Email != nil && *r.Email != ""
+					if b.AvisarAtletas && (conEmail || r.Telefono != "") && r.Estado == "confirmado" { // BIZ-202: WhatsApp also without email
 						vars["enlace"] = s.webURL + "/area-atleta"
 						if ok, err := s.avisoNuevo(ctx, tx, in.CID, b.Version, r.ID); err != nil {
 							return err
 						} else if ok {
-							if err := email(ctx, tx, in.CID, *r.Email, plantilla, vars); err != nil {
-								return err
+							if conEmail {
+								if err := email(ctx, tx, in.CID, *r.Email, plantilla, vars); err != nil {
+									return err
+								}
 							}
 							if r.Telefono != "" { // the same notice by WhatsApp (interactive buttons) when there is a phone
 								if err := whatsapp(ctx, tx, in.CID, r.Telefono, false, plantilla, vars, ""); err != nil {
@@ -157,7 +161,7 @@ func (s *Svc) registerHorarios() {
 								}
 							}
 							s.a.Log.Info("[BIZ-202] athletes_aviso_horario_encolado", "competition_id", in.CID, "atleta_id", r.ID, "version", b.Version,
-								"plantilla", plantilla, "email", true, "whatsapp", r.Telefono != "", "antes", vars["antes"], "ahora", vars["dia"]+" "+vars["hora"], "sesion", vars["sesion"], "nivel", vars["nivel"])
+								"plantilla", plantilla, "email", conEmail, "whatsapp", r.Telefono != "", "antes", vars["antes"], "ahora", vars["dia"]+" "+vars["hora"], "sesion", vars["sesion"], "nivel", vars["nivel"])
 							o.Body.AvisosAtletas++
 						}
 					}
