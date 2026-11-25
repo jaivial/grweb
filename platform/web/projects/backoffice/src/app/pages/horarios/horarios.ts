@@ -397,7 +397,7 @@ const diaSiguiente = (f: string) => {
 
     <!-- Tablet/phone: summary, actions and history (bottom sheet on phones, side sheet ≥768 px) -->
     <bo-sheet title="Ajustes" [(open)]="ajustesOpen">
-      <bo-tab-bar label="Ajustes" [tabs]="ajustesTabs" [(value)]="ajustesTab" />
+      <bo-tab-bar label="Ajustes" [alwaysTabs]="true" [tabs]="ajustesTabs" [(value)]="ajustesTab" />
       @switch (ajustesTab()) {
         @case ('resumen') { <p class="text-body-s text-text-secondary">{{ subtitulo() }}</p> }
         @case ('acciones') {

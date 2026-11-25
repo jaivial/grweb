@@ -31,6 +31,8 @@ export interface Sitio {
   logo?: string;
   /** Logo is light (white/grey): paint its panel dark (#141112) instead of white. */
   logoClaro?: boolean;
+  /** Version of a dark logo for black panels (/como-llegar paints every logo on black). */
+  logoOscuro?: string;
   /** Exact Google Maps link (overrides the search built by mapaDe). */
   maps?: string;
   descripcion?: string;
@@ -152,7 +154,7 @@ export const GIMNASIOS: Sitio[] = [
   { nombre: 'F.E.R Entrenamiento', logo: 'https://jaimedigitalstudio.b-cdn.net/grcup/gimnasios_donde_entrenar/logo-fer-entrenamiento.webp', logoClaro: true, detalle: 'Polígono Industrial Canyada dels Codonyers, calle 13, nº 11, nave 9, 46220 Picassent', web: 'https://ferentrenamiento.wodbuster.com', maps: 'https://maps.app.goo.gl/U6JRbXb7iw7wTuC78',
     descripcion: 'Abierto 24 h. 400 m² de material, clases de crosstraining y sala de musculación. Tarifa «Open Powerlifting» de 40 €/mes con acceso a la zona de material de competición.',
     descripcionEn: 'Open 24 h. 400 m² of equipment, crosstraining classes and a weights room. «Open Powerlifting» plan at €40/month with access to the competition equipment area.' },
-  { nombre: 'NewQ Almussafes Fitness', logo: 'https://jaimedigitalstudio.b-cdn.net/grcup/gimnasios_donde_entrenar/logo-newq-almussafes.webp', detalle: 'Ronda Síndic Antoni Albuixech, 123, 46440 Almussafes', web: 'https://newquo.es', maps: 'https://maps.app.goo.gl/T5FYoVatjRhNw5Y76',
+  { nombre: 'NewQ Almussafes Fitness', logo: 'https://jaimedigitalstudio.b-cdn.net/grcup/gimnasios_donde_entrenar/logo-newq-almussafes.webp', logoOscuro: 'https://jaimedigitalstudio.b-cdn.net/grcup/gimnasios_donde_entrenar/logo-newq-almussafes-claro.webp', detalle: 'Ronda Síndic Antoni Albuixech, 123, 46440 Almussafes', web: 'https://newquo.es', maps: 'https://maps.app.goo.gl/T5FYoVatjRhNw5Y76',
     descripcion: 'Gimnasio con clases colectivas variadas y monitores; máquinas nuevas tras una reforma.',
     descripcionEn: 'Gym with a variety of group classes and instructors; new machines after a refurbishment.' },
   { nombre: 'Valhalla Gym Almussafes', logo: 'https://jaimedigitalstudio.b-cdn.net/grcup/gimnasios_donde_entrenar/logo-valhalla-gym-almussafes.webp', detalle: 'Carrer Sant Cristòfol, 61, Bajo, 46440 Almussafes', web: 'https://valhallagymalmussafes.es', maps: 'https://maps.app.goo.gl/7KYWNZ6vU88cCVJL8',

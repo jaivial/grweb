@@ -202,12 +202,14 @@ export interface BoTabOpcion { value: string; label: string; count?: number | nu
   selector: 'bo-tab-bar',
   imports: [GrSelect],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'block md:border-b md:border-line-subtle' },
+  host: { class: 'block border-line-subtle md:border-b', '[class.border-b]': 'alwaysTabs()' },
   template: `
-    <gr-select class="w-full md:hidden" [aria-label]="label()" [value]="value()" (valorChange)="value.set($event)">
-      @for (t of tabs(); track t.value) { <option [value]="t.value" [disabled]="t.disabled">{{ etiqueta(t) }}</option> }
-    </gr-select>
-    <div class="hidden flex-wrap gap-1 md:flex" role="tablist" [attr.aria-label]="label()">
+    @if (!alwaysTabs()) {
+      <gr-select class="w-full md:hidden" [aria-label]="label()" [value]="value()" (valorChange)="value.set($event)">
+        @for (t of tabs(); track t.value) { <option [value]="t.value" [disabled]="t.disabled">{{ etiqueta(t) }}</option> }
+      </gr-select>
+    }
+    <div class="flex-wrap gap-1 md:flex" [class]="alwaysTabs() ? 'grid auto-cols-fr grid-flow-col md:flex' : 'hidden'" role="tablist" [attr.aria-label]="label()">
       @for (t of tabs(); track t.value) {
         <button type="button" role="tab" [attr.aria-selected]="t.value === value()" [disabled]="t.disabled" (click)="value.set(t.value)"
           class="${TAB} disabled:opacity-40" [class]="t.value === value() ? '${TAB_ON}' : '${TAB_OFF}'">
@@ -223,6 +225,8 @@ export class BoTabBar {
   readonly tabs = input.required<BoTabOpcion[]>();
   readonly value = model.required<string>();
   readonly label = input('Sección');
+  /** Show the tab row on phones too (no selector), for a few short tabs. */
+  readonly alwaysTabs = input(false);
   protected readonly etiqueta = etiquetaTab;
 }
 
@@ -255,7 +259,7 @@ export class BoToggle {
   selector: 'bo-drawer',
   imports: [A11yModule, GrIconButton, GrBadge],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '(document:keydown.escape)': 'open() && close()' },
+  host: { '(document:keydown.escape)': 'onEscape()' },
   template: `
     @if (open()) {
       <div class="fixed inset-0 z-40 bg-black/60" (click)="close()"></div>
@@ -283,6 +287,8 @@ export class BoDrawer {
   close(): void {
     this.open.set(false);
   }
+  // void on purpose: a listener expression that returns false calls preventDefault() and blocks other Escape handlers
+  protected onEscape(): void { if (this.open()) this.close(); }
 }
 
 export interface ConfirmRequest {
