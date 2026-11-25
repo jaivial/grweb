@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrIcon, GrIconButton, GrKpi, GrToasts, type GrTone } from '@grcup/ui';
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
+import { Realtime } from '../../../core/realtime';
 import { BoPageHeader, Confirm, errText } from '../../../shared/ui';
 import { SoCard, SoPuesto, SoSkelFilas, SoSkelKpis, compacto, diaCorto, num } from '../ui';
 import { JuegosApi, type Clasificaciones, type EstadoJornada, type Jornada, type Mercado } from './api';
@@ -20,6 +21,9 @@ const MERCADO: Record<Mercado['estado'], { l: string; tone: GrTone; grupo: strin
   cerrado: { l: 'Cerrado', tone: 'warning', grupo: 'CERRADOS · PENDIENTES DE LIQUIDAR', punto: 'bg-warning' },
   liquidado: { l: 'Liquidado', tone: 'info', grupo: 'LIQUIDADOS', punto: 'bg-info' },
 };
+
+/** Liquidado sin ganador (o anulado por el staff): el bote volvió a las apuestas. */
+const ANULADO = { l: 'Anulado', tone: 'neutral' as GrTone };
 
 const MONEDAS = new Intl.NumberFormat('es-ES');
 
@@ -144,7 +148,7 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
                                 <button grButton size="s" variant="primary" icon="circle-check" [disabled]="!puede()" (click)="liquidar(m)">Liquidar</button>
                                 <button grIconButton icon="undo" [label]="'Anular y devolver ' + m.titulo" [disabled]="!puede()" (click)="devolver(m)"></button>
                               } @else {
-                                <span class="text-body-xs text-text-muted">Bote repartido</span>
+                                <span class="text-body-xs text-text-muted">{{ m.devuelto ? 'Devuelto' : 'Bote repartido' }}</span>
                               }
                             </div>
                           </div>
@@ -205,9 +209,10 @@ export class JuegosPage {
   protected readonly cargando = signal(true);
   protected readonly ocupado = signal(false);
   protected readonly error = signal('');
+  private t: ReturnType<typeof setTimeout> | undefined;
 
   protected readonly est = (e: EstadoJornada) => ESTADOS[e];
-  protected readonly mer = (m: Mercado) => MERCADO[m.estado];
+  protected readonly mer = (m: Mercado) => (m.estado === 'liquidado' && m.devuelto ? ANULADO : MERCADO[m.estado]);
   protected readonly fmt = (v: number) => MONEDAS.format(v);
   protected readonly num = num;
   protected readonly diaCorto = diaCorto;
@@ -239,7 +244,7 @@ export class JuegosPage {
       .filter((g) => g.items.length),
   );
   protected readonly apuestas = computed(() => this.mercados().reduce((a, m) => a + m.apuestas, 0));
-  protected readonly bote = computed(() => compacto(this.mercados().reduce((a, m) => a + m.bote, 0)));
+  protected readonly bote = computed(() => compacto(this.mercados().reduce((a, m) => a + (m.devuelto ? 0 : m.bote), 0)));
   protected readonly monedas = computed(() => {
     const p = this.clasif().porra.reduce((a, f) => a + f.saldo, 0);
     const f = this.clasif().fantasy.reduce((a, x) => a + (x.lider?.saldo ?? 0), 0);
@@ -251,6 +256,15 @@ export class JuegosPage {
       const cid = this.cid();
       if (!cid) return;
       untracked(() => void this.cargar());
+    });
+    const sub = inject(Realtime).events.subscribe((e) => {
+      if (!e.tipo.startsWith('porra.') || !this.seleccionada()) return;
+      clearTimeout(this.t);
+      this.t = setTimeout(() => void this.cargarJornada(this.seleccionada()), 500);
+    });
+    inject(DestroyRef).onDestroy(() => {
+      clearTimeout(this.t);
+      sub.unsubscribe();
     });
   }
 
