@@ -28,6 +28,9 @@ type MeetResumen struct {
 	Atletas     int       `json:"atletas" doc:"Entradas de la inscripción"`
 	Vinculados  int       `json:"vinculados" doc:"Entradas vinculadas con un atleta"`
 	Actualizado time.Time `json:"actualizado"`
+	// Predeterminada: the desk opens this meet by itself after signing in.
+	Predeterminada bool              `json:"predeterminada"`
+	Niveles        map[string]string `json:"niveles,omitempty" doc:"Nivel AEP de cada día de OpenLifter (\"1\": \"aep2\")"`
 }
 
 // Horario says what the published schedule gave to the meet.
@@ -42,11 +45,12 @@ type Horario struct {
 
 // MeetCompleto is everything the desk needs to open a meet.
 type MeetCompleto struct {
-	Mesa     string           `json:"mesa"`
-	Meet     map[string]any   `json:"meet" doc:"«meet» de OpenLifter"`
-	Entradas []map[string]any `json:"entradas" doc:"Entradas de OpenLifter (inscripción preparada + último estado sincronizado)"`
-	Grupo    *Grupo           `json:"grupo,omitempty" doc:"Último grupo en pantalla de la mesa"`
-	Horario  Horario          `json:"horario"`
+	Mesa     string            `json:"mesa"`
+	Meet     map[string]any    `json:"meet" doc:"«meet» de OpenLifter"`
+	Entradas []map[string]any  `json:"entradas" doc:"Entradas de OpenLifter (inscripción preparada + último estado sincronizado)"`
+	Grupo    *Grupo            `json:"grupo,omitempty" doc:"Último grupo en pantalla de la mesa"`
+	Horario  Horario           `json:"horario"`
+	Niveles  map[string]string `json:"niveles,omitempty" doc:"Nivel AEP de cada día de OpenLifter"`
 }
 
 // the published schedule, only what the desk uses (schedule.Snapshot)
@@ -93,10 +97,11 @@ func flightDe(n int) string {
 }
 
 // asignarHorario gives the linked entries of the published sessions of this meet the day, platform 1, the flight
-// (one letter per session of the day, in start order) and the lot of the schedule. A desk of a level (AEP 2 / AEP 3)
-// takes the sessions of its level, whatever their date (its days are the session dates in order); any other desk
-// takes the sessions that fall on the meet's days.
-func asignarHorario(meet map[string]any, entradas []map[string]any, links map[int]uuid.UUID, sn *horarioPublicado, nivel string) Horario {
+// (one letter per session of the day, in start order) and the lot of the schedule. A meet with a level per day takes
+// the sessions of each level, whatever their date, on that level's day (a session without a level, on the meet day
+// of its date). A desk of one level (AEP 2 / AEP 3 key) takes the sessions of its level, whatever their date (its
+// days are the session dates in order); any other desk takes the sessions that fall on the meet's days.
+func asignarHorario(meet map[string]any, entradas []map[string]any, links map[int]uuid.UUID, sn *horarioPublicado, niv niveles, mesa string) Horario {
 	const mantener = ": se mantienen el día, la plataforma y el flight de la inscripción."
 	if sn == nil {
 		return Horario{Aviso: "Los horarios de la competición aún no están publicados" + mantener}
@@ -106,9 +111,13 @@ func asignarHorario(meet map[string]any, entradas []map[string]any, links map[in
 	if f, ok := meet["lengthDays"].(float64); ok && f >= 1 {
 		dias = int(f)
 	}
+	nivel := "" // desk of one level, by its key
+	if len(niv) == 0 {
+		nivel = nivelMesa(mesa)
+	}
 	fecha, _ := meet["date"].(string)
 	inicio, errFecha := time.Parse("2006-01-02", fecha)
-	if nivel == "" && errFecha != nil {
+	if nivel == "" && len(niv) == 0 && errFecha != nil {
 		h.Aviso = "La competición de OpenLifter no tiene fecha" + mantener
 		return h
 	}
@@ -122,7 +131,7 @@ func asignarHorario(meet map[string]any, entradas []map[string]any, links map[in
 	}
 	type ses struct {
 		fecha  string
-		dia    int // by date (desk without level)
+		dia    int // OpenLifter day; 0: by the order of its date (desk of one level)
 		inicio time.Time
 		ats    []map[string]any
 		lotes  []int
@@ -134,14 +143,28 @@ func asignarHorario(meet map[string]any, entradas []map[string]any, links map[in
 			continue
 		}
 		n := int(f.Sub(inicio).Hours()/24) + 1
-		if nivel == "" && (n < 1 || n > dias) {
-			continue
-		}
+		porFecha := errFecha == nil && n >= 1 && n <= dias
 		for _, x := range d.Sesiones {
-			if nivel != "" && x.Prueba != "" && x.Prueba != nivel {
-				continue
+			dia := 0
+			switch {
+			case len(niv) > 0:
+				if dia = niv.dia(x.Prueba); dia == 0 && porFecha && niv[n] == "" {
+					dia = n // a session without a level (or of a level not in the meet) on a meet day without a level
+				}
+				if dia == 0 || dia > dias {
+					continue
+				}
+			case nivel != "":
+				if x.Prueba != "" && x.Prueba != nivel {
+					continue
+				}
+			default:
+				if !porFecha {
+					continue
+				}
+				dia = n
 			}
-			s := ses{fecha: d.Fecha, dia: n, inicio: x.Inicio}
+			s := ses{fecha: d.Fecha, dia: dia, inicio: x.Inicio}
 			for _, a := range x.Atletas {
 				if e := porAtleta[a.ID]; e != nil {
 					s.ats, s.lotes = append(s.ats, e), append(s.lotes, a.Lote)
@@ -158,17 +181,17 @@ func asignarHorario(meet map[string]any, entradas []map[string]any, links map[in
 		}
 		return lista[i].inicio.Before(lista[j].inicio)
 	})
-	dia := map[string]int{} // session date → OpenLifter day (1…lengthDays; extra dates go to the last day)
+	diaFecha := map[string]int{} // desk of one level: session date → OpenLifter day (extra dates go to the last day)
 	letras := map[int]int{}
 	enSesion := map[int]bool{}
 	for _, s := range lista {
-		if _, ok := dia[s.fecha]; !ok {
-			dia[s.fecha] = min(len(dia)+1, dias)
-			if nivel == "" {
-				dia[s.fecha] = s.dia
+		d := s.dia
+		if d == 0 {
+			if _, ok := diaFecha[s.fecha]; !ok {
+				diaFecha[s.fecha] = min(len(diaFecha)+1, dias)
 			}
+			d = diaFecha[s.fecha]
 		}
-		d := dia[s.fecha]
 		flight := flightDe(letras[d])
 		letras[d]++
 		h.Sesiones++
@@ -210,10 +233,10 @@ func (s *Svc) registerPreparadas() {
 			if _, err := operar(ctx, in.CID); err != nil {
 				return nil, err
 			}
-			rows, err := s.a.DB.Query(ctx, `SELECT m.mesa, COALESCE(m.meet->>'name', ''), COALESCE(m.meet->>'date', ''), m.updated_at, jsonb_array_length(m.entradas),
+			rows, err := s.a.DB.Query(ctx, `SELECT m.mesa, COALESCE(m.meet->>'name', ''), COALESCE(m.meet->>'date', ''), m.updated_at, m.predeterminada, m.niveles, jsonb_array_length(m.entradas),
 				(SELECT count(*) FROM entradas e WHERE e.competition_id = m.competition_id AND e.mesa = m.mesa AND e.datos ? 'id'),
 				(SELECT count(*) FROM entradas e WHERE e.competition_id = m.competition_id AND e.mesa = m.mesa AND e.datos ? 'id' AND e.atleta_id IS NOT NULL AND e.vinculo IN ('auto', 'confirmado'))
-				FROM meets m WHERE m.competition_id = $1 ORDER BY 3, 1`, in.CID)
+				FROM meets m WHERE m.competition_id = $1 ORDER BY m.predeterminada DESC, 3, 1`, in.CID)
 			if err != nil {
 				return nil, err
 			}
@@ -223,8 +246,12 @@ func (s *Svc) registerPreparadas() {
 			for rows.Next() {
 				var m MeetResumen
 				var preparadas, sincronizadas int
-				if err := rows.Scan(&m.Mesa, &m.Nombre, &m.Fecha, &m.Actualizado, &preparadas, &sincronizadas, &m.Vinculados); err != nil {
+				var raw map[string]string
+				if err := rows.Scan(&m.Mesa, &m.Nombre, &m.Fecha, &m.Actualizado, &m.Predeterminada, &raw, &preparadas, &sincronizadas, &m.Vinculados); err != nil {
 					return nil, err
+				}
+				if len(raw) > 0 {
+					m.Niveles = raw
 				}
 				m.Atletas = preparadas
 				if sincronizadas > 0 {
@@ -249,12 +276,17 @@ func (s *Svc) registerPreparadas() {
 			m := &o.Body
 			m.Mesa = in.Mesa
 			var preparadas []map[string]any
-			err := s.a.DB.QueryRow(ctx, `SELECT meet, entradas FROM meets WHERE competition_id = $1 AND mesa = $2`, in.CID, in.Mesa).Scan(&m.Meet, &preparadas)
+			var raw map[string]string
+			err := s.a.DB.QueryRow(ctx, `SELECT meet, entradas, niveles FROM meets WHERE competition_id = $1 AND mesa = $2`, in.CID, in.Mesa).Scan(&m.Meet, &preparadas, &raw)
 			if errors.Is(err, pgx.ErrNoRows) {
 				return nil, problem.NotFound("Esa competición no está preparada en el servidor.")
 			}
 			if err != nil {
 				return nil, err
+			}
+			niv := leerNiveles(raw)
+			if len(raw) > 0 {
+				m.Niveles = raw
 			}
 			if err := s.a.DB.QueryRow(ctx, `SELECT grupo FROM mesas WHERE competition_id = $1 AND mesa = $2`, in.CID, in.Mesa).Scan(&m.Grupo); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 				return nil, err
@@ -314,7 +346,7 @@ func (s *Svc) registerPreparadas() {
 				s.a.Log.Warn("horarios publicados", "err", err)
 				m.Horario = Horario{Aviso: "No se pudieron leer los horarios: se mantienen el día, la plataforma y el flight de la inscripción."}
 			} else {
-				m.Horario = asignarHorario(m.Meet, m.Entradas, links, sn, nivelMesa(in.Mesa))
+				m.Horario = asignarHorario(m.Meet, m.Entradas, links, sn, niv, in.Mesa)
 			}
 			s.a.Log.Info("openlifter.meet_abierto", "mesa", in.Mesa, "entradas", len(m.Entradas), "horario", m.Horario.Publicado, "asignadas", m.Horario.Asignadas)
 			return o, nil
@@ -336,6 +368,9 @@ func (s *Svc) registerPreparadas() {
 				return nil, err
 			}
 			b := in.Body
+			if err := noFusionada(ctx, s.a.DB, in.CID, b.Mesa); err != nil {
+				return nil, err
+			}
 			if len(b.Meet) == 0 {
 				return nil, problem.Unprocessable("MEET_VACIO", "Falta el setup de la competición («meet»).")
 			}

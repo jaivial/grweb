@@ -248,7 +248,11 @@ func rematch(ctx context.Context, tx pgx.Tx, cid uuid.UUID, mesa string, filas [
 			}
 		}
 	}
-	res := emparejar(libres, ids, fijos, alias)
+	niv, err := nivelesDe(ctx, tx, cid, mesa)
+	if err != nil {
+		return nil, nil, err
+	}
+	res := emparejarPorNivel(libres, ids, fijos, alias, niv, mesa)
 	cambiados := map[int]bool{}
 	var cambios []*fila
 	for _, f := range filas {
@@ -532,6 +536,7 @@ type AtletaImport struct {
 	RackSQ *int   `json:"rackSq,omitempty"`
 	RackBP string `json:"rackBp,omitempty"`
 	Prueba string `json:"prueba,omitempty" doc:"aep2, aep3 o vacío"`
+	Dia    int    `json:"dia,omitempty" doc:"Día de OpenLifter de su nivel en esta mesa (mesa con un nivel por día)"`
 	// Roll rows (BIZ-210).
 	Padron         bool       `json:"padron,omitempty" doc:"Fila del padrón AEP (id es la fila, no un atleta)"`
 	AtletaID       *uuid.UUID `json:"atletaId,omitempty" doc:"Atleta enlazado con la fila del padrón"`
@@ -565,28 +570,40 @@ func (s *Svc) register() {
 			if err != nil {
 				return nil, err
 			}
-			nivel := nivelMesa(in.Mesa)
-			var pad []lifterPadron
-			if nivel != "" {
-				// without the roll the desk still gets its athletes (the roll comes on the next load)
-				pad, _ = s.padron(ctx, in.CID, nivel)
+			niv, err := nivelesDe(ctx, s.a.DB, in.CID, in.Mesa)
+			if err != nil {
+				return nil, err
+			}
+			lvls := niv.todos(in.Mesa)
+			delNivel := map[string]bool{}
+			for _, l := range lvls {
+				delNivel[l] = true
 			}
 			o := &atletasOut{}
-			o.Body.Atletas = make([]AtletaImport, 0, len(ids)+len(pad))
+			o.Body.Atletas = make([]AtletaImport, 0, len(ids))
 			enLista := map[uuid.UUID]bool{}
 			for _, x := range ids {
-				if nivel != "" && x.Prueba != "" && x.Prueba != nivel {
-					continue // an athlete of the other level
+				if len(lvls) > 0 && x.Prueba != "" && !delNivel[x.Prueba] {
+					continue // an athlete of another level
 				}
 				enLista[x.ID] = true
 				a := AtletaImport{ID: x.ID, Nombre: x.nombreCompleto(), Sexo: x.Sexo, FechaNacimiento: x.FechaNacimiento, Categoria: x.Categoria, Division: x.Division,
 					Club: x.Club, Licencia: x.Licencia, Instagram: x.Instagram, Flight: x.Flight, Plataforma: x.Plataforma, PesoCorporal: x.PesoCorporal, RackSQ: x.RackSQ, RackBP: x.RackBP}
 				a.Primeros.SQ, a.Primeros.BP, a.Primeros.DL = x.Primeros.SQ, x.Primeros.BP, x.Primeros.DL
-				a.Prueba = x.Prueba
+				a.Prueba, a.Dia = x.Prueba, niv.dia(x.Prueba)
 				o.Body.Atletas = append(o.Body.Atletas, a)
 			}
-			o.Body.Atletas = append(o.Body.Atletas, padronImport(pad, nivel, enLista)...)
-			s.a.Log.Info("openlifter.atletas_import", "nivel", nivel, "atletas", len(o.Body.Atletas), "padron", len(pad))
+			padron := 0
+			for _, nivel := range lvls {
+				// without the roll the desk still gets its athletes (the roll comes on the next load)
+				pad, _ := s.padron(ctx, in.CID, nivel)
+				padron += len(pad)
+				for _, a := range padronImport(pad, nivel, enLista) {
+					a.Dia = niv.dia(nivel)
+					o.Body.Atletas = append(o.Body.Atletas, a)
+				}
+			}
+			s.a.Log.Info("openlifter.atletas_import", "niveles", lvls, "atletas", len(o.Body.Atletas), "padron", padron)
 			return o, nil
 		})
 
@@ -610,6 +627,9 @@ func (s *Svc) register() {
 				return nil, err
 			}
 			b := in.Body
+			if err := noFusionada(ctx, s.a.DB, in.CID, b.Mesa); err != nil {
+				return nil, err
+			}
 			ids, err := s.identidades(ctx, in.CID, false)
 			if err != nil {
 				return nil, err
@@ -686,6 +706,9 @@ func (s *Svc) register() {
 			if _, err := operar(ctx, in.CID); err != nil {
 				return nil, err
 			}
+			if err := noFusionada(ctx, s.a.DB, in.CID, in.Mesa); err != nil {
+				return nil, err
+			}
 			ids, err := s.identidades(ctx, in.CID, false)
 			if err != nil {
 				return nil, err
@@ -732,6 +755,9 @@ func (s *Svc) register() {
 				return nil, err
 			}
 			b := in.Body
+			if err := noFusionada(ctx, s.a.DB, in.CID, b.Mesa); err != nil {
+				return nil, err
+			}
 			ids, err := s.identidades(ctx, in.CID, true)
 			if err != nil {
 				return nil, err
