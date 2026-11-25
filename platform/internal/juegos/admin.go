@@ -166,7 +166,7 @@ func (s *Svc) registerAdmin() {
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "juegos-admin-mercados-generar", Method: http.MethodPost, Path: base + "/mercados/generar",
-		Summary: "Generar los mercados de la porra desde el marcador", Tags: tagJuegos, Security: bearer},
+		Summary: "Sincronizar los mercados de la porra con el marcador (crea los que faltan y ajusta los abiertos)", Tags: tagJuegos, Security: bearer},
 		func(ctx context.Context, in *jornadaBodyIn) (*generadosOut, error) {
 			if err := operar(ctx, in.CID); err != nil {
 				return nil, err
@@ -175,7 +175,7 @@ func (s *Svc) registerAdmin() {
 			if err != nil {
 				return nil, err
 			}
-			n, err := s.generarMercados(ctx, in.CID, *j)
+			n, err := s.sincronizarMercados(ctx, in.CID, *j)
 			if err != nil {
 				return nil, err
 			}

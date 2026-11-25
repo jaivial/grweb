@@ -25,8 +25,8 @@ type mercadoRow struct {
 }
 
 // sincronizar applies the scoreboard of one jornada: new athletes, grades (clause = base × grade factor),
-// published categories (porra liquidation) and the automatic close of markets. Emits fantasy.nota,
-// fantasy.clausula and porra.mercado.
+// the porra markets (options, refunds and annulments, BIZ-200), published categories (porra liquidation) and the
+// automatic close of markets. Emits fantasy.nota, fantasy.clausula and porra.mercado.
 func (s *Svc) sincronizar(ctx context.Context, cid uuid.UUID, j jornada) error {
 	m, err := s.marcador(ctx, cid, j.Dia)
 	if err != nil {
@@ -41,6 +41,11 @@ func (s *Svc) sincronizar(ctx context.Context, cid uuid.UUID, j jornada) error {
 			return err
 		}
 		if err := aplicarNotasTx(ctx, tx, cid, j, cfg, m); err != nil {
+			return err
+		}
+		// BIZ-200: the porra markets follow the scoreboard (alta, edición, retirada o borrado de un atleta)
+		// before the automatic close, so a new verdict lands in an already up-to-date market.
+		if _, err := sincronizarMercadosTx(ctx, tx, cid, j, cfg, m); err != nil {
 			return err
 		}
 		mercados, err := cargarMercadosTx(ctx, tx, j.ID)

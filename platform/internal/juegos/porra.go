@@ -154,64 +154,7 @@ func (s *Svc) mercadosVista(ctx context.Context, cid uuid.UUID, j *jornada) ([]m
 	return out, nil
 }
 
-// generarMercados creates the markets of a jornada from the scoreboard (admin button «Generar mercados»): one
-// `categoria` per weight class, one `gl` per sex and one `movimiento` per sex and lift. Idempotent (UNIQUE).
-func (s *Svc) generarMercados(ctx context.Context, cid uuid.UUID, j jornada) (int, error) {
-	m, err := s.marcador(ctx, cid, j.Dia)
-	if err != nil {
-		return 0, err
-	}
-	titulo := map[string]string{"sq": "Sentadilla", "bp": "Press banca", "dl": "Peso muerto"}
-	porCat := map[string][]uuid.UUID{}
-	porGL := map[string][]uuid.UUID{}
-	porMov := map[string][]uuid.UUID{}
-	nombres := map[string]string{}
-	for i := range m.Atletas {
-		ma := &m.Atletas[i]
-		kc := ma.Sexo + "|" + ma.Categoria
-		porCat[kc] = append(porCat[kc], ma.AtletaID)
-		porGL[ma.Sexo] = append(porGL[ma.Sexo], ma.AtletaID)
-		for _, mv := range movimientos {
-			porMov[ma.Sexo+"|"+mv] = append(porMov[ma.Sexo+"|"+mv], ma.AtletaID)
-		}
-		nombres[kc] = (map[string]string{"F": "Femenino", "M": "Masculino"})[ma.Sexo] + " " + guion(ma.Categoria) + " kg"
-	}
-	creados := 0
-	err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-		for kc, opts := range porCat {
-			sexo, cat, _ := cortar2(kc)
-			if insertarMercadoTx(ctx, tx, cid, j.ID, "categoria", sexo, cat, "", nombres[kc], opts) {
-				creados++
-			}
-		}
-		for sx, opts := range porGL {
-			nombre := (map[string]string{"F": "Femenino", "M": "Masculino"})[sx]
-			if insertarMercadoTx(ctx, tx, cid, j.ID, "gl", sx, "", "", "Mejor IPF GL "+nombre, opts) {
-				creados++
-			}
-		}
-		for km, opts := range porMov {
-			sexo, mv, _ := cortar2(km)
-			nombre := (map[string]string{"F": "Femenino", "M": "Masculino"})[sexo]
-			if insertarMercadoTx(ctx, tx, cid, j.ID, "movimiento", sexo, "", mv, "Mayor "+titulo[mv]+" "+nombre, opts) {
-				creados++
-			}
-		}
-		return nil
-	})
-	return creados, err
-}
-
-func insertarMercadoTx(ctx context.Context, tx pgx.Tx, cid, jid uuid.UUID, tipo, sexo, categoria, movimiento, titulo string, opciones []uuid.UUID) bool {
-	if len(opciones) < 2 {
-		return false // a market of one athlete is a sure bet: it is not created
-	}
-	_, err := tx.Exec(ctx, `INSERT INTO mercados (id, competition_id, jornada_id, tipo, sexo, categoria, movimiento, titulo, opciones)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (jornada_id, tipo, sexo, categoria, movimiento) DO NOTHING`,
-		newID(), cid, jid, tipo, sexo, categoria, movimiento, titulo, opciones)
-	return err == nil
-}
-
+// guion formats a weight class the way the public views do (−83 with a typographic minus).
 func guion(cat string) string {
 	s := ""
 	for i, c := range cat {
@@ -222,15 +165,6 @@ func guion(cat string) string {
 		s += string(c)
 	}
 	return s
-}
-
-func cortar2(k string) (string, string, bool) {
-	for i := 0; i < len(k); i++ {
-		if k[i] == '|' {
-			return k[:i], k[i+1:], true
-		}
-	}
-	return k, "", false
 }
 
 func buscarMercado(mercados []mercadoRow, tipo, sexo, categoria, movimiento string) *mercadoRow {
