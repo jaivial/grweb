@@ -44,6 +44,9 @@ type Marcador struct {
 	SesionEnCurso        string           `json:"sesionEnCurso"`
 	Atletas              []MarcadorAtleta `json:"atletas"`
 	CategoriasPublicadas []string         `json:"categoriasPublicadas"`
+	// Degradado: live is serving its own stale plan (schedule/athletes down, up to 24 h old, BIZ-200 R2-S1). The
+	// markets must then only grow, like with the stale marcador of a dead live.
+	Degradado bool `json:"degradado,omitempty"`
 }
 
 // marcadorStale is how long the last good scoreboard keeps being served while live is down (ST3-R2-2).
@@ -53,8 +56,9 @@ const marcadorStale = 10 * time.Minute
 // per second and jornada, and the admin endpoints reuse it). One call per key at a time (singleflight), 2 s
 // budget detached from the caller; on error it serves the last good scoreboard (up to 10 min) and retries at
 // most every 2 s, so a live/schedule outage never holds requests for the 10 s of the svcclient. The second
-// return reports a degraded scoreboard (live down, the stale last-good one is being served): the markets sync
-// may then only create markets and add options, never remove options or annul and refund (BIZ-200 R2-5).
+// return reports a degraded scoreboard, the sync may then only create markets and add options, never remove
+// options or annul and refund (BIZ-200 R2-5): either live is down and juegos serves the stale last-good one, or
+// live itself reports serving its own stale plan (BIZ-200 R2-S1).
 func (s *Svc) marcador(_ context.Context, cid uuid.UUID, dia string) (*Marcador, bool, error) {
 	k := cid.String() + ":" + dia
 	s.marcMu.Lock()
@@ -66,15 +70,24 @@ func (s *Svc) marcador(_ context.Context, cid uuid.UUID, dia string) (*Marcador,
 		s.marc[k] = marcEntrada{m: e.m, err: e.err, ok: e.ok, caido: true, exp: time.Now().Add(2 * time.Second)}
 		s.marcMu.Unlock()
 		go s.marcSF.Do(k, func() (any, error) { return s.cargarMarcador(cid, dia, k, e, ok), nil })
-		return e.m, e.err == nil, e.err
+		return e.m, degradada(e.m, true, e.err), e.err
 	}
 	s.marcMu.Unlock()
 	if fresca {
-		return e.m, e.caido && e.err == nil, e.err
+		return e.m, degradada(e.m, e.caido, e.err), e.err
 	}
 	v, _, _ := s.marcSF.Do(k, func() (any, error) { return s.cargarMarcador(cid, dia, k, e, ok), nil })
 	n := v.(marcEntrada)
-	return n.m, n.caido && n.err == nil, n.err
+	return n.m, degradada(n.m, n.caido, n.err), n.err
+}
+
+// degradada reports a scoreboard one may only grow from (see marcador): never with a plain error, where the
+// caller aborts on its own.
+func degradada(m *Marcador, caido bool, err error) bool {
+	if err != nil {
+		return false
+	}
+	return caido || (m != nil && m.Degradado)
 }
 
 func (s *Svc) cargarMarcador(cid uuid.UUID, dia, k string, prev marcEntrada, hayPrev bool) marcEntrada {
