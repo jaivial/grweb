@@ -27,7 +27,7 @@ const T = {
     recompensa: '¡Recompensa desbloqueada!', porra: 'porra',
     porMensajes: (n: number) => 'por ' + (n === 1 ? 'tu mensaje' : 'tus ' + n + ' mensajes') + ' de hoy en el chat',
     nuevos: (n: number) => n + ' ' + (n === 1 ? 'mensaje nuevo' : 'mensajes nuevos'),
-    seAbre: 'El chat se abre cuando empiece el directo: de momento puedes leerlo.', cerrado: 'Este día ya está cerrado: puedes leer el chat, pero no escribir.',
+    cerrado: 'Este día ya está cerrado: puedes leer el chat, pero no escribir.',
     unete: 'Únete a la conversación', gratis: 'Gratis y sin contraseña: te enviamos un enlace a tu email.', conCuenta: 'Con tu cuenta de directo',
     chatea: 'Chatea', dona: 'Dona', juega: 'Juega', entrar: 'Entrar al chat',
     silencio: 'Puedes seguir leyendo el chat; podrás escribir cuando termine el silencio.',
@@ -46,7 +46,7 @@ const T = {
     recompensa: 'Reward unlocked!', porra: 'pool',
     porMensajes: (n: number) => 'for ' + (n === 1 ? 'your message' : 'your ' + n + ' messages') + ' in the chat today',
     nuevos: (n: number) => n + ' ' + (n === 1 ? 'new message' : 'new messages'),
-    seAbre: 'The chat opens when the live stream starts: for now you can read it.', cerrado: 'This day is closed: you can read the chat, but not write.',
+    cerrado: 'This day is closed: you can read the chat, but not write.',
     unete: 'Join the conversation', gratis: 'Free and no password: we send a link to your email.', conCuenta: 'With your live account',
     chatea: 'Chat', dona: 'Donate', juega: 'Play', entrar: 'Join the chat',
     silencio: 'You can keep reading the chat; you will be able to write when the mute ends.',
@@ -222,7 +222,7 @@ interface Fila {
       <!-- composer (sticks to the bottom of the chat); without a session, the invitation takes its place -->
       <div #composer class="shrink-0 border-t border-line-subtle bg-bg-card px-4 pt-3 pb-3.5">
         @if (chat.cerrado()) {
-          <p class="flex items-center gap-2.5 rounded-md border border-line-subtle bg-bg-raised p-3 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="16" class="shrink-0" />{{ !chat.soloLectura() && chat.fase() === 'antes' ? t().seAbre : t().cerrado }}</p>
+          <p class="flex items-center gap-2.5 rounded-md border border-line-subtle bg-bg-raised p-3 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="16" class="shrink-0" />{{ t().cerrado }}</p>
         } @else if (!fan.conSesion()) {
           <div class="rounded-md border border-accent/35 bg-[linear-gradient(135deg,#4c111b,#281112_55%,#170c0e)] p-3.5">
             <div class="flex items-center gap-3">
