@@ -275,7 +275,7 @@ export class Navbar {
   /** The mega menu closes with a click outside the navbar (and with Esc). */
   protected fuera(e: Event): void { if (this.mega() && !this.el.nativeElement.contains(e.target as Node)) this.mega.set(false); }
   /** The current page is one of the items of «Competición ▾» (the button shows the active indicator). */
-  protected readonly megaActivo = computed(() => { this.actual(); return this.t().mega.some((c) => c.items.some((i) => !i.href.includes('#') && this.activo(i.href))); });
+  protected readonly megaActivo = computed(() => { this.actual(); const arriba = this.t().links.map((l) => l.href); return this.t().mega.some((c) => c.items.some((i) => !i.href.includes('#') && !arriba.includes(i.href) && this.activo(i.href))); });
   /** ↓ on «Competición ▾»: open it and move the focus to its first item. */
   protected abrirMega(e: Event): void {
     e.preventDefault();
