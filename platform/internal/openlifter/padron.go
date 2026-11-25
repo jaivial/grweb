@@ -8,14 +8,17 @@ package openlifter
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"regexp"
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/jaivial/grweb/platform/pkg/auth"
+	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
@@ -157,6 +160,67 @@ func (s *Svc) registerPadron() {
 			}
 			s.a.Log.Info("padron_aep.mesa_enlazada", "nivel", in.Body.Nivel, "mesa", mesa, "lifters", len(in.Body.Lifters), "entradas", len(filas))
 			return o, nil
+		})
+
+	// athletes, after linking a roll row with an athlete (BIZ-211): the entry of the row is that athlete's on the
+	// level's desk (confirmed: the automatic matching of the desk does not move it).
+	type vincIn struct {
+		CID  uuid.UUID `path:"cid"`
+		Body struct {
+			Nivel    string    `json:"nivel" enum:"aep2,aep3"`
+			EntryID  int       `json:"entryId" minimum:"0"`
+			AtletaID uuid.UUID `json:"atletaId"`
+			Por      string    `json:"por,omitempty" maxLength:"120"`
+		}
+	}
+	type vincOut struct {
+		Body struct {
+			Mesa     string `json:"mesa"`
+			Enlazada bool   `json:"enlazada"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "internal-openlifter-padron-vinculo", Method: http.MethodPut, Path: "/internal/competiciones/{cid}/openlifter/padron/vinculo",
+		Summary: "Vincular la entrada de una fila del padrón AEP con su atleta (solo athletes)", Tags: []string{"Interno"}, Hidden: true},
+		func(ctx context.Context, in *vincIn) (*vincOut, error) {
+			if _, err := auth.RequireService(ctx); err != nil {
+				return nil, err
+			}
+			b := in.Body
+			o := &vincOut{}
+			mesa, err := s.mesaDeNivel(ctx, in.CID, b.Nivel)
+			if err != nil || mesa == "" {
+				return o, err
+			}
+			o.Body.Mesa = mesa
+			motivo := "Padrón AEP"
+			if b.Por != "" {
+				motivo += " · " + b.Por
+			}
+			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				if err := bloquear(ctx, tx, in.CID, mesa); err != nil {
+					return err
+				}
+				if _, err := tx.Exec(ctx, `UPDATE entradas SET atleta_id = NULL, vinculo = 'sin_coincidencia', puntuacion = 0, motivo = '', updated_at = now()
+					WHERE competition_id = $1 AND mesa = $2 AND atleta_id = $3 AND entry_id <> $4`, in.CID, mesa, b.AtletaID, b.EntryID); err != nil {
+					return err
+				}
+				var nombre string
+				err := tx.QueryRow(ctx, `UPDATE entradas SET atleta_id = $4, vinculo = 'confirmado', puntuacion = 1, motivo = $5, pesaje_hash = '', intentos_hash = '', updated_at = now()
+					WHERE competition_id = $1 AND mesa = $2 AND entry_id = $3 RETURNING COALESCE(datos->>'name', '')`, in.CID, mesa, b.EntryID, b.AtletaID, motivo).Scan(&nombre)
+				if errors.Is(err, pgx.ErrNoRows) {
+					return nil // the desk no longer has that entry
+				}
+				if err != nil {
+					return err
+				}
+				o.Body.Enlazada = true
+				if k := clave(nombre); k != "" {
+					_, err = tx.Exec(ctx, `INSERT INTO alias (competition_id, clave, atleta_id) VALUES ($1,$2,$3) ON CONFLICT (competition_id, clave) DO UPDATE SET atleta_id = $3`, in.CID, k, b.AtletaID)
+				}
+				return err
+			})
+			s.a.Log.Info("padron_aep.vinculo_mesa", "nivel", b.Nivel, "mesa", mesa, "enlazada", o.Body.Enlazada)
+			return o, err
 		})
 
 	// The fork, after «Importar atletas»: the entry it created for each roll row.
