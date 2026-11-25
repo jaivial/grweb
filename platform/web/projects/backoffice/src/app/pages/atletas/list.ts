@@ -13,6 +13,7 @@ import { BoPageHeader, BoToggle, errText, BoTabsMovil, BoTabs, type BoTab } from
 import { SolicitudesContador } from '../../core/solicitudes';
 import { AtletasApi, cat, diaFecha, type ItemLista, type Lista } from './api';
 import { AccionNecesariaDialogo } from './accion-necesaria';
+import { PerfilExisteDialogo } from './perfil-existe';
 import { tabEnUrl } from '../../shared/tab-url';
 
 type Pestana = 'todos' | 'confirmados' | 'reserva' | 'bajas' | 'incidencias';
@@ -32,7 +33,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
 /** «Atletas» (Figma page 55 · «Atletas · lista», «casos límite», «vacío y carga»). */
 @Component({
   selector: 'bo-atletas',
-  imports: [AccionNecesariaDialogo, BoTabs, BoTabsMovil, GrSelect, FormsModule, RouterLink, A11yModule, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSheet, BoToggleRow, BoSkeleton, BoEmptyState, BoCheckbox, BoSortHeader, BoToggle, GrAlert, GrAvatar, GrBadge, GrButton, GrIconButton, GrEmpty, GrIcon, GrKpi, GrSkeleton],
+  imports: [AccionNecesariaDialogo, PerfilExisteDialogo, BoTabs, BoTabsMovil, GrSelect, FormsModule, RouterLink, A11yModule, BoPageHeader, BoPagination, BoTableToolbar, BoSearch, BoSheet, BoToggleRow, BoSkeleton, BoEmptyState, BoCheckbox, BoSortHeader, BoToggle, GrAlert, GrAvatar, GrBadge, GrButton, GrIconButton, GrEmpty, GrIcon, GrKpi, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let l = lista();
@@ -98,6 +99,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
             <bo-table-toolbar noun="atletas" [total]="l?.total ?? 0" [selected]="sel().size" [loading]="cargando()" [filtered]="filtrado()" (reset)="limpiar()" (clear)="limpiarSel()">
               @if (canEdit()) { <button bulk grButton variant="secondary" icon="download" [loading]="exporting()" (click)="exportar([...sel()])">Exportar selección</button> }
               @if (canEdit()) { <button bulk grButton variant="secondary" icon="send" (click)="accionIds.set([...sel()])">Pedir una acción</button> }
+              @if (canEdit()) { <button bulk grButton variant="secondary" icon="mail" (click)="perfil.set({ ids: [...sel()], todos: false })">Enviar acceso al perfil</button> }
               <button filters grButton icon="filter" [attr.aria-expanded]="filtros()" aria-haspopup="dialog" (click)="filtros.set(true)">
                 Filtros @if (nFiltros()) { <span class="rounded-2xs bg-accent-deep/50 px-1.5 text-mono-xs text-accent-text">{{ nFiltros() }}</span> }
               </button>
@@ -224,7 +226,11 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
     <bo-sheet title="Acciones" [(open)]="acciones">
       @if (lista()?.pestanas?.todos) { <button grButton icon="download" [block]="true" [loading]="exporting()" (click)="exportar()">Exportar atletas</button> }
       <a grButton variant="primary" icon="upload" [block]="true" routerLink="importar">Importar acta AEP</a>
+      @if (canEdit()) { <button grButton icon="mail" [block]="true" (click)="acciones.set(false); perfil.set({ ids: [], todos: true })">Enviar acceso al perfil a todos</button> }
     </bo-sheet>
+    @if (perfil(); as p) {
+      <bo-perfil-existe [ids]="p.ids" [todos]="p.todos" (cerrar)="perfil.set(null)" (enviado)="perfil.set(null); limpiarSel()" />
+    }
     @if (accionIds(); as ids) {
       <bo-accion-necesaria [ids]="ids" (cerrar)="accionIds.set(null)" (enviado)="accionIds.set(null); limpiarSel()" />
     }
@@ -303,6 +309,8 @@ export class AtletasPage {
   protected readonly dir = this.srt.dir;
   protected readonly sel = signal(new Set<string>());
   protected readonly accionIds = signal<string[] | null>(null);
+  /** «Enviar acceso al perfil»: the selection, or every athlete from the «Acciones» panel. */
+  protected readonly perfil = signal<{ ids: string[]; todos: boolean } | null>(null);
   protected readonly todos = computed(() => {
     const ids = this.filas().map((a) => a.id), n = ids.filter((id) => this.sel().has(id)).length;
     return n && n === ids.length ? true : n ? 'mixed' : false;

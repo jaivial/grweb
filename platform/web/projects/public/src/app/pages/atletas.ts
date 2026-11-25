@@ -8,7 +8,7 @@ import { AtletasPublic, Favoritos, cat, hora, iniciales, kg, type AtletaPub, typ
 import { Cms } from '../core/cms';
 import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
 import { FanSession } from '../core/fan';
-import { ICS_URL } from '../core/horarios';
+import { EVENTOS_HORARIOS, ICS_URL } from '../core/horarios';
 import { DivisionPipe, I18n, LocPipe, divisionEn } from '../core/i18n';
 import { Seo } from '../core/seo';
 import { Page } from '../layout/page';
@@ -303,10 +303,11 @@ export class AtletasPage {
       // Live: a published schedule changes flights and start times (public SSE).
       const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
       let t: ReturnType<typeof setTimeout> | undefined;
-      es.addEventListener('horarios.publicados', () => {
+      const recargar = () => {
         clearTimeout(t);
-        t = setTimeout(async () => { const l = await this.api.lista(); if (l) this.lista.set(l); }, 400);
-      });
+        t = setTimeout(async () => { const l = await this.api.lista(true); if (l) this.lista.set(l); }, 400);
+      };
+      for (const ev of EVENTOS_HORARIOS) es.addEventListener(ev, recargar);
       inject(DestroyRef).onDestroy(() => { clearTimeout(t); es.close(); });
     }
   }
@@ -595,7 +596,9 @@ export class AtletaPage {
           : { title: this.t().seoNoT, description: this.t().noExiste, path: '/atletas/' + slug, robots: 'noindex' });
         return;
       }
-      if (c?.fechaInicio) this.diaTxt.set(new Intl.DateTimeFormat(this.i18n.locale(), { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(c.fechaInicio)));
+      // The athlete's own day (Saturday or Sunday); the competition start only while no schedule is published.
+      const dia = f.jornada ? f.jornada + 'T12:00:00Z' : c?.fechaInicio;
+      if (dia) this.diaTxt.set(new Intl.DateTimeFormat(this.i18n.locale(), { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(dia)));
       const nombre = `${f.nombre} ${f.apellidos}`;
       // Sin categoría (atleta recién creado desde una solicitud) no se pinta «M  kg».
       const catTxt = f.categoria ? `${f.sexo} ${cat(f.categoria)} kg` : '';

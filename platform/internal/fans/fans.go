@@ -10,6 +10,7 @@ import (
 	"crypto/sha256"
 	"embed"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/fs"
 	"strings"
@@ -45,6 +46,8 @@ const (
 	// expires in 30 minutes (`interval '30 minutes'` in the INSERT below).
 	limiteEmail = 5
 	limiteIP    = 200 // per IP and hour: a venue wifi or carrier NAT shares one IP; the per-email limit stops abuse per recipient
+	// per IP and 10 minutes: /disponible tells whether an email has an account, so it cannot be a free lookup
+	limiteDisponible = 60
 )
 
 // Svc holds the service dependencies.
@@ -81,6 +84,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerAdmin()
 	s.registerAvisos()
 	s.registerTelefono()
+	s.registerCuentaAtleta()
 	return nil
 }
 
@@ -155,6 +159,34 @@ func emailSolicitado(ctx context.Context, tx pgx.Tx, cid uuid.UUID, para, planti
 
 func aliasOcupado() *problem.Error {
 	return problem.Conflict("ALIAS_OCUPADO", "Ese alias ya está en uso en esta competición. Elige otro.")
+}
+
+func emailRegistrado() *problem.Error {
+	return problem.Conflict("EMAIL_REGISTRADO", "Ya hay una cuenta con este email. Entra con tu contraseña o usa otro email.")
+}
+
+// ocupados reports whether the alias and the email of a new account are already taken in the competition. An
+// alias held by the same email is reported as the email. An existing público account asking to sign up as
+// atleta is not a duplicate: redeeming that link grants the athlete badge (canjear).
+func (s *Svc) ocupados(ctx context.Context, cid uuid.UUID, alias, email, tipo string) (aliasTomado, emailTomado bool, err error) {
+	eh := emailHash(email)
+	if alias != "" {
+		if err = s.a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM fans WHERE competition_id = $1 AND alias = $2 AND email_hash <> $3)`,
+			cid, alias, eh).Scan(&aliasTomado); err != nil {
+			return false, false, err
+		}
+	}
+	if email != "" {
+		var t string
+		err = s.a.DB.QueryRow(ctx, `SELECT tipo FROM fans WHERE competition_id = $1 AND email_hash = $2`, cid, eh).Scan(&t)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return aliasTomado, false, nil
+		} else if err != nil {
+			return false, false, err
+		}
+		emailTomado = !(tipo == fanauth.TipoAtleta && t != fanauth.TipoAtleta)
+	}
+	return aliasTomado, emailTomado, nil
 }
 
 // credencialesInvalidas is the same answer for an unknown email, an account without password and a wrong one.

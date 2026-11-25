@@ -48,6 +48,11 @@ func areaCheck(hash, pw string) bool {
 	salt, err1 := b64pw.DecodeString(parts[4])
 	want, err2 := b64pw.DecodeString(parts[5])
 	if err1 != nil || err2 != nil {
+		// A password taken from the fan account (pkg/passhash writes the URL-safe alphabet).
+		salt, err1 = base64.RawURLEncoding.DecodeString(parts[4])
+		want, err2 = base64.RawURLEncoding.DecodeString(parts[5])
+	}
+	if err1 != nil || err2 != nil {
 		return false
 	}
 	argonPwSlots <- struct{}{}

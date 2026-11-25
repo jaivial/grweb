@@ -10,6 +10,7 @@ import { Realtime } from '../../core/realtime';
 import { BoCount, BoToggle, Confirm, Media, errText, BoTabsMovil } from '../../shared/ui';
 import { AtletasApi, CATEGORIAS, DIVISIONES, cat, diaFecha, kg, type Atleta, type Historial, type Marcas } from './api';
 import { AccionNecesariaDialogo } from './accion-necesaria';
+import { PerfilExisteDialogo } from './perfil-existe';
 import { BoDatePicker } from '../../shared/kit';
 import { ESTADO } from './list';
 import { tabEnUrl } from '../../shared/tab-url';
@@ -21,7 +22,7 @@ const PUBLIC_WEB = webPublica();
 /** Athlete record (Figma page 55 · «Atletas · ficha (perfil público)»). */
 @Component({
   selector: 'bo-atleta-ficha',
-  imports: [AccionNecesariaDialogo, BoDatePicker, BoTabsMovil, GrSelect, FormsModule, RouterLink, BoCount, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [AccionNecesariaDialogo, PerfilExisteDialogo, BoDatePicker, BoTabsMovil, GrSelect, FormsModule, RouterLink, BoCount, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let a = atleta();
@@ -43,8 +44,12 @@ const PUBLIC_WEB = webPublica();
             @if (a.estado === 'confirmado') { <a grButton icon="external-link" [href]="web + '/atletas/' + a.perfil.slug" target="_blank" rel="noopener">Ver en la web</a> }
             @if (canEdit() && a.estado !== 'baja') { <button grButton icon="send" [loading]="enviando()" (click)="enlace()">Enviar enlace al área</button> }
             @if (canEdit() && a.estado !== 'baja') { <button grButton icon="circle-alert" (click)="accion.set(true)">Pedir una acción</button> }
+            @if (canEdit() && a.estado !== 'baja') { <button grButton icon="mail" (click)="perfil.set(true)">Enviar acceso al perfil</button> }
           </div>
         </header>
+        @if (perfil()) {
+          <bo-perfil-existe [ids]="[a.id]" [nombre]="a.nombreCompleto" (cerrar)="perfil.set(false)" (enviado)="perfil.set(false); cargar(true)" />
+        }
         @if (accion()) {
           <bo-accion-necesaria [ids]="[a.id]" [nombre]="a.nombreCompleto" (cerrar)="accion.set(false)" (enviado)="accion.set(false); cargar(true)" />
         }
@@ -299,6 +304,7 @@ export class AtletaFichaPage {
   protected readonly guardando = signal(false);
   protected readonly enviando = signal(false);
   protected readonly accion = signal(false);
+  protected readonly perfil = signal(false);
   protected readonly subiendo = signal(false);
   protected readonly conflicto = signal(false);
   /** 422 of the licence from the server, shown on its field (U06-R6-1). */

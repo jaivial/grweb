@@ -26,6 +26,8 @@ export interface Horarios { publicado: boolean; version?: number; actualizadoAt?
 export interface PaginaAtletas { items: PubAtleta[]; total: number; page: number; pageSize: number }
 
 export const ICS_URL = `/api/competiciones/${COMPETITION_SLUG}/horarios.ics`;
+/** Public SSE events after which the web reloads the schedule (publish, withdraw, live changes, «Publicar horarios» switch). */
+export const EVENTOS_HORARIOS = ['horarios.publicados', 'horarios.retirados', 'horarios.cambiados', 'horarios.visibilidad'] as const;
 
 type DiaApi = Partial<PubDia> & { fecha: string };
 

@@ -3,18 +3,23 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, injec
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, GrToasts } from '@grcup/ui';
+import { BoSheet } from '../../../shared/kit';
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
 import { BoPageHeader, Confirm, errText } from '../../../shared/ui';
 import { SoIcon, SoSegmented, SoSkelFilas, descargarCsv, diaCorto, iniciales, num, type SoOpcion } from '../ui';
-import { FansApi, type Fan, type ListaFans } from './api';
+import { FansApi, type CuentaFan, type Fan, type ListaFans } from './api';
 
 type Tipo = 'atleta' | 'publico';
 
-/** «Fans» (Figma 73 · «BO · Fans», UI v2): cuentas de directo, búsqueda, filtros y baneos (tabla en escritorio, tarjetas en móvil). */
+/**
+ * «Fans» (Figma 73 · «BO · Fans», UI v2; «BO · Fans · Editar cuenta (sheet)» y «BO · Fans · Móvil»): cuentas de directo,
+ * búsqueda, filtros, baneos y la gestión completa de cada cuenta (crear, editar con contraseña, borrar y enviar el enlace
+ * para cambiar la contraseña) en el sheet lateral (bottom sheet en móvil).
+ */
 @Component({
   selector: 'bo-fans',
-  imports: [RouterLink, A11yModule, FormsModule, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, SoIcon, SoSegmented, SoSkelFilas],
+  imports: [RouterLink, A11yModule, FormsModule, BoPageHeader, BoSheet, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, SoIcon, SoSegmented, SoSkelFilas],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'banear.set(null)' },
   template: `
@@ -24,6 +29,7 @@ type Tipo = 'atleta' | 'publico';
         [crumbs]="[comps.current()?.nombreCorto || '', 'Directo social', 'Fans']">
         <ng-container actions>
           <button grButton icon="download" [disabled]="!lista()" (click)="exportar()">Exportar</button>
+          <button grButton variant="primary" icon="plus" [disabled]="!puede()" (click)="abrirNuevo()">Nuevo fan</button>
         </ng-container>
       </bo-page-header>
 
@@ -39,9 +45,9 @@ type Tipo = 'atleta' | 'publico';
           <gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
           <input grInput class="pl-9" placeholder="Buscar por alias o email…" [ngModel]="filtro().q" (ngModelChange)="buscar($event)" />
         </label>
-        <!-- en móvil cada filtro ocupa su fila a todo el ancho: sin scroll horizontal -->
-        <so-segmented class="max-sm:w-full" [llenar]="true" label="Estado" [opciones]="estados()" [value]="filtro().estado" (valueChange)="filtrar({ estado: $event })" />
-        <so-segmented class="max-sm:w-full" [llenar]="true" label="Tipo" [opciones]="tipos" [value]="tipo()" (valueChange)="tipo.set($any($event))" />
+        <!-- las pestañas miden lo que su texto: si no caben, se desplazan en horizontal (nunca se recortan) -->
+        <so-segmented class="shrink-0" label="Estado" [opciones]="estados()" [value]="filtro().estado" (valueChange)="filtrar({ estado: $event })" />
+        <so-segmented class="shrink-0" label="Tipo" [opciones]="tipos" [value]="tipo()" (valueChange)="tipo.set($any($event))" />
       </div>
 
       <section class="min-w-0 overflow-hidden rounded-lg border border-line-subtle bg-bg-card" aria-label="Cuentas">
@@ -65,7 +71,7 @@ type Tipo = 'atleta' | 'publico';
           } @else {
             <div class="hidden overflow-x-auto md:block">
               <table class="w-full table-fixed text-left text-body-s">
-                <colgroup><col /><col class="w-[96px]" /><col /><col class="w-[200px]" /><col class="w-[160px]" /></colgroup>
+                <colgroup><col /><col class="w-[96px]" /><col /><col class="w-[200px]" /><col class="w-[232px]" /></colgroup>
                 <thead class="border-b border-line-subtle bg-bg-surface font-mono text-mono-xs text-text-tertiary">
                   <tr><th class="px-5 py-3 font-medium">Alias</th><th class="px-3 py-3 font-medium">Tipo</th><th class="px-3 py-3 font-medium">Email</th><th class="px-3 py-3 font-medium">Estado</th><th class="px-5 py-3 text-right font-medium">Acción</th></tr>
                 </thead>
@@ -76,7 +82,7 @@ type Tipo = 'atleta' | 'publico';
                       <td class="px-5 py-2.5">
                         <div class="flex min-w-0 items-center gap-2.5">
                           <span class="flex size-8 shrink-0 items-center justify-center rounded-pill border bg-bg-raised font-mono text-mono-xs text-text-secondary" [class]="ban ? 'border-accent/60' : 'border-line-strong'">{{ iniciales(f.alias) }}</span>
-                          <span class="truncate text-label-s" [title]="f.alias">{{ f.alias }}</span>
+                          <button type="button" class="truncate text-left text-label-s hover:underline disabled:no-underline" [title]="f.alias" [disabled]="!puede()" (click)="abrirEditar(f)">{{ f.alias }}</button>
                         </div>
                       </td>
                       <td class="px-3 py-2.5"><gr-badge [tone]="f.tipo === 'atleta' ? 'info' : 'neutral'">{{ f.tipo === 'atleta' ? 'Atleta' : 'Público' }}</gr-badge></td>
@@ -90,12 +96,16 @@ type Tipo = 'atleta' | 'publico';
                         }
                       </td>
                       <td class="px-5 py-2.5 text-right">
+                        <span class="inline-flex items-center justify-end gap-1">
+                        <button type="button" class="inline-flex h-8 items-center gap-1.5 rounded-sm px-2.5 text-label-s text-text-secondary transition-colors hover:bg-bg-raised hover:text-text-primary disabled:opacity-40"
+                          [disabled]="!puede()" [attr.aria-label]="'Editar a ' + f.alias" (click)="abrirEditar(f)"><gr-icon name="pencil" [size]="16" />Editar</button>
                         @if (ban) {
                           <button grButton size="s" icon="undo" [disabled]="!puede()" [attr.aria-label]="'Levantar el baneo de ' + f.alias" (click)="desbanear(f)">Levantar baneo</button>
                         } @else {
                           <button type="button" class="inline-flex h-8 items-center gap-1.5 rounded-sm px-2.5 text-label-s text-text-secondary transition-colors hover:bg-bg-raised hover:text-accent-text disabled:opacity-40"
                             [disabled]="!puede()" [attr.aria-label]="'Banear a ' + f.alias" (click)="abrirBanear(f)"><so-icon name="ban" [size]="16" />Banear</button>
                         }
+                        </span>
                       </td>
                     </tr>
                   }
@@ -112,6 +122,7 @@ type Tipo = 'atleta' | 'publico';
                     <p class="truncate font-mono text-mono-s text-text-tertiary">{{ enmascarar(f.email) }}</p>
                     @if (ban) { <p class="mt-1 text-body-xs text-accent-text">Baneado hasta {{ diaCorto(f.baneadoHasta) }}</p> }
                   </div>
+                  <button grIconButton icon="pencil" class="border border-line-strong" [label]="'Editar a ' + f.alias" [disabled]="!puede()" (click)="abrirEditar(f)"></button>
                   @if (ban) {
                     <button grIconButton icon="undo" class="border border-line-strong" [label]="'Levantar el baneo de ' + f.alias" [disabled]="!puede()" (click)="desbanear(f)"></button>
                   } @else {
@@ -133,6 +144,49 @@ type Tipo = 'atleta' | 'publico';
         }
       </section>
     </div>
+
+    <!-- ===== Crear / editar cuenta (sheet lateral; bottom sheet en móvil) ===== -->
+    <bo-sheet [title]="editando() ? 'Editar a ' + editando()!.alias : 'Nuevo fan'" [open]="sheet()" (openChange)="sheet.set($event)">
+      <form class="flex flex-col gap-4" (ngSubmit)="guardar()" autocomplete="off">
+        @if (editando(); as f) {
+          <p class="-mt-2 flex flex-wrap items-center gap-2 text-body-xs text-text-tertiary">
+            <gr-badge [tone]="baneado(f) ? 'danger' : 'success'">{{ baneado(f) ? 'Baneado' : 'Activo' }}</gr-badge>
+            Cuenta de {{ f.tipo === 'atleta' ? 'atleta' : 'público' }} · creada el {{ diaCorto(f.createdAt) }} · {{ f.contrasena ? 'con contraseña' : 'sin contraseña' }}
+          </p>
+        }
+        <gr-field label="Alias" for="fan-alias" hint="3–20 letras, números, espacios o _ . - · único en la competición">
+          <input grInput id="fan-alias" name="alias" [(ngModel)]="form.alias" minlength="3" maxlength="20" required />
+        </gr-field>
+        <gr-field label="Tipo" for="fan-tipo" hint="Atleta solo si el email es el de una inscripción (si lo es, la cuenta será de atleta)">
+          <gr-select id="fan-tipo" name="tipo" [(ngModel)]="form.tipo">
+            <option value="publico">Público</option>
+            <option value="atleta">Atleta</option>
+          </gr-select>
+        </gr-field>
+        <gr-field label="Email" for="fan-email" hint="Con este email entra al directo">
+          <input grInput id="fan-email" name="email" type="email" [(ngModel)]="form.email" maxlength="254" required />
+        </gr-field>
+        <gr-field label="Teléfono" for="fan-tel" [optional]="true" hint="Con prefijo, p. ej. +34 600 123 456 · avisos por WhatsApp">
+          <input grInput id="fan-tel" name="telefono" type="tel" [(ngModel)]="form.telefono" maxlength="30" />
+        </gr-field>
+        <gr-field [label]="editando() ? 'Nueva contraseña' : 'Contraseña'" for="fan-pass" [optional]="true"
+          [error]="form.password && form.password.length < 10 ? 'Mínimo 10 caracteres.' : null"
+          [hint]="editando() ? 'Mínimo 10 caracteres · vacío = no se cambia · cierra sus sesiones' : 'Mínimo 10 caracteres · vacía = la crea él con «¿Has olvidado tu contraseña?»'">
+          <input grInput id="fan-pass" name="password" type="password" autocomplete="new-password" [(ngModel)]="form.password" maxlength="128" />
+        </gr-field>
+        @if (editando(); as f) {
+          <div class="flex flex-col items-start gap-2.5 border-t border-line-subtle pt-4">
+            <p class="text-label-s text-text-primary">Acceso y cuenta</p>
+            <button type="button" grButton icon="mail" [loading]="enviandoReset()" (click)="enviarReset(f)">Enviar enlace para cambiar la contraseña</button>
+            <button type="button" grButton variant="danger" icon="trash" (click)="borrar(f)">Borrar cuenta</button>
+          </div>
+        }
+        <div class="mt-2 flex justify-end gap-2 border-t border-line-subtle pt-4">
+          <button type="button" grButton variant="ghost" (click)="sheet.set(false)">Cancelar</button>
+          <button type="submit" grButton variant="primary" [loading]="guardando()" [disabled]="!formValido()">{{ editando() ? 'Guardar cambios' : 'Crear cuenta' }}</button>
+        </div>
+      </form>
+    </bo-sheet>
 
     <!-- ===== Baneo ===== -->
     @if (banear(); as f) {
@@ -213,7 +267,7 @@ export class FansPage {
     { v: 'baneados', l: 'Baneados', n: this.baneados(), tone: 'accent' },
   ]);
   protected readonly tipos: SoOpcion[] = [
-    { v: '', l: 'Atletas y público', c: 'Todos' },
+    { v: '', l: 'Atletas y público' },
     { v: 'atleta', l: 'Atletas' },
     { v: 'publico', l: 'Público' },
   ];
@@ -325,6 +379,85 @@ export class FansPage {
       this.toasts.error(errText(e, 'No se pudo desbanear.'));
     } finally {
       this.ocupado.set(false);
+    }
+  }
+
+  // ---- crear / editar ----
+  protected readonly sheet = signal(false);
+  protected readonly editando = signal<Fan | null>(null);
+  protected readonly guardando = signal(false);
+  protected readonly enviandoReset = signal(false);
+  protected form: Required<CuentaFan> = { email: '', alias: '', tipo: 'publico', telefono: '', password: '' };
+
+  protected formValido(): boolean {
+    const f = this.form;
+    return f.alias.trim().length >= 3 && f.email.includes('@') && (!f.password || f.password.length >= 10);
+  }
+
+  protected abrirNuevo(): void {
+    this.editando.set(null);
+    this.form = { email: '', alias: '', tipo: 'publico', telefono: '', password: '' };
+    this.sheet.set(true);
+  }
+
+  protected abrirEditar(f: Fan): void {
+    this.editando.set(f);
+    this.form = { email: f.email, alias: f.alias, tipo: f.tipo, telefono: f.telefono ?? '', password: '' };
+    this.sheet.set(true);
+  }
+
+  protected async guardar(): Promise<void> {
+    const cid = this.cid();
+    if (!cid || !this.formValido()) return;
+    const f = this.form;
+    const body: CuentaFan = { email: f.email.trim(), alias: f.alias.trim(), tipo: f.tipo, telefono: f.telefono.trim() };
+    if (f.password) body.password = f.password;
+    const ed = this.editando();
+    this.guardando.set(true);
+    try {
+      const r = ed ? await this.api.editar(cid, ed.id, body) : await this.api.crear(cid, body);
+      this.sheet.set(false);
+      this.toasts.success(ed ? `${r.alias} guardado` : `Cuenta ${r.alias} creada`, r.tipo === 'atleta' && f.tipo === 'publico' ? 'El email es de un atleta inscrito: la cuenta es de atleta.' : undefined);
+      await this.cargar();
+    } catch (e) {
+      this.toasts.error(errText(e, 'No se pudo guardar la cuenta.'));
+    } finally {
+      this.guardando.set(false);
+    }
+  }
+
+  protected async enviarReset(f: Fan): Promise<void> {
+    const cid = this.cid();
+    if (!cid) return;
+    this.enviandoReset.set(true);
+    try {
+      await this.api.resetContrasena(cid, f.id);
+      this.toasts.success('Enlace enviado', `${f.alias} recibe un email para cambiar su contraseña (caduca en 30 minutos).`);
+    } catch (e) {
+      this.toasts.error(errText(e, 'No se pudo enviar el enlace.'));
+    } finally {
+      this.enviandoReset.set(false);
+    }
+  }
+
+  protected async borrar(f: Fan): Promise<void> {
+    const cid = this.cid();
+    if (!cid) return;
+    const ok = await this.confirm.ask({
+      title: '¿Borrar la cuenta de ' + f.alias + '?',
+      text: 'Se cierran sus sesiones y se borra la cuenta del directo. Sus mensajes del chat y sus jugadas no se recuperan con otra cuenta.',
+      confirm: 'Borrar cuenta',
+      danger: true,
+      word: 'BORRAR',
+    });
+    if (!ok) return;
+    try {
+      await this.api.borrar(cid, f.id);
+      this.sheet.set(false);
+      this.toasts.success(`Cuenta ${f.alias} borrada`);
+      await this.cargar();
+    } catch (e) {
+      this.toasts.error(errText(e, 'No se pudo borrar la cuenta.'));
     }
   }
 

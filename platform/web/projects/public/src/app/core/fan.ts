@@ -32,6 +32,15 @@ export interface AccesoIn {
   telefono?: string;
 }
 
+/** Answer of /fans/disponible: only the fields that were sent. */
+export interface CampoLibre { libre: boolean; codigo?: string; mensaje?: string }
+export interface Disponible { alias?: CampoLibre; email?: CampoLibre }
+
+/** Message of a taken / invalid field of /disponible (English from the code, Spanish from the API). */
+export function mensajeCampo(c: CampoLibre, lang: Lang = idiomaActual()): string {
+  return (lang === 'en' && c.codigo && errorEn(c.codigo)) || c.mensaje || '';
+}
+
 /** Error code of the API (problem+json `code`), e.g. ATLETA_NO_ENCONTRADO, ALIAS_OCUPADO, ALIAS_NO_VALIDO. */
 export function codigoError(e: unknown): string {
   if (e instanceof HttpErrorResponse) return (e.error && (e.error.code as string)) || `HTTP_${e.status}`;
@@ -102,6 +111,11 @@ export class FanSession {
   /** Asks for the magic link (always 202 when accepted). Throws HttpErrorResponse with `code` on errors. */
   async pedirAcceso(i: AccesoIn): Promise<void> {
     await firstValueFrom(this.http.post(`${this.base}/acceso`, { ...i, next: i.next ?? this.volverA() ?? undefined }));
+  }
+
+  /** Before creating an account: is the alias valid and free, and has the email no account yet? (per field, only the ones sent) */
+  disponible(b: { alias?: string; email?: string; tipo?: 'atleta' | 'publico' }): Promise<Disponible> {
+    return firstValueFrom(this.http.post<Disponible>(`${this.base}/disponible`, b));
   }
 
   /** Signs in with email and password; sets the cookie and the session. Throws HttpErrorResponse (CREDENCIALES_INVALIDAS, 429). */

@@ -39,7 +39,7 @@ const T = {
       { label: 'Atletas', href: '/atletas' },
       { label: 'Horarios', href: '/horarios' },
       { label: 'En directo', href: '/en-directo' },
-      { label: 'Sorteo', href: '/sorteo' },
+      { label: 'Público', href: '/publico' },
       { label: 'Cómo llegar', href: '/como-llegar' },
     ] as NavLink[],
     mega: [
@@ -48,13 +48,13 @@ const T = {
         { label: 'Marcas mínimas', desc: 'Totales AEP-1 por categoría', href: '/marcas-minimas' },
         { label: 'Reglamento', desc: 'Intentos, jueces y equipamiento', href: '/reglamento' },
         { label: 'Alta de atleta', desc: 'Completa tu perfil', href: '/alta-atleta' },
+        { label: 'Área de atleta', desc: 'Tu horario, QR y perfil', href: '/area-atleta' },
         { label: 'Resultados', desc: 'Clasificaciones por edición', href: '/resultados' },
       ] },
       { titulo: 'El campeonato', items: [
         { label: 'Atletas', desc: 'Perfiles y su horario', href: '/atletas' },
         { label: 'Horarios', desc: 'Horarios y tarima, en directo', href: '/horarios' },
         { label: 'En directo', desc: 'Streaming y marcador', href: '/en-directo' },
-        { label: 'Sorteo', desc: 'Rifa presencial en efectivo', href: '/sorteo' },
         { label: 'Galería', desc: 'Fotos de la competición', href: '/galeria' },
         { label: 'Cómo será', desc: 'El montaje de la GRS Cup 2', href: '/#montaje' },
       ] },
@@ -64,6 +64,12 @@ const T = {
         { label: 'Público', desc: 'Normas y servicios', href: '/publico' },
         { label: 'Preguntas frecuentes', desc: 'Resolvemos tus dudas', href: '/preguntas-frecuentes' },
         { label: 'Edición 2025', desc: 'Llíria · 1–2 marzo 2025', href: '/ediciones/2025' },
+        { label: 'Blog', desc: 'Noticias y crónicas', href: '/blog' },
+      ] },
+      { titulo: 'Juegos', items: [
+        { label: 'GRS Fantasy', desc: 'Ficha atletas y suma puntos', href: '/fantasy' },
+        { label: 'GRS Porra', desc: 'Acierta quién gana cada categoría', href: '/porra' },
+        { label: 'Sorteo', desc: 'Rifa presencial en efectivo', href: '/sorteo' },
       ] },
     ] as { titulo: string; items: MegaItem[] }[],
     /** Groups of the mobile menu (Figma «Mobile menu v3»): the footer columns, shorter. */
@@ -86,7 +92,7 @@ const T = {
       { label: 'Athletes', href: '/atletas' },
       { label: 'Schedule', href: '/horarios' },
       { label: 'Live', href: '/en-directo' },
-      { label: 'Raffle', href: '/sorteo' },
+      { label: 'Spectators', href: '/publico' },
       { label: 'Getting there', href: '/como-llegar' },
     ],
     mega: [
@@ -95,13 +101,13 @@ const T = {
         { label: 'Qualifying totals', desc: 'AEP-1 totals by class', href: '/marcas-minimas' },
         { label: 'Rules', desc: 'Attempts, referees and equipment', href: '/reglamento' },
         { label: 'Athlete sign-up', desc: 'Complete your profile', href: '/alta-atleta' },
+        { label: 'Athlete area', desc: 'Your schedule, QR and profile', href: '/area-atleta' },
         { label: 'Results', desc: 'Standings by edition', href: '/resultados' },
       ] },
       { titulo: 'The championship', items: [
         { label: 'Athletes', desc: 'Profiles and their schedule', href: '/atletas' },
         { label: 'Schedule', desc: 'Times and platform, live', href: '/horarios' },
         { label: 'Live', desc: 'Streaming and scoreboard', href: '/en-directo' },
-        { label: 'Raffle', desc: 'In-person cash raffle', href: '/sorteo' },
         { label: 'Gallery', desc: 'Photos of the competition', href: '/galeria' },
         { label: 'What it will look like', desc: 'The GRS Cup 2 set-up', href: '/#montaje' },
       ] },
@@ -111,6 +117,12 @@ const T = {
         { label: 'Spectators', desc: 'Rules and services', href: '/publico' },
         { label: 'FAQ', desc: 'Your questions answered', href: '/preguntas-frecuentes' },
         { label: '2025 edition', desc: 'Llíria · 1–2 March 2025', href: '/ediciones/2025' },
+        { label: 'Blog', desc: 'News and reports', href: '/blog' },
+      ] },
+      { titulo: 'Games', items: [
+        { label: 'GRS Fantasy', desc: 'Pick athletes and score points', href: '/fantasy' },
+        { label: 'GRS Pool', desc: 'Guess who wins each class', href: '/porra' },
+        { label: 'Raffle', desc: 'In-person cash raffle', href: '/sorteo' },
       ] },
     ],
     grupos: [
@@ -146,9 +158,10 @@ const T = {
         @for (l of links(); track l.href; let i = $index) {
           <li [class]="i > 5 ? 'hidden xl:block' : i > 2 ? 'hidden lg:block' : ''">
             @if (i === 0) {
-              <button type="button" class="group relative inline-flex items-center rounded-xs p-2 text-label-s whitespace-nowrap pointer-coarse:min-h-11 text-text-secondary transition-colors hover:text-text-primary" [attr.aria-expanded]="mega()" aria-controls="mega-competicion" (click)="mega.set(!mega())">
+              <!-- «Competición ▾» is marked like a link while the current page is one of its items; ↓ opens it and focuses the first item -->
+              <button type="button" data-mega class="group relative inline-flex items-center rounded-xs p-2 text-label-s whitespace-nowrap pointer-coarse:min-h-11 transition-colors hover:text-text-primary" [class]="megaActivo() ? 'text-text-primary' : 'text-text-secondary'" [attr.aria-expanded]="mega()" aria-controls="mega-competicion" (click)="mega.set(!mega())" (keydown.arrowdown)="abrirMega($event)">
                 <span class="inline-flex items-center gap-1">{{ l.label }}<gr-icon name="chevron-down" [size]="14" class="text-text-tertiary transition-transform" [class.rotate-180]="mega()" /></span>
-                <span class="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-[1px] bg-transparent transition-colors group-hover:bg-white/30" aria-hidden="true"></span>
+                <span class="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-[1px] transition-colors" [class]="megaActivo() ? 'bg-accent' : 'bg-transparent group-hover:bg-white/30'" aria-hidden="true"></span>
               </button>
             } @else {
               <!-- Figma «Nav link»: 2 px indicator under the label (white 30 % on hover, accent on the current route) -->
@@ -166,16 +179,16 @@ const T = {
       <button type="button" data-menu class="relative flex size-11 shrink-0 @max-[18rem]:ml-auto items-center justify-center rounded-sm text-text-primary hover:bg-white/6 md:hidden" [attr.aria-label]="t().open" [attr.aria-expanded]="open()" aria-controls="menu-movil" (click)="open.set(true)"><gr-icon name="menu" [size]="24" /></button>
     </nav>
     @if (mega()) {
-      <div id="mega-competicion" class="mx-auto mt-2 hidden max-w-[1180px] flex-wrap gap-8 rounded-xl border border-line-strong bg-bg-raised p-7 shadow-card md:flex lg:flex-nowrap" (keydown.escape)="mega.set(false)">
+      <div id="mega-competicion" class="mx-auto mt-2 hidden max-w-[1180px] flex-wrap gap-8 rounded-xl border border-line-strong bg-bg-raised p-7 shadow-card md:flex lg:flex-nowrap" (keydown.escape)="cerrarMega()">
         @for (col of t().mega; track col.titulo) {
-          <div class="flex w-[194px] flex-col gap-1 lg:w-[250px]">
+          <div class="flex w-[194px] flex-col gap-1 lg:w-[190px]">
             <p class="mb-1.5 text-label-xs text-text-muted">{{ col.titulo }}</p>
             @for (it of col.items; track it.href) {
-              <a [routerLink]="ruta(it.href) | loc" [fragment]="frag(it.href)" (click)="mega.set(false)" class="flex flex-col gap-1 rounded-sm p-2 transition-colors hover:bg-white/5"><span class="text-label-s">{{ it.label }}</span><span class="text-body-xs text-text-tertiary">{{ it.desc }}</span></a>
+              <a [routerLink]="ruta(it.href) | loc" [fragment]="frag(it.href)" (click)="mega.set(false)" class="flex flex-col gap-1 rounded-sm p-2 transition-colors hover:bg-white/5 focus-visible:bg-white/5" [class.bg-white/5]="activo(it.href)" [attr.aria-current]="activo(it.href) ? 'page' : null"><span class="text-label-s" [class.text-accent-text]="activo(it.href)">{{ it.label }}</span><span class="text-body-xs text-text-tertiary">{{ it.desc }}</span></a>
             }
           </div>
         }
-        <div class="flex w-full flex-col gap-2 self-start rounded-lg border lg:ml-auto lg:w-[240px] border-accent/60 bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] p-5">
+        <div class="flex w-full flex-col gap-2 self-start rounded-lg border lg:ml-auto lg:w-[220px] border-accent/60 bg-[linear-gradient(135deg,#4c111b,#280d12_55%,#170c0e)] p-5">
           <p class="text-label-xs text-text-secondary">{{ t().megaEyebrow }}</p>
           <p class="text-display-2xs">{{ t().megaTitulo }}</p>
           <p class="text-body-s text-text-secondary">{{ t().megaTexto }}</p>
@@ -261,6 +274,19 @@ export class Navbar {
   private readonly el = inject(ElementRef<HTMLElement>);
   /** The mega menu closes with a click outside the navbar (and with Esc). */
   protected fuera(e: Event): void { if (this.mega() && !this.el.nativeElement.contains(e.target as Node)) this.mega.set(false); }
+  /** The current page is one of the items of «Competición ▾» (the button shows the active indicator). */
+  protected readonly megaActivo = computed(() => { this.actual(); return this.t().mega.some((c) => c.items.some((i) => !i.href.includes('#') && this.activo(i.href))); });
+  /** ↓ on «Competición ▾»: open it and move the focus to its first item. */
+  protected abrirMega(e: Event): void {
+    e.preventDefault();
+    this.mega.set(true);
+    setTimeout(() => (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('#mega-competicion a')?.focus());
+  }
+  /** Esc inside the mega menu closes it and gives the focus back to its button. */
+  protected cerrarMega(): void {
+    this.mega.set(false);
+    (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('button[data-mega]')?.focus();
+  }
   private readonly http = inject(HttpClient);
   /** Mobile menu is a modal: Tab / Shift+Tab cycle inside it. */
   protected atrapar(e: Event): void {

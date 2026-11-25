@@ -39,6 +39,7 @@ const EN: Record<string, string> = {
   NORMAS_REQUERIDAS: 'You must accept the participation rules to join the live chat.',
   ALIAS_NO_VALIDO: 'The alias must be 3 to 20 letters, numbers, spaces or _ . -',
   ALIAS_OCUPADO: 'That alias is already taken in this competition. Choose another.',
+  EMAIL_REGISTRADO: 'There is already an account with this email. Sign in with your password or use another email.',
   MENSAJE_INVALIDO: 'The message cannot contain HTML or links.',
   MENSAJE_OBLIGATORIO: 'Write the subject and the message.',
   SALA_INACTIVA: 'The chat is closed for this competition.',

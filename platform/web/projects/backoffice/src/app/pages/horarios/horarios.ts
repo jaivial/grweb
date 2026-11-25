@@ -14,7 +14,7 @@ import { BoDrawer, BoPageHeader, BoTabBar, BoToggle, Confirm, errText, type BoTa
 import { tabEnUrl } from '../../shared/tab-url';
 import {
   CATEGORIAS_SEXO, HorariosApi, cat, diaCorto, diaLargo, hora, kg, nombrePrueba, pruebaDeDia,
-  type AgendaItem, type Borrador, type Config, type Diff, type Sesion, type SesionAtleta, type VersionInfo,
+  type AgendaItem, type Borrador, type Cambio, type Config, type Diff, type Sesion, type SesionAtleta, type VersionInfo,
 } from './api';
 
 /** A drop list: a session or «sin sesión» (id null). */
@@ -60,6 +60,8 @@ const diaSiguiente = (f: string) => {
             @if (escritorio()) { <button grButton variant="ghost" icon="history" (click)="abrirHistorial()">Historial</button> }
             <button grButton icon="eye" (click)="preview.set(true)" [disabled]="!dia()">Vista previa</button>
             @if (canEdit()) {
+              <!-- «Publicar horarios»: off keeps the web on its fallback while the team plans and assigns athletes -->
+              <span class="flex h-10 items-center gap-2.5 rounded-md border border-line-subtle px-3"><span class="text-label-s whitespace-nowrap">Publicar horarios</span><bo-toggle [(value)]="webVisible" label="Publicar horarios" [disabled]="cambiandoVisible()" (changed)="cambiarVisible($event)" /></span>
               <button grButton variant="primary" icon="send" (click)="abrirPublicar()" [disabled]="!b.sesiones.length || (b.publicado && !b.cambiosSinPublicar)">Publicar v{{ siguiente() }}</button>
             }
           </ng-container>
@@ -241,40 +243,87 @@ const diaSiguiente = (f: string) => {
       </div>
     }
 
-    <!-- Publish -->
+    <!-- Publish: what changes (grouped, only the part that changes), who is told, and what pressing the button does -->
     @if (pub(); as d) {
       <div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 sm:items-center sm:px-4" (click)="pub.set(null)">
-        <div class="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-t-xl border border-line-strong bg-bg-raised shadow-card sm:rounded-lg" role="dialog" aria-modal="true" aria-label="Publicar horarios" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
-          <header class="flex items-center gap-3 border-b border-line-subtle px-6 py-4"><h2 class="flex-1 text-ui-h5">Publicar v{{ d.siguiente }}</h2><button grIconButton icon="x" label="Cerrar" (click)="pub.set(null)"></button></header>
-          <div class="flex-1 overflow-y-auto px-6 py-5">
-            @if (d.bloqueantes) { <gr-alert tone="danger" class="mb-4" [title]="'Hay ' + d.bloqueantes + ' conflictos que bloquean la publicación'">Resuélvelos en el planificador (en rojo) y vuelve a intentarlo.</gr-alert> }
-            @if (d.primera) {
-              <p class="text-body-s text-text-secondary">Primera publicación: <strong class="text-text-primary">{{ d.atletas }} atletas</strong> recibirán su fecha, hora y pesaje en su ficha y en su área.</p>
-            } @else {
-              <p class="text-body-s text-text-secondary">{{ d.cambios.length }} {{ d.cambios.length === 1 ? 'cambio' : 'cambios' }} respecto a la versión publicada (v{{ d.desde }}):</p>
-              <ul class="mt-3 flex flex-col divide-y divide-line-subtle rounded-md border border-line-subtle">
-                @for (c of d.cambios; track $index) {
-                  <li class="flex flex-col gap-1 px-3 py-2 sm:flex-row sm:items-center sm:gap-3">
-                    <span class="min-w-0 flex-1 text-label-s">{{ c.titulo }}</span>
-                    <span class="font-mono text-body-xs text-text-tertiary">{{ c.antes }} → <span class="text-text-primary">{{ c.despues }}</span></span>
-                  </li>
-                }
-              </ul>
-            }
-            <div class="mt-5 flex flex-col divide-y divide-line-subtle rounded-md border border-line-subtle">
-              <div class="flex items-center gap-3 px-4 py-2">
-                <div class="min-w-0 flex-1"><p class="text-label-s">Avisar a los {{ d.afectados }} atletas afectados</p><p class="text-body-xs text-text-tertiary">Plantilla «{{ d.primera ? 'Tu fecha y horario' : 'Cambio en tu horario' }}» · también en su área · {{ d.conEmail }} con email</p></div>
-                <bo-toggle [(value)]="avisarAtletas" label="Avisar a los atletas" [disabled]="!d.afectados" />
-              </div>
-              <div class="flex items-center gap-3 px-4 py-2">
-                <div class="min-w-0 flex-1"><p class="text-label-s">Avisar a sus {{ d.seguidores }} seguidores</p><p class="text-body-xs text-text-tertiary">Solo a quien activó avisos de ese atleta</p></div>
-                <bo-toggle [(value)]="avisarSeguidores" label="Avisar a los seguidores" [disabled]="!d.seguidores" />
-              </div>
+        <div class="flex max-h-[92vh] w-full max-w-2xl flex-col rounded-t-xl border border-line-strong bg-bg-raised shadow-card sm:rounded-lg" role="dialog" aria-modal="true" aria-label="Publicar horarios" aria-describedby="pub-resumen" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
+          <header class="flex items-start gap-3 border-b border-line-subtle px-5 py-4 sm:px-6">
+            <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="send" [size]="18" /></span>
+            <div class="min-w-0 flex-1">
+              <h2 class="text-ui-h5">Publicar v{{ d.siguiente }}</h2>
+              <p id="pub-resumen" class="mt-0.5 text-body-s text-text-tertiary">{{ d.primera ? 'Primera publicación de los horarios' : 'Respecto a la versión publicada v' + d.desde }}</p>
             </div>
+            <button grIconButton icon="x" label="Cerrar" (click)="pub.set(null)"></button>
+          </header>
+
+          <div class="flex-1 overflow-y-auto px-5 pt-5 pb-4 sm:px-6">
+            @if (d.bloqueantes) { <gr-alert tone="danger" class="mb-5" [title]="'Hay ' + d.bloqueantes + (d.bloqueantes === 1 ? ' conflicto que bloquea' : ' conflictos que bloquean') + ' la publicación'">Resuélvelos en el planificador (en rojo) y vuelve a intentarlo.</gr-alert> }
+
+            <!-- impact at a glance -->
+            <dl class="grid grid-cols-3 gap-2">
+              <div class="flex flex-col justify-between rounded-md border border-line-subtle bg-bg-base/40 px-3 py-2.5"><dt class="text-body-xs text-text-tertiary">{{ d.primera ? 'Atletas' : 'Cambios' }}</dt><dd class="mt-0.5 font-mono text-[22px] leading-7 text-text-primary">{{ d.primera ? d.atletas : d.cambios.length }}</dd></div>
+              <div class="flex flex-col justify-between rounded-md border border-line-subtle bg-bg-base/40 px-3 py-2.5"><dt class="text-body-xs text-text-tertiary">Atletas afectados</dt><dd class="mt-0.5 font-mono text-[22px] leading-7 text-text-primary">{{ d.afectados }}</dd></div>
+              <div class="flex flex-col justify-between rounded-md border border-line-subtle bg-bg-base/40 px-3 py-2.5"><dt class="text-body-xs text-text-tertiary">Seguidores</dt><dd class="mt-0.5 font-mono text-[22px] leading-7 text-text-primary">{{ d.seguidores }}</dd></div>
+            </dl>
+
+            @if (d.primera) {
+              <p class="mt-5 text-body-s text-text-secondary"><strong class="text-text-primary">{{ d.atletas }} atletas</strong> recibirán su fecha, hora y pesaje en su ficha y en su área.</p>
+            } @else if (d.cambios.length) {
+              <section class="mt-6" aria-labelledby="pub-cambios">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <h3 id="pub-cambios" class="text-label-m">Qué cambia</h3>
+                  <span class="flex flex-wrap gap-1.5">@for (g of gruposPub(); track g.tipo) { <gr-badge [tone]="tiposCambio[g.tipo].tono">{{ g.n }} {{ g.n === 1 ? tiposCambio[g.tipo].uno : tiposCambio[g.tipo].varios }}</gr-badge> }</span>
+                </div>
+                <ul class="mt-3 flex flex-col rounded-md border border-line-subtle sm:max-h-[32vh] sm:overflow-y-auto">
+                  @for (c of d.cambios; track $index) {
+                    @let x = dif(c);
+                    <li class="flex gap-3 border-b border-line-subtle px-3 py-3 last:border-b-0">
+                      <span class="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-sm" [class]="tiposCambio[c.tipo].fondo"><gr-icon [name]="tiposCambio[c.tipo].i" [size]="14" /></span>
+                      <div class="min-w-0 flex-1">
+                        <p class="text-label-s text-text-primary">{{ c.titulo }}</p>
+                        @if (x.comun) { <p class="mt-1 text-body-xs text-text-tertiary">{{ x.comun }}</p> }
+                        <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-body-xs">
+                          <span class="text-text-tertiary line-through decoration-text-muted">{{ x.antes }}</span>
+                          <gr-icon name="arrow-right" [size]="12" class="shrink-0 text-text-muted" />
+                          <span class="font-medium text-text-primary">{{ x.despues }}</span>
+                        </p>
+                      </div>
+                    </li>
+                  }
+                </ul>
+              </section>
+            }
+
+            <section class="mt-6" aria-labelledby="pub-avisos">
+              <h3 id="pub-avisos" class="text-label-m">Avisos por email</h3>
+              @if (!webVisible()) { <gr-alert tone="info" class="mt-3" title="«Publicar horarios» está desactivado">Se guarda la versión, pero la web sigue mostrando «Próximamente», las fichas no tienen horario y no se avisa a nadie. Actívalo cuando quieras que se vea.</gr-alert> }
+              <div class="mt-3 flex flex-col gap-2">
+                <div class="flex items-center gap-3 rounded-md border px-3 py-3 transition-colors" [class]="webVisible() && avisarAtletas() && d.afectados ? 'border-accent/50 bg-accent/6' : 'border-line-subtle'">
+                  <span class="flex size-8 shrink-0 items-center justify-center rounded-sm bg-white/6 text-text-secondary"><gr-icon name="mail" [size]="16" /></span>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-label-s">Avisar a {{ d.afectados }} {{ d.afectados === 1 ? 'atleta afectado' : 'atletas afectados' }}</p>
+                    <p class="text-body-xs text-text-tertiary">«{{ d.primera ? 'Tu fecha y horario' : 'Cambio en tu horario' }}» · también en su área · {{ d.conEmail }} con email</p>
+                  </div>
+                  <bo-toggle [(value)]="avisarAtletas" label="Avisar a los atletas" [disabled]="!d.afectados || !webVisible()" />
+                </div>
+                <div class="flex items-center gap-3 rounded-md border px-3 py-3 transition-colors" [class]="webVisible() && avisarSeguidores() && d.seguidores ? 'border-accent/50 bg-accent/6' : 'border-line-subtle'">
+                  <span class="flex size-8 shrink-0 items-center justify-center rounded-sm bg-white/6 text-text-secondary"><gr-icon name="bell" [size]="16" /></span>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-label-s">Avisar a {{ d.seguidores }} {{ d.seguidores === 1 ? 'seguidor' : 'seguidores' }}</p>
+                    <p class="text-body-xs text-text-tertiary">Solo a quien activó avisos de ese atleta</p>
+                  </div>
+                  <bo-toggle [(value)]="avisarSeguidores" label="Avisar a los seguidores" [disabled]="!d.seguidores || !webVisible()" />
+                </div>
+              </div>
+            </section>
           </div>
-          <footer class="flex flex-wrap justify-end gap-2 border-t border-line-subtle px-6 py-4">
-            <button grButton variant="ghost" (click)="pub.set(null)">Cancelar</button>
-            <button grButton variant="primary" [loading]="publicando()" [disabled]="d.bloqueantes > 0" (click)="publicar()">{{ avisarAtletas() || avisarSeguidores() ? 'Publicar y avisar' : 'Publicar sin avisar' }}</button>
+
+          <footer class="flex flex-col gap-3 border-t border-line-subtle px-5 py-4 sm:flex-row sm:items-center sm:px-6">
+            <p class="flex min-w-0 flex-1 items-center gap-2 text-body-xs text-text-tertiary"><gr-icon [name]="emailsPub() ? 'mail' : 'info'" [size]="14" class="shrink-0" />{{ emailsPub() ? 'Se enviarán ' + emailsPub() + (emailsPub() === 1 ? ' email' : ' emails') + ' en unos minutos.' : 'No se enviará ningún email.' }}</p>
+            <div class="flex gap-2 max-sm:flex-col-reverse">
+              <button grButton variant="ghost" (click)="pub.set(null)">Cancelar</button>
+              <button grButton variant="primary" icon="send" [loading]="publicando()" [disabled]="d.bloqueantes > 0" (click)="publicar()">{{ emailsPub() ? 'Publicar y avisar' : 'Publicar sin avisar' }}</button>
+            </div>
           </footer>
         </div>
       </div>
@@ -484,6 +533,29 @@ export class HorariosPage {
   protected readonly pub = signal<Diff | null>(null);
   protected readonly avisarAtletas = signal(true);
   protected readonly avisarSeguidores = signal(false);
+  /** Publish dialog: one look per change type (icon, colour, badge text). */
+  protected readonly tiposCambio: Record<Cambio['tipo'], { uno: string; varios: string; i: GrIconName; tono: GrTone; fondo: string }> = {
+    sesion: { uno: 'sesión', varios: 'sesiones', i: 'clock', tono: 'info', fondo: 'bg-info/12 text-info' },
+    atleta: { uno: 'atleta movido', varios: 'atletas movidos', i: 'shuffle', tono: 'warning', fondo: 'bg-warning/12 text-warning' },
+    alta: { uno: 'alta', varios: 'altas', i: 'user-plus', tono: 'success', fondo: 'bg-success/12 text-success' },
+    baja: { uno: 'baja', varios: 'bajas', i: 'minus', tono: 'danger', fondo: 'bg-accent/12 text-accent-text' },
+    agenda: { uno: 'cambio de agenda', varios: 'cambios de agenda', i: 'calendar', tono: 'neutral', fondo: 'bg-white/6 text-text-secondary' },
+  };
+  /** Changes of the dialog counted by type, in a fixed order. */
+  protected readonly gruposPub = computed(() => {
+    const n = new Map<Cambio['tipo'], number>();
+    for (const c of this.pub()?.cambios ?? []) n.set(c.tipo, (n.get(c.tipo) ?? 0) + 1);
+    return (['sesion', 'atleta', 'alta', 'baja', 'agenda'] as const).filter((t) => n.has(t)).map((tipo) => ({ tipo, n: n.get(tipo)! }));
+  });
+  /** Emails the publication will send (0 while «Publicar horarios» is off). */
+  protected readonly emailsPub = computed(() => {
+    const d = this.pub();
+    if (!d || !this.webVisible()) return 0;
+    return (this.avisarAtletas() ? d.conEmail : 0) + (this.avisarSeguidores() ? d.seguidores : 0);
+  });
+  /** «Publicar horarios» switch (from the draft; reverted if saving fails). */
+  protected readonly webVisible = signal(true);
+  protected readonly cambiandoVisible = signal(false);
   protected readonly diaOpen = signal(false);
   protected readonly nuevaOpen = signal(false);
   protected readonly sesionOpen = signal(false);
@@ -558,6 +630,7 @@ export class HorariosPage {
     const b = this.raw();
     if (!b) return { label: '', tone: 'neutral' };
     if (!b.publicado) return { label: b.sesiones.length ? 'Sin publicar' : '', tone: 'neutral' };
+    if (!b.webVisible) return { label: `v${b.publicada?.numero} · oculto en la web`, tone: 'neutral' };
     return b.cambiosSinPublicar ? { label: 'Cambios sin publicar', tone: 'warning' } : { label: `Publicado · v${b.publicada?.numero}`, tone: 'success' };
   });
   protected readonly subtitulo = computed(() => {
@@ -631,6 +704,7 @@ export class HorariosPage {
     this.ultimoRev = b.rev;
     this.listas.clear();
     this.raw.set(b);
+    this.webVisible.set(b.webVisible);
     const f = this.fechas();
     if (!f.includes(this.dia())) this.dia.set(f[0] ?? '');
   }
@@ -926,6 +1000,33 @@ export class HorariosPage {
       this.publicando.set(false);
     }
   }
+  /** «sáb 19/12 09:00 · Femenino −47 kg AEP-2» → «… · Femenino −47 kg»: the shared head once, then only what changes. */
+  protected dif(c: Cambio): { comun: string; antes: string; despues: string } {
+    const a = c.antes.split(' · '), b = c.despues.split(' · ');
+    let i = 0;
+    while (i < a.length - 1 && i < b.length - 1 && a[i] === b[i]) i++;
+    return { comun: a.slice(0, i).join(' · '), antes: a.slice(i).join(' · '), despues: b.slice(i).join(' · ') };
+  }
+
+  /** «Publicar horarios» on/off: the web shows the published version or its fallback (no new version, no notices). */
+  protected async cambiarVisible(visible: boolean): Promise<void> {
+    if (!visible && !(await this.confirm.ask({ title: 'Ocultar los horarios de la web', text: 'La web mostrará «Horarios próximamente» y las fichas de los atletas quedarán sin horario hasta que lo vuelvas a activar. Puedes seguir generando horarios y asignando atletas. No se avisa a nadie.', confirm: 'Ocultar' }))) {
+      this.webVisible.set(true);
+      return;
+    }
+    this.cambiandoVisible.set(true);
+    try {
+      await this.api.visibilidad(this.cid(), visible);
+      this.toasts.success(visible ? 'Horarios visibles en la web' : 'Horarios ocultos en la web', visible && !this.raw()?.publicado ? 'Se verán en cuanto publiques una versión.' : undefined);
+      await this.cargar();
+    } catch (e) {
+      this.webVisible.set(!visible);
+      this.toasts.error('No se pudo cambiar «Publicar horarios»', errText(e));
+    } finally {
+      this.cambiandoVisible.set(false);
+    }
+  }
+
   protected async despublicar(): Promise<void> {
     if (!(await this.confirm.ask({ title: 'Retirar los horarios de la web', text: 'La web volverá a «Horarios próximamente» y las fichas de los atletas quedarán sin horario. No se avisa a nadie.', confirm: 'Retirar', danger: true }))) return;
     try {

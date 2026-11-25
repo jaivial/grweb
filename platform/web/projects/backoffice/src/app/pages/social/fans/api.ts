@@ -14,6 +14,18 @@ export interface Fan {
   baneadoMotivo?: string;
   version: number;
   createdAt: string;
+  telefono?: string;
+  /** The account has a password. */
+  contrasena: boolean;
+}
+
+/** Editable data of an account (create: email, alias and tipo required; password empty = unchanged). */
+export interface CuentaFan {
+  email?: string;
+  alias?: string;
+  tipo?: 'atleta' | 'publico';
+  telefono?: string;
+  password?: string;
 }
 
 export interface ListaFans {
@@ -38,6 +50,22 @@ export class FansApi {
 
   banear(cid: string, fanId: string, hasta: string, motivo: string): Promise<Fan> {
     return firstValueFrom(this.http.post<Fan>(`${this.b(cid)}/${fanId}/banear`, { hasta, motivo }));
+  }
+
+  crear(cid: string, c: CuentaFan): Promise<Fan> {
+    return firstValueFrom(this.http.post<Fan>(this.b(cid), c));
+  }
+
+  editar(cid: string, fanId: string, c: CuentaFan): Promise<Fan> {
+    return firstValueFrom(this.http.patch<Fan>(`${this.b(cid)}/${fanId}`, c));
+  }
+
+  borrar(cid: string, fanId: string): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`${this.b(cid)}/${fanId}`));
+  }
+
+  resetContrasena(cid: string, fanId: string): Promise<void> {
+    return firstValueFrom(this.http.post<void>(`${this.b(cid)}/${fanId}/reset-contrasena`, {}));
   }
 
   desbanear(cid: string, fanId: string): Promise<void> {

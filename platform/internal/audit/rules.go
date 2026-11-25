@@ -228,6 +228,11 @@ func resumen(e events.Event) string {
 		return fmt.Sprintf("publicó la versión v%v de los horarios", d["version"])
 	case "horarios.retirados":
 		return "retiró los horarios publicados"
+	case "horarios.visibilidad":
+		if d["visible"] == true {
+			return "activó «Publicar horarios» (los horarios se ven en la web)"
+		}
+		return "desactivó «Publicar horarios» (la web muestra «Próximamente»)"
 	case "horarios.sesion":
 		cuando := "la sesión de las " + str(d["hora"]) + " (" + str(d["dia"]) + ")"
 		switch str(d["estado"]) {
@@ -389,6 +394,18 @@ func resumen(e events.Event) string {
 		return "marcó que un atleta no compite tras el pesaje"
 	case "athletes.enlace_area_enviado":
 		return "envió a un atleta el enlace a su área"
+	case "athletes.perfil_existe_enviado":
+		return fmt.Sprintf("envió «Tu perfil de atleta ya existe» con contraseña inicial a %v atletas", d["emails"])
+	case "fans.creado":
+		return "creó la cuenta de directo «" + str(d["alias"]) + "»"
+	case "fans.editado":
+		return "editó la cuenta de directo «" + str(d["alias"]) + "» (" + strings.Join(strs(d["campos"]), ", ") + ")"
+	case "fans.borrado":
+		return "borró la cuenta de directo «" + str(d["alias"]) + "»"
+	case "fans.reset_enviado":
+		return "envió a «" + str(d["alias"]) + "» un enlace para cambiar la contraseña"
+	case "fans.baneado":
+		return "baneó la cuenta de directo «" + str(d["alias"]) + "»"
 	case "athletes.atleta_borrado":
 		return "borró a un atleta y sus datos"
 	case "athletes.solicitud_creada":

@@ -59,6 +59,7 @@ type Svc struct {
 	comp         *svcclient.Client
 	cms          *svcclient.Client
 	identity     *svcclient.Client
+	fansSvc      *svcclient.Client
 	openlifter   *svcclient.Client
 	ai           *svcclient.Client
 	comps        *compref.Resolver
@@ -101,6 +102,7 @@ func (s *Svc) init(a *app.App) {
 	s.comp = svcclient.New(config.Str("UPSTREAM_COMPETITION", "http://competition:8080"), "athletes", "competition", a.Cfg.InternalToken)
 	s.cms = svcclient.New(config.Str("UPSTREAM_CMS", "http://cms:8080"), "athletes", "cms", a.Cfg.InternalToken)
 	s.identity = svcclient.New(config.Str("UPSTREAM_IDENTITY", "http://identity:8080"), "athletes", "identity", a.Cfg.InternalToken)
+	s.fansSvc = svcclient.New(config.Str("UPSTREAM_FANS", "http://fans:8080"), "athletes", "fans", a.Cfg.InternalToken)
 	s.openlifter = svcclient.New(config.Str("UPSTREAM_OPENLIFTER", "http://openlifter:8080"), "athletes", "openlifter", a.Cfg.InternalToken)
 	s.ai = svcclient.New(config.Str("UPSTREAM_AI", "http://ai:8080"), "athletes", "ai", a.Cfg.InternalToken)
 	s.comps = compref.New(s.comp, a.Log).Versioned(a.Redis, compref.VerKey(a.Keys.Of))

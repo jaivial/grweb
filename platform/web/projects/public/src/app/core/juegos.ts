@@ -11,6 +11,7 @@ import { Injectable, PLATFORM_ID, computed, effect, inject, signal, untracked } 
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG } from './competition';
+import { EVENTOS_HORARIOS } from './horarios';
 import { FanSession, codigoError, detalleError } from './fan';
 import { idiomaActual, type Lang } from './i18n';
 
@@ -995,6 +996,8 @@ export class JuegosEnVivo {
   readonly podios = signal<{ porra: string[]; fantasy: string[] } | null>(null);
   /** Si algo cambió (para recargar la vista sin perder el scroll). */
   readonly version = signal(0);
+  /** Schedule events seen on the stream (publish, withdraw, changes, «Publicar horarios»): the home reloads its section. */
+  readonly versionHorarios = signal(0);
 
   /** Abre la suscripción (refcount: la comparten varias páginas). */
   conectar(): void {
@@ -1041,6 +1044,8 @@ export class JuegosEnVivo {
     es.addEventListener('fantasy.nota', (e) => this.eventoNota(e));
     es.addEventListener('porra.mercado', (e) => this.mercado(e));
     es.addEventListener('juegos.clasificacion', (e) => this.clasificacion(e));
+    // The home reuses this stream (one connection) to reload its schedule section live.
+    for (const ev of EVENTOS_HORARIOS) es.addEventListener(ev, () => this.versionHorarios.update((v) => v + 1));
   }
 
   /**

@@ -6,7 +6,7 @@ import { GrAlert, GrIcon, GrSkeleton, type GrIconName } from '@grcup/ui';
 import { Favoritos, cat } from '../core/atletas';
 import { Cms } from '../core/cms';
 import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
-import { HorariosPublic, ICS_URL, type Horarios, type PubAtleta, type PubDia, type PubHorario } from '../core/horarios';
+import { EVENTOS_HORARIOS, HorariosPublic, ICS_URL, type Horarios, type PubAtleta, type PubDia, type PubHorario } from '../core/horarios';
 import { DivisionPipe, I18n, LocPipe, divisionEn } from '../core/i18n';
 import { Seo } from '../core/seo';
 import { Newsletter } from '../layout/newsletter';
@@ -294,8 +294,8 @@ export class HorariosPage {
     const q = norm(this.q());
     return (this.diaSel()?.horarios ?? []).reduce((n, f) => n + this.lista(f).filter((a) => norm(a.nombre + ' ' + a.club).includes(q)).length, 0);
   });
-  /** BIZ-167: Sunday's schedule is not public yet. */
-  protected readonly domingo = computed(() => !!this.diaSel() && new Date(this.diaSel()!.fecha + 'T12:00:00Z').getUTCDay() === 0);
+  /** BIZ-167: «Horario del domingo próximamente» only while Sunday has no session published (it used to hide any Sunday). */
+  protected readonly domingo = computed(() => !!this.diaSel() && new Date(this.diaSel()!.fecha + 'T12:00:00Z').getUTCDay() === 0 && !this.diaSel()!.horarios.length);
   protected readonly filas = computed<Fila[]>(() => {
     if (this.domingo()) return [];
     const d = this.diaSel();
@@ -348,7 +348,7 @@ export class HorariosPage {
           this.aplicar(await this.api.get(true));
         }, 400);
       };
-      for (const ev of ['horarios.publicados', 'horarios.retirados', 'horarios.cambiados']) es.addEventListener(ev, recargar);
+      for (const ev of EVENTOS_HORARIOS) es.addEventListener(ev, recargar);
       inject(DestroyRef).onDestroy(() => {
         clearTimeout(t);
         es.close();
