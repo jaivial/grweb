@@ -1018,11 +1018,18 @@ export class HorariosPage {
 
   /** «Publicar horarios» on/off: the web shows the published version or its fallback (no new version, no notices). */
   protected async cambiarVisible(visible: boolean): Promise<void> {
-    if (!visible && !(await this.confirm.ask({ title: 'Ocultar los horarios de la web', text: 'La web mostrará «Horarios próximamente» y las fichas de los atletas quedarán sin horario hasta que lo vuelvas a activar. Puedes seguir generando horarios y asignando atletas. No se avisa a nadie.', confirm: 'Ocultar' }))) {
-      this.webVisible.set(true);
+    // One click = one toggle: a second click delivered before the disabled switch is rendered (same frame) or while
+    // the confirmation is open must not start the opposite change; the switch goes back to the change in progress.
+    if (this.cambiandoVisible()) {
+      this.webVisible.set(!visible);
       return;
     }
     this.cambiandoVisible.set(true);
+    if (!visible && !(await this.confirm.ask({ title: 'Ocultar los horarios de la web', text: 'La web mostrará «Horarios próximamente» y las fichas de los atletas quedarán sin horario hasta que lo vuelvas a activar. Puedes seguir generando horarios y asignando atletas. No se avisa a nadie.', confirm: 'Ocultar' }))) {
+      this.webVisible.set(true);
+      this.cambiandoVisible.set(false);
+      return;
+    }
     try {
       await this.api.visibilidad(this.cid(), visible);
       this.toasts.success(visible ? 'Horarios visibles en la web' : 'Horarios ocultos en la web', visible && !this.raw()?.publicado ? 'Se verán en cuanto publiques una versión.' : undefined);
