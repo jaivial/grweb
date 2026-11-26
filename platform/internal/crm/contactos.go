@@ -365,9 +365,11 @@ func (s *Svc) registerContactos() {
 				return nil, err
 			}
 			o.Body.Pestanas = map[string]int{"contactos": o.Body.Kpis.Contactos}
-			var segs, sups int
-			_ = s.a.DB.QueryRow(ctx, `SELECT (SELECT count(*) FROM segmentos WHERE competition_id = $1), (SELECT count(*) FROM supresiones WHERE competition_id = $1)`, in.CID).Scan(&segs, &sups)
+			var segs, sups, avisos int
+			_ = s.a.DB.QueryRow(ctx, `SELECT (SELECT count(*) FROM segmentos WHERE competition_id = $1), (SELECT count(*) FROM supresiones WHERE competition_id = $1),
+				(SELECT count(*) FROM avisos_evento WHERE competicion_id = $1 AND evento = 'grscup-3')`, in.CID).Scan(&segs, &sups, &avisos)
 			o.Body.Pestanas["segmentos"], o.Body.Pestanas["supresiones"] = segs, sups
+			o.Body.Pestanas["grscup-3"] = avisos
 			return o, nil
 		})
 
