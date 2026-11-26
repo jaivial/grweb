@@ -6,7 +6,7 @@ import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, GrTelefono } f
 import { firstValueFrom } from 'rxjs';
 import { textoError } from '../core/errores';
 import { I18n } from '../core/i18n';
-import { MAX_BIO, MAX_FRASE, MAX_MARCA, MARCAS_PERFIL, esMenorDe, totalMarcas, validarPerfil, type CamposPerfil } from '../core/perfil-campos';
+import { MAX_BIO, MAX_FRASE, MAX_MARCA, MARCAS_PERFIL, esMenorDe, pruebaEnFoco, pruebaSiguiente, tarjetasPrueba, totalMarcas, validarPerfil, type CamposPerfil, type PruebaOpcion, type PruebaTarjeta } from '../core/perfil-campos';
 import { mascaraFecha } from './fecha-mascara';
 
 /** Un campo que cambia: antes → después (lo que el equipo revisa). */
@@ -25,8 +25,7 @@ interface CambioPendiente {
 /** Lo que devuelve el servicio: los datos de hoy (para rellenar) y el cambio pendiente. */
 interface PerfilEditar {
   datos: Omit<CamposPerfil, 'marcaSQ' | 'marcaBP' | 'marcaDL'> & { marcaSQ?: number; marcaBP?: number; marcaDL?: number };
-  prueba: string;
-  pruebaNombre: string;
+  opciones: PruebaOpcion[];
   esMenor: boolean;
   pendiente?: CambioPendiente;
 }
@@ -129,11 +128,28 @@ const api = '/api/area-atleta/perfil-editar';
           <!-- Competición y club -->
           <fieldset class="flex min-w-0 flex-col gap-4">
             <legend class="mb-4 text-display-2xs italic">{{ t().competicion }}</legend>
-            <p class="flex flex-wrap items-center gap-2 rounded-md bg-bg-raised px-3 py-2 text-body-s">
-              <span class="text-text-tertiary">{{ t().tuCompeticion }}</span>
-              <span class="font-semibold">{{ datos()!.pruebaNombre || t().sinCompeticion }}</span>
-              <span class="text-body-xs text-text-tertiary">· {{ t().competicionAyuda }}</span>
-            </p>
+            <div class="flex flex-col gap-2">
+              <span id="pe-l-prueba" class="text-label-s">{{ t().tuCompeticion }}</span>
+              <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="pe-l-prueba" (keydown)="teclaPrueba($event)">
+                @for (o of opcionesPrueba(); track o.codigo) {
+                  <button type="button" role="radio" [attr.aria-checked]="d.prueba === o.codigo" (click)="d.prueba = o.codigo; revalidar()"
+                    [disabled]="o.completa" [attr.aria-disabled]="o.completa || null" [attr.data-prueba]="o.codigo"
+                    [attr.aria-label]="o.titulo + '. ' + o.detalle" [attr.tabindex]="o.codigo === pruebaFoco() ? 0 : -1"
+                    class="flex w-full items-center gap-3 rounded-[10px] border px-3.5 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    [class]="d.prueba === o.codigo ? 'border-accent-text bg-accent-deep/30' : 'border-line-subtle bg-bg-card hover:border-line-strong'">
+                    <span class="flex size-5 shrink-0 items-center justify-center rounded-full border-2"
+                      [class]="d.prueba === o.codigo ? 'border-accent-text' : 'border-line-strong'">
+                      @if (d.prueba === o.codigo) { <span class="size-2.5 rounded-full bg-accent-text"></span> }
+                    </span>
+                    <span class="flex min-w-0 flex-1 flex-col">
+                      <span class="text-body-m font-semibold text-text-primary">{{ o.titulo }}</span>
+                      <span class="text-body-s text-text-tertiary">{{ o.detalle }}</span>
+                    </span>
+                  </button>
+                }
+              </div>
+              <p class="text-body-xs text-text-tertiary">{{ t().competicionAyuda }}</p>
+            </div>
             <div class="grid gap-4 sm:grid-cols-2">
               <gr-field [label]="t().club" for="pe-club" [error]="err()['club'] ?? null">
                 <input grInput id="pe-club" name="club" maxlength="80" [placeholder]="t().clubPh" [(ngModel)]="d.club" (ngModelChange)="revalidar()" />
@@ -216,6 +232,7 @@ export class AreaPerfilEditar {
   readonly sesionCaducada = output<void>();
   protected readonly cargando = signal(true);
   protected readonly datos = signal<PerfilEditar | null>(null);
+  protected readonly opciones = signal<PruebaOpcion[]>([]);
   protected readonly pendiente = signal<CambioPendiente | null>(null);
   protected readonly err = signal<Record<string, string>>({});
   protected readonly error = signal('');
@@ -224,12 +241,32 @@ export class AreaPerfilEditar {
   protected readonly cancelando = signal(false);
   /** dd/mm/aaaa en el campo; d.fechaNacimiento guarda la ISO solo si es una fecha real. */
   protected fechaTexto = '';
-  protected d: CamposPerfil = { nombre: '', apellidos: '', email: '', telefono: '', sexo: '', fechaNacimiento: '', club: '', ciudad: '', entrenador: '', frase: '', bio: '', instagram: '', marcaSQ: '', marcaBP: '', marcaDL: '' };
+  protected d: CamposPerfil = { nombre: '', apellidos: '', email: '', telefono: '', sexo: '', fechaNacimiento: '', prueba: '', club: '', ciudad: '', entrenador: '', frase: '', bio: '', instagram: '', marcaSQ: '', marcaBP: '', marcaDL: '' };
   private intentado = false;
 
   /** Menor de 18 hoy (aviso y campo de Instagram oculto). */
   protected esMenor(): boolean {
     return esMenorDe(this.d.fechaNacimiento);
+  }
+
+  /** Las tarjetas de competición, las mismas que el alta: nombre con su día y «Completa» si no quedan plazas. */
+  protected opcionesPrueba(): PruebaTarjeta[] {
+    return tarjetasPrueba(this.opciones(), this.i18n.locale(), this.t().completa);
+  }
+
+  /** La opción que entra en el recorrido del teclado (radiogroup: un solo tab stop). */
+  protected pruebaFoco(): string {
+    return pruebaEnFoco(this.opcionesPrueba(), this.d.prueba);
+  }
+
+  /** Flechas en el radiogroup: eligen la opción siguiente o anterior (saltando las completas). */
+  protected teclaPrueba(ev: KeyboardEvent): void {
+    const sig = pruebaSiguiente(this.opcionesPrueba(), this.d.prueba, ev.key);
+    if (!sig) return;
+    ev.preventDefault();
+    this.d.prueba = sig;
+    this.revalidar();
+    (ev.currentTarget as HTMLElement).querySelector<HTMLElement>('[data-prueba="' + sig + '"]')?.focus();
   }
 
   /** Total de las marcas en vivo. */
@@ -266,6 +303,7 @@ export class AreaPerfilEditar {
     try {
       const p = await firstValueFrom(this.http.get<PerfilEditar>(api));
       this.datos.set(p);
+      this.opciones.set(p.opciones ?? []);
       this.pendiente.set(p.pendiente ?? null);
       this.rellena(p);
     } catch (e) {
@@ -283,7 +321,7 @@ export class AreaPerfilEditar {
     const num = (v?: number) => (v === null || v === undefined ? '' : String(v));
     this.d = {
       nombre: x.nombre, apellidos: x.apellidos, email: x.email, telefono: x.telefono, sexo: x.sexo,
-      fechaNacimiento: x.fechaNacimiento ?? '', club: x.club, ciudad: x.ciudad, entrenador: x.entrenador, frase: x.frase,
+      fechaNacimiento: x.fechaNacimiento ?? '', prueba: x.prueba ?? '', club: x.club, ciudad: x.ciudad, entrenador: x.entrenador, frase: x.frase,
       bio: x.bio, instagram: x.instagram, marcaSQ: num(x.marcaSQ), marcaBP: num(x.marcaBP), marcaDL: num(x.marcaDL),
     };
     this.fechaTexto = (x.fechaNacimiento ?? '').split('-').reverse().join('/');
@@ -324,7 +362,7 @@ export class AreaPerfilEditar {
     try {
       const p = await firstValueFrom(this.http.post<CambioPendiente>(api, {
         nombre: this.d.nombre.trim(), apellidos: this.d.apellidos.trim(), email: this.d.email.trim(), telefono: this.d.telefono,
-        sexo: this.d.sexo, fechaNacimiento: this.d.fechaNacimiento, club: this.d.club.trim(), ciudad: this.d.ciudad.trim(),
+        sexo: this.d.sexo, fechaNacimiento: this.d.fechaNacimiento, prueba: this.d.prueba, club: this.d.club.trim(), ciudad: this.d.ciudad.trim(),
         entrenador: this.d.entrenador.trim(), frase: this.d.frase.trim(), bio: this.d.bio.trim(),
         instagram: this.esMenor() ? '' : this.d.instagram.trim(),
         marcaSQ: numero(this.d.marcaSQ), marcaBP: numero(this.d.marcaBP), marcaDL: numero(this.d.marcaDL),
@@ -396,8 +434,9 @@ const T = {
     telefono: 'Teléfono móvil', sexo: 'Sexo', mujer: 'Mujer', hombre: 'Hombre',
     nacimiento: 'Fecha de nacimiento', fechaPh: 'dd/mm/aaaa', fechaAyuda: 'Formato dd/mm/aaaa. De 14 a 90 años.',
     menor: 'Eres menor de edad: tu ficha pública no se mostrará hasta que la organización tenga la autorización firmada de tu madre, padre o tutor.',
-    competicion: 'Competición', tuCompeticion: 'Tu competición:', sinCompeticion: 'Aún no lo sabes',
-    competicionAyuda: 'se cambia en «Tu competición», con su fecha límite',
+    competicion: 'Competición', tuCompeticion: 'Elige tu competición',
+    completa: 'Completa · sin plazas',
+    competicionAyuda: 'Si la aprueban, tu plaza pasa a esa competición. También puedes elegirla en «Tu competición», con su fecha límite.',
     club: 'Club o equipo', clubPh: 'Escribe tu club', ciudad: 'Ciudad', entrenador: 'Entrenador/a', entrenadorPh: 'Tu entrenador/a',
     tuPerfil: 'Tu perfil', frase: 'Frase de presentación', frasePh: 'Una frase para tu ficha',
     bio: 'Sobre ti', bioPh: 'Cuéntale a la gente quién eres en dos líneas', instagram: 'Instagram', instagramPh: '@tuusuario',
@@ -436,8 +475,9 @@ const T = {
     telefono: 'Mobile phone', sexo: 'Sex', mujer: 'Woman', hombre: 'Man',
     nacimiento: 'Date of birth', fechaPh: 'dd/mm/yyyy', fechaAyuda: 'Format dd/mm/yyyy. From 14 to 90 years old.',
     menor: 'You are under 18: your public profile will not be shown until the organisation has the signed authorisation from your parent or guardian.',
-    competicion: 'Competition', tuCompeticion: 'Your competition:', sinCompeticion: 'Not chosen yet',
-    competicionAyuda: 'it is changed in «Your competition», with its deadline',
+    competicion: 'Competition', tuCompeticion: 'Choose your competition',
+    completa: 'Full · no places left',
+    competicionAyuda: 'Once it is approved, your place moves to that competition. You can also choose it in «Your competition», with its deadline.',
     club: 'Club or team', clubPh: 'Write your club', ciudad: 'City', entrenador: 'Coach', entrenadorPh: 'Your coach',
     tuPerfil: 'Your profile', frase: 'Presentation line', frasePh: 'One line for your profile',
     bio: 'About you', bioPh: 'Tell people who you are in two lines', instagram: 'Instagram', instagramPh: '@youruser',

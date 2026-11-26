@@ -46,6 +46,9 @@ var notifRules = map[string]notifRule{
 	"athletes.solicitud_creada": func(e events.Event, d map[string]any) (string, string, string, string, string, bool) {
 		nivel := "info"
 		cuerpo := "Revísala a mano y publícala en la lista de atletas."
+		if str(d["tipo"]) == "cambio_perfil" {
+			return "Cambio de perfil · " + str(d["nombre"]), "Revisa los cambios: nada se aplica hasta que los apruebes.", "/atletas/solicitudes", nivel, "atletas.editar", true
+		}
 		if d["esMenor"] == true {
 			nivel = "aviso"
 			cuerpo = "Es menor de edad: necesitarás la autorización de su tutor antes de publicarla."
@@ -420,12 +423,25 @@ func resumen(e events.Event) string {
 	case "athletes.atleta_borrado":
 		return "borró a un atleta y sus datos"
 	case "athletes.solicitud_creada":
+		if str(d["tipo"]) == "cambio_perfil" {
+			return "envió un cambio de perfil de su ficha"
+		}
 		return "envió una solicitud de alta de atleta"
 	case "athletes.solicitud_actualizada":
-		return "cambió el estado de una solicitud de atleta"
+		return resumenSolicitudActualizada(d)
 	case "athletes.solicitud_aprobada":
+		if str(d["tipo"]) == "cambio_perfil" {
+			return "aprobó un cambio de perfil de " + str(d["nombre"])
+		}
 		return "aprobó el alta de atleta de " + str(d["nombre"])
 	case "athletes.solicitud_rechazada":
+		if str(d["tipo"]) == "cambio_perfil" {
+			s := "rechazó un cambio de perfil de " + str(d["nombre"])
+			if m := str(d["motivo"]); m != "" {
+				s += " (" + m + ")"
+			}
+			return s
+		}
 		return "rechazó el alta de atleta de " + str(d["nombre"])
 	case "athletes.importacion_confirmada":
 		return "importó el acta de la AEP «" + str(d["archivo"]) + "»"
@@ -471,6 +487,36 @@ func resumen(e events.Event) string {
 		return accion + " " + col
 	}
 	return e.Type
+}
+
+// resumenSolicitudActualizada says what happened to the request: «cambió el estado» left out which one (and a
+// cancel or a delete read the same).
+func resumenSolicitudActualizada(d map[string]any) string {
+	cambio := str(d["tipo"]) == "cambio_perfil"
+	switch str(d["accion"]) {
+	case "cancelada":
+		if cambio {
+			return "canceló su cambio de perfil"
+		}
+		return "canceló una solicitud de atleta"
+	case "borrada":
+		return "borró una solicitud de atleta rechazada"
+	case "enlazada":
+		return "enlazó una solicitud de atleta con su ficha"
+	}
+	switch str(d["estado"]) {
+	case "revision":
+		if cambio {
+			return "marcó un cambio de perfil como en revisión"
+		}
+		return "marcó una solicitud de atleta como en revisión"
+	case "pendiente":
+		if cambio {
+			return "devolvió un cambio de perfil a la cola"
+		}
+		return "devolvió una solicitud de atleta a la cola"
+	}
+	return "cambió el estado de una solicitud de atleta"
 }
 
 // cmsCollection turns "cms.<coleccion>_<accion>" into a Spanish verb and object.
