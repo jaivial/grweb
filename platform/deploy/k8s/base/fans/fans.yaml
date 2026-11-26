@@ -134,5 +134,6 @@ spec:
         - podSelector: { matchLabels: { grcup.dev/servicio: audit } }
         - podSelector: { matchLabels: { grcup.dev/servicio: athletes } }
         - podSelector: { matchLabels: { grcup.dev/servicio: cms } }
+        - podSelector: { matchLabels: { grcup.dev/servicio: juegos } }
       ports:
         - { port: 8080, protocol: TCP }
