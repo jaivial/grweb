@@ -123,6 +123,7 @@ const T = {
       eEmail: 'Email: introduce un email válido.',
       eTel: 'Teléfono: escribe el número completo.',
       eSesion: 'Elige una sesión.',
+      sesionPerdida: 'La sesión que habías elegido ya no tiene plazas. Elige otra para seguir con la reserva.',
       ePriv: 'Acepta la política de privacidad para reservar.',
       eEmail2: 'Escribe un email válido.',
       ePriv2: 'Acepta la política de privacidad.',
@@ -310,6 +311,7 @@ const T = {
       eEmail: 'Email: enter a valid email.',
       eTel: 'Phone: enter the complete number.',
       eSesion: 'Choose a session.',
+      sesionPerdida: 'The session you chose no longer has places. Pick another one to continue your booking.',
       ePriv: 'Accept the privacy policy to book.',
       eEmail2: 'Enter a valid email.',
       ePriv2: 'Accept the privacy policy.',
@@ -552,7 +554,7 @@ const titular = (m: { nombre: string; apellidos: string; personas: number }, lan
 const eur = { es: new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }), en: new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'EUR' }) };
 /** «2 €», «2,50 €» (cents in). */
 const euros = (c: number, lang: Lang = 'es') => eur[lang].format(c / 100).replace(lang === 'es' ? ',00' : '.00', '');
-/** Booking draft kept across the magic-link login. */
+/** Booking draft kept across the magic-link login: the typed fields and the session that was chosen. */
 const BORRADOR = 'gr.entradas.borrador';
 const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text-text-primary placeholder:text-text-muted focus:border-accent-text focus:outline-none';
 
@@ -774,6 +776,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
     }
 
     <ng-template #sesiones>
+      @if (avisoSesion()) { <p class="flex items-start gap-2 rounded-md border border-warning/60 bg-warning/8 p-3 text-body-s text-text-secondary" role="status"><gr-icon name="circle-alert" [size]="16" class="mt-0.5 shrink-0 text-warning" />{{ t().pg.sesionPerdida }}</p> }
       <div class="flex flex-col gap-3" role="radiogroup" [attr.aria-label]="t().pg.sesionAria">
         @for (s of d!.sesiones; track s.id) {
           <button type="button" role="radio" [attr.aria-checked]="sesion() === s.id" [disabled]="s.estado === 'cerrada' || s.estado === 'proximamente'" (click)="elegir(s)"
@@ -860,6 +863,8 @@ export class EntradasPage {
   protected readonly faq = signal<Faq[]>([]);
   private readonly horarios = signal<Horarios | null>(null);
   protected readonly sesion = signal('');
+  /** The session chosen before the magic-link login is no longer bookable: the page asks for another one. */
+  protected readonly avisoSesion = signal(false);
   protected readonly AMBOS = 'ambos';
   protected readonly enviando = signal(false);
   protected readonly errores = signal<string[]>([]);
@@ -869,6 +874,9 @@ export class EntradasPage {
   private readonly formVisible = signal(true);
   private readonly bajoHero = signal(false);
   protected f = { nombre: '', apellidos: '', email: '', telefono: '', origen: '', personas: 1, privacidad: false, novedades: false};
+  /** Draft of the booking (fields + chosen session) kept across the magic-link login. */
+  private borradorCampos: Partial<typeof this.f> | null = null;
+  private borradorSesion = '';
   protected readonly sesSel = computed(() => (this.sesion() === this.AMBOS ? this.ambos() ?? undefined : this.data()?.sesiones.find((s) => s.id === this.sesion())));
   protected readonly abiertas = computed(() => (this.data()?.sesiones ?? []).filter((s) => s.estado === 'disponible' || s.estado === 'ultimas'));
   /** BIZ-163: two open sessions on different days → a «both days» option (one ticket, counts for both capacities). */
@@ -942,11 +950,23 @@ export class EntradasPage {
       this.horarios.set(h?.publicado ? h : null);
       const l = faq ?? [];
       this.faq.set((l.some((x) => /entrada/i.test(x.categoria)) ? l.filter((x) => /entrada/i.test(x.categoria)) : l).slice(0, 5));
-      const s = d?.sesiones.find((x) => x.estado === 'disponible' || x.estado === 'ultimas');
-      if (s) this.sesion.set(s.id);
+      // the draft of a booking interrupted by the magic link, and the first open session on a plain visit
+      this.aplicarSesionBorrador();
+      this.preseleccionar();
       await applySeo(cms, seo, '/entradas', this.t().pg.seoT, this.t().pg.seoD);
     });
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
+      // The email link reloads the page: the draft of the booking is read once and restored after hydration
+      // (before it, ngModel starts from the SSR markup with empty inputs and would clear anything applied earlier).
+      const draft = sessionStorage.getItem(BORRADOR);
+      if (draft) {
+        sessionStorage.removeItem(BORRADOR);
+        try {
+          const { sesion, ...f } = JSON.parse(draft) as { sesion?: string };
+          this.borradorCampos = f;
+          this.borradorSesion = typeof sesion === 'string' ? sesion : '';
+        } catch { /* ignore a broken draft */ }
+      }
       effect((onCleanup) => {
         const b = this.enviarBtn()?.nativeElement as HTMLElement | undefined;
         if (!b) return this.enviarVisible.set(true);
@@ -958,8 +978,10 @@ export class EntradasPage {
       const cd = inject(ChangeDetectorRef);
       afterNextRender(() => {
         this.hidratado.set(true);
-        const b = sessionStorage.getItem(BORRADOR);
-        if (b) { sessionStorage.removeItem(BORRADOR); try { Object.assign(this.f, JSON.parse(b)); } catch { /* ignore a broken draft */ } }
+        if (this.borradorCampos) { Object.assign(this.f, this.borradorCampos); this.borradorCampos = null; }
+        // the draft's session, once the server markup is hydrated (never before: it would not match)
+        this.aplicarSesionBorrador();
+        this.preseleccionar();
         void this.fan.cargar().then((y) => { if (y?.email && !this.f.email) this.f.email = y.email; cd.markForCheck(); });
         const el = this.reservarEl()?.nativeElement;
         const io = new IntersectionObserver(([e]) => this.formVisible.set(e.isIntersecting), { rootMargin: '0px 0px -30% 0px' });
@@ -988,8 +1010,32 @@ export class EntradasPage {
   }
   protected elegir(s: SesionPub): void {
     this.sesion.set(s.id);
+    this.avisoSesion.set(false);
     this.error.set('');
     this.f.personas = Math.min(this.f.personas, s.maxPorReserva);
+  }
+  /** Session of the draft that can still be booked: an open one, or «both days» while its two open days are there. */
+  private sesionVigente(id: string, ses: SesionPub[]): SesionPub | null {
+    if (id === this.AMBOS) return this.par()?.[0] ?? null;
+    return ses.find((s) => s.id === id && (s.estado === 'disponible' || s.estado === 'ultimas')) ?? null;
+  }
+  /** The session chosen before the magic-link login: restored if it still has places, never swapped silently for another. */
+  private aplicarSesionBorrador(): void {
+    const id = this.borradorSesion;
+    const d = this.data();
+    // after hydration: the first render has to match the SSR markup, where the draft (browser storage) does not exist
+    if (!id || d === undefined || !this.hidratado()) return;
+    this.borradorSesion = '';
+    this.sesion.set('');
+    if (!this.sesionVigente(id, d?.sesiones ?? [])) return this.avisoSesion.set(true);
+    this.sesion.set(id);
+    this.f.personas = Math.max(1, Math.min(this.f.personas, this.maxPersonas()));
+  }
+  /** A plain visit starts with the first open session selected (never over the draft or its «no longer available» notice). */
+  private preseleccionar(): void {
+    if (this.sesion() || this.avisoSesion()) return;
+    const s = (this.data()?.sesiones ?? []).find((x) => x.estado === 'disponible' || x.estado === 'ultimas');
+    if (s) this.sesion.set(s.id);
   }
   private validar(): boolean {
     const e: string[] = [];
@@ -1014,8 +1060,8 @@ export class EntradasPage {
     if (!this.validar()) return;
     // D-MIEMBROS: booking needs a fan session; the access modal brings the person back here.
     if (!(await this.fan.cargar())) {
-      // keep what was typed: the email link reloads the page
-      sessionStorage.setItem(BORRADOR, JSON.stringify(this.f));
+      // keep what was typed and the chosen session: the email link reloads the page
+      sessionStorage.setItem(BORRADOR, JSON.stringify({ ...this.f, sesion: this.sesion() }));
       return this.fan.abrirAcceso('entradas', this.i18n.path('/entradas'), this.f.email.trim());
     }
     this.enviando.set(true);
