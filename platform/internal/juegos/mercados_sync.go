@@ -95,9 +95,11 @@ func mercadosDeseados(m *Marcador) (map[claveMercado][]uuid.UUID, map[claveMerca
 	titulos := map[claveMercado]string{}
 	for i := range m.Atletas {
 		ma := &m.Atletas[i]
-		kc := claveMercado{tipo: "categoria", sexo: ma.Sexo, categoria: ma.Categoria}
-		deseados[kc] = append(deseados[kc], ma.AtletaID)
-		titulos[kc] = gl[ma.Sexo] + " " + guion(ma.Categoria) + " kg"
+		if ma.Categoria != "" { // an approved athlete without weight class yet only plays the per-sex markets
+			kc := claveMercado{tipo: "categoria", sexo: ma.Sexo, categoria: ma.Categoria}
+			deseados[kc] = append(deseados[kc], ma.AtletaID)
+			titulos[kc] = gl[ma.Sexo] + " " + guion(ma.Categoria) + " kg"
+		}
 		kg := claveMercado{tipo: "gl", sexo: ma.Sexo}
 		deseados[kg] = append(deseados[kg], ma.AtletaID)
 		titulos[kg] = "Mejor IPF GL " + gl[ma.Sexo]
