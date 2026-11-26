@@ -400,7 +400,7 @@ const diaSiguiente = (f: string) => {
               <li class="grid grid-cols-[minmax(0,1fr)_44px] gap-2 rounded-md border border-line-subtle p-2 sm:grid-cols-[120px_minmax(0,1fr)_120px_44px] sm:border-0 sm:p-0">
                 <bo-date-picker tipo="time" [(ngModel)]="it.hora" aria-label="Hora" [borrable]="false" [disabled]="!canEdit()" />
                 @if (canEdit()) { <button grIconButton icon="trash" label="Quitar" class="sm:order-last" (click)="agendaDia.splice($index, 1)"></button> } @else { <span></span> }
-                <input grInput [(ngModel)]="it.titulo" maxlength="120" aria-label="Qué pasa" [disabled]="!canEdit()" class="col-span-2 sm:col-span-1" />
+                <input grInput [(ngModel)]="it.titulo" maxlength="120" aria-label="Qué pasa" [disabled]="!canEdit()" [title]="it.titulo" class="col-span-2 sm:col-span-1" />
                 <gr-select class="col-span-2 sm:col-span-1" [(ngModel)]="it.icono" aria-label="Icono" [disabled]="!canEdit()">@for (i of iconos; track i.v) { <option [value]="i.v">{{ i.label }}</option> }</gr-select>
               </li>
             }
@@ -788,8 +788,9 @@ export class HorariosPage {
     const p = this.pruebaDia();
     const hay = this.sesionesDia().length;
     if (!this.puedeGenerar()) return;
-    const texto = p ? `Se sustituyen las sesiones de ${nombrePrueba(p)} (${diaLargo(this.dia())}); la otra competición no cambia.` : 'Se generan de nuevo las sesiones del evento.';
-    if ((hay || !p) && !(await this.confirm.ask({ title: 'Generar sesiones', text: texto + ' La web no cambia hasta que publiques.', confirm: 'Generar' }))) return;
+    const texto = p ? `${hay ? 'Se sustituyen' : 'Se crean'} las sesiones de ${nombrePrueba(p)} (${diaLargo(this.dia())}); la otra competición no cambia.` : 'Se generan de nuevo las sesiones del evento.';
+    // Always ask: on an empty day one click would create (and assign) the whole day's sessions
+    if (!(await this.confirm.ask({ title: 'Generar sesiones', text: texto + ' La web no cambia hasta que publiques.', confirm: 'Generar' }))) return;
     this.generando.set(true);
     this.movimiento.set(null);
     try {

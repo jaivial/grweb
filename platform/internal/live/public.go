@@ -54,12 +54,26 @@ type Directo struct {
 	Siguientes []EnPlataforma `json:"siguientes"`
 	// The provisional ranking of the categories of the current sesion.
 	Clasificacion []Categoria `json:"clasificacion"`
-	// Before the event: the first block (and the time it starts).
+	// Before the event: the first block (and the time it starts). Without published schedule the flights are not
+	// exposed: Titulo stays empty and Inicio is the start of the event (doors), so the page can only count down to it.
 	Proximo *struct {
 		Titulo string    `json:"titulo"`
 		Inicio time.Time `json:"inicio"`
 	} `json:"proximo,omitempty"`
+	// HorariosPublicados: the «Publicar horarios» switch. While false the page must not offer the flights (nor the
+	// calendar of the schedule, which answers 404).
+	HorariosPublicados   bool `json:"horariosPublicados"`
 	ResultadosPublicados bool `json:"resultadosPublicados"`
+}
+
+// inicioEvento is the start the live page counts down to while the schedule is not public: the doors (08:30, the
+// planner's default) of the first date of the event.
+func inicioEvento(c compref.Comp) time.Time {
+	t, err := time.ParseInLocation("2006-01-02 15:04", c.FechaInicio+" 08:30", madrid)
+	if err != nil {
+		return time.Time{}
+	}
+	return t
 }
 
 func enPlataforma(a *atleta, mov string, n int, peso float64) *EnPlataforma {
@@ -94,7 +108,7 @@ func (s *Svc) directoPublico(ctx context.Context, c compref.Comp) (*Directo, err
 		return nil, err
 	}
 	d = Directo{Fase: e.Fase, Pausa: e.Pausa, RetrasoMin: e.RetrasoMin, Movimiento: e.Movimiento,
-		Siguientes: []EnPlataforma{}, Clasificacion: []Categoria{}}
+		Siguientes: []EnPlataforma{}, Clasificacion: []Categoria{}, HorariosPublicados: p.HorariosPublicados}
 	if e.StreamVisible { // hidden from the backoffice: no video at all, in any phase
 		d.StreamURL, d.ReplayURL = e.StreamURL, e.ReplayURL
 		d.StreamHome = e.StreamHome && e.Fase == "en_directo" && e.StreamURL != ""
@@ -102,18 +116,27 @@ func (s *Svc) directoPublico(ctx context.Context, c compref.Comp) (*Directo, err
 	var n int
 	_ = s.a.DB.QueryRow(ctx, `SELECT count(*) FROM resultados WHERE competition_id = $1`, c.ID).Scan(&n)
 	d.ResultadosPublicados = n > 0
-	// First block: the earliest sesion not finished (before the event, what /en-directo counts down to).
-	for i := range p.Sesiones {
-		f := &p.Sesiones[i]
-		if sesionCompleta(f, t) {
-			continue
+	// First block: the earliest sesion not finished (before the event, what /en-directo counts down to). Only with the
+	// schedule published («Publicar horarios»): while it is hidden the page counts down to the start of the event and
+	// names no block (the published version is the desk's plan, not public information).
+	if p.HorariosPublicados {
+		for i := range p.Sesiones {
+			f := &p.Sesiones[i]
+			if sesionCompleta(f, t) {
+				continue
+			}
+			if d.Proximo == nil || f.Inicio.Before(d.Proximo.Inicio) {
+				d.Proximo = &struct {
+					Titulo string    `json:"titulo"`
+					Inicio time.Time `json:"inicio"`
+				}{f.Titulo, f.Inicio}
+			}
 		}
-		if d.Proximo == nil || f.Inicio.Before(d.Proximo.Inicio) {
-			d.Proximo = &struct {
-				Titulo string    `json:"titulo"`
-				Inicio time.Time `json:"inicio"`
-			}{f.Titulo, f.Inicio}
-		}
+	} else if ini := inicioEvento(c); !ini.IsZero() {
+		d.Proximo = &struct {
+			Titulo string    `json:"titulo"`
+			Inicio time.Time `json:"inicio"`
+		}{"", ini}
 	}
 	if e.SesionID != nil && e.Fase != "antes" {
 		if f := p.sesion(*e.SesionID); f != nil {

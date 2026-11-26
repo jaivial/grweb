@@ -20,6 +20,8 @@ export interface NavItem {
    * switched off the section leaves the menu and its routes go back to Inicio. Code and data stay.
    */
   modulo?: string;
+  /** Name of that module as the team sees it in Evento y módulos › Módulos (when it differs from the section). */
+  moduloLabel?: string;
   /** Sub-pages shown as an accordion under the item (the item itself is their overview page). */
   hijos?: NavItem[];
 }
@@ -35,7 +37,7 @@ export const NAV: NavGroup[] = [
     label: 'Hoy',
     items: [
       { label: 'Inicio', path: 'inicio', icon: 'home', mobileTab: true },
-      { label: 'Directo', path: 'directo', icon: 'radio', perm: 'directo.operar', mobileTab: true, modulo: 'mesa-directo' },
+      { label: 'Directo', path: 'directo', icon: 'radio', perm: 'directo.operar', mobileTab: true, modulo: 'mesa-directo', moduloLabel: 'Mesa del directo' },
       { label: 'Pantalla del pabellón', path: 'directo/pantalla', icon: 'radio', perm: 'directo.operar', oculto: true, modulo: 'mesa-directo' },
       { label: 'Check-in y taquilla', path: 'checkin', icon: 'scan', perm: 'checkin.escanear', mobileTab: true },
     ],

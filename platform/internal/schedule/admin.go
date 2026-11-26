@@ -665,6 +665,24 @@ func (s *Svc) registerInternal() {
 			}
 			return &struct{ Body *Snapshot }{&v.Snapshot}, nil
 		})
+	type visOut struct {
+		Body struct {
+			Visible bool `json:"visible" doc:"Interruptor «Publicar horarios»"`
+		}
+	}
+	huma.Register(s.a.API, huma.Operation{OperationID: "internal-horarios-visibilidad", Method: http.MethodGet, Path: "/internal/competiciones/{cid}/horarios/visibilidad", Summary: "Interruptor «Publicar horarios» (solo servicios)", Tags: []string{"Interno"}, Hidden: true},
+		func(ctx context.Context, in *cidOnly) (*visOut, error) {
+			if _, err := auth.RequireService(ctx); err != nil {
+				return nil, err
+			}
+			v, err := webVisible(ctx, s.a.DB, in.CID)
+			if err != nil {
+				return nil, err
+			}
+			o := &visOut{}
+			o.Body.Visible = v
+			return o, nil
+		})
 	type diasOut struct {
 		Body struct {
 			Dias []DiaInfo `json:"dias"`

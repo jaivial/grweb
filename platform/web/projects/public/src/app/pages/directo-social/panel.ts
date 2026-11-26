@@ -93,7 +93,7 @@ export function escritorio(): Signal<boolean> {
 
       @for (t of [tab()]; track t) {
       <div id="panel-directo" role="tabpanel" [attr.aria-labelledby]="'tab-' + t" class="gr-tab flex flex-col lg:min-h-0 lg:flex-1"
-        [class]="t === 'chat' ? 'h-[max(360px,calc(100dvh-382px))] md:h-[600px] lg:h-auto' : 'min-h-[480px] md:min-h-[600px]'">
+        [class]="t === 'chat' ? (chatVacio() ? 'md:h-[600px] lg:h-auto' : 'h-[max(360px,calc(100dvh-382px))] md:h-[600px] lg:h-auto') : 'min-h-[480px] md:min-h-[600px]'">
         @switch (t) {
           @case ('chat') { @defer (on immediate) { <gr-chat-view (donar)="donar.set(true)" /> } }
           @case ('donantes') { @defer (on immediate) { <gr-donantes-view [diaSala]="hoy" [jornadaId]="jornadaPorra()?.id ?? ''" (donar)="donar.set(true)" /> } }
@@ -150,6 +150,8 @@ export class PanelSocial {
 
   /** Connected and live: the audience shows (no red dot, Figma 393:120125). */
   protected readonly vivo = computed(() => this.chat.estado() === 'conectado' && !this.chat.cerrado() && this.chat.conectados() > 0);
+  /** No messages yet: on phones the chat is not given a full screen height (it pushed the live cards down). */
+  protected readonly chatVacio = computed(() => this.chat.items().length === 0);
   protected readonly conectados = computed(() => new Intl.NumberFormat(this.i18n.locale()).format(this.chat.conectados()));
 
   constructor() {
