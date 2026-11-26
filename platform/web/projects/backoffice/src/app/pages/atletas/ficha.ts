@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrToasts, fmtAgo, fmtShortDate, GrSelect } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton, GrTelefono, GrToasts, fmtAgo, fmtShortDate, GrSelect, telefonoValido } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
@@ -22,7 +22,7 @@ const PUBLIC_WEB = webPublica();
 /** Athlete record (Figma page 55 · «Atletas · ficha (perfil público)»). */
 @Component({
   selector: 'bo-atleta-ficha',
-  imports: [AccionNecesariaDialogo, PerfilExisteDialogo, BoDatePicker, BoTabsMovil, GrSelect, FormsModule, RouterLink, BoCount, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [AccionNecesariaDialogo, PerfilExisteDialogo, BoDatePicker, BoTabsMovil, GrSelect, GrTelefono, FormsModule, RouterLink, BoCount, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let a = atleta();
@@ -115,6 +115,17 @@ const PUBLIC_WEB = webPublica();
                     <gr-field label="Instagram" for="p-ig" [hint]="a.menor ? 'Menor de edad: no se guardan redes' : null"><input grInput id="p-ig" [(ngModel)]="p.instagram" placeholder="@usuario" [disabled]="!canEdit() || a.menor" /></gr-field>
                     <gr-field label="Entrenador / club" for="p-ent"><input grInput id="p-ent" [(ngModel)]="p.entrenador" [disabled]="!canEdit()" /></gr-field>
                     <gr-field label="Historial" for="p-hist" class="md:col-span-2" hint="p. ej. 2025 · AEP-2 Llíria · −83 kg · 4.º · 612,5 kg"><input grInput id="p-hist" [(ngModel)]="p.historial" maxlength="300" [disabled]="!canEdit()" /></gr-field>
+                  </div>
+                </section>
+
+                <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                  <h2 class="text-ui-h5">Contacto</h2>
+                  <p class="mt-0.5 text-body-xs text-text-tertiary">Email y teléfono del atleta: con ellos entran a su área y reciben los avisos. Si la cuenta del directo usa el mismo email, sigue siendo la misma persona.</p>
+                  <div class="mt-4 grid gap-4 md:grid-cols-2">
+                    <gr-field label="Email" for="d-mail-p" [hint]="a.email ? 'Con este email entra al área' : null"><input grInput id="d-mail-p" type="email" autocomplete="email" [(ngModel)]="d.email" [disabled]="!canEdit()" /></gr-field>
+                    <gr-field label="Teléfono" for="d-tel-p" [hint]="a.menor ? 'Menor de edad: usa el teléfono del tutor' : null" [error]="d.telefono && !valido(d.telefono) ? 'El número no está completo.' : null">
+                      <gr-telefono id="d-tel-p" tam="m" [aria-label]="'Teléfono'" [invalido]="!!d.telefono && !valido(d.telefono)" [(ngModel)]="d.telefono" [disabled]="!canEdit()" />
+                    </gr-field>
                   </div>
                 </section>
 
@@ -212,8 +223,6 @@ const PUBLIC_WEB = webPublica();
                   <gr-field label="Competición" for="d-p"><gr-select id="d-p" aria-label="Competición" [(ngModel)]="d.prueba" [disabled]="!canEdit()"><option value="">Aún no lo sabe</option><option value="aep2">AEP-2</option><option value="aep3">AEP-3</option></gr-select></gr-field>
                   <gr-field label="Club" for="d-club"><input grInput id="d-club" [(ngModel)]="d.club" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Ciudad" for="d-city"><input grInput id="d-city" [(ngModel)]="d.ciudad" [disabled]="!canEdit()" /></gr-field>
-                  <gr-field label="Email" for="d-mail"><input grInput id="d-mail" type="email" [(ngModel)]="d.email" [disabled]="!canEdit()" /></gr-field>
-                  <gr-field label="Teléfono" for="d-tel" [hint]="a.menor ? 'Menor de edad: usa el teléfono del tutor' : null"><input grInput id="d-tel" type="tel" [(ngModel)]="d.telefono" [disabled]="!canEdit()" /></gr-field>
                 </div>
               </section>
               <aside class="flex flex-col gap-6">
@@ -287,6 +296,7 @@ export class AtletaFichaPage {
   protected readonly estado = ESTADO;
   protected readonly cat = cat;
   protected readonly kg = kg;
+  protected readonly valido = telefonoValido;
   protected readonly fmtShortDate = fmtShortDate;
   protected readonly web = PUBLIC_WEB;
   protected readonly divisiones = DIVISIONES;
@@ -396,6 +406,12 @@ export class AtletaFichaPage {
     const mal = this.lifts.find((m) => this.marcaErr(m.k));
     if (mal) {
       document.getElementById('p-' + mal.k)?.focus();
+      return;
+    }
+    // A half-typed phone is flagged on its field too (the API only takes complete E.164 numbers).
+    if (this.d.telefono && !telefonoValido(this.d.telefono)) {
+      this.toasts.error('El teléfono no está completo', 'Elige el país y escribe el número entero en «Contacto».');
+      document.getElementById('d-tel-p')?.focus();
       return;
     }
     this.guardando.set(true);

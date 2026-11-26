@@ -3,7 +3,7 @@ import { mascaraFecha } from './fecha-mascara';
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
+import { GrButton, GrIcon, GrSkeleton, GrTelefono, telefonoValido } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import { AltchaConfig } from '../core/altcha';
 import { Cms } from '../core/cms';
@@ -68,7 +68,7 @@ const MAX_MARCA = 600;
  */
 @Component({
   selector: 'gr-alta-atleta-page',
-  imports: [Page, FormsModule, GrButton, GrIcon, GrSkeleton, Related, Community, GrAltcha, AltaFoto, AltaExito, AltaAviso, AltaFaq, HandlerGratis, LocPipe],
+  imports: [Page, FormsModule, GrButton, GrIcon, GrSkeleton, GrTelefono, Related, Community, GrAltcha, AltaFoto, AltaExito, AltaAviso, AltaFaq, HandlerGratis, LocPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page
@@ -156,16 +156,9 @@ const MAX_MARCA = 600;
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <label class="text-label-s" for="c-telefono">{{ t().telefono }}</label>
-                        <span class="flex h-12 w-full items-center overflow-hidden rounded-[10px] border bg-bg-field focus-within:border-accent-text"
-                          [class]="err()['telefono'] || telAviso() ? 'border-accent-text' : 'border-line-strong'">
-                          <span class="flex h-full shrink-0 items-center border-r border-line-subtle px-3.5 text-body-m text-text-secondary">+34</span>
-                          <input id="c-telefono" name="telefono" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="9" placeholder="600 000 000"
-                            class="h-full w-0 min-w-0 flex-1 bg-transparent px-3.5 text-body-m placeholder:text-text-muted focus:outline-none"
-                            [value]="d.telefono" (input)="telCambia($any($event.target))" (blur)="telRevisar()"
-                            [attr.aria-invalid]="!!(err()['telefono'] || telAviso())" [attr.aria-describedby]="err()['telefono'] || telAviso() ? 'e-telefono h-telefono' : 'h-telefono'" />
-                        </span>
+                        <gr-telefono id="c-telefono" name="telefono" [aria-label]="t().telefono" [invalido]="!!err()['telefono']" [(ngModel)]="d.telefono" (ngModelChange)="revalidar()" />
                         <p id="h-telefono" class="text-body-s text-text-tertiary">{{ t().telAyuda }}{{ legal('whatsapp') ? t().telWhatsapp : '' }}</p>
-                        @if (err()['telefono'] || telAviso(); as e) { <p id="e-telefono" class="flex items-center gap-1.5 text-body-s text-accent-text" aria-live="polite"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                        @if (err()['telefono']; as e) { <p id="e-telefono" class="flex items-center gap-1.5 text-body-s text-accent-text" aria-live="polite"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       <div class="flex min-w-0 flex-col gap-2">
                         <span class="text-label-s" id="l-sexo">{{ t().sexo }}</span>
@@ -689,22 +682,6 @@ export class AltaAtletaPage {
     this.foto = f;
   }
 
-  /** Teléfono: solo dígitos (máx. 9); el aviso de longitud sale al salir del campo o tras 800 ms sin escribir. */
-  protected readonly telAviso = signal('');
-  private telTimer: ReturnType<typeof setTimeout> | undefined;
-  protected telCambia(el: HTMLInputElement): void {
-    el.value = this.d.telefono = el.value.replace(/\D/g, '').slice(0, 9);
-    this.telAviso.set('');
-    clearTimeout(this.telTimer);
-    if (this.d.telefono) this.telTimer = setTimeout(() => this.telRevisar(), 800);
-    this.revalidar();
-  }
-  protected telRevisar(): void {
-    clearTimeout(this.telTimer);
-    const n = this.d.telefono.length;
-    this.telAviso.set(n > 0 && n < 9 ? this.t().v.telCorto : '');
-  }
-
   /** Revalida los campos (solo después del primer envío). */
   protected revalidar(): void {
     this.guardarBorrador();
@@ -725,7 +702,7 @@ export class AltaAtletaPage {
     if (!mail) e['email'] = this.t().v.oblig;
     else if (mail.length > 254 || !EMAIL.test(mail)) e['email'] = this.t().v.email;
     if (this.acepta.whatsapp && !d.telefono.trim()) e['telefono'] = this.t().v.waTel;
-    else if (d.telefono.trim() && !/^\d{9}$/.test(d.telefono.trim())) e['telefono'] = this.t().v.telCorto;
+    else if (d.telefono.trim() && !telefonoValido(d.telefono)) e['telefono'] = this.t().v.telCorto;
     if (!d.sexo) e['sexo'] = this.t().v.opcion;
     if (!d.fechaNacimiento) e['fechaNacimiento'] = /^\d{2}\/\d{2}\/\d{1,3}$/.test(this.fechaTexto) ? this.t().v.anio : this.t().v.fecha;
     else {
@@ -980,10 +957,9 @@ export class AltaAtletaPage {
     return this.t().tiempo(s);
   }
 
-  /** Teléfono con el prefijo +34 (el campo solo admite 9 dígitos). */
+  /** Teléfono en E.164, tal y como lo entrega `gr-telefono` (vacío si no hay). */
   private telefono(): string {
-    const digitos = this.d.telefono.replace(/\D/g, '');
-    return digitos ? '+34' + digitos : '';
+    return this.d.telefono.trim();
   }
 
   /** Una marca como número (o null si está vacía). */
@@ -1025,7 +1001,7 @@ export class AltaAtletaPage {
       if (!raw) return;
       const b = JSON.parse(raw) as { d?: Partial<DatosAlta>; acepta?: Partial<Aceptos> };
       if (b.d) Object.assign(this.d, b.d);
-      this.d.telefono = String(this.d.telefono ?? '').replace(/\D/g, '').slice(-9);
+      this.d.telefono = String(this.d.telefono ?? '').trim();
       this.fechaTexto = this.d.fechaNacimiento.split('-').reverse().join('/');
       if (b.acepta) Object.assign(this.acepta, b.acepta);
     } catch {
@@ -1064,7 +1040,7 @@ const T_ES = {
   revisa: (n: number) => 'Revisa ' + (n === 1 ? 'un campo' : n + ' campos') + ' antes de enviar',
   tusDatos: 'Tus datos', nombre: 'Nombre *', nombrePh: 'Tu nombre', apellidos: 'Apellidos *', apellidosPh: 'Tus apellidos',
   email: 'Email de tu inscripción *', emailAyuda: 'El mismo con el que te inscribiste; así te reconocemos.',
-  telefono: 'Teléfono móvil', telAyuda: 'Móvil español de 9 dígitos.', telWhatsapp: ' Obligatorio solo si marcas los avisos por WhatsApp.',
+  telefono: 'Teléfono móvil', telAyuda: 'Elige el país y escribe el número completo.', telWhatsapp: ' Obligatorio solo si marcas los avisos por WhatsApp.',
   sexo: 'Sexo *', mujer: 'Mujer', hombre: 'Hombre', nacimiento: 'Fecha de nacimiento *', fechaPh: 'dd/mm/aaaa', fechaAyuda: 'Formato dd/mm/aaaa. De 14 a 90 años.',
   menor: 'Como has nacido antes de los 18, necesitaremos la autorización firmada de tu madre, padre o tutor. Te la pediremos por email antes de publicar tu ficha.',
   competicion: 'Competición', queCompeticion: '¿En qué competición compites?', completa: 'Completa · sin plazas',
@@ -1092,7 +1068,7 @@ const T_ES = {
     edad: 'Esa fecha no parece correcta (debe estar entre los 14 y los 90 años).', largo: 'Es demasiado largo.', larga: 'Es demasiado larga.',
     larga80: 'Es demasiado larga (80 caracteres como máximo).', largo280: 'Es demasiado largo (280 caracteres como máximo).',
     ig: 'Solo letras, números, puntos y guiones bajos (30 como máximo).', prueba: 'Elige una competición.', marca: 'La marca debe estar entre 0 y 600 kg.',
-    paso: 'Las marcas van en pasos de 0,5 kg.', acepta: 'Acepta los términos de uso y la política de privacidad.', telCorto: 'Introduce al menos 9 dígitos.',
+    paso: 'Las marcas van en pasos de 0,5 kg.', acepta: 'Acepta los términos de uso y la política de privacidad.', telCorto: 'El número de teléfono no está completo.',
     reto: 'No hemos podido pedir una verificación nueva. Vuelve a intentarlo en unos segundos.', robot: 'Marca la casilla «No soy un robot» antes de enviar.',
     persona: 'No hemos podido verificar que eres una persona.', campo: 'Revisa este campo.', marcados: 'Revisa los campos marcados.', completa: 'La competición está completa.', envio: 'No hemos podido enviar tu solicitud.',
   },
@@ -1119,7 +1095,7 @@ const T = {
     revisa: (n: number) => 'Check ' + (n === 1 ? 'one field' : n + ' fields') + ' before sending',
     tusDatos: 'Your details', nombre: 'First name *', nombrePh: 'Your first name', apellidos: 'Surname *', apellidosPh: 'Your surname',
     email: 'Email used for your registration *', emailAyuda: 'The same one you registered with, so we can recognise you.',
-    telefono: 'Mobile phone', telAyuda: 'Spanish mobile, 9 digits.', telWhatsapp: ' Only required if you tick WhatsApp notifications.',
+    telefono: 'Mobile phone', telAyuda: 'Pick the country and type the full number.', telWhatsapp: ' Only required if you tick WhatsApp notifications.',
     sexo: 'Sex *', mujer: 'Female', hombre: 'Male', nacimiento: 'Date of birth *', fechaPh: 'dd/mm/yyyy', fechaAyuda: 'Format dd/mm/yyyy. Aged 14 to 90.',
     menor: "As you're under 18, we'll need a consent form signed by your mother, father or guardian. We'll ask for it by email before publishing your profile.",
     competicion: 'Competition', queCompeticion: 'Which competition are you entering?', completa: 'Full · no places left',
@@ -1147,7 +1123,7 @@ const T = {
       edad: "That date doesn't look right (you must be between 14 and 90).", largo: 'It is too long.', larga: 'It is too long.',
       larga80: 'It is too long (80 characters max).', largo280: 'It is too long (280 characters max).',
       ig: 'Only letters, numbers, full stops and underscores (30 max).', prueba: 'Choose a competition.', marca: 'The lift must be between 0 and 600 kg.',
-      paso: 'Lifts go in steps of 0.5 kg.', acepta: 'Accept the terms of use and the privacy policy.', telCorto: 'Enter at least 9 digits.',
+      paso: 'Lifts go in steps of 0.5 kg.', acepta: 'Accept the terms of use and the privacy policy.', telCorto: 'The phone number is not complete.',
       reto: "We couldn't request a new verification. Try again in a few seconds.", robot: 'Tick the “I am not a robot” box before sending.',
       persona: "We couldn't verify that you are a person.", campo: 'Check this field.', marcados: 'Check the highlighted fields.', completa: 'The competition is full.', envio: "We couldn't send your request.",
     },

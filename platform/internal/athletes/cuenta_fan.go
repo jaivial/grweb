@@ -31,6 +31,37 @@ type cuentaFan struct {
 
 func normEmail(e string) string { return strings.ToLower(strings.TrimSpace(e)) }
 
+// sigueLaCuentaFan keeps the directo account of the athlete in step when the email changes: if the account of the old
+// email is the athlete's, fans moves it to the new one (one account per email). No account, nothing to do.
+func (s *Svc) sigueLaCuentaFan(ctx context.Context, cid, atleta uuid.UUID, antes *string, despues string) (string, error) {
+	viejo := ""
+	if antes != nil {
+		viejo = normEmail(*antes)
+	}
+	nuevo := normEmail(despues)
+	if viejo == "" || viejo == nuevo {
+		return "", nil
+	}
+	c, err := cuentaFanDe(ctx, s.fansSvc, cid, viejo)
+	if err != nil {
+		s.a.Log.Warn("athletes: fans no disponible al mover la cuenta", "err", err)
+		return "", problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No podemos actualizar la cuenta del directo con el email nuevo ahora mismo. Inténtalo en unos segundos.")
+	}
+	if c == nil || c.AtletaID != atleta {
+		return "", nil
+	}
+	if err := moverEmailCuentaFan(ctx, s.fansSvc, cid, c.ID, atleta, nuevo); err != nil {
+		// 409 EMAIL_REGISTRADO: the new email already belongs to another account, the admin has to fix it.
+		var p *problem.Error
+		if errors.As(err, &p) && p.Status < 500 {
+			return "", err
+		}
+		s.a.Log.Warn("athletes: fans no disponible al mover la cuenta", "err", err)
+		return "", problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No podemos actualizar la cuenta del directo con el email nuevo ahora mismo. Inténtalo en unos segundos.")
+	}
+	return "Email de la cuenta del directo «" + c.Alias + "» actualizado: " + viejo + " → " + nuevo, nil
+}
+
 // cuentaFanDe returns the fan account of email (nil when there is none). An error means fans is unreachable.
 func cuentaFanDe(ctx context.Context, c *svcclient.Client, cid uuid.UUID, email string) (*cuentaFan, error) {
 	if email = normEmail(email); email == "" {
@@ -46,6 +77,13 @@ func cuentaFanDe(ctx context.Context, c *svcclient.Client, cid uuid.UUID, email 
 		return nil, err
 	}
 	return &out, nil
+}
+
+// moverEmailCuentaFan asks fans to move the email of the account linked to an athlete (same person, same account:
+// one account per email). It fails with EMAIL_REGISTRADO when the new email already has another account.
+func moverEmailCuentaFan(ctx context.Context, c *svcclient.Client, cid, fanID, atleta uuid.UUID, email string) error {
+	return c.Do(ctx, http.MethodPut, "/internal/competiciones/"+cid.String()+"/fans/"+fanID.String()+"/email-atleta",
+		map[string]any{"email": email, "atletaId": atleta}, nil)
 }
 
 // unirCuentaFan links the approved athlete to the fan account of the request's email inside the approval

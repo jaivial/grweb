@@ -13,6 +13,7 @@ export * from './lib/transiciones';
 export * from './lib/popover';
 export * from './lib/format';
 export * from './lib/select';
+export * from './lib/telefono';
 export * from './lib/video';
 export * from './lib/web';
 export * from './lib/cdn';
