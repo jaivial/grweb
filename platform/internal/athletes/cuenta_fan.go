@@ -44,13 +44,20 @@ func (s *Svc) sigueLaCuentaFan(ctx context.Context, cid, atleta uuid.UUID, antes
 	}
 	c, err := cuentaFanDe(ctx, s.fansSvc, cid, viejo)
 	if err != nil {
-		return "", err
+		s.a.Log.Warn("athletes: fans no disponible al mover la cuenta", "err", err)
+		return "", problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No podemos actualizar la cuenta del directo con el email nuevo ahora mismo. Inténtalo en unos segundos.")
 	}
 	if c == nil || c.AtletaID != atleta {
 		return "", nil
 	}
 	if err := moverEmailCuentaFan(ctx, s.fansSvc, cid, c.ID, atleta, nuevo); err != nil {
-		return "", err
+		// 409 EMAIL_REGISTRADO: the new email already belongs to another account, the admin has to fix it.
+		var p *problem.Error
+		if errors.As(err, &p) && p.Status < 500 {
+			return "", err
+		}
+		s.a.Log.Warn("athletes: fans no disponible al mover la cuenta", "err", err)
+		return "", problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No podemos actualizar la cuenta del directo con el email nuevo ahora mismo. Inténtalo en unos segundos.")
 	}
 	return "Email de la cuenta del directo «" + c.Alias + "» actualizado: " + viejo + " → " + nuevo, nil
 }

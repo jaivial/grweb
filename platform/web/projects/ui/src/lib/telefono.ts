@@ -150,9 +150,21 @@ export class GrTelefono implements ControlValueAccessor {
   protected readonly n = computed(() => this.pais().digitos);
   protected readonly casillas = computed(() => Array.from({ length: this.n() }, (_, i) => i));
   protected readonly bloqueado = computed(() => this.deshabilitado());
+  /** Digits up to the first empty box: the number as it reads, without the boxes filled out of order after a gap. */
+  private readonly cifras = computed(() => {
+    const ds = this.digitos();
+    const hueco = ds.indexOf('');
+    return (hueco < 0 ? ds : ds.slice(0, hueco)).join('');
+  });
+  /** Boxes filled after a gap («6 _ _ _ 7»): the number is not the one on screen, so it is not a value yet. */
+  private readonly sueltas = computed(() => {
+    const ds = this.digitos();
+    const hueco = ds.indexOf('');
+    return hueco < 0 ? 0 : ds.slice(hueco + 1).filter(Boolean).length;
+  });
   protected readonly error = computed(() => {
-    const ds = this.digitos().join('');
-    return this.tocado() && ds.length > 0 && ds.length < this.n() ? this.t().falta(this.n()) : null;
+    const faltan = this.cifras().length < this.n() && (this.cifras().length > 0 || this.sueltas() > 0);
+    return this.tocado() && faltan ? this.t().falta(this.n()) : null;
   });
   protected readonly cajaCls = computed(() => {
     const alto = this.tam() === 'l' ? 'h-12 text-[17px] md:text-[16px]' : 'h-11 text-[15px] md:pointer-fine:h-10';
@@ -181,8 +193,9 @@ export class GrTelefono implements ControlValueAccessor {
   }
 
   private emitir(): void {
-    const ds = this.digitos().join('');
-    this.onChange(ds ? '+' + this.pais().dial + ds : '');
+    const cifras = this.cifras();
+    // digits after a gap are not the number on screen: the value stays empty until the boxes read in order
+    this.onChange(!this.sueltas() && cifras ? '+' + this.pais().dial + cifras : '');
   }
 
   protected cambiaPais(iso: string): void {
@@ -238,7 +251,7 @@ export class GrTelefono implements ControlValueAccessor {
     if (iso !== this.iso()) this.iso.set(iso);
     this.digitos.set(this.relleno(desde === 0 ? digitos : previos.slice(0, desde) + digitos));
     this.emitir();
-    this.foco(Math.min(this.digitos().join('').length, this.n() - 1));
+    this.foco(Math.min(this.cifras().length, this.n() - 1));
   }
 
   private pon(i: number, d: string): void {

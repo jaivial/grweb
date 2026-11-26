@@ -223,10 +223,6 @@ const PUBLIC_WEB = webPublica();
                   <gr-field label="Competición" for="d-p"><gr-select id="d-p" aria-label="Competición" [(ngModel)]="d.prueba" [disabled]="!canEdit()"><option value="">Aún no lo sabe</option><option value="aep2">AEP-2</option><option value="aep3">AEP-3</option></gr-select></gr-field>
                   <gr-field label="Club" for="d-club"><input grInput id="d-club" [(ngModel)]="d.club" [disabled]="!canEdit()" /></gr-field>
                   <gr-field label="Ciudad" for="d-city"><input grInput id="d-city" [(ngModel)]="d.ciudad" [disabled]="!canEdit()" /></gr-field>
-                  <gr-field label="Email" for="d-mail"><input grInput id="d-mail" type="email" [(ngModel)]="d.email" [disabled]="!canEdit()" /></gr-field>
-                  <gr-field label="Teléfono" for="d-tel" [hint]="a.menor ? 'Menor de edad: usa el teléfono del tutor' : null" [error]="d.telefono && !valido(d.telefono) ? 'El número no está completo.' : null">
-                    <gr-telefono id="d-tel" tam="m" [aria-label]="'Teléfono'" [invalido]="!!d.telefono && !valido(d.telefono)" [(ngModel)]="d.telefono" [disabled]="!canEdit()" />
-                  </gr-field>
                 </div>
               </section>
               <aside class="flex flex-col gap-6">
@@ -414,6 +410,7 @@ export class AtletaFichaPage {
     }
     // A half-typed phone is flagged on its field too (the API only takes complete E.164 numbers).
     if (this.d.telefono && !telefonoValido(this.d.telefono)) {
+      this.toasts.error('El teléfono no está completo', 'Elige el país y escribe el número entero en «Contacto».');
       document.getElementById('d-tel-p')?.focus();
       return;
     }
