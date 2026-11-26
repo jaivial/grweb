@@ -96,7 +96,7 @@ func (s *Svc) registerLegal() {
 		Version   string `json:"version" pattern:"^[a-z0-9.-]{1,20}$" doc:"p. ej. 2026-10"`
 		Titulo    string `json:"titulo" minLength:"3" maxLength:"140"`
 		Contenido string `json:"contenido" minLength:"20" maxLength:"100000" doc:"Markdown"`
-		enField
+		EnField
 	}
 	type createIn struct {
 		CID  uuid.UUID `path:"cid"`

@@ -12,12 +12,12 @@ import (
 // English overrides («en»): every translatable CMS row keeps a partial object with the same keys as its
 // visible fields. Public reads with ?lang=en overlay the non-empty values on the Spanish record.
 
-// enField is embedded in admin inputs: absent leaves the stored overrides unchanged.
-type enField struct {
+// EnField is embedded in admin inputs: absent leaves the stored overrides unchanged.
+type EnField struct {
 	En map[string]any `json:"en,omitempty" doc:"Textos en inglés (objeto parcial con las mismas claves que los campos traducibles)"`
 }
 
-func (e *enField) enVal() map[string]any { return e.En }
+func (e *EnField) enVal() map[string]any { return e.En }
 
 type enInput interface{ enVal() map[string]any }
 
