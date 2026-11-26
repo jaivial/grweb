@@ -34,7 +34,6 @@ export function diaCorto(dia: string, locale = 'es-ES'): string {
   return d.charAt(0).toUpperCase() + d.slice(1) + ' ' + Number(dia.slice(8, 10));
 }
 
-const VISIBLES = 5;
 const TOP = 10;
 
 const T = {
@@ -222,7 +221,7 @@ const T = {
                       </label>
                     }
                     @let lista = atletas(m);
-                    @for (o of (verTodos().has(m.id) ? lista : lista.slice(0, visibles)); track o.atletaId) {
+                    @for (o of lista; track o.atletaId) {
                       @if (sel()?.mercadoId === m.id && sel()?.atletaId === o.atletaId) {
                         <div class="my-1 flex flex-col gap-3 rounded-md border border-line-strong bg-bg-raised p-3.5 motion-safe:animate-[gr-desplegar_200ms_ease-out]">
                           <p class="flex items-center gap-2.5">
@@ -257,7 +256,7 @@ const T = {
                           }
                         </div>
                       } @else {
-                        <button type="button" class="flex min-h-12 items-center gap-3 rounded-sm py-1.5 text-left hover:bg-white/3" (click)="elegir(m, o.atletaId)">
+                        <button type="button" class="flex min-h-12 items-center gap-3 rounded-sm bg-[#89797914] px-2 py-1.5 text-left pointer-fine:hover:bg-[#8979793d]" (click)="elegir(m, o.atletaId)">
                           <span class="min-w-0 flex-1">
                             <span class="block truncate text-label-s text-text-primary">{{ o.nombre }}</span>
                             @if (q()) { <span class="block text-[11px] leading-[1.3] text-text-tertiary">{{ etiqueta(m) }}</span> }
@@ -268,9 +267,6 @@ const T = {
                       }
                     } @empty {
                       <p class="py-3 text-body-s text-text-tertiary">{{ t().ninguno(qCat()[m.id] ?? '') }}</p>
-                    }
-                    @if (lista.length > visibles && !verTodos().has(m.id)) {
-                      <button type="button" class="mx-auto min-h-11 px-3 text-label-s text-accent-text" (click)="mostrarTodos(m.id)">{{ t().verLos(lista.length) }}</button>
                     }
                   </div>
                 }
@@ -324,7 +320,6 @@ export class PorraPage {
   protected readonly monedas = (v: number | null | undefined) => monedas(v, this.i18n.locale());
   protected readonly kg = kg;
   protected readonly diaCorto = diaCorto;
-  protected readonly visibles = VISIBLES;
   protected readonly top = TOP;
   protected readonly store = inject(PorraStore);
   protected readonly estado = inject(JuegosEstado);
@@ -347,7 +342,6 @@ export class PorraPage {
   protected readonly q = signal(this.route.snapshot.queryParamMap.get('q') ?? '');
   protected readonly qCat = signal<Record<string, string>>({});
   protected readonly abiertas = signal<Set<string>>(new Set());
-  protected readonly verTodos = signal<Set<string>>(new Set());
   protected readonly sel = signal<{ mercadoId: string; atletaId: string } | null>(null);
   protected readonly importe = signal(500);
   protected readonly enviando = signal(false);
@@ -502,10 +496,6 @@ export class PorraPage {
 
   protected buscarEn(id: string, v: string): void {
     this.qCat.set({ ...this.qCat(), [id]: v });
-  }
-
-  protected mostrarTodos(id: string): void {
-    this.verTodos.set(new Set(this.verTodos()).add(id));
   }
 
   protected elegir(m: Mercado, atletaId: string): void {
