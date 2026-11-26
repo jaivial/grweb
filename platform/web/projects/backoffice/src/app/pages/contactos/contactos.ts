@@ -6,6 +6,7 @@ import { urlSort } from '../../shared/url-sort';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrTelefono, GrToasts, GrSelect, telefonoValido } from '@grcup/ui';
 import { Auth } from '../../core/auth';
+import { problemOf } from '../../core/api';
 import { Competitions } from '../../core/competitions';
 import { BO_ROW, BoCheckbox, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoSortHeader, BoTableToolbar, BoDatePicker } from '../../shared/kit';
 import { BoDrawer, BoPageHeader, Confirm, errText, BoTabsMovil, BoTablaMovil } from '../../shared/ui';
@@ -216,7 +217,7 @@ function descargar(blob: Blob, nombre: string): void {
             <span class="flex-1"></span>
             @if (av) { <p class="text-body-xs text-text-tertiary">{{ av.total }} {{ av.total === 1 ? 'persona avisada' : 'personas avisadas' }}</p> }
           </div>
-          <gr-alert tone="info" title="«Avísame» de la próxima competición: GRS Cup 3">Personas que han dejado su email en la home para que les avisemos cuando abra GRS Cup 3. Aquí puedes corregir un email, añadir un contacto a mano o quitar uno; el alta desde la home sigue funcionando igual.</gr-alert>
+          <p class="flex items-start gap-2 text-body-xs text-text-tertiary"><gr-icon name="info" [size]="14" class="mt-0.5" /><span>«Avísame» de GRS Cup 3: personas que dejaron su email en la home. Puedes corregir un email, añadir un contacto a mano o quitar uno.</span></p>
           @if (av === null) {
             <gr-empty icon="wifi-off" title="No hemos podido cargar los contactos avisados"><button grButton (click)="reintentarAvisos()">Reintentar</button></gr-empty>
           } @else if (av === undefined) {
@@ -229,7 +230,7 @@ function descargar(blob: Blob, nombre: string): void {
                   @for (a of av.items; track a.id) {
                     <tr class="border-b border-line-subtle last:border-0">
                       <td class="px-4 py-3 text-label-s">{{ a.nombre || '—' }}</td>
-                      <td class="px-3 py-3 font-mono text-mono-xs text-text-secondary">{{ a.email }}</td>
+                      <td class="px-3 py-3 font-mono text-mono-xs normal-case text-text-secondary">{{ a.email }}</td>
                       <td class="px-3 py-3 font-mono text-mono-xs text-text-tertiary">{{ fecha(a.creadoAt) }}</td>
                       <td class="px-3 py-3 text-right">
                         @if (canExport()) {
@@ -269,7 +270,7 @@ function descargar(blob: Blob, nombre: string): void {
 
     <bo-drawer [(open)]="avisoOpen" [title]="aviso.id ? 'Editar contacto avisado' : 'Añadir contacto avisado'">
       <div class="flex flex-col gap-4">
-        <gr-field label="Email" for="av-e"><input grInput id="av-e" type="email" maxlength="254" [(ngModel)]="aviso.email" placeholder="nombre@dominio.com" /></gr-field>
+        <gr-field label="Email" for="av-e" [error]="avisoError()"><input grInput id="av-e" type="email" maxlength="254" [(ngModel)]="aviso.email" (ngModelChange)="avisoError.set(null)" [invalid]="!!avisoError()" [attr.aria-describedby]="avisoError() ? 'av-e-error' : null" placeholder="nombre@dominio.com" /></gr-field>
         <gr-field label="Nombre (opcional)" for="av-n"><input grInput id="av-n" maxlength="120" [(ngModel)]="aviso.nombre" /></gr-field>
         <p class="text-body-xs text-text-tertiary">Aviso de próxima competición · GRS Cup 3. Un email solo puede apuntarse una vez.</p>
       </div>
@@ -302,9 +303,10 @@ export class ContactosPage {
   }
   /** Inside «Emails y avisos» (?tab=contactos): no page header and the sub-tabs live in ?vista=. */
   readonly embebido = input(false);
-  protected readonly tab = signal<Tab>(
-    ((v) => (['contactos', 'grscup-3', 'segmentos', 'bajas'].includes(v) ? (v as Tab) : 'contactos'))(this.route.snapshot.queryParamMap.get('vista') ?? this.route.snapshot.data['tab'] ?? ''),
-  );
+  protected readonly tab = signal<Tab>(this.vistaDe(this.route.snapshot.queryParamMap.get('vista') ?? this.route.snapshot.data['tab'] ?? ''));
+  private vistaDe(v: string): Tab {
+    return (['contactos', 'grscup-3', 'segmentos', 'bajas'].includes(v) ? v : 'contactos') as Tab;
+  }
   protected irVista(v: Tab): void {
     this.tab.set(v);
     if (v === 'grscup-3') void this.cargarAvisos();
@@ -327,6 +329,7 @@ export class ContactosPage {
   protected baja = { canal: 'email', destino: '', motivo: '' };
   protected readonly avisos = signal<AvisosEvento | null | undefined>(undefined);
   protected readonly avisoOpen = signal(false);
+  protected readonly avisoError = signal<string | null>(null);
   protected readonly qAviso = signal('');
   protected aviso = { id: '', email: '', nombre: '' };
   protected avisoPagina = 1;
@@ -351,6 +354,11 @@ export class ContactosPage {
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((p) => {
       const q = p.get('q') ?? '';
       if (q !== (this.f().q ?? '')) this.filtrar({ q });
+      // Embedded in «Emails y avisos» the route is reused: ?vista= is the only source of truth, so the main
+      // «Contactos» tab (which drops it) brings the view back instead of leaving GRS Cup 3 on screen.
+      if (!this.embebido()) return;
+      const v = this.vistaDe(p.get('vista') ?? '');
+      if (v !== this.tab()) this.irVista(v);
     });
   }
 
@@ -536,11 +544,17 @@ export class ContactosPage {
   }
   protected abrirAviso(a?: AvisoEvento): void {
     this.aviso = a ? { id: a.id, email: a.email, nombre: a.nombre } : { id: '', email: '', nombre: '' };
+    this.avisoError.set(null);
     this.avisoOpen.set(true);
   }
   protected async guardarAviso(): Promise<void> {
     const a = this.aviso;
-    if (!a.email.trim()) return this.toasts.error('Escribe un email');
+    this.avisoError.set(null);
+    if (!a.email.trim()) {
+      this.avisoError.set('Escribe un email.');
+      document.getElementById('av-e')?.focus();
+      return;
+    }
     this.guardando.set(true);
     try {
       if (a.id) await this.api.editarAviso(this.cid(), a.id, { email: a.email.trim(), nombre: a.nombre.trim() });
@@ -549,7 +563,14 @@ export class ContactosPage {
       this.toasts.success(a.id ? 'Contacto actualizado' : 'Contacto añadido');
       await this.cargarAvisos();
     } catch (e) {
-      this.toasts.error(a.id ? 'No se pudo guardar' : 'No se pudo añadir', errText(e));
+      const p = problemOf(e);
+      // Duplicate or malformed email: the panel stays open and the field carries the error itself.
+      if (p.code === 'AVISO_DUPLICADO' || p.code === 'EMAIL_INVALIDO') {
+        this.avisoError.set(p.detail ?? 'Ese email ya está apuntado a este aviso.');
+        document.getElementById('av-e')?.focus();
+      } else {
+        this.toasts.error(a.id ? 'No se pudo guardar' : 'No se pudo añadir', errText(e));
+      }
     } finally {
       this.guardando.set(false);
     }
