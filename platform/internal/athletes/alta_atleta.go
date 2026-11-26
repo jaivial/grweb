@@ -256,7 +256,9 @@ type ConfigAlta struct {
 type PruebaAlta struct {
 	Codigo   string `json:"codigo"`
 	Nombre   string `json:"nombre"`
-	Fecha    string `json:"fecha,omitempty"`
+	Fecha    string `json:"fecha,omitempty" doc:"Primer día de la competición"`
+	FechaFin string `json:"fechaFin,omitempty" doc:"Último día, cuando la competición dura más de uno (AEP-2: 18 y 19)"`
+	// Nivel is a code (`regional`), translated by the web: the field used to carry Spanish prose.
 	Nivel    string `json:"nivel"`
 	Plazas   int    `json:"plazas"`
 	Ocupadas int    `json:"ocupadas"`
@@ -341,14 +343,22 @@ func (s *Svc) pruebas(ctx context.Context, c compref.Comp) ([]PruebaAlta, string
 	}
 	out := make([]PruebaAlta, 0, len(pruebasAlta))
 	for _, p := range pruebasAlta {
-		f := ""
+		f, hasta := "", ""
 		if !ini.IsZero() {
-			f = ini.Format(time.DateOnly) // AEP-2: the first date
+			// AEP-2 compite los días previos al último (18 y 19 con un evento de tres días); AEP-3, el último (20).
+			primero, ultimo := ini, fin.AddDate(0, 0, -1)
 			if p.codigo == "aep3" {
-				f = fin.Format(time.DateOnly) // AEP-3: the last one
+				primero = fin
+			}
+			if ultimo.Before(primero) {
+				ultimo = primero
+			}
+			f = primero.Format(time.DateOnly)
+			if !ultimo.Equal(primero) {
+				hasta = ultimo.Format(time.DateOnly)
 			}
 		}
-		out = append(out, PruebaAlta{Codigo: p.codigo, Nombre: p.nombre, Fecha: f, Nivel: "nivel regional", Plazas: cupo[p.codigo], Ocupadas: ocup[p.codigo]})
+		out = append(out, PruebaAlta{Codigo: p.codigo, Nombre: p.nombre, Fecha: f, FechaFin: hasta, Nivel: "regional", Plazas: cupo[p.codigo], Ocupadas: ocup[p.codigo]})
 	}
 	limite := ""
 	if !ini.IsZero() {

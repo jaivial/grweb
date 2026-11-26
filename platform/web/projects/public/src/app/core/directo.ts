@@ -22,7 +22,8 @@ export interface Directo {
   fase: 'antes' | 'en_directo' | 'finalizado'; pausa: boolean; retrasoMin: number; streamUrl?: string; replayUrl?: string; streamHome?: boolean; espectadores: number;
   sesion?: { hora: string; titulo: string }; movimiento: Mov; ronda: number; turnoAt?: string;
   actual?: EnPlataforma; ultimo?: EnPlataforma; siguientes: EnPlataforma[]; clasificacion: Categoria[];
-  proximo?: { titulo: string; inicio: string }; resultadosPublicados: boolean;
+  /** Empty `titulo`: the schedule is not public, only the start of the event travels (countdown). */
+  proximo?: { titulo: string; inicio: string }; horariosPublicados: boolean; resultadosPublicados: boolean;
 }
 export interface ResultadosPublicos {
   competicion: { slug: string; nombre: string; fechaInicio?: string; fechaFin?: string; sede: string; estado: string; actaUrl?: string };

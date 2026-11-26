@@ -32,7 +32,7 @@ interface ConfigAlta {
   altcha: AltchaConfig;
   tiempo: string;
   /** Opciones de «¿En qué competición compites?» (plazas = cupo por prueba; 0 si no hay cupo). */
-  pruebas?: { codigo: string; nombre: string; fecha?: string; nivel: string; plazas: number; ocupadas: number }[];
+  pruebas?: { codigo: string; nombre: string; fecha?: string; fechaFin?: string; nivel: string; plazas: number; ocupadas: number }[];
   /** Último día (AAAA-MM-DD) para elegir la competición desde el área de atleta. */
   limiteEleccion?: string;
   /** El evento no tiene plazas libres: solo puede darse de alta quien ya está inscrito en la competición. */

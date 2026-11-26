@@ -82,7 +82,7 @@ const T = {
         [subtitulo]="$any(h?.secciones?.['campeonato']?.['subtitulo']) || ''" [aviso]="$any(h?.secciones?.['campeonato']?.['aviso']) || ''" [fechas]="heroFechas()" [lugar]="heroLugar()"
         [patrocinadores]="h && h.orden.includes('patrocinadores') ? h.patrocinadores : []" [tituloPatrocinadores]="$any(h?.secciones?.['patrocinadores']?.['titulo']) || ''" />
       <!-- BIZ-166 «Cómo será nuestro campeonato»: conceptual set-up clips (posters only until the user presses play) -->
-      @defer (on viewport; hydrate on viewport) { <gr-sec-montaje /> } @placeholder { <div id="montaje" class="min-h-[900px] md:min-h-[1200px]"></div> }
+      @defer (on viewport; hydrate on viewport) { <gr-sec-montaje /> } @placeholder { <div id="montaje" class="min-h-[900px] md:min-h-[1200px]"></div> } @error {}
       @if (enVivo(); as v) {
         <!-- Event day: the broadcast also on the home («Directo › Retransmisión», switch «también en la home») -->
         <section class="mx-auto flex max-w-[1440px] flex-col gap-4 px-5 py-10 md:px-8 xl:px-[120px]" [attr.aria-label]="t().retransmision">
@@ -104,38 +104,38 @@ const T = {
         <!-- Sections in the order and visibility published from the backoffice («Web · home»). -->
         @for (k of h.orden; track k) {
           @switch (k) {
-            @case ('alta-atleta') { @defer (on immediate; hydrate on viewport) { <gr-sec-alta [s]="h.secciones[k]" /> } }
-            @case ('inscripciones') { @if (!h.orden.includes('alta-atleta')) { @defer (on immediate; hydrate on viewport) { <gr-sec-alta [s]="h.secciones[k]" /> } } }
-            @case ('entradas') { @if (c?.modulos?.['entradas']) { @defer (on immediate; hydrate on viewport) { <gr-sec-entradas [s]="h.secciones[k]" [comp]="c" [entradas]="entradas()" /> } } }
-            @case ('atletas') { @defer (on immediate; hydrate on viewport) { <gr-sec-atletas [atletas]="h.secciones['atletas']" [dia]="h.orden.includes('dia') ? h.secciones['dia'] : undefined" /> } }
-            @case ('dia') { @if (!h.orden.includes('atletas')) { @defer (on immediate; hydrate on viewport) { <gr-sec-atletas [dia]="h.secciones['dia']" /> } } }
+            @case ('alta-atleta') { @defer (on immediate; hydrate on viewport) { <gr-sec-alta [s]="h.secciones[k]" /> } @error {} }
+            @case ('inscripciones') { @if (!h.orden.includes('alta-atleta')) { @defer (on immediate; hydrate on viewport) { <gr-sec-alta [s]="h.secciones[k]" /> } @error {} } }
+            @case ('entradas') { @if (c?.modulos?.['entradas']) { @defer (on immediate; hydrate on viewport) { <gr-sec-entradas [s]="h.secciones[k]" [comp]="c" [entradas]="entradas()" /> } @error {} } }
+            @case ('atletas') { @defer (on immediate; hydrate on viewport) { <gr-sec-atletas [atletas]="h.secciones['atletas']" [dia]="h.orden.includes('dia') ? h.secciones['dia'] : undefined" /> } @error {} }
+            @case ('dia') { @if (!h.orden.includes('atletas')) { @defer (on immediate; hydrate on viewport) { <gr-sec-atletas [dia]="h.secciones['dia']" /> } @error {} } }
             @case ('premios') {
-              @defer (on immediate; hydrate on viewport) { <gr-sec-premios [s]="h.secciones[k]" /> }
+              @defer (on immediate; hydrate on viewport) { <gr-sec-premios [s]="h.secciones[k]" /> } @error {}
               <!-- Figma 05-home-juegos: Porra and Fantasy right after «Premios v2» (hidden when the games service does not answer) -->
-              @if (porra()) { @defer (on immediate; hydrate on viewport) { <gr-sec-porra [resumen]="porra()" /> } }
-              @if (fantasy()) { @defer (on immediate; hydrate on viewport) { <gr-sec-fantasy [resumen]="fantasy()" /> } }
+              @if (porra()) { @defer (on immediate; hydrate on viewport) { <gr-sec-porra [resumen]="porra()" /> } @error {} }
+              @if (fantasy()) { @defer (on immediate; hydrate on viewport) { <gr-sec-fantasy [resumen]="fantasy()" /> } @error {} }
             }
             @case ('organizacion') {
               @if (!h.orden.includes('premios')) {
-                @if (porra()) { @defer (on immediate; hydrate on viewport) { <gr-sec-porra [resumen]="porra()" /> } }
-                @if (fantasy()) { @defer (on immediate; hydrate on viewport) { <gr-sec-fantasy [resumen]="fantasy()" /> } }
+                @if (porra()) { @defer (on immediate; hydrate on viewport) { <gr-sec-porra [resumen]="porra()" /> } @error {} }
+                @if (fantasy()) { @defer (on immediate; hydrate on viewport) { <gr-sec-fantasy [resumen]="fantasy()" /> } @error {} }
               }
-              @defer (on immediate; hydrate on viewport) { <gr-sec-organizacion [s]="h.secciones[k]" /> }
+              @defer (on immediate; hydrate on viewport) { <gr-sec-organizacion [s]="h.secciones[k]" /> } @error {}
             }
-            @case ('afiliaciones') { @defer (on immediate; hydrate on viewport) { <gr-sec-afiliaciones [s]="h.secciones[k]" /> } }
-            @case ('sorteo') { @if (c?.modulos?.['sorteo']) { @defer (on immediate; hydrate on viewport) { <gr-sec-sorteo [s]="h.secciones[k]" /> } } }
-            @case ('categorias') { @if (!h.orden.includes('premios')) { @defer (on immediate; hydrate on viewport) { <gr-sec-categorias [s]="h.secciones[k]" /> } } }
-            @case ('horarios') { @if (horarios()?.publicado) { @defer (on immediate; hydrate on viewport) { <gr-sec-horarios [s]="h.secciones[k]" [horarios]="horarios()" /> } } }
-            @case ('localizacion') { @defer (on immediate; hydrate on viewport) { <gr-sec-localizacion [s]="h.secciones[k]" [comp]="c" /> } }
-            @case ('competiciones') { @defer (on immediate; hydrate on viewport) { <gr-sec-competiciones [s]="h.secciones[k]" /> } }
-            @case ('faq') { @if (h.faqDestacadas.length) { @defer (on immediate; hydrate on viewport) { <gr-sec-faq [s]="h.secciones[k]" [items]="h.faqDestacadas" [contacto]="c?.evento?.emailContacto || ''" /> } } }
+            @case ('afiliaciones') { @defer (on immediate; hydrate on viewport) { <gr-sec-afiliaciones [s]="h.secciones[k]" /> } @error {} }
+            @case ('sorteo') { @if (c?.modulos?.['sorteo']) { @defer (on immediate; hydrate on viewport) { <gr-sec-sorteo [s]="h.secciones[k]" /> } @error {} } }
+            @case ('categorias') { @if (!h.orden.includes('premios')) { @defer (on immediate; hydrate on viewport) { <gr-sec-categorias [s]="h.secciones[k]" /> } @error {} } }
+            @case ('horarios') { @if (horarios()?.publicado) { @defer (on immediate; hydrate on viewport) { <gr-sec-horarios [s]="h.secciones[k]" [horarios]="horarios()" /> } @error {} } }
+            @case ('localizacion') { @defer (on immediate; hydrate on viewport) { <gr-sec-localizacion [s]="h.secciones[k]" [comp]="c" /> } @error {} }
+            @case ('competiciones') { @defer (on immediate; hydrate on viewport) { <gr-sec-competiciones [s]="h.secciones[k]" /> } @error {} }
+            @case ('faq') { @if (h.faqDestacadas.length) { @defer (on immediate; hydrate on viewport) { <gr-sec-faq [s]="h.secciones[k]" [items]="h.faqDestacadas" [contacto]="c?.evento?.emailContacto || ''" /> } @error {} } }
           }
         }
         <!-- BIZ-164: shown even without a CMS row (then at the end, button disabled until «reservaUrl» is set) -->
-        @if (!h.orden.includes('competiciones')) { @defer (on immediate; hydrate on viewport) { <gr-sec-competiciones /> } }
+        @if (!h.orden.includes('competiciones')) { @defer (on immediate; hydrate on viewport) { <gr-sec-competiciones /> } @error {} }
       }
     </main>
-    @defer (on immediate; hydrate on viewport) { <gr-footer [cookies]="false" /> }
+    @defer (on immediate; hydrate on viewport) { <gr-footer [cookies]="false" /> } @error {}
     <!-- BIZ-178: Google brand verification — on first visit (server HTML too) the home names the app, its purpose and its use of Google data, with the privacy link. Full texts stay in the DOM inside <details>.
          BIZ-201: it is merged with the cookie banner (one single banner); once cookies are decided elsewhere it keeps its own «Entendido». -->
     <ng-template #sobre>
