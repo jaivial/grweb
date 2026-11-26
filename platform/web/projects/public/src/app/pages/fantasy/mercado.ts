@@ -339,7 +339,7 @@ export class MercadoFantasyPage {
     return this.t().deAtletas(e.atletas.length, this.plantillaMax());
   });
   protected readonly clausulazosUsados = computed<number | null>(() => (this.equipo() ? this.equipo()!.clausulazos : null));
-  protected readonly categorias = computed(() => [...new Set(this.atletas().map((a) => a.categoria))].sort());
+  protected readonly categorias = computed(() => [...new Set(this.atletas().map((a) => a.categoria).filter(Boolean))].sort());
   protected readonly visibles = computed(() => {
     const f = this.filtro();
     const s = this.filtroSexo();

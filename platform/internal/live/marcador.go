@@ -66,8 +66,11 @@ func nombrePublico(a *atleta) string {
 	if a.Publico {
 		return a.Nombre
 	}
-	if a.Lote == 0 {
-		return "Atleta · " + sinMenos(a.Categoria) + " kg" // not in a published sesion yet: no lot
+	if a.Lote == 0 { // not in a published sesion yet: no lot (and maybe no weight class either)
+		if a.Categoria == "" {
+			return "Atleta"
+		}
+		return "Atleta · " + sinMenos(a.Categoria) + " kg"
 	}
 	return "Atleta · " + sinMenos(a.Categoria) + " kg · lote " + itoa(a.Lote)
 }
@@ -261,7 +264,7 @@ func (s *Svc) marcadorDelDia(ctx context.Context, cid uuid.UUID, dia, prueba str
 	if prueba != "" {
 		var sin []*atleta
 		for _, a := range p.Atletas {
-			if !enSesion[a.ID] && (a.Sexo == "F" || a.Sexo == "M") && a.Categoria != "" && (prueba == "*" || a.Prueba == "" || a.Prueba == prueba) {
+			if !enSesion[a.ID] && (a.Sexo == "F" || a.Sexo == "M") && (prueba == "*" || a.Prueba == "" || a.Prueba == prueba) {
 				sin = append(sin, a)
 			}
 		}
