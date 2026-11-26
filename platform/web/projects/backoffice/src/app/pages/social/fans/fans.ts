@@ -166,7 +166,7 @@ type Tipo = 'atleta' | 'publico';
         <gr-field label="Email" for="fan-email" hint="Con este email entra al directo">
           <input grInput id="fan-email" name="email" type="email" [(ngModel)]="form.email" maxlength="254" required />
         </gr-field>
-        <gr-field label="Teléfono" for="fan-tel" [optional]="true" hint="Elige el país y escribe el número completo · avisos por WhatsApp" [error]="form.telefono && !valido(form.telefono) ? 'El número no está completo.' : null">
+        <gr-field label="Teléfono" for="fan-tel" [optional]="true" hint="Elige el país y escribe el número completo · sin teléfono no recibe avisos por WhatsApp" [error]="form.telefono && !valido(form.telefono) ? 'El número no está completo.' : null">
           <gr-telefono id="fan-tel" name="telefono" tam="m" [aria-label]="'Teléfono'" [invalido]="!!form.telefono && !valido(form.telefono)" [(ngModel)]="form.telefono" />
         </gr-field>
         <gr-field [label]="editando() ? 'Nueva contraseña' : 'Contraseña'" for="fan-pass" [optional]="true"

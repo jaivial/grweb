@@ -8,7 +8,7 @@ import { GrIcon } from './icon';
 import { grDict } from './lang';
 
 /** One choice of a `gr-select`, read from the projected `<option>` elements. */
-export interface GrOpcion { valor: string; etiqueta: string; deshabilitada: boolean; oculta: boolean }
+export interface GrOpcion { valor: string; etiqueta: string; corta: string; deshabilitada: boolean; oculta: boolean }
 
 /**
  * Opens a bottom sheet with no jump: the backdrop (`capa`, rendered with `opacity-0`) fades in and the panel (rendered
@@ -46,6 +46,8 @@ const sinAcentos = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g,
  * - `tam="l"` (web forms, 48 px, Body/M) or `tam="m"` (backoffice, 44 px · 40 px on desktop, Body/S).
  * - Keyboard as the WAI-ARIA select-only combobox: Enter/Space/↓/↑ open, ↑↓ Home End move, letters jump, Enter picks,
  *   Esc closes. Focus stays on the control (aria-activedescendant).
+ * - `<option data-corto="…">`: short text for the closed control when the full label does not fit (the list keeps the
+ *   full option text).
  * - Desktop: a menu under the control (above it when there is no room), in the top layer so no container clips it,
  *   six options visible. Phones (< 768 px): a bottom sheet with 52 px options; the page does not scroll behind it.
  * - `id` and `aria-label` go to the control itself, so `<label for>` and `gr-field` work as with a native select.
@@ -174,7 +176,7 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
     // an empty filter shows its label («Categoría»); the empty option («Todas») is its «all» choice in the menu
     if (this.tipo() === 'filtro' && !this.valor() && this.etiqueta()) return this.etiqueta();
     const s = this.seleccion();
-    if (s) return s.etiqueta;
+    if (s) return s.corta || s.etiqueta;
     return this.lista().find((o) => o.valor === '')?.etiqueta || this.etiqueta() || '';
   });
   protected readonly titulo = computed(() => this.etiqueta() || this.ariaLabel() || this.lista().find((o) => o.valor === '')?.etiqueta || this.t().elige);
@@ -203,8 +205,10 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
     const lista: GrOpcion[] = els.map((o) => {
       const v = (o as HTMLOptionElement & { value?: unknown }).value;
       const etiqueta = (o.textContent || '').replace(/\s+/g, ' ').trim();
+      // `data-corto`: texto del control cerrado cuando la etiqueta completa (la de la lista) no cabe
+      const corta = (o.getAttribute('data-corto') || '').replace(/\s+/g, ' ').trim();
       // `hidden` (the HTML placeholder pattern `<option value="" hidden>Elige…</option>`): shown in the control, not in the menu
-      return { valor: v != null ? String(v) : o.getAttribute('value') ?? etiqueta, etiqueta, deshabilitada: !!(o as HTMLOptionElement).disabled || o.hasAttribute('disabled'), oculta: o.hasAttribute('hidden') };
+      return { valor: v != null ? String(v) : o.getAttribute('value') ?? etiqueta, etiqueta, corta, deshabilitada: !!(o as HTMLOptionElement).disabled || o.hasAttribute('disabled'), oculta: o.hasAttribute('hidden') };
     });
     const firma = JSON.stringify(lista);
     if (firma !== this.firma) { this.firma = firma; this.lista.set(lista); }

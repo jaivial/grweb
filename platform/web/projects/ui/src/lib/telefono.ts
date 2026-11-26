@@ -87,35 +87,40 @@ let seq = 0;
 /**
  * Teléfono con selector de país y casillas de dígito (Figma: campo «Teléfono»).
  *
- * - Izquierda, el prefijo (bandera + «+NN», con el país en la lista; España por defecto).
+ * - Izquierda, el país (bandera + «+NN»; el nombre en la lista y en el nombre accesible; España por defecto).
  * - Derecha, una casilla por dígito del número nacional de ese país: escribir avanza, retroceso en vacío vuelve,
  *   las flechas mueven, y pegar un número completo rellena todo y detecta el prefijo.
  * - El valor es E.164 («+34692747052») y vacío cuando no hay dígitos. Al salir con el número a medias marca el error
- *   del campo (misma línea que `gr-field`).
+ *   del campo (una sola línea: si la página ya lo marca con `invalido`, la línea es la suya).
+ * - El campo se contiene siempre en su contenedor y adapta la maquetación a su propio ancho (container query): con
+ *   sitio, país y casillas en la misma fila; estrecho, el país pasa arriba y las casillas (28–44 px) reparten el ancho.
  */
 @Component({
   selector: 'gr-telefono',
   imports: [GrIcon, GrSelect],
   providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => GrTelefono), multi: true }],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex min-w-0 flex-wrap items-start gap-2', '(focusout)': 'finFoco($event)' },
+  host: { class: 'block w-full min-w-0 max-w-full @container', '(focusout)': 'finFoco($event)' },
   template: `
-    <div class="w-[120px] shrink-0 sm:w-[132px]">
-      <gr-select [id]="uid + '-pais'" [tam]="tam()" [invalido]="invalido()" [disabled]="bloqueado()" [aria-label]="t().pais" [value]="iso()" (valorChange)="cambiaPais($event)">
-        @for (p of paises(); track p.iso) { <option [value]="p.iso">{{ bandera(p.iso) }} +{{ p.dial }} · {{ p[lang()] }}</option> }
-      </gr-select>
-    </div>
-    <div class="flex min-w-0 flex-1 basis-40 flex-col gap-1.5" role="group" [attr.aria-label]="etiqueta() || t().numero">
-      <div class="flex w-full items-center gap-[3px] sm:gap-1">
-        @for (i of casillas(); track i) {
-          <input #caja type="text" [attr.id]="i === 0 ? id() || null : null" [value]="valor(i)" inputmode="numeric" pattern="[0-9]*" [attr.autocomplete]="i === 0 ? 'tel-national' : 'off'"
-            [attr.aria-label]="t().digito(i + 1, n())" [attr.aria-invalid]="invalido() || error() ? true : null" [disabled]="bloqueado()"
-            [class]="cajaCls()" (focus)="focoCaja($event)" (input)="escribe(i, $event)" (keydown)="tecla(i, $event)" (paste)="pega($event)" />
+    <div class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-2 @max-[420px]:grid-cols-1 @max-[420px]:gap-1.5">
+      <div class="min-w-0 justify-self-start">
+        <gr-select [id]="uid + '-pais'" [tam]="tam()" [invalido]="invalido()" [disabled]="bloqueado()" [aria-label]="etiquetaPais()" [value]="iso()" (valorChange)="cambiaPais($event)">
+          @for (p of paises(); track p.iso) { <option [value]="p.iso" [attr.data-corto]="bandera(p.iso) + ' +' + p.dial">{{ bandera(p.iso) }} +{{ p.dial }} · {{ p[lang()] }}</option> }
+        </gr-select>
+      </div>
+      <div class="flex min-w-0 flex-col gap-1.5" role="group" [attr.aria-label]="etiqueta() || t().numero">
+        <!-- una casilla por dígito: pistas de 0 a 44 px, así el min-content del campo no depende del input (TEL-01) -->
+        <div class="grid w-full min-w-0 gap-[3px] @[420px]:gap-1" [style.grid-template-columns]="columnas()">
+          @for (i of casillas(); track i) {
+            <input #caja type="text" [attr.id]="i === 0 ? id() || null : null" [value]="valor(i)" inputmode="numeric" pattern="[0-9]*" [attr.autocomplete]="i === 0 ? 'tel-national' : 'off'"
+              [attr.aria-label]="t().digito(i + 1, n())" [attr.aria-invalid]="invalido() || error() ? true : null" [disabled]="bloqueado()"
+              [class]="cajaCls()" (focus)="focoCaja($event)" (input)="escribe(i, $event)" (keydown)="tecla(i, $event)" (paste)="pega($event)" />
+          }
+        </div>
+        @if (error(); as e) {
+          <p class="flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p>
         }
       </div>
-      @if (error(); as e) {
-        <p class="flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p>
-      }
     </div>
   `,
 })
@@ -147,8 +152,12 @@ export class GrTelefono implements ControlValueAccessor {
   private onTouched: () => void = () => undefined;
 
   protected readonly pais = computed(() => PAISES_TELEFONO.find((p) => p.iso === this.iso()) ?? PAISES_TELEFONO[0]);
+  /** «País: España (+34)»: el nombre no cabe en el control cerrado, así que va en su nombre accesible (TEL-03). */
+  protected readonly etiquetaPais = computed(() => `${this.t().pais}: ${this.pais()[this.lang()]} (+${this.pais().dial})`);
   protected readonly n = computed(() => this.pais().digitos);
   protected readonly casillas = computed(() => Array.from({ length: this.n() }, (_, i) => i));
+  /** One track per box, capped at 44 px: the width is shared out from 0, so a narrow field shrinks instead of overflowing. */
+  protected readonly columnas = computed(() => `repeat(${this.n()}, minmax(0, 44px))`);
   protected readonly bloqueado = computed(() => this.deshabilitado());
   /** Digits up to the first empty box: the number as it reads, without the boxes filled out of order after a gap. */
   private readonly cifras = computed(() => {
@@ -164,11 +173,12 @@ export class GrTelefono implements ControlValueAccessor {
   });
   protected readonly error = computed(() => {
     const faltan = this.cifras().length < this.n() && (this.cifras().length > 0 || this.sueltas() > 0);
-    return this.tocado() && faltan ? this.t().falta(this.n()) : null;
+    // con `invalido` la página ya pinta su propio mensaje: el componente calla para no repetirlo (TELBO-04)
+    return this.tocado() && !this.invalido() && faltan ? this.t().falta(this.n()) : null;
   });
   protected readonly cajaCls = computed(() => {
     const alto = this.tam() === 'l' ? 'h-12 text-[17px] md:text-[16px]' : 'h-11 text-[15px] md:pointer-fine:h-10';
-    return `min-w-0 flex-1 ${alto} rounded-sm border bg-bg-field px-0 text-center font-mono leading-none text-text-primary caret-accent ` +
+    return `w-full min-w-0 ${alto} rounded-sm border bg-bg-field px-0 text-center font-mono leading-none text-text-primary caret-accent ` +
       'focus:border-accent-text focus:ring-2 focus:ring-accent/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ' +
       (this.invalido() || this.error() ? 'border-accent-text' : 'border-line-strong hover:border-line-hover');
   });
