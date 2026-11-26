@@ -282,7 +282,10 @@ func (s *Svc) registerAdmin() {
 				if err := createPerfil(ctx, tx, in.CID, id, b.Nombre+" "+b.Apellidos); err != nil {
 					return err
 				}
-				return hist(ctx, tx, id, "Alta manual", "")
+				if err := hist(ctx, tx, id, "Alta manual", ""); err != nil {
+					return err
+				}
+				return s.consentimientosOrganizador(ctx, tx, in.CID, id)
 			})
 			if err != nil {
 				return nil, err
@@ -1037,6 +1040,36 @@ func (s *Svc) ficha(ctx context.Context, cid, id uuid.UUID) (Ficha, error) {
 	f.Autorizacion = s.estadoAutorizacion(ctx, r)
 	f.Whatsapp = consentimientoWA(ctx, s.a.DB, cid, id)
 	return f, nil
+}
+
+// consentimientosOrganizador records the consents of an athlete added by the team (by hand or from the AEP list): the
+// athletes give them to the organiser before being added (Jaime, 26/11), so image use and WhatsApp notices start
+// active and approved, with the texts in force. The team can withdraw them from the record.
+func (s *Svc) consentimientosOrganizador(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID) error {
+	const origen = "otorgado al organizador al darle de alta"
+	vi, hi := s.legalVigente(ctx, cid, "consentimiento")
+	vw, _ := s.legalVigente(ctx, cid, "whatsapp")
+	// A consent always points to a published text: without one (cms down or not published) it is not recorded.
+	var hechos []string
+	if vi != "" {
+		if _, err := tx.Exec(ctx, `UPDATE perfiles SET imagen_at = now(), imagen_version = $2, imagen_hash = $3, imagen_origen = $4, imagen_ip = ''
+			WHERE atleta_id = $1 AND imagen_at IS NULL`, id, vi, hi, origen); err != nil {
+			return err
+		}
+		hechos = append(hechos, "uso de imagen "+vi)
+	}
+	if vw != "" {
+		if _, err := tx.Exec(ctx, `UPDATE atletas SET whatsapp_at = now(), whatsapp_version = $2, whatsapp_origen = $3
+			WHERE id = $1 AND whatsapp_at IS NULL AND whatsapp_origen <> 'retirado'`, id, vw, origen); err != nil {
+			return err
+		}
+		hechos = append(hechos, "avisos por WhatsApp "+vw)
+	}
+	if len(hechos) == 0 {
+		s.a.Log.Warn("alta por el equipo sin textos legales publicados: consentimientos no registrados", "atleta", id.String())
+		return nil
+	}
+	return hist(ctx, tx, id, "Consentimientos registrados", strings.Join(hechos, " · ")+" · "+origen)
 }
 
 func createPerfil(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, name string) error {

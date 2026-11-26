@@ -507,7 +507,8 @@ export class Footer {
   private readonly router = inject(Router);
   protected readonly instagram = computed(() => instagramOf(this.comp.data()));
   protected readonly contacto = computed(() => this.comp.data()?.evento.emailContacto ?? '');
-  protected readonly handle = computed(() => '@' + this.instagram().replace(/\/$/, '').split('/').pop());
+  /** «@cuenta» of the Instagram URL (without its query, e.g. ?avpt=…, or a final slash). */
+  protected readonly handle = computed(() => '@' + this.instagram().split(/[?#]/)[0].replace(/\/$/, '').split('/').pop());
   protected readonly logos = signal<Patrocinador[]>([]);
   /** BIZ-159: the main sponsors first and bigger in the footer strip. */
   protected readonly logosOrden = computed(() => [...this.logos()].sort((x, y) => Number(y.nivel === 'principal') - Number(x.nivel === 'principal')));
