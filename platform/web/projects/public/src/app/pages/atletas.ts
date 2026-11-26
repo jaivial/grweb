@@ -499,7 +499,8 @@ const T2 = {
             @if (a.bio || a.frase || a.entrenador || a.instagram || a.historial.length) {
               <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
                 <h2 class="text-ui-h5">Sobre {{ a.nombre }}</h2>
-                @if (a.bio || a.frase) { <p class="mt-3 text-body-m text-text-secondary">{{ a.bio || a.frase }}</p> }
+                @if (a.frase) { <p class="mt-3 border-l-2 border-accent/60 pl-3 text-ui-h5 font-avant!">{{ a.frase }}</p> }
+                @if (a.bio) { <p class="mt-3 text-body-m text-text-secondary">{{ a.bio }}</p> }
                 <dl class="mt-4 flex flex-col gap-2 text-body-s">
                   @if (a.entrenador) { <div class="flex gap-2"><gr-icon name="user" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">{{ t().entrenador }}</dt><dd>{{ a.entrenador }}</dd></div> }
                   @if (a.instagram) { <div class="flex gap-2"><gr-icon name="instagram" [size]="16" class="mt-0.5 text-accent-text" /><dt class="text-text-tertiary">Instagram:</dt><dd><a [href]="'https://www.instagram.com/' + a.instagram.replace('@', '') + '/'" target="_blank" rel="noopener nofollow" class="hover:text-accent-text">{{ a.instagram }}</a></dd></div> }

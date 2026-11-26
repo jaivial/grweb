@@ -1,6 +1,6 @@
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, PLATFORM_ID, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, PLATFORM_ID, OnInit, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { GrIcon, GrSkeleton, GrStatus, type GrStatusTone } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
@@ -84,9 +84,10 @@ const hoyMadrid = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Mad
       } @else {
         <!-- El día del atleta: pesaje → calentamiento → sesión, en una línea de tiempo (no una tabla). -->
         <section class="mt-6 overflow-hidden rounded-lg border border-accent/40 bg-[linear-gradient(165deg,rgb(110_20_32/0.32),rgb(20_17_18/0.55)_58%)]">
+          <!-- Cabecera de la sesión: en móvil la hora y el nivel van juntos y el nombre baja a su propia línea. -->
           <header class="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-white/8 px-5 py-4 md:px-6">
             <p class="text-display-2xs tabular-nums">{{ inicio() }}</p>
-            <p class="text-label-m">{{ h().sesion || t().sesion }}</p>
+            <p class="order-2 basis-full text-label-m sm:order-none sm:basis-auto">{{ h().sesion || t().sesion }}</p>
             @if (h().sesionNivel) { <span class="inline-flex h-5 items-center rounded-2xs border border-accent/50 px-1.5 text-mono-xs text-accent-text">{{ h().sesionNivel }}</span> }
           </header>
           <ol class="px-5 py-4 md:px-6">
@@ -146,7 +147,7 @@ const hoyMadrid = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Mad
     </div>
   `,
 })
-export class AreaHorariosPage {
+export class AreaHorariosPage implements OnInit {
   readonly panel = input.required<Panel>();
   protected readonly t = inject(I18n).dict(T);
   private readonly http = inject(HttpClient);
@@ -193,7 +194,7 @@ export class AreaHorariosPage {
     return { tono: 'finalizado', icono: 'check', texto: this.t().pasado };
   });
 
-  constructor() {
+  ngOnInit(): void {
     if (!this.browser) return; // private page: datos de la sesión del atleta, en el navegador
     void this.cargar();
   }
@@ -211,6 +212,9 @@ export class AreaHorariosPage {
   /** What the area panel already knows: the timeline shows at once instead of an empty skeleton. */
   private dePanel(): MiHorario {
     const a = this.panel().atleta;
-    return { publicado: !!a.jornada, dia: a.jornada, lote: a.lote, inicio: a.horaInicio, pesajeInicio: a.pesajeInicio, pesajeFin: a.pesajeFin, sesion: a.sesion, sesionNivel: a.sesionNivel, zonaHoraria: 'Europe/Madrid' };
+    const publicado = !!a.jornada;
+    // El calendario del área es el mismo para todo horario publicado: con el día y una hora ya hay algo que exportar.
+    const ics = publicado && (a.horaInicio || a.pesajeInicio) ? AREA_API + '/horario.ics' : undefined;
+    return { publicado, dia: a.jornada, lote: a.lote, inicio: a.horaInicio, pesajeInicio: a.pesajeInicio, pesajeFin: a.pesajeFin, sesion: a.sesion, sesionNivel: a.sesionNivel, zonaHoraria: 'Europe/Madrid', ics };
   }
 }
