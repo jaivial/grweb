@@ -117,6 +117,11 @@ func (s *Svc) sincronizarFantasy(ctx context.Context, cid uuid.UUID) error {
 		return err
 	}
 	return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+		// the dispatcher and the reconciler of the worker may sync at the same time: one at a time per competition,
+		// so a grade is never applied twice to a clause
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, "juegos-fantasy:"+cid.String()); err != nil {
+			return err
+		}
 		cfg, err := configJuegos(ctx, tx, cid)
 		if err != nil {
 			return err
