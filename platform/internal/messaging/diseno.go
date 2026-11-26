@@ -193,7 +193,7 @@ func compilarEmail(d []Bloque, c Contexto) string {
 			body.WriteString(`<tr><td style="` + pad + `"><p style="margin:0;font-size:16px;line-height:24px;color:#3d3436">` + textoHTML(b.Texto) + `</p></td></tr>`)
 		case "boton":
 			btn := `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 8px;display:inline-table"><tr><td style="border-radius:6px;background:#c42b3e">` +
-				`<a href="` + html.EscapeString(c.Absoluto(b.URL)) + `" style="display:inline-block;padding:14px 24px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none">` + html.EscapeString(b.Texto) + `</a></td></tr></table>`
+				`<a href="` + html.EscapeString(c.Absoluto(b.URL)) + `" style="display:inline-block;padding:14px 24px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none">` + gmailClaro(html.EscapeString(b.Texto)) + `</a></td></tr></table>`
 			body.WriteString(`<tr><td align="center" style="` + pad + `;text-align:center">` + btn + `</td></tr>`)
 		case "imagen":
 			img := `<img src="` + html.EscapeString(c.Absoluto(b.Imagen)) + `" alt="` + html.EscapeString(b.Alt) + `" width="536" style="display:block;width:100%;height:auto;border:0;border-radius:8px">`
@@ -218,7 +218,7 @@ func compilarEmail(d []Bloque, c Contexto) string {
 			dias, horas := cuenta(b, c.Ahora)
 			caja := func(v int, l string) string {
 				return `<td style="padding:0 4px"><div style="background:#141011;border-radius:8px;padding:10px 14px;text-align:center;color:#ffffff"><div style="font-size:26px;font-weight:700;line-height:30px">` +
-					fmt.Sprintf("%02d", v) + `</div><div style="font-size:11px;letter-spacing:1px;color:#b8acae">` + l + `</div></div></td>`
+					gmailClaro(fmt.Sprintf("%02d", v)) + `</div><div style="font-size:11px;letter-spacing:1px;color:#b8acae">` + gmailClaro(l) + `</div></div></td>`
 			}
 			txt := ""
 			if b.Texto != "" {
@@ -246,12 +246,12 @@ func compilarEmail(d []Bloque, c Contexto) string {
 	web := strings.TrimPrefix(strings.TrimPrefix(c.Marca.Web, "https://"), "http://")
 	pie := `<tr><td style="padding:20px 32px 28px;border-top:1px solid #eee6e7;font-size:12px;line-height:18px;color:#9a8f91;text-align:center">` + html.EscapeString(c.Marca.Nombre) +
 		` · <a href="` + html.EscapeString(c.Marca.Web) + `" style="color:#9a8f91">` + html.EscapeString(web) + `</a><br>Recibes este email porque aceptaste recibir novedades. <a href="{{baja}}" style="color:#9a8f91">Darme de baja</a></td></tr>`
-	return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light">` +
-		`<title>` + html.EscapeString(c.Asunto) + `</title></head><body style="margin:0;padding:0;background:#f2eeee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">` +
+	return colorFijo(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
+		`<title>` + html.EscapeString(c.Asunto) + `</title></head><body style="margin:0;padding:0;background:#f2eeee;color:#3d3436;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">` +
 		`<span style="display:none;max-height:0;overflow:hidden;opacity:0">` + html.EscapeString(c.Pre) + `</span>` +
-		`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2eeee"><tr><td align="center" style="padding:24px 12px">` +
-		`<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden">` +
-		body.String() + pie + `</table></td></tr></table></body></html>`
+		`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2eeee;color:#3d3436"><tr><td align="center" style="padding:24px 12px">` +
+		`<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;color:#3d3436;border-radius:12px;overflow:hidden">` +
+		body.String() + pie + `</table></td></tr></table></body></html>`)
 }
 
 // textoPlano is the text/plain part of the campaign email.
