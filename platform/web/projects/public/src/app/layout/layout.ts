@@ -36,7 +36,7 @@ const T = {
     links: [
       { label: 'Competición', href: '/#campeonato' },
       { label: 'Entradas', href: '/entradas' },
-      { label: 'Área Atleta', href: '/atletas' },
+      { label: 'Área Atleta', href: '/area-atleta' },
       { label: 'Horarios', href: '/horarios' },
       { label: 'En directo', href: '/en-directo' },
       { label: 'Público', href: '/publico' },
@@ -48,7 +48,7 @@ const T = {
         { label: 'Marcas mínimas', desc: 'Totales AEP-1 por categoría', href: '/marcas-minimas' },
         { label: 'Reglamento', desc: 'Intentos, jueces y equipamiento', href: '/reglamento' },
         { label: 'Alta de atleta', desc: 'Completa tu perfil', href: '/alta-atleta' },
-        { label: 'Área de atleta', desc: 'Tu horario, QR y perfil', href: '/area-atleta' },
+        { label: 'Área Atleta', desc: 'Tu horario, QR y perfil', href: '/area-atleta' },
         { label: 'Resultados', desc: 'Clasificaciones por edición', href: '/resultados' },
       ] },
       { titulo: 'El campeonato', items: [
@@ -80,7 +80,7 @@ const T = {
       { titulo: 'Visita y comunidad', items: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Blog', href: '/blog' }] },
     ] as Grupo[],
     /** The main links of the mobile menu. */
-    accesos: [{ label: 'Inicio', href: '/' }, { label: 'En directo', href: '/en-directo' }, { label: 'Entradas', href: '/entradas' }, { label: 'Horarios', href: '/horarios' }, { label: 'Área de atleta', href: '/area-atleta' }, { label: 'Para el público', href: '/publico' }] as NavLink[],
+    accesos: [{ label: 'Inicio', href: '/' }, { label: 'En directo', href: '/en-directo' }, { label: 'Entradas', href: '/entradas' }, { label: 'Horarios', href: '/horarios' }, { label: 'Área Atleta', href: '/area-atleta' }, { label: 'Para el público', href: '/publico' }] as NavLink[],
     cta: 'Entrada gratis', ctaMenu: 'Reserva tu entrada gratis', open: 'Abrir menú', close: 'Cerrar menú', otherLabel: 'English version', home: 'GRS Cup 2 · inicio',
     principal: 'Principal', menu: 'Menú', megaEyebrow: 'Entrada gratuita', megaTitulo: 'Vive la GR Cup en directo', megaTexto: 'Reserva gratis tu plaza en las gradas.', reservar: 'Reservar',
     porConfirmar: 'fecha por confirmar', edicion: (y: string, f: string, ciudad: string) => `Edición ${y} · ${f} · ${ciudad}`,
@@ -89,7 +89,7 @@ const T = {
     links: [
       { label: 'Competition', href: '/#campeonato' },
       { label: 'Tickets', href: '/entradas' },
-      { label: 'Athlete Area', href: '/atletas' },
+      { label: 'Athlete Area', href: '/area-atleta' },
       { label: 'Schedule', href: '/horarios' },
       { label: 'Live', href: '/en-directo' },
       { label: 'Spectators', href: '/publico' },
@@ -101,7 +101,7 @@ const T = {
         { label: 'Qualifying totals', desc: 'AEP-1 totals by class', href: '/marcas-minimas' },
         { label: 'Rules', desc: 'Attempts, referees and equipment', href: '/reglamento' },
         { label: 'Athlete sign-up', desc: 'Complete your profile', href: '/alta-atleta' },
-        { label: 'Athlete area', desc: 'Your schedule, QR and profile', href: '/area-atleta' },
+        { label: 'Athlete Area', desc: 'Your schedule, QR and profile', href: '/area-atleta' },
         { label: 'Results', desc: 'Standings by edition', href: '/resultados' },
       ] },
       { titulo: 'The championship', items: [
@@ -131,7 +131,7 @@ const T = {
       { titulo: 'Games', items: [{ label: 'GRS Fantasy', href: '/fantasy' }, { label: 'Pool', href: '/porra' }, { label: 'Raffle', href: '/sorteo' }] },
       { titulo: 'Visit and community', items: [{ label: 'Getting there', href: '/como-llegar' }, { label: 'FAQ', href: '/preguntas-frecuentes' }, { label: 'Blog', href: '/blog' }] },
     ],
-    accesos: [{ label: 'Home', href: '/' }, { label: 'Live', href: '/en-directo' }, { label: 'Tickets', href: '/entradas' }, { label: 'Schedule', href: '/horarios' }, { label: 'Athlete area', href: '/area-atleta' }, { label: 'For spectators', href: '/publico' }],
+    accesos: [{ label: 'Home', href: '/' }, { label: 'Live', href: '/en-directo' }, { label: 'Tickets', href: '/entradas' }, { label: 'Schedule', href: '/horarios' }, { label: 'Athlete Area', href: '/area-atleta' }, { label: 'For spectators', href: '/publico' }],
     cta: 'Free ticket', ctaMenu: 'Book your free ticket', open: 'Open menu', close: 'Close menu', otherLabel: 'Versión en español', home: 'GRS Cup 2 · home',
     principal: 'Main', menu: 'Menu', megaEyebrow: 'Free entry', megaTitulo: 'Watch the GR Cup live', megaTexto: 'Book your free seat in the stands.', reservar: 'Book',
     porConfirmar: 'date to be confirmed', edicion: (y: string, f: string, ciudad: string) => `${y} edition · ${f} · ${ciudad}`,
