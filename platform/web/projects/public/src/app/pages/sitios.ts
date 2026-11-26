@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { GrIcon, type GrIconName, CdnPipe } from '@grcup/ui';
 import { I18n } from '../core/i18n';
-import { detalleDe, mapaDe, type Sitio } from './donde-dormir-y-comer';
+import type { Sitio } from '../core/cms';
+import { mapaDe } from './donde-dormir-y-comer';
 
 /** Card grid of places (hotels, gyms…), shared by /donde-dormir-y-comer and /como-llegar. */
 @Component({
@@ -31,13 +32,13 @@ import { detalleDe, mapaDe, type Sitio } from './donde-dormir-y-comer';
               <gr-icon [name]="icono()" [size]="18" class="shrink-0 text-accent-text" />
               <h3 class="text-label-m">{{ s.nombre }}</h3>
             </div>
-            <p class="text-body-s text-text-tertiary">{{ detalle(s) }}</p>
-            @if (s.descripcion) { <p class="text-body-s text-text-secondary">{{ lang() === 'en' ? s.descripcionEn || s.descripcion : s.descripcion }}</p> }
+            @if (s.detalle) { <p class="text-body-s text-text-tertiary">{{ s.detalle }}</p> }
+            @if (s.descripcion) { <p class="text-body-s text-text-secondary">{{ s.descripcion }}</p> }
             @if (s.distancia || s.precio) {
               <p class="flex flex-wrap items-center gap-x-1.5 text-body-xs text-text-secondary">
                 @if (s.distancia) { <span>{{ s.distancia }}</span> }
                 @if (s.distancia && s.precio) { <span aria-hidden="true">·</span> }
-                @if (s.precio) { <span>{{ (lang() === 'en' && s.precioEn) || s.precio }}</span> }
+                @if (s.precio) { <span>{{ s.precio }}</span> }
               </p>
             }
             @if (s.telefono || s.email) {
@@ -65,5 +66,4 @@ export class Sitios {
   private readonly i18n = inject(I18n);
   protected readonly lang = this.i18n.lang;
   protected readonly mapa = mapaDe;
-  protected readonly detalle = (s: Sitio) => detalleDe(s, this.i18n.lang());
 }
