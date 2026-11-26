@@ -37,8 +37,8 @@ export const MATCH: Record<TipoMatch, string> = { licencia: 'Licencia', email: '
 export const MATCH_TONE: Record<TipoMatch, GrTone> = { licencia: 'success', email: 'info', nombre: 'warning', manual: 'info', '': 'neutral' };
 
 /** Badge of the request type: a profile change is reviewed differently from a sign-up. */
-export const TIPO: Record<TipoSolicitud, string> = { alta: 'Alta', cambio_perfil: 'Cambio de perfil' };
-export const TIPO_TONE: Record<TipoSolicitud, GrTone> = { alta: 'neutral', cambio_perfil: 'info' };
+export const TIPO: Record<TipoSolicitud, string> = { alta: 'Alta', cambio_perfil: 'Cambio de perfil', autorizacion: 'Autorización de tutor' };
+export const TIPO_TONE: Record<TipoSolicitud, GrTone> = { alta: 'neutral', cambio_perfil: 'info', autorizacion: 'accent' };
 
 /** The 18 fields of the form, with the value declared by the athlete and the difference with the linked athlete. */
 export interface FilaCampo {
@@ -72,8 +72,8 @@ export function valorTexto(clave: string, v: string): string {
 }
 
 /** Status badge of a request (an unauthorised minor wins over the stored status). */
-export function estadoDe(s: { estado: EstadoSolicitud; esMenor: boolean; autorizacion: boolean }): { l: string; tone: GrTone } {
-  if (s.esMenor && !s.autorizacion) return { l: 'Menor · sin autorización', tone: 'warning' };
+export function estadoDe(s: { estado: EstadoSolicitud; esMenor: boolean; autorizacion: boolean; tipo?: TipoSolicitud }): { l: string; tone: GrTone } {
+  if (s.esMenor && !s.autorizacion && s.tipo !== 'autorizacion') return { l: 'Menor · sin autorización', tone: 'warning' };
   if (s.estado === 'revision') return { l: 'En revisión', tone: 'warning' };
   if (s.estado === 'aprobada') return { l: 'Aprobada', tone: 'success' };
   if (s.estado === 'rechazada') return { l: 'Rechazada', tone: 'danger' };

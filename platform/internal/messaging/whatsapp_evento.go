@@ -12,8 +12,8 @@ import (
 )
 
 // handleWhatsapp queues the WhatsApp messages of a request: one to the athlete (only if he consented and the switch
-// «WhatsApp al atleta» is on) and one to each phone of the list of organisers (one message per phone, never a
-// group: the consent and the opt-out only work that way). The switches and the list live in «Avisos de solicitudes».
+// «WhatsApp al atleta» is on) and one to each phone of the list of organisers (one message per phone) plus, when one
+// is chosen, one copy to the organisers' group. The switches, the list and the group live in «Avisos de solicitudes».
 func (s *Svc) handleWhatsapp(ctx context.Context, e events.Event) error {
 	var d struct {
 		Para          string            `json:"para"`
@@ -52,6 +52,10 @@ func (s *Svc) handleWhatsapp(ctx context.Context, e events.Event) error {
 				destinos = append(destinos, tel.Numero)
 			}
 		}
+	}
+	// The organisers' group (a JID, never normalised as a phone): one more copy of every organisers' message.
+	if d.Organizadores && strings.HasSuffix(avisos.GrupoID, "@g.us") {
+		destinos = append(destinos, avisos.GrupoID)
 	}
 	vistos := map[string]bool{}
 	return s.tx(ctx, func(tx pgx.Tx) error {

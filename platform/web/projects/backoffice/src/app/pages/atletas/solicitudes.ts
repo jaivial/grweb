@@ -137,6 +137,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
         <option value="">Tipo: todas</option>
         <option value="alta">Altas de atleta</option>
         <option value="cambio_perfil">Cambios de perfil</option>
+        <option value="autorizacion">Autorizaciones de tutor</option>
       </gr-select>
       <gr-select tipo="campo" [ngModel]="fMatch()" (ngModelChange)="fMatch.set($event); recargar(1)" aria-label="Coincidencia">
         <option value="">Coincidencia: todas</option>
@@ -180,17 +181,64 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
       <div class="flex-1 overflow-y-auto px-4 pb-6 sm:px-6">
       @if (detalle(); as d) {
         <div class="flex flex-col gap-5">
-          <p class="hidden text-body-s text-text-tertiary sm:block">Solicitud @if (esCambio()) { de cambio de perfil enviada {{ hace(d.createdAt) }} desde el área de atleta } @else { recibida {{ hace(d.createdAt) }} desde el formulario de alta }</p>
+          <p class="hidden text-body-s text-text-tertiary sm:block">Solicitud @if (esAutorizacion()) { de autorización del tutor subida {{ hace(d.createdAt) }} desde el enlace enviado al atleta } @else if (esCambio()) { de cambio de perfil enviada {{ hace(d.createdAt) }} desde el área de atleta } @else { recibida {{ hace(d.createdAt) }} desde el formulario de alta }</p>
           <p class="truncate text-body-s text-text-tertiary sm:hidden">{{ d.email }}</p>
 
           <div class="-mt-2 flex flex-wrap gap-1">
             <gr-badge [tone]="estado(d).tone">{{ estado(d).l }}</gr-badge>
-            @if (esCambio()) {
+            @if (!esAlta()) {
               <gr-badge [tone]="tipoTone(d.tipo)">{{ tipoTxt(d.tipo) }}</gr-badge>
             } @else {
               <gr-badge [tone]="matchTone(d.match)">{{ match(d.match) }}</gr-badge>
             }
           </div>
+
+          @if (esAutorizacion()) {
+            <!-- ===== Autorización del tutor: el documento subido, el atleta y su contacto ===== -->
+            @if (d.estado === 'aprobada') {
+              <gr-alert tone="success" title="Autorización aprobada">Guardada en la ficha de {{ nombreCompleto(d) }} · su perfil ya se muestra en la web.</gr-alert>
+            }
+            @if (d.estado === 'rechazada') {
+              <gr-alert tone="danger" title="Autorización rechazada">Motivo: {{ d.motivoRechazo || 'sin motivo' }} · puede subir otra con el mismo enlace.</gr-alert>
+            }
+            <section>
+              <h3 class="text-label-xs text-text-muted uppercase">Documento firmado</h3>
+              @if (d.autorizacionUrl; as url) {
+                @if (esPdf(url)) {
+                  <a [href]="url" target="_blank" rel="noopener" class="mt-2 flex min-h-11 items-center gap-2 rounded-md border border-line-strong bg-bg-raised px-4 py-3 text-label-s text-accent-text hover:border-text-muted">
+                    <gr-icon name="file-text" [size]="18" />Ver PDF<gr-icon name="external-link" [size]="14" class="ml-auto" />
+                  </a>
+                } @else {
+                  <a [href]="url" target="_blank" rel="noopener" class="mt-2 block overflow-hidden rounded-md border border-line-subtle bg-bg-raised" aria-label="Abrir la autorización a tamaño completo en una pestaña nueva">
+                    <img [src]="url" [alt]="'Autorización del tutor de ' + nombreCompleto(d)" class="max-h-[70vh] w-full object-contain" />
+                  </a>
+                  <p class="mt-1 text-body-xs text-text-tertiary">Toca la imagen para abrirla a tamaño completo.</p>
+                }
+              } @else {
+                <p class="mt-2 text-body-s text-text-tertiary">La solicitud no trae documento.</p>
+              }
+            </section>
+            <section>
+              <h3 class="text-label-xs text-text-muted uppercase">Atleta</h3>
+              <dl class="mt-2 flex flex-col">
+                <div class="flex items-start justify-between gap-3 border-b border-line-subtle py-2">
+                  <dt class="w-28 shrink-0 text-body-xs text-text-tertiary">Nombre</dt>
+                  <dd class="min-w-0 flex-1 text-body-s">{{ nombreCompleto(d) }}@if (d.edad) { · {{ d.edad }} años }</dd>
+                </div>
+                <div class="flex items-start justify-between gap-3 border-b border-line-subtle py-2">
+                  <dt class="w-28 shrink-0 text-body-xs text-text-tertiary">Email</dt>
+                  <dd class="min-w-0 flex-1 text-body-s break-words">{{ d.email || '—' }}</dd>
+                </div>
+                <div class="flex items-start justify-between gap-3 border-b border-line-subtle py-2">
+                  <dt class="w-28 shrink-0 text-body-xs text-text-tertiary">Teléfono</dt>
+                  <dd class="min-w-0 flex-1 text-body-s">{{ d.telefono ? valorTexto('telefono', d.telefono) : '—' }}</dd>
+                </div>
+              </dl>
+              @if (d.atletaId) {
+                <a class="mt-2 inline-flex h-11 items-center gap-1 text-label-s text-accent-text" [routerLink]="['/', comps.current()?.slug, 'atletas', d.atletaId]">Ver ficha del atleta <gr-icon name="arrow-right" [size]="14" /></a>
+              }
+            </section>
+          }
 
           @if (esCambio()) {
             <!-- ===== Cambio de perfil: solo los campos que cambian, antes | después ===== -->
@@ -227,7 +275,11 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
                   @for (c of cambiosFilas(); track c.clave) {
                     <div class="rounded-md border border-line-subtle bg-bg-raised px-3 py-2">
                       <p class="text-label-xs text-text-tertiary uppercase">{{ c.campo }}</p>
-                      @if (lado() === 'antes') {
+                      @if (c.clave === 'foto') {
+                        @let u = lado() === 'antes' ? c.antes : c.despues;
+                        @if (u) { <a [href]="u" target="_blank" rel="noopener" class="mt-1 inline-block" [attr.aria-label]="'Abrir la foto ' + (lado() === 'antes' ? 'anterior' : 'nueva')"><img [src]="u" alt="" class="h-32 w-[102px] rounded-sm bg-bg-base object-cover" /></a> }
+                        @else { <p class="mt-0.5 text-body-s text-text-tertiary">Sin foto</p> }
+                      } @else if (lado() === 'antes') {
                         <p class="mt-0.5 text-body-s text-text-tertiary">{{ c.antes || 'vacío' }}</p>
                       } @else {
                         <p class="mt-0.5 text-body-s font-semibold text-accent-text">{{ c.despues || 'vacío' }}</p>
@@ -243,8 +295,15 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
                   @for (c of cambiosFilas(); track c.clave) {
                     <div class="grid grid-cols-[160px_minmax(0,1fr)_minmax(0,1fr)] items-start gap-3 border-b border-line-subtle px-4 py-2.5 last:border-0">
                       <span class="text-body-s text-text-secondary">{{ c.campo }}</span>
+                      @if (c.clave === 'foto') {
+                        @for (u of [c.antes, c.despues]; track $index) {
+                          @if (u) { <a [href]="u" target="_blank" rel="noopener" class="inline-block w-fit" [attr.aria-label]="$index ? 'Abrir la foto nueva' : 'Abrir la foto anterior'"><img [src]="u" alt="" class="h-32 w-[102px] rounded-sm bg-bg-base object-cover" [class.ring-2]="$index" [class.ring-accent-text]="$index" /></a> }
+                          @else { <span class="text-body-s text-text-tertiary">Sin foto</span> }
+                        }
+                      } @else {
                       <span class="text-body-s break-words text-text-tertiary line-through">{{ c.antes || 'vacío' }}</span>
                       <span class="text-body-s font-semibold break-words text-accent-text">{{ c.despues || 'vacío' }}</span>
+                      }
                     </div>
                   }
                 </div>
@@ -254,7 +313,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
             </section>
           }
 
-          @if (!esCambio() && sinPlazas()) {
+          @if (esAlta() && sinPlazas()) {
             <gr-alert tone="warning" title="No quedan plazas en el evento">
               {{ sinPlazas() }} Las plazas del evento se editan en «Plazas y cupo por competición», encima de la lista.
               <span alertAction class="mt-2 flex flex-wrap gap-4">
@@ -269,21 +328,21 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
               <button alertAction type="button" class="mt-2 inline-flex h-9 items-center gap-1 text-label-s text-accent-text" (click)="recargarDetalle()">Refrescar <gr-icon name="arrow-right" [size]="14" /></button>
             </gr-alert>
           }
-          @if (!esCambio() && d.atletaEmail && d.estado !== 'aprobada' && d.estado !== 'rechazada') {
+          @if (esAlta() && d.atletaEmail && d.estado !== 'aprobada' && d.estado !== 'rechazada') {
             <gr-alert tone="info" title="Este email ya es de un atleta: {{ d.atletaEmail }}">Al aprobar, la solicitud se enlaza a ese atleta: no se crea un duplicado y no se le envía ningún aviso.</gr-alert>
           }
-          @if (!esCambio() && d.cuentaPublico) {
+          @if (esAlta() && d.cuentaPublico) {
             <gr-alert tone="info" title="Este email ya tiene una cuenta de público del directo">Al aprobar, su cuenta de público pasará a ser de atleta: mismo alias, misma contraseña, sus apuestas y su equipo de GRS Fantasy. No se crea una segunda cuenta.</gr-alert>
           }
-          @if (!esCambio() && d.estado === 'aprobada') {
+          @if (esAlta() && d.estado === 'aprobada') {
             <gr-alert tone="success" title="Aprobada">Perfil creado o enlazado{{ d.esMenor ? ' (menor de edad)' : imagenAceptada() ? '' : ' (sin consentimiento de imagen)' }} · una ficha nueva queda privada hasta que el atleta active su publicación desde el área de atleta; una existente conserva su visibilidad · enlace de acceso enviado.</gr-alert>
           }
-          @if (!esCambio() && d.estado === 'rechazada') {
+          @if (esAlta() && d.estado === 'rechazada') {
             <gr-alert tone="danger" title="Solicitud rechazada">
               Motivo: {{ d.motivoRechazo || 'sin motivo' }}
             </gr-alert>
           }
-          @if (d.esMenor) {
+          @if (d.esMenor && !esAutorizacion()) {
             <gr-alert [tone]="d.autorizacion ? 'success' : 'warning'" title="Menor de {{ d.edad }} años · {{ d.autorizacion ? 'autorización guardada' : 'falta autorización' }}">
               {{ d.autorizacion ? 'La autorización firmada está guardada en privado.' : 'Aprobar permanece bloqueado hasta subir la autorización firmada de madre, padre o tutor.' }}
               <a alertAction [href]="correoAutorizacion()" class="mt-2 inline-flex h-9 items-center gap-1 text-label-s text-accent-text">Pedir autorización <gr-icon name="arrow-right" [size]="14" /></a>
@@ -307,7 +366,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
             </section>
           }
 
-          @if (!esCambio() && (foto() || (d.estado !== 'aprobada' && d.estado !== 'rechazada'))) {
+          @if (esAlta() && (foto() || (d.estado !== 'aprobada' && d.estado !== 'rechazada'))) {
           <section class="flex flex-col gap-3 sm:flex-row sm:gap-4">
             @if (foto(); as url) {
               <img [src]="url" [alt]="'Foto de ' + nombreCompleto(d)" class="aspect-[4/5] w-full rounded-md bg-bg-raised object-cover sm:h-[300px] sm:w-[240px]" />
@@ -324,7 +383,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
           </section>
           }
 
-          @if (!esCambio()) {
+          @if (esAlta()) {
           <section>
             <h3 class="text-label-xs text-text-muted uppercase">Datos declarados vs atleta enlazado</h3>
             @if (!verTodos()) {
@@ -357,7 +416,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
 
           }
 
-          @if (!esCambio()) {
+          @if (esAlta()) {
           <section>
             <h3 class="text-label-xs text-text-muted uppercase">Coincidencia y enlazado</h3>
             <div class="mt-2 flex flex-wrap items-center gap-2">
@@ -390,7 +449,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
 
           }
 
-          @if (!esCambio()) {
+          @if (esAlta()) {
           <section>
             <h3 class="text-label-xs text-text-muted uppercase">Consentimientos con prueba</h3>
             <div class="mt-2 flex flex-col gap-3 rounded-md bg-bg-raised p-4">
@@ -417,7 +476,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
 
           }
 
-          @if (!esCambio() && d.estado !== 'aprobada' && d.estado !== 'rechazada') {
+          @if (esAlta() && d.estado !== 'aprobada' && d.estado !== 'rechazada') {
             <section class="flex flex-col gap-4">
               <h3 class="text-label-xs text-text-muted uppercase">Editar antes de aprobar</h3>
               <gr-field for="ed-frase" label="Frase del perfil" hint="Aparece en su ficha pública">
@@ -480,7 +539,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
             <button grButton variant="danger" [disabled]="ocupado()" (click)="dialogo.set('borrar')">Borrar…</button>
           } @else {
             <!-- Mobile: Approve full width on top, the other two below; desktop: the three on one row. -->
-            <button grButton variant="primary" class="order-first w-full sm:order-last sm:w-auto" [disabled]="ocupado() || bloqueadoAprobar()" (click)="dialogo.set('aprobar')">{{ esCambio() ? 'Aprobar cambios' : 'Aprobar (ficha privada)' }}</button>
+            <button grButton variant="primary" class="order-first w-full sm:order-last sm:w-auto" [disabled]="ocupado() || bloqueadoAprobar()" (click)="dialogo.set('aprobar')">{{ esAutorizacion() ? 'Aprobar autorización' : esCambio() ? 'Aprobar cambios' : 'Aprobar (ficha privada)' }}</button>
             <button grButton class="flex-1 sm:flex-none" [disabled]="ocupado()" (click)="marcarRevision()">Marcar en revisión</button>
             <button grButton variant="danger" class="flex-1 sm:flex-none" [disabled]="ocupado()" (click)="dialogo.set('rechazar')">Rechazar…</button>
           }
@@ -501,7 +560,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
     }
 
     @if (dialogo(); as dl) {
-      <bo-solicitudes-dialogo [tipo]="dl" [nombre]="detalle() ? nombreCompleto(detalle()!) : ''" [imagenAceptada]="imagenAceptada()" [cambio]="esCambio()" [cambiaEmail]="cambiaEmail()"
+      <bo-solicitudes-dialogo [tipo]="dl" [nombre]="detalle() ? nombreCompleto(detalle()!) : ''" [imagenAceptada]="imagenAceptada()" [cambio]="esCambio()" [autorizacion]="esAutorizacion()" [cambiaEmail]="cambiaEmail()"
         [destino]="destinoAprueba().texto" [ocupado]="ocupado()" [(avisarEmail)]="avisarEmail" [(avisarWhatsApp)]="avisarWhatsApp"
         (cerrar)="dialogo.set(null)" (aprobar)="aprobar()" (rechazar)="rechazar($event)" (borrar)="borrar()" />
     }
@@ -619,10 +678,18 @@ export class SolicitudesPage {
   });
   protected readonly bloqueadoAprobar = computed(() => {
     const d = this.detalle();
-    return !!d && d.esMenor && !d.autorizacion;
+    return !!d && d.esMenor && !d.autorizacion && d.tipo !== 'autorizacion';
   });
   /** The open request is a profile change from the athlete area (wider panel, before | after). */
   protected readonly esCambio = computed(() => (this.detalle()?.tipo ?? this.tipoPendiente()) === 'cambio_perfil');
+  /** The open request is a guardian authorisation uploaded from the public link. */
+  protected readonly esAutorizacion = computed(() => (this.detalle()?.tipo ?? this.tipoPendiente()) === 'autorizacion');
+  /** A sign-up from the public form (photo, fields, match, consents, edits). */
+  protected readonly esAlta = computed(() => !this.esCambio() && !this.esAutorizacion());
+  protected readonly valorTexto = valorTexto;
+  protected esPdf(url: string): boolean {
+    return /\.pdf($|[?#])/i.test(url);
+  }
   /** The change moves the athlete's email: it is also the address they log in with. */
   protected readonly cambiaEmail = computed(() => (this.detalle()?.cambios ?? []).some((c) => c.clave === 'email'));
   /** The change moves the athlete to the other competition: her place moves with her. */
@@ -635,6 +702,7 @@ export class SolicitudesPage {
     const tipo = this.fTipo();
     if (tipo === 'alta') return 'Altas enviadas desde el formulario público · se revisan a mano antes de publicar';
     if (tipo === 'cambio_perfil') return 'Cambios de perfil enviados desde el área de atleta · se revisan a mano antes de aprobarlos';
+    if (tipo === 'autorizacion') return 'Autorizaciones firmadas por el tutor de atletas menores · se revisan a mano antes de publicar su perfil';
     return 'Altas enviadas desde el formulario público y cambios de perfil enviados desde el área de atleta · se revisan a mano antes de publicar';
   });
 
@@ -675,9 +743,10 @@ export class SolicitudesPage {
       const d = e.datos as { id?: string; nombre?: string; match?: string; tipo?: string } | undefined;
       if (e.tipo === 'athletes.solicitud_creada') {
         if (d?.id) this.nuevas.update((s) => new Set(s).add(d.id!));
-        const que = d?.tipo === 'cambio_perfil' ? 'cambio de perfil' : 'solicitud';
-        this.anuncio.set(`Nuevo ${que} de ${d?.nombre ?? 'un atleta'}`);
-        this.toasts.info(`Nuevo ${que} de ${d?.nombre ?? 'un atleta'}`, d?.tipo === 'cambio_perfil' ? 'Cambios pendientes · nada cambia hasta que los apruebes' : d?.match === 'nombre' ? 'Coincidencia sugerida · toca para revisarla' : 'Toca para revisarla');
+        const que = d?.tipo === 'cambio_perfil' ? 'cambio de perfil' : d?.tipo === 'autorizacion' ? 'autorización de tutor' : 'solicitud';
+        const txt = d?.tipo === 'autorizacion' ? `Nueva autorización de tutor de ${d?.nombre ?? 'un atleta'}` : `Nuevo ${que} de ${d?.nombre ?? 'un atleta'}`;
+        this.anuncio.set(txt);
+        this.toasts.info(txt, d?.tipo === 'cambio_perfil' ? 'Cambios pendientes · nada cambia hasta que los apruebes' : d?.tipo === 'autorizacion' ? 'Documento firmado pendiente de revisar · toca para verlo' : d?.match === 'nombre' ? 'Coincidencia sugerida · toca para revisarla' : 'Toca para revisarla');
       }
       this.refrescar();
     });
@@ -870,7 +939,7 @@ export class SolicitudesPage {
       };
       this.conflicto.set('');
       this.error.set('');
-      this.avisarWhatsApp.set((det.consentimientos ?? []).some((c) => this.casillaDe(c.casilla) === 'whatsapp' && c.aceptado));
+      this.avisarWhatsApp.set(det.tipo === 'autorizacion' ? !!det.telefono : (det.consentimientos ?? []).some((c) => this.casillaDe(c.casilla) === 'whatsapp' && c.aceptado));
       if (this.fotoUrl()) {
         URL.revokeObjectURL(this.fotoUrl()!);
         this.fotoUrl.set(null);
@@ -1059,7 +1128,9 @@ export class SolicitudesPage {
         ...destino.cuerpo, cambios, avisarEmail: this.avisarEmail(), avisarWhatsApp: this.avisarWhatsApp(),
       });
       this.dialogo.set(null);
-      if (d.tipo === 'cambio_perfil') {
+      if (d.tipo === 'autorizacion') {
+        this.toasts.success('Autorización aprobada', 'Su perfil ya se muestra en la web.');
+      } else if (d.tipo === 'cambio_perfil') {
         this.toasts.success('Cambios aplicados', this.avisarEmail() ? `Le hemos escrito a ${d.atleta?.email || d.email}.` : 'Su ficha ya tiene los datos nuevos.');
       } else {
         this.toasts.success(res.publica ? 'Aprobada y publicada' : 'Aprobada · ficha privada', d.atletaEmail ? 'Enlazada al atleta que ya tenía este email: sin avisos.' : this.avisarEmail() ? `Le hemos escrito a ${d.email}.` : '');
@@ -1077,6 +1148,7 @@ export class SolicitudesPage {
   /** Where the approval will link the request: the chosen athlete, the linked one or a new one. */
   protected destinoAprueba(): { texto: string; cuerpo: { atletaId?: string; nuevo?: boolean } } {
     const d = this.detalle();
+    if (d?.tipo === 'autorizacion') return { texto: `Se guardará la autorización en la ficha de ${nombreCompleto(d)}`, cuerpo: {} };
     // A change request does not create or link anything: it writes the snapshot on the athlete it belongs to.
     if (d?.tipo === 'cambio_perfil') {
       const quien = d.atleta ? `${d.atleta.nombre}${d.atleta.licencia ? ' · ' + d.atleta.licencia : ''}` : nombreCompleto(d);
@@ -1104,7 +1176,7 @@ export class SolicitudesPage {
   /** Only the fields the reviewer actually changed. */
   private cambiosCorregidos(d: SolicitudDetalle): Record<string, string | number | null> {
     const out: Record<string, string | number | null> = {};
-    if (d.tipo === 'cambio_perfil') return out; // the request carries its own snapshot: the reviewer approves or rejects
+    if (d.tipo === 'cambio_perfil' || d.tipo === 'autorizacion') return out; // the request carries its own snapshot: the reviewer approves or rejects
     const pares: [string, string | number | null, string | number | null][] = [
       ['frase', this.cambios.frase, d.frase], ['bio', this.cambios.bio, d.bio], ['instagram', this.cambios.instagram, d.instagram],
       ['club', this.cambios.club, d.club], ['ciudad', this.cambios.ciudad, d.ciudad], ['entrenador', this.cambios.entrenador, d.entrenador],

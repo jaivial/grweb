@@ -62,6 +62,7 @@ var routeTable = func() []route {
 		{p + `(atletas|participantes|seguimientos)(/|$)`, "athletes"},
 		// El alta de atleta es de athletes (si no, cae en la regla genérica de competition).
 		{p + `alta-atleta(/|$)`, "athletes"},
+		{p + `autorizacion(/|$)`, "athletes"},
 		{`^/api/area-atleta(/|$)`, "athletes"},
 		{c + `(horarios|flights)(/|$)`, "schedule"},
 		{p + `horarios(/|$|\.ics$)`, "schedule"},

@@ -246,8 +246,12 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 	// Footer links per template (Figma 78): only links the recipient can use.
 	enlaces := link(web+"/atletas", "Atletas") + " · " + link(web+"/area-atleta", "Área de atleta")
 	switch clave {
-	case "atleta-solicitud-nueva", "atleta-cambio-perfil-nueva":
-		enlaces = link(btnURL, "Panel de solicitudes") + " · " + link(strings.TrimSuffix(btnURL, "/atletas/solicitudes")+"/sistema", "Sistema")
+	case "atleta-solicitud-nueva", "atleta-cambio-perfil-nueva", "atleta-autorizacion-nueva":
+		// urlRevisar is the deep link of the request («…/atletas/solicitudes/<id>»): the panel and «Sistema» hang from it.
+		bo, _, _ := strings.Cut(btnURL, "/atletas/solicitudes")
+		enlaces = link(bo+"/atletas/solicitudes", "Panel de solicitudes") + " · " + link(bo+"/sistema", "Sistema")
+	case "atleta-autorizacion-pedida", "atleta-autorizacion-rechazada":
+		enlaces = link(btnURL, "Subir la autorización") + " · " + link(web+"/atletas", "Atletas")
 	case "atleta-solicitud-aprobada":
 		ficha := full["urlFicha"]
 		if !strings.HasPrefix(ficha, "http") {

@@ -28,14 +28,16 @@ type Avisos struct {
 	Telefonos      []AvisoTelefono `json:"telefonos" doc:"Teléfonos de los organizadores (máx. 10)"`
 	AlAtleta       bool            `json:"alAtleta" doc:"Enviar al atleta el WhatsApp de «solicitud recibida»"`
 	AOrganizadores bool            `json:"aOrganizadores" doc:"Enviar a los teléfonos de esta lista el WhatsApp de «nueva solicitud»"`
+	GrupoID        string          `json:"grupoId" required:"false" maxLength:"80" doc:"Grupo de WhatsApp de los organizadores (JID …@g.us); vacío = sin grupo"`
+	GrupoNombre    string          `json:"grupoNombre" required:"false" maxLength:"120" doc:"Nombre del grupo (para el backoffice)"`
 }
 
 // avisosDe reads the configuration of the competition (by default: the notices go out, the list is empty).
 func (s *Svc) avisosDe(ctx context.Context, cid uuid.UUID) Avisos {
 	a := Avisos{Telefonos: []AvisoTelefono{}, AlAtleta: true, AOrganizadores: true}
 	var tels []AvisoTelefono
-	err := s.a.DB.QueryRow(ctx, `SELECT telefonos, al_atleta, a_organizadores FROM whatsapp_avisos WHERE competition_id = $1`, cid).
-		Scan(&tels, &a.AlAtleta, &a.AOrganizadores)
+	err := s.a.DB.QueryRow(ctx, `SELECT telefonos, al_atleta, a_organizadores, grupo_id, grupo_nombre FROM whatsapp_avisos WHERE competition_id = $1`, cid).
+		Scan(&tels, &a.AlAtleta, &a.AOrganizadores, &a.GrupoID, &a.GrupoNombre)
 	if err != nil {
 		return a
 	}
@@ -47,10 +49,11 @@ func (s *Svc) avisosDe(ctx context.Context, cid uuid.UUID) Avisos {
 
 // guardarAvisos stores the configuration.
 func (s *Svc) guardarAvisos(ctx context.Context, cid uuid.UUID, a Avisos) error {
-	_, err := s.a.DB.Exec(ctx, `INSERT INTO whatsapp_avisos (competition_id, telefonos, al_atleta, a_organizadores, updated_at)
-		VALUES ($1,$2,$3,$4, now())
+	_, err := s.a.DB.Exec(ctx, `INSERT INTO whatsapp_avisos (competition_id, telefonos, al_atleta, a_organizadores, grupo_id, grupo_nombre, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6, now())
 		ON CONFLICT (competition_id) DO UPDATE SET telefonos = EXCLUDED.telefonos, al_atleta = EXCLUDED.al_atleta,
-		a_organizadores = EXCLUDED.a_organizadores, updated_at = now()`, cid, a.Telefonos, a.AlAtleta, a.AOrganizadores)
+		a_organizadores = EXCLUDED.a_organizadores, grupo_id = EXCLUDED.grupo_id, grupo_nombre = EXCLUDED.grupo_nombre, updated_at = now()`,
+		cid, a.Telefonos, a.AlAtleta, a.AOrganizadores, a.GrupoID, a.GrupoNombre)
 	return err
 }
 
@@ -74,7 +77,49 @@ func validarAvisos(a Avisos) (Avisos, error) {
 		out = append(out, t)
 	}
 	a.Telefonos = out
+	// The group is a WhatsApp JID («…@g.us»), never a phone: it is stored as is (normTel would break it).
+	a.GrupoID, a.GrupoNombre = strings.TrimSpace(a.GrupoID), strings.TrimSpace(a.GrupoNombre)
+	if a.GrupoID == "" {
+		a.GrupoNombre = ""
+	} else if !strings.HasSuffix(a.GrupoID, "@g.us") {
+		return a, problem.Unprocessable("GRUPO_INVALIDO", "Elige el grupo de WhatsApp de la lista.")
+	}
 	return a, nil
+}
+
+// GrupoWA is a WhatsApp group of the linked number.
+type GrupoWA struct {
+	ID       string `json:"id"`
+	Nombre   string `json:"nombre"`
+	Miembros int    `json:"miembros"`
+}
+
+// gruposWA lists the groups of the linked number (evo-weai); a fake one in the simulated mode.
+func (s *Svc) gruposWA(ctx context.Context, cid uuid.UUID) ([]GrupoWA, error) {
+	c := s.waDe(ctx, cid)
+	switch c.Modo {
+	case "simulado":
+		return []GrupoWA{{ID: "120363000000000000@g.us", Nombre: "FER CUP | Web.", Miembros: 5}}, nil
+	case "evo-weai":
+	default:
+		return nil, problem.Unprocessable("WHATSAPP_NO_CONFIGURADO", "Conecta primero el número de WhatsApp en «Sistema › WhatsApp».")
+	}
+	var raw []struct {
+		ID      string `json:"id"`
+		Subject string `json:"subject"`
+		Size    int    `json:"size"`
+	}
+	if err := s.evo(ctx, c, http.MethodGet, "/group/fetchAllGroups/"+c.Instancia+"?getParticipants=false", nil, &raw); err != nil {
+		s.waLog(ctx, cid, "listar los grupos de WhatsApp", err)
+		return nil, problem.New(http.StatusBadGateway, "WHATSAPP_NO_DISPONIBLE", "No hemos podido leer los grupos de WhatsApp. Inténtalo en unos minutos.")
+	}
+	out := make([]GrupoWA, 0, len(raw))
+	for _, g := range raw {
+		if strings.HasSuffix(g.ID, "@g.us") {
+			out = append(out, GrupoWA{ID: g.ID, Nombre: g.Subject, Miembros: g.Size})
+		}
+	}
+	return out, nil
 }
 
 // normTel normalises a phone to E.164 (Spanish numbers without prefix get +34): the same rule as crm's normTel.
@@ -134,6 +179,17 @@ func (s *Svc) registerAvisos() {
 				return nil, err
 			}
 			return &struct{ Body Avisos }{a}, nil
+		})
+	huma.Register(api, huma.Operation{OperationID: "whatsapp-grupos", Method: http.MethodGet, Path: base + "/grupos", Summary: "Grupos de WhatsApp del número conectado", Tags: tagCamp, Security: bearer},
+		func(ctx context.Context, in *cidIn) (*struct{ Body []GrupoWA }, error) {
+			if _, err := requireIntegraciones(ctx, in.CID); err != nil {
+				return nil, err
+			}
+			g, err := s.gruposWA(ctx, in.CID)
+			if err != nil {
+				return nil, err
+			}
+			return &struct{ Body []GrupoWA }{g}, nil
 		})
 	type pruebaOut struct {
 		Body struct {

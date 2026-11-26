@@ -86,6 +86,7 @@ const paginas: Routes = [
   { path: '_componentes', loadComponent: () => import('./pages/componentes').then((m) => m.ComponentesPage) },
   // Internal overlay / global state sheet for visual QA (Figma 17); noindex and not in the sitemap.
   { path: '_overlays', loadComponent: () => import('./pages/overlays').then((m) => m.OverlaysPage) },
+  { path: 'autorizacion/:token', loadComponent: () => import('./pages/autorizacion').then((m) => m.AutorizacionPage) },
 ];
 // CMS content pages (reglamento, categorias-de-peso, marcas-minimas…); unknown slugs answer 404.
 const cola: Routes = [

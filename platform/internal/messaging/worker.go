@@ -183,6 +183,7 @@ func (s *Svc) procesar(ctx context.Context, p pendiente) {
 	} else if b := p.vars["baja"]; strings.HasPrefix(b, "https://") {
 		cab["List-Unsubscribe"] = "<" + b + ">"
 	}
+	r.Adjunto = s.adjuntoDe(ctx, p.cid, p.vars)
 	id, err := enviarSMTP(ctx, cfg, p.destino, r, cab)
 	if err == nil {
 		s.estadoSMTP(ctx, p.cid, cfg, true, "")

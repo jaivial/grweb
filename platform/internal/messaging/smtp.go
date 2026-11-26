@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -198,11 +199,38 @@ func mime_(c smtpCfg, to, id string, r Render, cab map[string]string) []byte {
 	for k, v := range cab {
 		h(k, v)
 	}
+	// With an attachment the alternative body goes inside a multipart/mixed envelope.
+	if a := r.Adjunto; a != nil {
+		mixto := "grm-" + id[1:13]
+		h("Content-Type", `multipart/mixed; boundary="`+mixto+`"`)
+		b.WriteString("\r\n--" + mixto + "\r\n")
+		b.WriteString(`Content-Type: multipart/alternative; boundary="` + bound + `"` + "\r\n")
+		alternativa(&b, bound, r)
+		b.WriteString("\r\n--" + mixto + "\r\n")
+		nombre := mime.QEncoding.Encode("utf-8", a.Nombre)
+		b.WriteString("Content-Type: " + a.Tipo + `; name="` + nombre + `"` + "\r\n")
+		b.WriteString(`Content-Disposition: attachment; filename="` + nombre + `"` + "\r\n")
+		b.WriteString("Content-Transfer-Encoding: base64\r\n\r\n")
+		enc := base64.StdEncoding.EncodeToString(a.Datos)
+		for len(enc) > 76 {
+			b.WriteString(enc[:76] + "\r\n")
+			enc = enc[76:]
+		}
+		b.WriteString(enc + "\r\n")
+		b.WriteString("--" + mixto + "--\r\n")
+		return b.Bytes()
+	}
 	h("Content-Type", `multipart/alternative; boundary="`+bound+`"`)
+	alternativa(&b, bound, r)
+	return b.Bytes()
+}
+
+// alternativa writes the plain text and HTML parts (quoted-printable) and the closing boundary.
+func alternativa(b *bytes.Buffer, bound string, r Render) {
 	b.WriteString("\r\n")
 	part := func(ct, body string) {
 		b.WriteString("--" + bound + "\r\nContent-Type: " + ct + "; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n")
-		q := quotedprintable.NewWriter(&b)
+		q := quotedprintable.NewWriter(b)
 		_, _ = q.Write([]byte(body))
 		_ = q.Close()
 		b.WriteString("\r\n")
@@ -210,5 +238,4 @@ func mime_(c smtpCfg, to, id string, r Render, cab map[string]string) []byte {
 	part("text/plain", r.Texto)
 	part("text/html", r.HTML)
 	b.WriteString("--" + bound + "--\r\n")
-	return b.Bytes()
 }

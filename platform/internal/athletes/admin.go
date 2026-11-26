@@ -924,6 +924,8 @@ type HistorialItem struct {
 type Ficha struct {
 	Atleta
 	Area AreaEstado `json:"area"`
+	// Autorizacion is the state of the guardian's authorisation (minors): sin_pedir · enviada · revision · rechazada · aprobada.
+	Autorizacion AutorizacionEstado `json:"autorizacion"`
 }
 
 // AreaEstado summarises the athlete's use of their area (Figma «Área del atleta»).
@@ -943,6 +945,7 @@ func (s *Svc) ficha(ctx context.Context, cid, id uuid.UUID) (Ficha, error) {
 	var used *time.Time
 	_ = s.a.DB.QueryRow(ctx, `SELECT created_at, used_at FROM area_tokens WHERE atleta_id = $1 ORDER BY created_at DESC LIMIT 1`, id).Scan(&f.Area.EnlaceEnvio, &used)
 	f.Area.EnlaceUsado = used != nil
+	f.Autorizacion = s.estadoAutorizacion(ctx, r)
 	return f, nil
 }
 

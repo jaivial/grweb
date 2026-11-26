@@ -30,6 +30,8 @@ type Render struct {
 	Asunto string `json:"asunto"`
 	HTML   string `json:"html"`
 	Texto  string `json:"texto"`
+	// Adjunto is a file attached to the email (multipart/mixed); never part of the preview.
+	Adjunto *Adjunto `json:"-"`
 }
 
 func variablesDe(c Contenido) []string {

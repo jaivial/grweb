@@ -24,6 +24,14 @@ export interface AvisosWa {
   telefonos: TelefonoAviso[];
   alAtleta: boolean;
   aOrganizadores: boolean;
+  /** WhatsApp group that also gets the organisers' notices ("" = none). */
+  grupoId?: string;
+  grupoNombre?: string;
+}
+export interface GrupoWa {
+  id: string;
+  nombre: string;
+  miembros: number;
 }
 export interface PruebaWa {
   enviados: number;
@@ -68,5 +76,8 @@ export class WhatsAppApi {
   }
   prueba(cid: string): Promise<PruebaWa> {
     return firstValueFrom(this.http.post<PruebaWa>(`${this.base(cid)}/avisos/prueba`, {}));
+  }
+  grupos(cid: string): Promise<GrupoWa[]> {
+    return firstValueFrom(this.http.get<GrupoWa[]>(`${this.base(cid)}/grupos`));
   }
 }

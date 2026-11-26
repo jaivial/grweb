@@ -39,7 +39,7 @@ var tiposAutorizacion = map[string]string{"image/jpeg": ".jpg", "image/png": ".p
 // ItemSolicitud is one row of the list of requests.
 type ItemSolicitud struct {
 	ID            uuid.UUID  `json:"id"`
-	Tipo          string     `json:"tipo" enum:"alta,cambio_perfil" doc:"alta = formulario público; cambio_perfil = cambios pedidos desde el área de atleta"`
+	Tipo          string     `json:"tipo" enum:"alta,cambio_perfil,autorizacion" doc:"alta = formulario público; cambio_perfil = cambios pedidos desde el área de atleta; autorizacion = autorización del tutor de un menor"`
 	Nombre        string     `json:"nombre"`
 	Apellidos     string     `json:"apellidos"`
 	Email         string     `json:"email"`
@@ -161,6 +161,8 @@ type DetalleSolicitud struct {
 	Consentimientos []ConsentimientoItem `json:"consentimientos"`
 	CuentaPublico   bool                 `json:"cuentaPublico" doc:"El email ya tiene una cuenta de público del directo: al aprobar pasa a ser de atleta"`
 	AtletaEmail     string               `json:"atletaEmail,omitempty" doc:"Nombre del atleta que ya tiene este email: al aprobar se enlaza a él, sin duplicado ni avisos"`
+	// AutorizacionURL is the file uploaded by the guardian («autorizacion» requests: an image or a PDF).
+	AutorizacionURL string `json:"autorizacionUrl,omitempty" doc:"Autorización firmada subida por el tutor (tipo autorizacion)"`
 }
 
 // Candidato is an athlete the reviewer can link the request to.
@@ -191,7 +193,7 @@ type AprobarOut struct {
 type FiltrosLista struct {
 	CID    uuid.UUID `path:"cid"`
 	Estado string    `query:"estado" enum:"pendiente,revision,menor,aprobada,rechazada,todas" default:"todas"`
-	Tipo   string    `query:"tipo" enum:"todas,alta,cambio_perfil" default:"todas"`
+	Tipo   string    `query:"tipo" enum:"todas,alta,cambio_perfil,autorizacion" default:"todas"`
 	Match  string    `query:"match" enum:"licencia,email,nombre,manual,ninguna" default:""`
 	Menor  string    `query:"menor" enum:"si,no" default:""`
 	Q      string    `query:"q" maxLength:"80"`
@@ -339,6 +341,8 @@ func (s *Svc) registerAltaAtletaAdmin() {
 			// A «cambio_perfil» request does not create anything: it applies its before/after snapshot to the athlete.
 			if pre, err := getSolicitud(ctx, s.a.DB, in.CID, in.ID); err == nil && pre.Tipo == "cambio_perfil" {
 				return s.apruebaCambioPerfil(ctx, in.CID, in.ID, in.IfMatch, in.Body.AvisarEmail, in.Body.AvisarWhatsApp, pr.Name)
+			} else if err == nil && pre.Tipo == "autorizacion" {
+				return s.apruebaAutorizacion(ctx, in.CID, in.ID, in.IfMatch, in.Body.AvisarEmail, in.Body.AvisarWhatsApp, pr.Name)
 			}
 			return s.apruebaSolicitud(ctx, in.CID, in.ID, in.IfMatch, in.Body.AtletaID, in.Body.Nuevo, cambios,
 				in.Body.AvisarEmail, in.Body.AvisarWhatsApp, pr.Name)
@@ -349,7 +353,7 @@ func (s *Svc) registerAltaAtletaAdmin() {
 		ID      uuid.UUID `path:"id"`
 		IfMatch string    `header:"If-Match"`
 		Body    struct {
-			Motivo         string `json:"motivo" maxLength:"400" doc:"Obligatorio en un alta; en un cambio de perfil es opcional"`
+			Motivo         string `json:"motivo" maxLength:"400" doc:"Obligatorio en un alta y en una autorización; en un cambio de perfil es opcional"`
 			AvisarEmail    bool   `json:"avisarEmail,omitempty"`
 			AvisarWhatsApp bool   `json:"avisarWhatsApp,omitempty"`
 		}
@@ -486,6 +490,8 @@ func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, tipo, match string, menor 
 		where = append(where, "tipo = 'alta'")
 	case "cambio_perfil":
 		where = append(where, "tipo = 'cambio_perfil'")
+	case "autorizacion":
+		where = append(where, "tipo = 'autorizacion'")
 	}
 	switch estado {
 	case "pendiente":
@@ -533,7 +539,7 @@ func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, tipo, match string, menor 
 func (s *Svc) itemSolicitud(cid uuid.UUID, sol solicitud) ItemSolicitud {
 	it := ItemSolicitud{
 		ID: sol.ID, Tipo: sol.Tipo, Nombre: sol.Nombre, Apellidos: sol.Apellidos, Email: sol.Email, Club: sol.Club,
-		Edad: sol.edad(), EsMenor: sol.EsMenor, Autorizacion: sol.AutorizacionClave != "", Match: sol.MatchTipo,
+		Edad: sol.edad(), EsMenor: sol.EsMenor, Autorizacion: sol.AutorizacionClave != "" || sol.Tipo == "autorizacion", Match: sol.MatchTipo,
 		AtletaID: sol.MatchAtletaID, Estado: sol.Estado, CreatedAt: sol.CreatedAt, Version: sol.Version,
 	}
 	if it.Tipo == "" {
@@ -564,10 +570,13 @@ func (s *Svc) detalleSolicitud(ctx context.Context, cid, id uuid.UUID) (DetalleS
 	if sol.FechaNacimiento != nil {
 		d.FechaNacimiento = sol.FechaNacimiento.Format("2006-01-02")
 	}
+	if sol.Tipo == "autorizacion" {
+		d.AutorizacionURL = urlAutorizacion(sol)
+	}
 	// The consents, in the order of the form. A «cambio_perfil» request carries no boxes of its own (the athlete
 	// signed them in their alta): the panel shows the changes, not the proofs.
 	cons := sol.consentMap()
-	if sol.Tipo != "cambio_perfil" {
+	if sol.Tipo == "alta" {
 		for _, c := range casillasAlta {
 			p := cons[c]
 			d.Consentimientos = append(d.Consentimientos, ConsentimientoItem{Casilla: c, Aceptado: p.Aceptado, Version: p.Version, Hash: p.Hash, At: p.At, IP: p.IP})
@@ -575,7 +584,7 @@ func (s *Svc) detalleSolicitud(ctx context.Context, cid, id uuid.UUID) (DetalleS
 	}
 	// A change request is about an athlete that already has their access: the «email already an athlete» and the
 	// «público account» notices are only for altas.
-	if sol.Estado != "aprobada" && sol.Estado != "rechazada" && sol.Tipo != "cambio_perfil" {
+	if sol.Estado != "aprobada" && sol.Estado != "rechazada" && sol.Tipo == "alta" {
 		var n string
 		if err := s.a.DB.QueryRow(ctx, `SELECT trim(nombre || ' ' || apellidos) FROM atletas WHERE competition_id = $1 AND email = $2 AND estado <> 'baja' ORDER BY estado = 'confirmado' DESC, created_at LIMIT 1`,
 			cid, normEmail(sol.Email)).Scan(&n); err == nil {
@@ -592,7 +601,7 @@ func (s *Svc) detalleSolicitud(ctx context.Context, cid, id uuid.UUID) (DetalleS
 			actual := s.enlaceDe(a)
 			d.Atleta = &actual
 			// A change request already carries its own before/after snapshot: the 17-field comparison is for altas.
-			if sol.Tipo != "cambio_perfil" {
+			if sol.Tipo == "alta" {
 				d.Diferencias = diferencias(actual, sol)
 			}
 		}
@@ -753,8 +762,8 @@ func (s *Svc) enlazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm string
 		}
 		// A change request is already linked to its athlete: linking it elsewhere would apply the changes to
 		// somebody else.
-		if sol.Tipo == "cambio_perfil" {
-			return problem.Conflict("CAMBIO_YA_ENLAZADO", "Un cambio de perfil ya está enlazado a su atleta: no se puede enlazar a otro.")
+		if sol.Tipo == "cambio_perfil" || sol.Tipo == "autorizacion" {
+			return problem.Conflict("CAMBIO_YA_ENLAZADO", "Esta solicitud ya está enlazada a su atleta: no se puede enlazar a otro.")
 		}
 		var destino *uuid.UUID
 		tipo := ""
@@ -1157,6 +1166,11 @@ func (s *Svc) storage(ctx context.Context, cid uuid.UUID) (storage.Storage, erro
 // borraFotoPublicada removes a published photo of this flow (the previous one of the athlete). The
 // photos of other sources (the media library of the cms) are never touched.
 func (s *Svc) borraFotoPublicada(ctx context.Context, cid uuid.UUID, url string) {
+	s.borraDelCDN(ctx, cid, url, "atletas/", "atletas-")
+}
+
+// borraDelCDN removes a file of the storage of the competition, only when its key starts with one of prefijos.
+func (s *Svc) borraDelCDN(ctx context.Context, cid uuid.UUID, url string, prefijos ...string) {
 	st, err := s.storage(ctx, cid)
 	if err != nil {
 		return
@@ -1172,15 +1186,18 @@ func (s *Svc) borraFotoPublicada(ctx context.Context, cid uuid.UUID, url string)
 	if !ok {
 		return
 	}
-	// Only the keys of this flow («atletas/…»).
-	if !strings.HasPrefix(key, "atletas/") && !strings.HasPrefix(key, "atletas-") {
+	propio := false
+	for _, p := range prefijos {
+		propio = propio || strings.HasPrefix(key, p)
+	}
+	if !propio {
 		return
 	}
 	if err := st.Delete(ctx, key); err != nil {
-		s.a.Log.Warn("no se ha podido borrar la foto anterior", "err", err, "key", key)
+		s.a.Log.Warn("no se ha podido borrar el archivo del CDN", "err", err, "key", key)
 		return
 	}
-	s.a.Log.Info("foto anterior del atleta borrada", "key", key)
+	s.a.Log.Info("archivo borrado del CDN", "key", key)
 }
 
 // ---- reject ----
@@ -1188,7 +1205,7 @@ func (s *Svc) borraFotoPublicada(ctx context.Context, cid uuid.UUID, url string)
 // rechazaSolicitud closes a request with a reason and deletes its private photo.
 func (s *Svc) rechazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm, motivo string, avisarEmail, avisarWhatsApp bool, por string) error {
 	motivo = strings.TrimSpace(motivo)
-	var fotoClave string
+	var fotoClave, archivoRechazado string
 	err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 		sol, err := s.lockSolicitud(ctx, tx, cid, id, ifm)
 		if err != nil {
@@ -1231,22 +1248,45 @@ func (s *Svc) rechazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm, moti
 		// ones the athlete has today (the new ones are not verified until they are approved).
 		para, tel := sol.Email, sol.Telefono
 		plantilla, urlAviso := "atleta-solicitud-rechazada", s.webURL+"/alta-atleta"
-		if sol.Tipo == "cambio_perfil" {
+		vars := map[string]string{"nombre": sol.Nombre, "motivo": motivo}
+		// The guardian's authorisation: the same link to upload it again (a new one if it was revoked or expired). The
+		// WhatsApp goes like the request of the authorisation did (that request carries no boxes of its own).
+		waConsentido := cons["whatsapp"].Aceptado
+		switch sol.Tipo {
+		case "cambio_perfil":
 			para, tel = contactoActual(ctx, tx, sol)
 			plantilla, urlAviso = "atleta-cambio-perfil-rechazado", s.webURL+"/area-atleta"
-		}
-		vars := map[string]string{"nombre": sol.Nombre, "motivo": motivo}
-		if sol.Tipo == "cambio_perfil" {
 			vars["urlArea"] = urlAviso
-		} else {
+			// A photo that was only pending review is discarded (never the approved one).
+			if u := fotoCambio(leeCambios(sol)); u != "" && sol.MatchAtletaID != nil {
+				var actual string
+				if err := tx.QueryRow(ctx, `SELECT foto_url FROM perfiles WHERE atleta_id = $1`, *sol.MatchAtletaID).Scan(&actual); err == nil && actual != u {
+					archivoRechazado = u
+				}
+			}
+		case "autorizacion":
+			para, tel = contactoActual(ctx, tx, sol)
+			plantilla, waConsentido = "atleta-autorizacion-rechazada", true
+			if sol.MatchAtletaID != nil {
+				enlace, err := s.enlaceVigente(ctx, tx, cid, *sol.MatchAtletaID)
+				if err != nil {
+					return err
+				}
+				vars["enlace"] = enlace
+				if err := hist(ctx, tx, *sol.MatchAtletaID, "Autorización del tutor rechazada", "Motivo: "+motivo); err != nil {
+					return err
+				}
+			}
+			archivoRechazado = urlAutorizacion(sol)
+		default:
 			vars["urlAlta"] = urlAviso
 		}
-		if avisarEmail {
+		if avisarEmail && para != "" {
 			if err := email(ctx, tx, cid, para, plantilla, vars); err != nil {
 				return err
 			}
 		}
-		if avisarWhatsApp && tel != "" && cons["whatsapp"].Aceptado {
+		if avisarWhatsApp && tel != "" && waConsentido {
 			if err := whatsapp(ctx, tx, cid, tel, false, plantilla, vars, ""); err != nil {
 				return err
 			}
@@ -1256,8 +1296,12 @@ func (s *Svc) rechazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm, moti
 	if err != nil {
 		return err
 	}
-	// The private photo of a rejected request is not kept.
+	// The private photo of a rejected request is not kept (nor the rejected file of the guardian, nor a photo that was
+	// only pending review).
 	s.borraFotoPrivada(fotoClave)
+	if archivoRechazado != "" {
+		s.borraDelCDN(ctx, cid, archivoRechazado, "autorizaciones/", "autorizaciones-", "atletas/", "atletas-")
+	}
 	s.a.Log.Info("solicitud de atleta rechazada", "id", id.String(), "revisor", por)
 	return nil
 }

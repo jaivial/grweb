@@ -81,27 +81,27 @@ func sinAtletas(h Horarios) Horarios {
 	return h
 }
 
-// publicos returns the ids of the athletes whose profile is public right now (cached 60 s). ok is false when the
-// athletes service is down: the published names are then served as they were frozen.
-func (s *Svc) publicos(ctx context.Context, cid uuid.UUID) (map[uuid.UUID]bool, bool) {
-	key := "publicos:" + cid.String()
-	var ids []uuid.UUID
-	if !s.cache.Get(ctx, key, &ids) {
-		ats, err := s.confirmados(ctx, cid)
+// publicos returns the athletes whose profile is public right now (cached 60 s). ok is false when the athletes
+// service is down: the published names are then served as they were frozen.
+func (s *Svc) publicos(ctx context.Context, cid uuid.UUID) (map[uuid.UUID]atleta, bool) {
+	key := "publicos-v2:" + cid.String()
+	var ats []atleta
+	if !s.cache.Get(ctx, key, &ats) {
+		todos, err := s.confirmados(ctx, cid)
 		if err != nil {
 			return nil, false
 		}
-		ids = []uuid.UUID{}
-		for _, a := range ats {
+		ats = []atleta{}
+		for _, a := range todos {
 			if a.Publico {
-				ids = append(ids, a.ID)
+				ats = append(ats, a)
 			}
 		}
-		s.cache.Set(ctx, key, ids, time.Minute)
+		s.cache.Set(ctx, key, ats, time.Minute)
 	}
-	m := make(map[uuid.UUID]bool, len(ids))
-	for _, id := range ids {
-		m[id] = true
+	m := make(map[uuid.UUID]atleta, len(ats))
+	for _, a := range ats {
+		m[a.ID] = a
 	}
 	return m, true
 }
@@ -131,8 +131,18 @@ func (s *Svc) horarios(ctx context.Context, c compref.Comp) (Horarios, error) {
 				pf := PubSesion{ID: f.ID, Prueba: f.Prueba, EP: nombrePrueba(f.Prueba), Titulo: f.Titulo, Sexo: f.Sexo, Inicio: f.Inicio, Fin: f.Fin,
 					PesajeInicio: f.PesajeInicio, PesajeFin: f.PesajeFin, Total: len(f.Atletas), Atletas: []PubAtleta{}}
 				for _, a := range f.Atletas {
-					// A profile hidden after publishing (consent withdrawn, erased…) disappears at once.
-					if !a.Publico || (fresh && !pub[a.ID]) {
+					// The current visibility wins over the frozen one: a profile hidden after publishing (consent withdrawn,
+					// erased…) disappears at once, and one that became public later (a minor whose guardian's
+					// authorisation was approved) appears with its current name, club and slug.
+					if fresh {
+						p, ok := pub[a.ID]
+						if !ok {
+							continue
+						}
+						if !a.Publico {
+							a.Slug, a.Nombre, a.Club, a.DivisionNombre = p.Slug, p.Nombre, p.Club, p.DivisionNombre
+						}
+					} else if !a.Publico {
 						continue
 					}
 					pf.Atletas = append(pf.Atletas, PubAtleta{Slug: a.Slug, Nombre: a.Nombre, Club: a.Club, DivisionNombre: a.DivisionNombre, Sexo: a.Sexo, Categoria: a.Categoria, Lote: a.Lote})
