@@ -277,9 +277,7 @@ const PUBLIC_WEB = webPublica();
                     </li>
                   }
                 </ul>
-                @if (s.total > s.items.length) {
-                  <p class="border-t border-line-subtle px-5 py-3 text-body-xs text-text-tertiary">{{ s.items.length }} de {{ s.total }} mensajes. <a [routerLink]="['/', comps.current()?.slug, 'emails', 'salida']" class="underline hover:text-text-primary">Ver la bandeja de salida</a></p>
-                }
+                <p class="border-t border-line-subtle px-5 py-3 text-body-xs text-text-tertiary">@if (s.total > s.items.length) { {{ s.items.length }} de {{ s.total }} mensajes. }<a [routerLink]="['/', comps.current()?.slug, 'emails', 'salida']" class="underline hover:text-text-primary">Ver la bandeja de salida</a></p>
               </section>
             } @else {
               <gr-empty icon="mail" title="Aún no hay comunicaciones con este atleta" text="Los emails de su área, los avisos y las campañas que reciba aparecerán aquí." />

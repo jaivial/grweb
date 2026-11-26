@@ -416,7 +416,7 @@ func (s *Svc) registerAdmin() {
 		Estado   string    `query:"estado" enum:",en_cola,enviado,reintentando,rebotado,fallido,omitido,cancelado,problemas"`
 		Canal    string    `query:"canal" enum:",email,whatsapp"`
 		Q        string    `query:"q" maxLength:"100"`
-		Destinos []string  `query:"destino" maxItems:"10" doc:"Solo los mensajes enviados a estas direcciones (email o teléfono)"`
+		Destinos []string  `query:"destino,explode" maxItems:"10" doc:"Solo los mensajes enviados a estas direcciones (email o teléfono)"`
 		Pagina   int       `query:"pagina" minimum:"1" default:"1"`
 	}
 	type salidaOut struct {
