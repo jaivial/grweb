@@ -115,7 +115,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
     </div>
 
     <bo-sheet title="Filtrar solicitudes" [(open)]="filtros" [filtered]="nFiltros() > 0" (reset)="limpiar()"
-      [resultLabel]="'Ver ' + visibles().length + ' solicitudes'">
+      [resultLabel]="'Ver ' + visibles().length + (visibles().length === 1 ? ' solicitud' : ' solicitudes')">
       <div class="flex flex-col gap-2">
         <span class="text-label-s text-text-primary" id="sol-estado">Estado</span>
         <div class="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="sol-estado">
@@ -180,7 +180,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
       <div class="flex-1 overflow-y-auto px-4 pb-6 sm:px-6">
       @if (detalle(); as d) {
         <div class="flex flex-col gap-5">
-          <p class="hidden text-body-s text-text-tertiary sm:block">Solicitud recibida {{ hace(d.createdAt) }} desde el formulario de alta</p>
+          <p class="hidden text-body-s text-text-tertiary sm:block">Solicitud @if (esCambio()) { de cambio de perfil enviada {{ hace(d.createdAt) }} desde el área de atleta } @else { recibida {{ hace(d.createdAt) }} desde el formulario de alta }</p>
           <p class="truncate text-body-s text-text-tertiary sm:hidden">{{ d.email }}</p>
 
           <div class="-mt-2 flex flex-wrap gap-1">
@@ -201,10 +201,13 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
               <gr-alert tone="danger" title="Cambios rechazados">Motivo: {{ d.motivoRechazo || 'sin motivo' }} · su ficha sigue como estaba.</gr-alert>
             }
             @if (d.atleta) {
-              <p class="text-body-s text-text-secondary">Atleta: <strong class="text-text-primary">{{ d.atleta.nombre }}</strong>@if (d.atleta.licencia) { · {{ d.atleta.licencia }} }@if (d.atleta.club) { · {{ d.atleta.club }} }. Solo se aplican los campos que aparecen abajo: el resto de su ficha no se toca.</p>
+              <p class="text-body-s text-text-secondary">Atleta: <strong class="text-text-primary">{{ d.atleta.nombre }}</strong>{{ extrasAtleta(d) }}. Solo se aplican los campos que aparecen abajo: el resto de su ficha no se toca.</p>
             }
             @if (cambiaEmail() && d.estado !== 'aprobada' && d.estado !== 'rechazada') {
               <gr-alert tone="warning" title="Cambia el email de acceso">Al aprobar, {{ d.atleta?.nombre || 'el atleta' }} entrará al área de atleta y recibirá los avisos con el email nuevo. Revisa que esté bien escrito: este cambio también se envía al email actual, así que un error deja su cuenta sin acceso a los avisos. Si no lo tienes claro, recházalo con el motivo.</gr-alert>
+            }
+            @if (cambiaPrueba() && d.estado !== 'aprobada' && d.estado !== 'rechazada') {
+              <gr-alert tone="warning" title="Cambia de competición">Al aprobar, su plaza pasa a la competición nueva. Si esa competición ya no tiene plazas, la aprobación no se aplica: rechaza el cambio o cámbiasela desde su ficha.</gr-alert>
             }
             <section>
               <h3 class="text-label-xs text-text-muted uppercase">Cambios solicitados · {{ d.cambios.length }} {{ d.cambios.length === 1 ? 'campo' : 'campos' }}</h3>
@@ -215,10 +218,10 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
                 <div class="mt-3 flex gap-2 sm:hidden" role="tablist" aria-label="Comparación de los cambios">
                   <button type="button" role="tab" id="cmp-tab-antes" aria-controls="cmp-panel" [attr.aria-selected]="lado() === 'antes'" (click)="lado.set('antes')"
                     class="flex h-11 flex-1 items-center justify-center rounded-sm border text-label-s"
-                    [class]="lado() === 'antes' ? 'border-accent-text bg-accent-deep/20 text-accent-text' : 'border-line-strong text-text-secondary'">Antes</button>
+                    [class]="lado() === 'antes' ? 'border-accent-text bg-accent-deep/20 font-semibold text-accent-text' : 'border-line-strong text-text-secondary'">Antes</button>
                   <button type="button" role="tab" id="cmp-tab-despues" aria-controls="cmp-panel" [attr.aria-selected]="lado() === 'despues'" (click)="lado.set('despues')"
                     class="flex h-11 flex-1 items-center justify-center rounded-sm border text-label-s"
-                    [class]="lado() === 'despues' ? 'border-accent-text bg-accent-deep/20 text-accent-text' : 'border-line-strong text-text-secondary'">Después</button>
+                    [class]="lado() === 'despues' ? 'border-accent-text bg-accent-deep/20 font-semibold text-accent-text' : 'border-line-strong text-text-secondary'">Después</button>
                 </div>
                 <div id="cmp-panel" role="tabpanel" [attr.aria-labelledby]="lado() === 'antes' ? 'cmp-tab-antes' : 'cmp-tab-despues'" class="mt-3 flex flex-col gap-2 sm:hidden">
                   @for (c of d.cambios; track c.clave) {
@@ -245,7 +248,8 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
                     </div>
                   }
                 </div>
-                <p class="mt-2 text-body-xs text-text-tertiary">En resaltado, el valor que se aplicará al aprobar. Los campos que no aparecen no cambian.</p>
+                <p class="mt-2 text-body-xs text-text-tertiary sm:hidden">@if (lado() === 'antes') { Así estaba su ficha antes del cambio · los campos que no aparecen no cambian. } @else { En resaltado, el valor que se aplicará al aprobar · los campos que no aparecen no cambian. }</p>
+                <p class="mt-2 hidden text-body-xs text-text-tertiary sm:block">En resaltado, el valor que se aplicará al aprobar. Los campos que no aparecen no cambian.</p>
               }
             </section>
           }
@@ -621,6 +625,13 @@ export class SolicitudesPage {
   protected readonly esCambio = computed(() => (this.detalle()?.tipo ?? this.tipoPendiente()) === 'cambio_perfil');
   /** The change moves the athlete's email: it is also the address they log in with. */
   protected readonly cambiaEmail = computed(() => (this.detalle()?.cambios ?? []).some((c) => c.clave === 'email'));
+  /** The change moves the athlete to the other competition: her place moves with her. */
+  protected readonly cambiaPrueba = computed(() => (this.detalle()?.cambios ?? []).some((c) => c.clave === 'prueba'));
+
+  /** « · Licencia · Club» (sin espacio final: el punto de la frase va pegado al club). */
+  protected extrasAtleta(d: SolicitudDetalle): string {
+    return [d.atleta?.licencia, d.atleta?.club].filter(Boolean).map((x) => ' · ' + x).join('');
+  }
 
   private t: ReturnType<typeof setTimeout> | undefined;
   private tEnlace: ReturnType<typeof setTimeout> | undefined;

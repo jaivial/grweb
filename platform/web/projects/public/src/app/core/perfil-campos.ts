@@ -22,6 +22,8 @@ export interface CamposPerfil {
   telefono: string;
   sexo: '' | 'F' | 'M';
   fechaNacimiento: string;
+  /** La competición elegida: aep2, aep3 o vacío («Aún no lo sé», solo en el alta). */
+  prueba: string;
   club: string;
   ciudad: string;
   entrenador: string;
@@ -63,6 +65,50 @@ export const MARCAS_PERFIL = [
   { k: 'marcaBP' as const, corto: 'BP' },
   { k: 'marcaDL' as const, corto: 'DL' },
 ];
+
+/** Una competición del alta, tal como la devuelve el API (las opciones de /alta-atleta y de «Editar mi perfil»). */
+export interface PruebaOpcion {
+  codigo: string;
+  nombre: string;
+  fecha?: string;
+  nivel: string;
+  plazas: number;
+  ocupadas: number;
+}
+
+/** Una tarjeta del selector de competición (el alta y «Editar mi perfil» pintan la misma). */
+export interface PruebaTarjeta {
+  codigo: string;
+  titulo: string;
+  detalle: string;
+  completa: boolean;
+}
+
+/** Las tarjetas de «¿En qué competición compites?» (Figma 219:169366: sin chips ni contador; completa = deshabilitada). */
+export function tarjetasPrueba(pruebas: PruebaOpcion[] | undefined, locale: string, txtCompleta: string): PruebaTarjeta[] {
+  const dia = (iso?: string) => iso ? new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(iso + 'T00:00:00Z')).replace(',', '').replace('.', '') : '';
+  return (pruebas ?? []).map((p) => {
+    const completa = p.plazas > 0 && p.plazas - p.ocupadas <= 0;
+    const fecha = dia(p.fecha);
+    const nivel = p.nivel ? p.nivel.charAt(0).toUpperCase() + p.nivel.slice(1) : '';
+    return { codigo: p.codigo, titulo: fecha ? `${p.nombre} · ${fecha}` : p.nombre, completa, detalle: completa ? txtCompleta : nivel };
+  });
+}
+
+/** La opción que entra en el recorrido del teclado del radiogroup (un solo tab stop). */
+export function pruebaEnFoco(tarjetas: PruebaTarjeta[], elegida: string): string {
+  const ops = tarjetas.filter((o) => !o.completa);
+  return ops.some((o) => o.codigo === elegida) ? elegida : (ops[0]?.codigo ?? '');
+}
+
+/** Flechas del radiogroup: la opción siguiente o anterior (saltando las completas); null si la tecla no es una flecha. */
+export function pruebaSiguiente(tarjetas: PruebaTarjeta[], elegida: string, tecla: string): string | null {
+  const paso = tecla === 'ArrowDown' || tecla === 'ArrowRight' ? 1 : tecla === 'ArrowUp' || tecla === 'ArrowLeft' ? -1 : 0;
+  if (!paso) return null;
+  const ops = tarjetas.filter((o) => !o.completa);
+  if (!ops.length) return null;
+  return ops[(ops.findIndex((o) => o.codigo === pruebaEnFoco(tarjetas, elegida)) + paso + ops.length) % ops.length].codigo;
+}
 
 /** A real letter (not a control, format or blank-rendering filler). */
 export function tieneLetra(v: string): boolean {
