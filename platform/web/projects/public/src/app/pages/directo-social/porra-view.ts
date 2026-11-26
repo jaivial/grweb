@@ -13,14 +13,14 @@ const T = {
     entra: 'Entra para jugar con tus monedas', entrar: 'Entrar y jugar', saldo: 'Tu saldo de la jornada',
     porra: 'porra', nunca: 'Monedas de juego: nunca se compran con dinero.', titulo: 'Porra', hacer: 'Hacer porra', vivo: 'En vivo',
     busca: 'Busca un atleta y haz tu porra', mas: 'Más apostados · en vivo', sexo: 'Sexo', masc: 'Masc.', fem: 'Fem.',
-    vacio: 'Todavía no hay atletas en la porra de esta jornada.', ir: 'Ir a la porra',
+    vacio: 'Todavía nadie ha apostado en la porra de esta jornada.', ir: 'Ir a la porra',
     fantasy: 'Ficha 5 titulares con 1.000.000 de monedas', abrir: 'Abrir', error: 'No hemos podido cargar la porra.',
   },
   en: {
     entra: 'Sign in to play with your coins', entrar: 'Sign in and play', saldo: 'Your matchday balance',
     porra: 'pool', nunca: 'Game coins: never bought with money.', titulo: 'Pool', hacer: 'Make a pick', vivo: 'Live',
     busca: 'Search an athlete and make your pick', mas: 'Most backed · live', sexo: 'Sex', masc: 'Men', fem: 'Women',
-    vacio: 'No athletes in this matchday’s pool yet.', ir: 'Go to the pool',
+    vacio: 'Nobody has made a pick in this matchday’s pool yet.', ir: 'Go to the pool',
     fantasy: 'Sign 5 starters with 1,000,000 coins', abrir: 'Open', error: 'We could not load the pool.',
   },
 };

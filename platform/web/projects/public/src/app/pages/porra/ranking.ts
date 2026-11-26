@@ -49,13 +49,15 @@ export function misPorras(apuestas: Apuesta[]): Map<string, number> {
   return r;
 }
 
-/** El ranking total de un sexo, sin agrupar por categoría, de más a menos apostado (empate: por nombre). */
+/** El ranking total de un sexo, sin agrupar por categoría, de más a menos apostado (empate: por nombre). Solo salen
+ *  los atletas con alguna moneda apostada: los que están a 0 no aparecen. */
 export function rankingAtletas(mercados: Mercado[], sexo: Sexo, mias: Map<string, number>): FilaRanking[] {
   const filas: FilaRanking[] = [];
   for (const m of mercadosCategoria(mercados)) {
     if (m.sexo !== sexo) continue;
     for (const o of m.opciones) {
-      filas.push({ atletaId: o.atletaId, nombre: o.nombre, sexo: m.sexo, categoria: kg(m.categoria), total: o.apostado ?? 0, mio: mias.get(m.id + ':' + o.atletaId) ?? 0 });
+      if (!(o.apostado > 0)) continue;
+      filas.push({ atletaId: o.atletaId, nombre: o.nombre, sexo: m.sexo, categoria: kg(m.categoria), total: o.apostado, mio: mias.get(m.id + ':' + o.atletaId) ?? 0 });
     }
   }
   return filas.sort((a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre, 'es'));
