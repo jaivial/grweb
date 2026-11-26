@@ -1,8 +1,9 @@
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, computed, inject, input, linkedSignal, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { GrIcon, GrLiveStatus, type GrLiveEstado } from '@grcup/ui';
-import { MOV, MOV_EN, gl, kg, ordenTarima, type Categoria, type Celda, type Directo, type EnPlataforma, type Fila, type Mov } from '../../core/directo';
+import { GrIcon, GrLiveStatus, GrSelect, type GrLiveEstado } from '@grcup/ui';
+import { MOV, MOV_EN, gl, kg, ordenTarima, pesoIntento, type Categoria, type Celda, type Directo, type EnPlataforma, type Fila, type Mov } from '../../core/directo';
 import { hora } from '../../core/entradas';
 import { HorariosPublic, type Horarios } from '../../core/horarios';
 import { DivisionPipe, I18n, LocPipe, divisionEn } from '../../core/i18n';
@@ -121,7 +122,7 @@ const PUESTO = ['', 'text-[#d4af37]', 'text-[#c0c4cc]', 'text-[#c8835a]'];
  */
 @Component({
   selector: 'gr-tarima-view',
-  imports: [GrIcon, GrLiveStatus, DivisionPipe],
+  imports: [GrIcon, GrLiveStatus, GrSelect, FormsModule, DivisionPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   styles: `
@@ -163,7 +164,7 @@ const PUESTO = ['', 'text-[#d4af37]', 'text-[#c0c4cc]', 'text-[#c8835a]'];
                   </div>
                   <div class="flex items-end justify-between gap-3">
                     <div class="flex flex-col gap-0.5"><p class="text-[16px] font-semibold">{{ t().mov[a.movimiento] }}</p><p class="text-[13px] text-text-tertiary">{{ t().intento[a.numero] }} {{ t().intentoTxt }}</p></div>
-                    <p class="bg-[linear-gradient(180deg,#c42b3e,#6e2020)] bg-clip-text font-display text-[48px] leading-none text-transparent">{{ kg(a.peso) }} kg</p>
+                    <p class="bg-[linear-gradient(180deg,#c42b3e,#6e2020)] bg-clip-text font-display text-[48px] leading-none text-transparent" [style.font-size.px]="a.peso > 0 ? null : 32">{{ peso(a.peso) }}</p>
                   </div>
                   @if (previos().length) {
                     <div class="flex flex-wrap items-center gap-2">
@@ -184,7 +185,7 @@ const PUESTO = ['', 'text-[#d4af37]', 'text-[#c0c4cc]', 'text-[#c8835a]'];
                   <li class="flex min-h-[60px] items-center gap-3 border-b border-line-subtle last:border-0">
                     <span class="flex size-7 shrink-0 items-center justify-center rounded-pill border border-line-strong text-[12px] font-medium text-[#d1d5db]">{{ i + 1 }}</span>
                     <span class="flex min-w-0 flex-1 flex-col gap-0.5"><span class="truncate text-[15px] font-semibold">{{ s.nombre }}</span><span class="truncate text-[12px] text-text-tertiary">{{ s.club || t().independiente }} · {{ cat(s.categoria) }} kg</span></span>
-                    <span class="font-mono text-[13px] whitespace-nowrap text-[#d1d5db]">{{ kg(s.peso) }} kg</span>
+                    <span class="font-mono text-[13px] whitespace-nowrap text-[#d1d5db]">{{ peso(s.peso) }}</span>
                   </li>
                 } @empty { <li class="py-3 text-body-s text-text-tertiary">{{ t().ultimo }}</li> }
               </ul>
@@ -193,13 +194,9 @@ const PUESTO = ['', 'text-[#d4af37]', 'text-[#c0c4cc]', 'text-[#c8835a]'];
           @case ('clasificacion') {
             @if (categoria(); as c) {
               <div class="flex flex-col gap-3">
-                <label class="relative flex h-10 items-center rounded-[10px] border border-[#433a3c] bg-[#181516] px-3">
-                  <span class="sr-only">{{ t().categoria }}</span>
-                  <select class="w-full appearance-none bg-transparent pr-6 text-[14px] font-semibold outline-none" [value]="c.clave" (change)="cat_.set($any($event.target).value); abierto.set(0)">
-                    @for (o of d.clasificacion; track o.clave) { <option [value]="o.clave" class="bg-bg-card">{{ t().sexo(o.sexo) }} · {{ cat(o.categoria) }} kg</option> }
-                  </select>
-                  <gr-icon name="chevron-down" [size]="16" class="pointer-events-none absolute right-3 text-text-tertiary" />
-                </label>
+                <gr-select tipo="campo" [attr.aria-label]="t().categoria" [ngModel]="c.clave" (ngModelChange)="cat_.set($event); abierto.set(0)">
+                  @for (o of d.clasificacion; track o.clave) { <option [value]="o.clave">{{ t().sexo(o.sexo) }} · {{ cat(o.categoria) }} kg</option> }
+                </gr-select>
                 <p class="text-[12px] text-[#6b7280]">{{ t().ordenado }}</p>
                 <ul>
                   @for (f of c.filas; track f.nombre + $index; let i = $index) {
@@ -289,6 +286,7 @@ export class TarimaView {
   protected readonly kg = (v?: number | null) => kg(v, this.i18n.lang());
   protected readonly hora = hora;
   protected readonly cat = (c: string) => c.replace('-', '−');
+  protected readonly peso = (v: number) => pesoIntento(v, this.i18n.lang());
 
   /** After the verdict, the judged attempt stays on screen for 8 s (with its LIFT / NO LIFT chip). */
   private readonly mostrandoUltimo = computed(() => {

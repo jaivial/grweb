@@ -79,6 +79,17 @@ func cuentaFanDe(ctx context.Context, c *svcclient.Client, cid uuid.UUID, email 
 	return &out, nil
 }
 
+// passwordAFan copies a new area password hash to the directo account of the athlete (one account per email, one
+// password). Best effort: the area keeps working if fans is down (false).
+func (s *Svc) passwordAFan(ctx context.Context, cid, atleta uuid.UUID, hash string) bool {
+	if err := s.fansSvc.Do(ctx, http.MethodPut, "/internal/competiciones/"+cid.String()+"/fans/password-atleta",
+		map[string]any{"atletaId": atleta, "passwordHash": hash}, nil); err != nil {
+		s.a.Log.Warn("athletes: contraseña no copiada a la cuenta del directo", "atleta", atleta, "err", err)
+		return false
+	}
+	return true
+}
+
 // moverEmailCuentaFan asks fans to move the email of the account linked to an athlete (same person, same account:
 // one account per email). It fails with EMAIL_REGISTRADO when the new email already has another account.
 func moverEmailCuentaFan(ctx context.Context, c *svcclient.Client, cid, fanID, atleta uuid.UUID, email string) error {

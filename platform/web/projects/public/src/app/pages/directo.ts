@@ -9,7 +9,7 @@ import { firstValueFrom } from 'rxjs';
 import { GrAlert, GrButton, GrIcon, GrLogo, GrSkeleton, GrSelect, type GrLiveEstado, cdn, CdnPipe } from '@grcup/ui';
 import { Cms, type Album, type Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, FalloApi, type CompeticionPublica } from '../core/competition';
-import { DirectoPublic, MOV, MOV_EN, ORD, ORD_EN, catCorta, catLarga, embed, gl, kg, type Categoria, type Directo, type Edicion, type EnPlataforma, type Fila, type Pantalla, type ResultadosPublicos } from '../core/directo';
+import { DirectoPublic, MOV, MOV_EN, ORD, ORD_EN, catCorta, catLarga, embed, gl, kg, pesoIntento, type Categoria, type Directo, type Edicion, type EnPlataforma, type Fila, type Pantalla, type ResultadosPublicos } from '../core/directo';
 import { ICS_URL } from '../core/horarios';
 import { DivisionPipe, I18n, LocPipe, divisionEn } from '../core/i18n';
 import { Seo } from '../core/seo';
@@ -23,6 +23,7 @@ import { Community, Related, type RelatedLink } from './landings';
 import { PanelSocial, escritorio } from './directo-social/panel';
 import { Clasificacion, TarimaView } from './directo-social/tarima-view';
 import { ChatService } from '../core/chat';
+import { visitante } from '../core/visitante';
 
 const TZ = 'Europe/Madrid';
 const PABELLON = 'https://jaimedigitalstudio.b-cdn.net/grcup/pabellon/pabellonentrada.webp';
@@ -76,9 +77,12 @@ const T = {
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
 
-/** Public SSE of the competition: reloads on the live events (no personal data travels in them); `estado` gets the connection state. */
-function escuchar(tipos: string[], recargar: () => void, estado?: (e: GrLiveEstado) => void, chatEstado?: () => void): () => void {
-  const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
+/**
+ * Public SSE of the competition: reloads on the live events (no personal data travels in them); `estado` gets the connection state.
+ * `espectador`: the stream carries the browser id (?v=), so this page counts once per browser in «espectadores».
+ */
+function escuchar(tipos: string[], recargar: () => void, estado?: (e: GrLiveEstado) => void, chatEstado?: () => void, espectador = false): () => void {
+  const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream${espectador ? '?v=' + visitante() : ''}`);
   if (estado) {
     es.onopen = () => estado('en-directo');
     es.onerror = () => estado(es.readyState === EventSource.CLOSED ? 'sin-conexion' : 'reconectando');
@@ -145,7 +149,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
               @if (d.actual; as a) {
                 <div class="absolute bottom-3 left-3 flex items-end gap-3 rounded-md bg-black/70 px-3 py-2">
                   <div><p class="text-label-s">{{ a.nombre }} · {{ a.categoria.replace('-', '−') }} kg</p><p class="text-body-xs text-text-tertiary">{{ t().mov[a.movimiento] }} · {{ t().ord[a.numero] }} {{ t().intento }}</p></div>
-                  <p class="font-display text-[22px] leading-none text-accent-text italic">{{ kg(a.peso) }} KG</p>
+                  <p class="font-display text-[22px] leading-none text-accent-text italic">{{ peso(a.peso, 'KG') }}</p>
                 </div>
               }
             }
@@ -211,6 +215,7 @@ export class EnDirectoPage {
   protected readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(T);
   protected readonly kg = (v?: number | null) => kg(v, this.i18n.lang());
+  protected readonly peso = (v: number, unidad = 'kg') => pesoIntento(v, this.i18n.lang(), unidad);
   protected readonly catLarga = catLarga;
   protected readonly diaHora = (iso: string) => diaHora(iso, this.i18n.locale());
   protected readonly ics = ICS_URL;
@@ -268,7 +273,7 @@ export class EnDirectoPage {
         const d = await this.api.directo();
         if (d) this.dir.set(d);
       };
-      const cerrar = escuchar(EVENTOS, () => void recargar(), (e) => this.conexion.set(e), () => void chat.cargarEstadoSala());
+      const cerrar = escuchar(EVENTOS, () => void recargar(), (e) => this.conexion.set(e), () => void chat.cargarEstadoSala(), true);
       const poll = setInterval(() => void recargar(), 30_000);
       inject(DestroyRef).onDestroy(() => {
         clearInterval(tick);
@@ -539,7 +544,8 @@ export class ResultadosEdicionPage {
   /** The edition's public data: AEP level (subtitle) and the official report (Figma 25). */
   protected readonly comp = signal<CompeticionPublica | null>(null);
   private readonly http = inject(HttpClient);
-  protected readonly q = signal('');
+  /** ?q= prefilters the ranking (the athlete area links «Ver mis resultados» with the athlete's name). */
+  protected readonly q = signal(inject(ActivatedRoute).snapshot.queryParamMap.get('q') ?? '');
   protected readonly sexo = signal<'' | 'F' | 'M'>('');
   /** Mobile: the «Filtros» panel (category and order). */
   protected readonly filtros = signal(false);
@@ -859,8 +865,10 @@ const TP = {
             <p class="mt-6 font-display text-[40px] text-white/85 uppercase italic">{{ a.club ? a.club + ' · ' : '' }}{{ catLarga(a.sexo, a.categoria) }}@if (a.division) { · {{ a.division | division }} }</p>
             <p class="mt-3 font-display text-[44px] text-accent-text uppercase italic">{{ t().mov[a.movimiento] }} · {{ t().ord[a.numero] }} {{ t().intento }}</p>
             <div class="mt-6 flex items-center gap-10">
-              <p class="font-display text-[260px] leading-[0.85] italic">{{ kg(a.peso) }}</p>
-              <span class="self-end pb-8 font-display text-[60px] text-white/70 italic">KG</span>
+              @if (a.peso > 0) {
+                <p class="font-display text-[260px] leading-[0.85] italic">{{ kg(a.peso) }}</p>
+                <span class="self-end pb-8 font-display text-[60px] text-white/70 italic">KG</span>
+              } @else { <p class="font-display text-[120px] leading-[0.85] uppercase italic">{{ peso(a.peso) }}</p> }
               <div class="flex gap-6 self-center">@for (v of luces(); track $index) { <span class="size-[110px] rounded-pill border-4" [class]="v === 'B' ? 'border-white bg-white' : v === 'R' ? 'border-accent bg-accent' : 'border-white/25'"></span> }</div>
             </div>
           </div>
@@ -875,7 +883,7 @@ const TP = {
           @if (p.pantalla.siguientes && d.fase === 'en_directo' && d.siguientes.length) {
             <section class="rounded-[24px] border border-white/10 bg-white/[0.04] p-8">
               <p class="font-display text-[28px] text-white/70 uppercase italic">{{ t().aContinuacion }}</p>
-              @for (s of d.siguientes; track $index) { <p class="mt-5 flex justify-between font-display text-[34px] uppercase italic"><span class="truncate pr-4">{{ s.nombre }}</span><span class="text-accent-text">{{ kg(s.peso) }} kg</span></p> }
+              @for (s of d.siguientes; track $index) { <p class="mt-5 flex justify-between font-display text-[34px] uppercase italic"><span class="truncate pr-4">{{ s.nombre }}</span><span class="text-accent-text">{{ peso(s.peso) }}</span></p> }
             </section>
           }
           @if (podio(); as c) {
@@ -919,6 +927,7 @@ export class PantallaPublicaPage {
   private readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(TP);
   protected readonly kg = (v?: number | null) => kg(v, this.i18n.lang());
+  protected readonly peso = (v: number, unidad = 'kg') => pesoIntento(v, this.i18n.lang(), unidad);
   protected readonly catLarga = catLarga;
   protected readonly diaHora = (iso: string) => diaHora(iso, this.i18n.locale());
   protected readonly host = signal('');

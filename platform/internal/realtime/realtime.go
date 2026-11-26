@@ -28,6 +28,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 	"github.com/jaivial/grweb/platform/pkg/svcclient"
+	"github.com/jaivial/grweb/platform/pkg/visitas"
 )
 
 type msg struct {
@@ -274,7 +275,9 @@ type Svc struct {
 	// public connections per competition on this pod (the «espectadores» of the live desk)
 	pubMu sync.Mutex
 	pub   map[string]int
-	pod   string
+	// visitors of /en-directo per competition on this pod (?v=: one id per browser) → open connections
+	vis map[string]map[string]int
+	pod string
 }
 
 type slugEntry struct {
@@ -284,7 +287,7 @@ type slugEntry struct {
 
 // Service returns the realtime service definition.
 func Service() app.Service {
-	s := &Svc{hub: &hub{subs: map[*sub]struct{}{}, pend: map[string]*msg{}, kick: make(chan struct{}, 1)}, slugs: map[string]slugEntry{}, pub: map[string]int{}}
+	s := &Svc{hub: &hub{subs: map[*sub]struct{}{}, pend: map[string]*msg{}, kick: make(chan struct{}, 1)}, slugs: map[string]slugEntry{}, pub: map[string]int{}, vis: map[string]map[string]int{}}
 	return app.Service{Name: "realtime", Title: "GR Cup · realtime (SSE)", NeedsRedis: true, MaxConns: -1, Setup: s.setup}
 }
 
@@ -296,6 +299,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	a.Go(s.reader)
 	a.Go(s.flusher)
 	a.Go(s.contar)
+	a.Go(s.contarVisitas)
 	a.Mux.HandleFunc("GET /api/competiciones/{slug}/stream", s.public)
 	a.Mux.HandleFunc("GET /api/admin/competiciones/{cid}/stream", s.admin)
 	a.Mux.HandleFunc("POST /api/admin/competiciones/{cid}/presencia", s.presencia)
@@ -326,6 +330,36 @@ func (s *Svc) contar(ctx context.Context) {
 			p.SAdd(ctx, pods, s.pod)
 			p.Expire(ctx, pods, 10*time.Minute)
 			_, _ = p.Exec(ctx)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+	}
+}
+
+// contarVisitas reports the visitors of /en-directo connected to this pod (pkg/visitas): live counts the distinct
+// browsers of every pod as the «espectadores» of the page.
+func (s *Svc) contarVisitas(ctx context.Context) {
+	t := time.NewTicker(visitas.Cada)
+	defer t.Stop()
+	for {
+		s.pubMu.Lock()
+		snap := make(map[string][]string, len(s.vis))
+		for cid, m := range s.vis {
+			for v := range m {
+				snap[cid] = append(snap[cid], v)
+			}
+			if len(m) == 0 {
+				delete(s.vis, cid)
+			}
+		}
+		s.pubMu.Unlock()
+		for cid, ids := range snap {
+			if err := visitas.Marcar(ctx, s.a.Redis, s.a.Keys.Of("rt", "visitas", cid), ids); err != nil {
+				s.a.Log.Warn("visitas", "err", err)
+			}
 		}
 		select {
 		case <-ctx.Done():
@@ -425,12 +459,24 @@ func (s *Svc) public(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, err)
 		return
 	}
+	v := visitas.ID(r.URL.Query().Get("v")) // only /en-directo sends it: the viewers of the live page
 	s.pubMu.Lock()
 	s.pub[cid]++
+	if v != "" {
+		if s.vis[cid] == nil {
+			s.vis[cid] = map[string]int{}
+		}
+		s.vis[cid][v]++
+	}
 	s.pubMu.Unlock()
 	defer func() {
 		s.pubMu.Lock()
 		s.pub[cid]-- // kept at 0 until the next report writes it
+		if v != "" {
+			if s.vis[cid][v]--; s.vis[cid][v] <= 0 {
+				delete(s.vis[cid], v)
+			}
+		}
 		s.pubMu.Unlock()
 	}()
 	// ST3-R1-4: ?jornada= drops the fantasy.* events of other jornadas and ?sala= the signings of other rooms

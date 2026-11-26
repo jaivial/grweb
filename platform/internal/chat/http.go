@@ -22,6 +22,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/fanauth"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 	"github.com/jaivial/grweb/platform/pkg/ratelimit"
+	"github.com/jaivial/grweb/platform/pkg/visitas"
 )
 
 // maxReplay caps the history replayed on connect (WS ?desde= and SSE Last-Event-ID): the room holds at most
@@ -169,7 +170,7 @@ func (s *Svc) ws(w http.ResponseWriter, r *http.Request) {
 		return conn.Write(ctx, websocket.MessageText, b) == nil
 	}
 	sl := s.hub.abrir(s.ctxRaiz, salaID{cid.String(), dia})
-	ch := sl.sub()
+	ch := sl.subDe(visitante(r))
 	conexActivas.Add(1)
 	defer func() {
 		conexActivas.Add(-1)
@@ -357,7 +358,7 @@ func (s *Svc) sse(w http.ResponseWriter, r *http.Request) {
 	_ = rc.Flush()
 
 	sl := s.hub.abrir(s.ctxRaiz, salaID{cid.String(), dia})
-	ch := sl.sub()
+	ch := sl.subDe(visitante(r))
 	conexActivas.Add(1)
 	defer func() {
 		conexActivas.Add(-1)
@@ -456,6 +457,14 @@ func (s *Svc) sse(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+// visitante is the browser id of the connection (?v=, pkg/visitas); a client without it counts per connection.
+func visitante(r *http.Request) string {
+	if v := visitas.ID(r.URL.Query().Get("v")); v != "" {
+		return v
+	}
+	return uuid.NewString()
 }
 
 // lastID reads the SSE position: the Last-Event-ID header or the ?desde= parameter.
@@ -821,26 +830,7 @@ func (s *Svc) estado(ctx context.Context, in *estadoIn) (*estadoOut, error) {
 	}
 	dia := hoy()
 	cfg := s.configDe(ctx, cid)
-	total := int64(0)
-	pods, err := s.a.Redis.SMembers(ctx, s.a.Keys.Of("chat", "pods", cid.String())).Result()
-	if err == nil {
-		claves := make([]string, 0, len(pods))
-		for _, p := range pods {
-			claves = append(claves, s.a.Keys.Of("chat", "conex", cid.String(), p))
-		}
-		if len(claves) > 0 {
-			if valores, err := s.a.Redis.MGet(ctx, claves...).Result(); err == nil {
-				for _, v := range valores {
-					if str, ok := v.(string); ok {
-						var x int64
-						if _, err := fmt.Sscanf(str, "%d", &x); err == nil {
-							total += x
-						}
-					}
-				}
-			}
-		}
-	}
+	total, _ := visitas.Contar(ctx, s.a.Redis, s.a.Keys.Of("chat", "visitas", cid.String()))
 	fanKey := ""
 	if tok := tokenFanDe(sesionFan{Session: in.Session, Header: in.Header}); tok != "" {
 		if f, err := s.fanDe(ctx, tok, cid); err == nil {

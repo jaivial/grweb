@@ -160,12 +160,56 @@ type Aplicado struct {
 
 // Estado is the answer of every call: the links of the desk and what was applied.
 type Estado struct {
-	Mesa     string    `json:"mesa"`
-	Rev      int64     `json:"rev"`
-	Ignorada bool      `json:"ignorada,omitempty" doc:"Revisión antigua de este dispositivo: no se ha aplicado"`
-	Vinculos []Vinculo `json:"vinculos"`
-	Avisos   []Aviso   `json:"avisos"`
-	Aplicado Aplicado  `json:"aplicado"`
+	Mesa      string     `json:"mesa"`
+	Rev       int64      `json:"rev"`
+	Ignorada  bool       `json:"ignorada,omitempty" doc:"Revisión antigua de este dispositivo: no se ha aplicado"`
+	Vinculos  []Vinculo  `json:"vinculos"`
+	Avisos    []Aviso    `json:"avisos"`
+	Aplicado  Aplicado   `json:"aplicado"`
+	Precargas []Precarga `json:"precargas,omitempty" doc:"Previa del pesaje del área de atleta que la mesa aún no tiene (solo /sync)"`
+}
+
+// Precarga is what an entry not weighed yet lacks and its athlete declared in the athlete area: the desk fills
+// each field only while it is still empty.
+type Precarga struct {
+	EntryID       int      `json:"entryId"`
+	SquatRackInfo string   `json:"squatRackInfo,omitempty"`
+	BenchRackInfo string   `json:"benchRackInfo,omitempty"`
+	SquatKg       *float64 `json:"squatKg,omitempty"`
+	BenchKg       *float64 `json:"benchKg,omitempty"`
+	DeadliftKg    *float64 `json:"deadliftKg,omitempty"`
+}
+
+// precargas lists the linked entries not weighed yet that lack a first attempt or rack their athlete has.
+func precargas(filas []*fila, ids map[uuid.UUID]*identidad) []Precarga {
+	var out []Precarga
+	falta := func(kg []float64, v *float64) *float64 {
+		if v != nil && *v > 0 && primero(kg) == nil {
+			return v
+		}
+		return nil
+	}
+	for _, f := range filas {
+		if f.AtletaID == nil || (f.Vinculo != "auto" && f.Vinculo != "confirmado") || f.Datos.BodyweightKg != 0 {
+			continue
+		}
+		x := ids[*f.AtletaID]
+		if x == nil {
+			continue
+		}
+		d := &f.Datos
+		p := Precarga{EntryID: f.EntryID, SquatKg: falta(d.SquatKg, x.Primeros.SQ), BenchKg: falta(d.BenchKg, x.Primeros.BP), DeadliftKg: falta(d.DeadliftKg, x.Primeros.DL)}
+		if x.RackSQ != nil && strings.TrimSpace(d.SquatRackInfo) == "" {
+			p.SquatRackInfo = strconv.Itoa(*x.RackSQ)
+		}
+		if x.RackBP != "" && strings.TrimSpace(d.BenchRackInfo) == "" {
+			p.BenchRackInfo = x.RackBP
+		}
+		if p.SquatRackInfo != "" || p.BenchRackInfo != "" || p.SquatKg != nil || p.BenchKg != nil || p.DeadliftKg != nil {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // ---- storage ----
@@ -446,7 +490,8 @@ func (s *Svc) aplicar(ctx context.Context, cid uuid.UUID, mesa, por string, fila
 	}
 	body := map[string]any{"por": por, "atletas": lote}
 	if grupo != nil {
-		// The live follows the desk's group once a decision of that group and lift exists (not while testing).
+		// The live follows the desk's group once a decision of that group exists in any lift (not while testing),
+		// with the lift on screen: a new lift shows its first lifter before his attempt is judged.
 		var grupoIDs []uuid.UUID
 		juzgado := false
 		for _, f := range filas {
@@ -454,9 +499,11 @@ func (s *Svc) aplicar(ctx context.Context, cid uuid.UUID, mesa, por string, fila
 			if d.Day != grupo.Day || d.Platform != grupo.Platform || d.Flight != grupo.Flight {
 				continue
 			}
-			for i, st := range statusDe(d, grupo.Lift) {
-				if i < 3 && st != 0 {
-					juzgado = true
+			for _, l := range []string{"S", "B", "D"} {
+				for i, st := range statusDe(d, l) {
+					if i < 3 && st != 0 {
+						juzgado = true
+					}
 				}
 			}
 			if f.AtletaID != nil && (f.Vinculo == "auto" || f.Vinculo == "confirmado") && len(grupoIDs) < 100 {
@@ -694,6 +741,7 @@ func (s *Svc) register() {
 				}
 				s.aplicar(ctx, in.CID, b.Mesa, por, filas, enviar, b.Grupo, idx, &est)
 			}
+			est.Precargas = precargas(filas, idx)
 			return &estadoOut{Body: est}, nil
 		})
 
