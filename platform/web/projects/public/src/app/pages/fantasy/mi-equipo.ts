@@ -27,7 +27,7 @@ const T = {
     monta: 'Monta tu equipo',
     montaTxt: 'Entra con tu cuenta del directo, únete a una sala y ficha a tus 5 atletas con 1.000.000 de monedas fantasy.',
     entrar: 'Entrar para jugar',
-    tuJornadaAria: 'Tu jornada',
+    tuJornadaAria: 'Tu equipo del evento',
     notaMedia: 'Nota media',
     saldo: 'Saldo',
     verMenos: 'Ver menos',
@@ -36,7 +36,7 @@ const T = {
     valorEquipo: 'Valor del equipo',
     alineacion: 'Alineación',
     toca: 'Toca un jugador para ver su ficha',
-    tuJornada: 'Tu jornada',
+    tuJornada: 'Tu equipo del evento',
     quedan: (n: number, m: string) => `Te quedan ${n} ${n === 1 ? 'plaza' : 'plazas'} y ${m} monedas`,
     fichaLibres: 'Ficha libres a su valor o paga un clausulazo al dueño.',
     completa: (m: string) => `Alineación completa · te quedan ${m} monedas`,
@@ -60,7 +60,7 @@ const T = {
     monta: 'Build your team',
     montaTxt: 'Sign in with your live stream account, join a league and sign your 5 athletes with 1,000,000 fantasy coins.',
     entrar: 'Sign in to play',
-    tuJornadaAria: 'Your day',
+    tuJornadaAria: 'Your event team',
     notaMedia: 'Average score',
     saldo: 'Balance',
     verMenos: 'See less',
@@ -69,7 +69,7 @@ const T = {
     valorEquipo: 'Team value',
     alineacion: 'Line-up',
     toca: 'Tap a player to see their profile',
-    tuJornada: 'Your day',
+    tuJornada: 'Your event team',
     quedan: (n: number, m: string) => `You have ${n} ${n === 1 ? 'place' : 'places'} and ${m} coins left`,
     fichaLibres: 'Sign free athletes at their value or pay a buy-out to the owner.',
     completa: (m: string) => `Line-up complete · you have ${m} coins left`,
@@ -156,7 +156,7 @@ const T = {
 
           <aside class="flex min-w-0 flex-col gap-4 lg:pt-10">
             <section class="hidden rounded-lg border border-line-subtle bg-bg-card p-5 lg:block" aria-labelledby="jornada-titulo">
-              <h2 id="jornada-titulo" class="text-display-2xs">{{ t().tuJornada }} {{ jornadaTxt() }}</h2>
+              <h2 id="jornada-titulo" class="text-display-2xs">{{ t().tuJornada }}</h2>
               <dl class="mt-4 grid grid-cols-2 gap-4">
                 @for (k of kpis(); track k.label) {
                   <div class="flex min-w-0 flex-col gap-1"><dt class="text-meta text-text-tertiary">{{ k.label }}</dt><dd class="truncate font-mono text-[26px] leading-[1.3] font-bold tabular-nums" [class]="k.color">{{ k.valor }}</dd><dd class="truncate text-body-s text-text-tertiary">{{ k.nota }}</dd></div>
@@ -233,13 +233,8 @@ export class MiEquipoPage {
       { label: d.valorEquipo, valor: e ? this.monedas(e.valor) : '—', color: 'text-text-primary', nota: e ? d.nAtletas(e.atletas.length, !!this.plazasLibres()) : '' },
     ];
   });
-  protected readonly jornadaTxt = computed(() => {
-    const j = this.store.jornada() ?? this.estado.jornada();
-    return j ? '· ' + j.nombre.replace(/\s*\(.*\)$/, '') : '';
-  });
   protected readonly jugandoCaption = computed(() => {
-    const j = this.store.jornada() ?? this.estado.jornada();
-    return j ? this.t().jugando + ' ' + j.nombre.replace(/\s*\(.*\)$/, '') : this.t().jugando;
+    return this.t().jugando + ' GRS Fantasy'; // one game for the whole event (no day)
   });
 
   constructor() {

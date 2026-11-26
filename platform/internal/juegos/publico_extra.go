@@ -108,7 +108,7 @@ func (s *Svc) registerPublicExtra() {
 			if err != nil {
 				return nil, err
 			}
-			j, err := s.jornadaPublica(ctx, c.ID, in.JornadaID)
+			j, err := s.jornadaFantasyCache(ctx, c.ID) // one fantasy for the whole event
 			if err != nil {
 				return nil, err
 			}

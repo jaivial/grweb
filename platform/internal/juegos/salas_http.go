@@ -39,12 +39,9 @@ type solicitudVista struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-// errEmpezada is the 409 of every room change once the first session of the day has started.
-var errEmpezada = problem.Conflict("SALA_EMPEZADA", "La jornada ya ha empezado: no se pueden crear salas, entrar, salir ni cambiar jugadores.")
-
 // atletasDelDia counts the athletes of the day (the scoreboard, or what was already synced if it is down or empty).
 func (s *Svc) atletasDelDia(ctx context.Context, cid uuid.UUID, j jornada) int {
-	if m, _, err := s.marcador(ctx, cid, j.Dia); err == nil && len(m.Atletas) > 0 {
+	if m, _, err := s.marcadorFantasy(ctx, cid, j); err == nil && len(m.Atletas) > 0 {
 		return len(m.Atletas)
 	}
 	var n int
@@ -139,7 +136,7 @@ func (s *Svc) registerSalas() {
 		if salaID != uuid.Nil {
 			_, j, err = s.salaPublica(ctx, c.ID, salaID)
 		} else {
-			j, err = s.jornadaPublica(ctx, c.ID, jid)
+			j, err = s.jornadaFantasy(ctx, s.a.DB, c.ID) // one fantasy for the whole event
 		}
 		if err != nil {
 			return uuid.Nil, nil, f, err
@@ -152,9 +149,8 @@ func (s *Svc) registerSalas() {
 		} else if err := cfg.abiertos(); err != nil {
 			return uuid.Nil, nil, f, err
 		}
-		if s.horario(ctx, c.ID, j.Dia).empezado(*j, time.Now()) {
-			return uuid.Nil, nil, f, errEmpezada
-		}
+		// rooms take members until the event ends (the jornada of the fantasy closes): jugable() above already
+		// refuses a closed one
 		return c.ID, j, f, nil
 	}
 
@@ -194,7 +190,7 @@ func (s *Svc) registerSalas() {
 			if err != nil {
 				return nil, err
 			}
-			j, err := s.jornadaPublicaCache(ctx, c.ID, in.JornadaID)
+			j, err := s.jornadaFantasyCache(ctx, c.ID) // one fantasy for the whole event
 			if err != nil {
 				return nil, err
 			}
@@ -214,8 +210,8 @@ func (s *Svc) registerSalas() {
 			o.Body.Atletas = s.atletasDelDia(ctx, c.ID, *j)
 			var hayPlazas bool
 			o.Body.PlazasMax, hayPlazas = plazasSala(o.Body.Atletas, cfg.PlantillaMax)
-			h := s.horario(ctx, c.ID, j.Dia)
-			o.Body.Empezada, o.Body.Horario = h.empezado(*j, time.Now()), h.vista()
+			h := s.horarioFantasy(ctx, c.ID, *j)
+			o.Body.Empezada, o.Body.Horario = !j.jugable(), h.vista()
 			o.Body.PuedeCrear = hayPlazas && !o.Body.Empezada && j.jugable()
 			o.Body.SolicitudesMax = maxSolicitudes
 			if fanID != uuid.Nil {
@@ -368,9 +364,9 @@ func (s *Svc) registerSalas() {
 					return nil, err
 				}
 			}
-			h := s.horario(ctx, c.ID, j.Dia)
+			h := s.horarioFantasy(ctx, c.ID, *j)
 			o.Body.Clausulazo = h.clausulazo(time.Now())
-			o.Body.Empezada, o.Body.Horario = h.empezado(*j, time.Now()), h.vista()
+			o.Body.Empezada, o.Body.Horario = !j.jugable(), h.vista()
 			o.Body.PlazasMax, _ = plazasSala(s.atletasDelDia(ctx, c.ID, *j), cfg.PlantillaMax)
 			return o, nil
 		})
@@ -441,7 +437,7 @@ func (s *Svc) registerSalas() {
 				o.Body.Miembros = append(o.Body.Miembros, mv)
 			}
 		}
-		h := s.horario(ctx, c.ID, j.Dia)
+		h := s.horarioFantasy(ctx, c.ID, *j)
 		o.Body.Horario = h.vista()
 		otra, err := miSala(ctx, s.a.DB, j.ID, fanID)
 		if err != nil {
@@ -452,7 +448,7 @@ func (s *Svc) registerSalas() {
 			o.Body.Estado = "ya_miembro"
 		case sl.Estado == "cerrada" || sl.Estado == "cancelada" || sl.Estado == "finalizada" || j.Estado == "cerrada":
 			o.Body.Estado = "cerrada"
-		case sl.Estado == "en_juego" || h.empezado(*j, time.Now()):
+		case sl.Estado == "en_juego":
 			o.Body.Estado = "empezada"
 		case sols[sl.ID] != nil && sols[sl.ID].Estado == "expulsada":
 			o.Body.Estado = "expulsado"

@@ -22,14 +22,14 @@ const T = {
     sala: 'Sala', salas: 'Salas',
     noExiste: 'Esta sala no existe o ya no está activa', noExisteTxt: 'Puede que el anfitrión la haya cerrado o que el enlace no sea correcto.',
     verAbiertas: 'Ver salas abiertas', errorCarga: 'No se pudo cargar la sala', errorCargaTxt: 'Comprueba tu conexión e inténtalo de nuevo.', reintentar: 'Reintentar',
-    errorOp: 'No hemos podido completar la operación', jugadores: 'Jugadores', jugadoresMin: 'jugadores', tu: ' · tú', anfitrion: 'Anfitrión', eresAnf: 'Eres el anfitrión', dia: ' · día ',
+    errorOp: 'No hemos podido completar la operación', jugadores: 'Jugadores', jugadoresMin: 'jugadores', tu: ' · tú', anfitrion: 'Anfitrión', eresAnf: 'Eres el anfitrión',
     conNota: (n: number) => 'Alineación ' + n + '/5 con nota', completa: 'Alineación completa 5/5', alineacion: (n: number) => 'Alineación ' + n + '/5',
     notaMedia: 'nota media', monedas: 'monedas', verAlineacion: (a: string) => 'Ver la alineación de @' + a, expulsar: 'Expulsar',
     libreSolicitar: 'Plaza libre · solicitar unirse', libreCompartir: 'Plaza libre · compartir enlace', libre: 'Plaza libre',
     pendiente: 'Solicitud pendiente', unete: 'Únete a esta sala', decide: 'El anfitrión decide quién entra. Te avisamos aquí cuando responda.', aprueba: 'El anfitrión aprueba tu solicitud. Puedes tener hasta 3 pendientes.',
     cancelar: 'Cancelar solicitud', solicitar: 'Solicitar unirse', pendienteCancelar: 'Solicitud pendiente · Cancelar',
     solicitudes: 'Solicitudes de unión', pend1: 'pendiente', pendN: 'pendientes', solicitud: 'Solicitud', aceptar: 'Aceptar', rechazar: 'Rechazar',
-    invita: 'Invita a tus amigos', llenaEnlace: 'Sala llena: el enlace no admite a nadie más.', quienAbra: 'Quien abra el enlace entra directo, sin aprobación, si hay plaza y el día no ha empezado. Sin cuenta: se registra y vuelve aquí.',
+    invita: 'Invita a tus amigos', llenaEnlace: 'Sala llena: el enlace no admite a nadie más.', quienAbra: 'Quien abra el enlace entra directo, sin aprobación, si hay plaza y la competición no ha terminado. Sin cuenta: se registra y vuelve aquí.',
     copiado: 'Copiado', copiar: 'Copiar', correo: 'Correo', qrAlt: 'Código QR del enlace de invitación a la sala', regenerar: 'Regenerar enlace (invalida el anterior)',
     acciones: 'Acciones del anfitrión', editar: 'Editar sala', otraVezCerrar: 'Pulsa otra vez para cerrar la sala', cerrar: 'Cerrar sala',
     cerrarTxt: 'Cerrar sala rechaza las solicitudes, expulsa a todos y libera sus atletas. No se puede si el día ya empezó.',
@@ -37,13 +37,13 @@ const T = {
     otraVezSalir: 'Pulsa otra vez para salir', salir: 'Salir de la sala', salirAnf: 'Si sales, el anfitrión pasa al jugador más antiguo; si eres el único, la sala se cierra.', salirHasta: 'Podrás salir hasta que empiece el día.',
     mercado: 'Mercado de la sala', libres: (l: number, t: number) => l + ' de ' + t + ' atletas libres', dueno: 'Cada atleta tiene un solo dueño por sala. Alineación de exactamente 5 atletas', plazas: 'plazas',
     nueva: 'Nueva solicitud de', quiere: 'Quiere unirse a tu sala · ahora', ver: 'Ver',
-    esperando: (m: number) => `Esperando mínimo 2 jugadores (${m}/2)`, esperandoTxt: 'Con 1 jugador no se puede jugar. Si al empezar la primera sesión del día sigue así, la sala se cancela sin coste y no cuenta en el palmarés.',
+    esperando: (m: number) => `Esperando mínimo 2 jugadores (${m}/2)`, esperandoTxt: 'Con 1 jugador no se puede jugar. Si al terminar la competición sigue así, la sala se cancela sin coste y no cuenta en el palmarés.',
     listaTit: (m: number, p: number) => `Lista para jugar · ${m}/${p}`,
     listaTxt: (m: number, pend: number, libres: number) => `Hay ${m} jugadores (mín. 2)${pend ? ` y ${pend} ${pend === 1 ? 'solicitud pendiente' : 'solicitudes pendientes'} para ${libres} ${libres === 1 ? 'plaza' : 'plazas'}` : ''}. La sala empieza sola con la primera sesión del día.`,
     llenaTit: (m: number, p: number) => `Sala llena (${m}/${p})`, llenaTxt: 'No caben más jugadores: el enlace no admite solicitudes y las pendientes se han cancelado.',
     vas1: (n: string) => ` Vas 1.º con media ${n}.`, vasN: (p: number, n: string, d: string) => ` Vas ${p}.º con media ${n}, a ${d} del líder.`,
     enJuego: 'En juego', enJuegoTxt: 'La sala está cerrada a nuevos jugadores.',
-    cancelada: 'Sala cancelada', canceladaTxt: 'No llegó al mínimo de 2 jugadores al empezar el día: no puntúa ni cuenta en el palmarés.',
+    cancelada: 'Sala cancelada', canceladaTxt: 'No llegó al mínimo de 2 jugadores al terminar la competición: no puntúa ni cuenta en el palmarés.',
     cerrada: 'Sala cerrada', cerradaTxt: 'El anfitrión cerró la sala antes de empezar.', finalizada: 'Sala finalizada', finalizadaTxt: 'El día ha terminado: la clasificación final está en el palmarés.',
     solLlenaEnlace: 'La sala está llena: el enlace ya no admite a nadie más.', plazasLibres: (l: number) => l + ' ' + (l === 1 ? 'plaza libre' : 'plazas libres'),
     solPrivada: 'Tu sala no sale en el lobby: comparte el enlace y entran directo, sin solicitud.', solLlena: 'La sala está llena: solo puedes rechazar. Las solicitudes pendientes se cancelan solas.',
@@ -56,14 +56,14 @@ const T = {
     sala: 'Room', salas: 'Rooms',
     noExiste: 'This room doesn\'t exist or is no longer active', noExisteTxt: 'The host may have closed it or the link may be wrong.',
     verAbiertas: 'See open rooms', errorCarga: 'Couldn\'t load the room', errorCargaTxt: 'Check your connection and try again.', reintentar: 'Try again',
-    errorOp: 'We couldn\'t complete the action', jugadores: 'Players', jugadoresMin: 'players', tu: ' · you', anfitrion: 'Host', eresAnf: 'You\'re the host', dia: ' · day ',
+    errorOp: 'We couldn\'t complete the action', jugadores: 'Players', jugadoresMin: 'players', tu: ' · you', anfitrion: 'Host', eresAnf: 'You\'re the host',
     conNota: (n: number) => 'Line-up ' + n + '/5 scored', completa: 'Line-up complete 5/5', alineacion: (n: number) => 'Line-up ' + n + '/5',
     notaMedia: 'average score', monedas: 'coins', verAlineacion: (a: string) => 'View @' + a + '\'s line-up', expulsar: 'Remove',
     libreSolicitar: 'Free spot · request to join', libreCompartir: 'Free spot · share link', libre: 'Free spot',
     pendiente: 'Request pending', unete: 'Join this room', decide: 'The host decides who gets in. We\'ll let you know here when they reply.', aprueba: 'The host approves your request. You can have up to 3 pending.',
     cancelar: 'Cancel request', solicitar: 'Request to join', pendienteCancelar: 'Request pending · Cancel',
     solicitudes: 'Join requests', pend1: 'pending', pendN: 'pending', solicitud: 'Request', aceptar: 'Accept', rechazar: 'Decline',
-    invita: 'Invite your friends', llenaEnlace: 'Room full: the link doesn\'t let anyone else in.', quienAbra: 'Anyone who opens the link joins straight away, no approval needed, if there\'s a spot and the day hasn\'t started. No account? They sign up and come back here.',
+    invita: 'Invite your friends', llenaEnlace: 'Room full: the link doesn\'t let anyone else in.', quienAbra: 'Anyone who opens the link joins straight away, no approval needed, if there\'s a spot and the competition hasn\'t ended. No account? They sign up and come back here.',
     copiado: 'Copied', copiar: 'Copy', correo: 'Email', qrAlt: 'QR code for the room invite link', regenerar: 'Regenerate link (invalidates the old one)',
     acciones: 'Host actions', editar: 'Edit room', otraVezCerrar: 'Tap again to close the room', cerrar: 'Close room',
     cerrarTxt: 'Closing the room declines the requests, removes everyone and frees their athletes. Not possible once the day has started.',
@@ -71,13 +71,13 @@ const T = {
     otraVezSalir: 'Tap again to leave', salir: 'Leave the room', salirAnf: 'If you leave, the oldest player becomes host; if you\'re the only one, the room closes.', salirHasta: 'You can leave until the day starts.',
     mercado: 'Room market', libres: (l: number, t: number) => l + ' of ' + t + ' athletes free', dueno: 'Each athlete has only one owner per room. Line-up of exactly 5 athletes', plazas: 'spots',
     nueva: 'New request from', quiere: 'Wants to join your room · now', ver: 'View',
-    esperando: (m: number) => `Waiting for at least 2 players (${m}/2)`, esperandoTxt: 'You can\'t play with 1 player. If it\'s still like this when the day\'s first session starts, the room is cancelled at no cost and doesn\'t count towards the honours list.',
+    esperando: (m: number) => `Waiting for at least 2 players (${m}/2)`, esperandoTxt: 'You can\'t play with 1 player. If it\'s still like this when the competition ends, the room is cancelled at no cost and doesn\'t count towards the honours list.',
     listaTit: (m: number, p: number) => `Ready to play · ${m}/${p}`,
     listaTxt: (m: number, pend: number, libres: number) => `There are ${m} players (min. 2)${pend ? ` and ${pend} pending ${pend === 1 ? 'request' : 'requests'} for ${libres} ${libres === 1 ? 'spot' : 'spots'}` : ''}. The room starts automatically with the day\'s first session.`,
     llenaTit: (m: number, p: number) => `Room full (${m}/${p})`, llenaTxt: 'No more players fit: the link doesn\'t accept requests and pending ones have been cancelled.',
     vas1: (n: string) => ` You\'re 1st with an average of ${n}.`, vasN: (p: number, n: string, d: string) => ` You\'re #${p} with an average of ${n}, ${d} behind the leader.`,
     enJuego: 'In play', enJuegoTxt: 'The room is closed to new players.',
-    cancelada: 'Room cancelled', canceladaTxt: 'It didn\'t reach the minimum of 2 players when the day started: it doesn\'t score or count towards the honours list.',
+    cancelada: 'Room cancelled', canceladaTxt: 'It didn\'t reach the minimum of 2 players when the competition ended: it doesn\'t score or count towards the honours list.',
     cerrada: 'Room closed', cerradaTxt: 'The host closed the room before it started.', finalizada: 'Room finished', finalizadaTxt: 'The day is over: the final standings are in the honours list.',
     solLlenaEnlace: 'The room is full: the link no longer lets anyone in.', plazasLibres: (l: number) => l + ' ' + (l === 1 ? 'free spot' : 'free spots'),
     solPrivada: 'Your room isn\'t listed in the lobby: share the link and people join straight away, no request needed.', solLlena: 'The room is full: you can only decline. Pending requests are cancelled automatically.',
@@ -327,8 +327,8 @@ export class SalaPage {
     const d = this.detalle();
     if (!d) return '\u00a0'; // UX6-R1-9: reserva la línea mientras carga
     const t = this.t();
-    const dia = d.jornada?.dia ? t.dia + new Intl.DateTimeFormat(this.i18n.locale(), { day: 'numeric', month: 'short' }).format(new Date(d.jornada.dia)) : '';
-    return `${this.esAnfitrion() ? t.eresAnf : t.anfitrion + ' @' + d.sala.anfitrion}${dia} · ${d.sala.miembros}/${d.sala.plazas} ${t.jugadoresMin}`;
+    // GRS Fantasy is one game for the whole event: the room has no day
+    return `${this.esAnfitrion() ? t.eresAnf : t.anfitrion + ' @' + d.sala.anfitrion} · ${d.sala.miembros}/${d.sala.plazas} ${t.jugadoresMin}`;
   });
   protected readonly editable = computed<SalaEditable | null>(() => {
     const s = this.sala();

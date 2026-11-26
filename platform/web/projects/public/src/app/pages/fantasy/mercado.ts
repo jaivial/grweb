@@ -28,11 +28,11 @@ const T = {
     titulo: 'Mercado',
     desc: 'Libres al valor; clausulazo al dueño. Cláusula en vivo con cada veredicto.',
     cerradosDesde: (h: string) => 'Clausulazos cerrados desde las ' + h,
-    cerradosTxt: 'Empezó la última sesión del día. Sigues pudiendo fichar y vender; los clausulazos se reabren el próximo día de competición.',
+    cerradosTxt: 'Empezó la última sesión de la competición. Sigues pudiendo fichar y vender hasta que termine.',
     seCierran: (h: string) => 'Los clausulazos se cierran a las ' + h,
     quedan: (f: string) => `Quedan ${f}. Después podrás seguir fichando atletas libres.`,
     cerrados: 'Clausulazos cerrados',
-    sinHorario: 'Todavía no hay horario publicado para hoy: los clausulazos se abren cuando se publique.',
+    sinHorario: 'Todavía no hay horario publicado: los clausulazos se abren cuando se publique.',
     errorCarga: 'No hemos podido cargar el mercado',
     dueno: 'Dueño',
     sexo: 'Sexo',
@@ -54,7 +54,7 @@ const T = {
     accion: 'Acción',
     verMasAtletas: (n: number) => `Ver ${n} atletas más`,
     deTotal: (a: number, b: number) => `${a} de ${b}`,
-    reglaClausulazo: (n: number) => `Clausulazo: pagas la cláusula y el dinero va al dueño anterior. Máximo ${n} clausulazos por usuario y jornada; sin deuda: no se puede dejar el saldo en negativo.`,
+    reglaClausulazo: (n: number) => `Clausulazo: pagas la cláusula y el dinero va al dueño anterior. Máximo ${n} clausulazos por usuario en todo el evento; sin deuda: no se puede dejar el saldo en negativo.`,
     saldoFantasy: 'Saldo fantasy',
     valorAlineacion: 'Valor de la alineación',
     usados: 'Clausulazos usados',
@@ -82,11 +82,11 @@ const T = {
     titulo: 'Market',
     desc: 'Free athletes at their value; buy-out to the owner. Live release clause with every decision.',
     cerradosDesde: (h: string) => 'Buy-outs closed since ' + h,
-    cerradosTxt: "The day's last session has begun. You can still sign and sell; buy-outs reopen on the next competition day.",
+    cerradosTxt: 'The last session of the competition has begun. You can still sign and sell until it ends.',
     seCierran: (h: string) => 'Buy-outs close at ' + h,
     quedan: (f: string) => `${f} left. After that you can keep signing free athletes.`,
     cerrados: 'Buy-outs closed',
-    sinHorario: 'No schedule has been published for today yet: buy-outs open once it is.',
+    sinHorario: 'No schedule has been published yet: buy-outs open once it is.',
     errorCarga: "We couldn't load the market",
     dueno: 'Owner',
     sexo: 'Sex',
@@ -108,7 +108,7 @@ const T = {
     accion: 'Action',
     verMasAtletas: (n: number) => `See ${n} more athletes`,
     deTotal: (a: number, b: number) => `${a} of ${b}`,
-    reglaClausulazo: (n: number) => `Buy-out: you pay the release clause and the money goes to the previous owner. Up to ${n} buy-outs per user and day; no debt: your balance can never go negative.`,
+    reglaClausulazo: (n: number) => `Buy-out: you pay the release clause and the money goes to the previous owner. Up to ${n} buy-outs per user for the whole event; no debt: your balance can never go negative.`,
     saldoFantasy: 'Fantasy balance',
     valorAlineacion: 'Line-up value',
     usados: 'Buy-outs used',
@@ -140,7 +140,7 @@ const T = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page [title]="t().titulo" [juego]="true">
-      <gr-fantasy-cabecera [titulo]="t().titulo + ' ' + jornadaTxt()" [migas]="[t().titulo]" [descripcion]="t().desc">
+      <gr-fantasy-cabecera [titulo]="t().titulo" [migas]="[t().titulo]" [descripcion]="t().desc">
         <gr-coin-balance class="shrink-0 self-start lg:self-center" [valor]="saldo() ?? 0" moneda="fantasy" motivo="fantasy" />
       </gr-fantasy-cabecera>
 
@@ -378,10 +378,6 @@ export class MercadoFantasyPage {
     const min = Math.ceil((new Date(c).getTime() - this.ahora()) / 60000);
     if (min <= 0 || min > 90) return '';
     return min >= 60 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${min} min`;
-  });
-  protected readonly jornadaTxt = computed(() => {
-    const j = this.store.jornada() ?? this.estado.jornada();
-    return j ? '· ' + j.nombre.replace(/\s*\(.*\)$/, '') : '';
   });
 
   constructor() {

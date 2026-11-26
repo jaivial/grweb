@@ -17,7 +17,7 @@ interface Acreditacion {
 const T = {
   es: {
     volver: 'Mi área', h1: 'Mi acreditación', ticket: 'Acreditación de atleta',
-    categoria: 'Categoría', sesion: 'Sesión', dia: 'Día', licencia: 'Licencia', porPublicar: 'Por publicar',
+    categoria: 'Categoría', sesion: 'Sesión', dia: 'Día', porPublicar: 'Por publicar',
     pista: 'Sube el brillo de la pantalla al máximo', pistaTxt: 'Enseña este QR en el pesaje y en la puerta. Se escanea mejor si la pantalla se ve nítida.',
     descargar: 'Descargar la imagen', descargando: 'Preparando…',
     cargando: 'Cargando tu acreditación', qrAlt: 'Código QR de tu acreditación',
@@ -26,7 +26,7 @@ const T = {
   },
   en: {
     volver: 'My area', h1: 'My accreditation', ticket: 'Athlete accreditation',
-    categoria: 'Weight class', sesion: 'Session', dia: 'Day', licencia: 'Licence', porPublicar: 'To be announced',
+    categoria: 'Weight class', sesion: 'Session', dia: 'Day', porPublicar: 'To be announced',
     pista: 'Turn your screen brightness up', pistaTxt: 'Show this QR at the weigh-in and at the door. It scans best on a bright, sharp screen.',
     descargar: 'Download the image', descargando: 'Preparing…',
     cargando: 'Loading your accreditation', qrAlt: 'QR code of your accreditation',
@@ -55,9 +55,8 @@ const T = {
           <p class="text-[22px] leading-tight font-semibold break-words">{{ a().nombreCompleto || a().nombre + ' ' + a().apellidos }}</p>
           <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
             <div class="min-w-0"><dt class="text-label-xs tracking-wide text-text-tertiary uppercase">{{ t().categoria }}</dt><dd class="text-[15px] font-semibold">{{ categoria() }}</dd></div>
-            <div class="min-w-0"><dt class="text-label-xs tracking-wide text-text-tertiary uppercase">{{ t().sesion }}</dt><dd class="text-[15px] font-semibold break-words">{{ a().sesion || t().porPublicar }}</dd></div>
             <div class="min-w-0"><dt class="text-label-xs tracking-wide text-text-tertiary uppercase">{{ t().dia }}</dt><dd class="text-[15px] font-semibold">{{ dia() }}</dd></div>
-            <div class="min-w-0"><dt class="text-label-xs tracking-wide text-text-tertiary uppercase">{{ t().licencia }}</dt><dd class="font-mono text-mono-s">{{ a().licencia || '–' }}</dd></div>
+            <div class="col-span-2 min-w-0"><dt class="text-label-xs tracking-wide text-text-tertiary uppercase">{{ t().sesion }}</dt><dd class="text-[15px] font-semibold break-words">{{ a().sesion || t().porPublicar }}</dd></div>
           </dl>
         </div>
 

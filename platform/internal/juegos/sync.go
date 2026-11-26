@@ -49,12 +49,8 @@ func (s *Svc) sincronizar(ctx context.Context, cid uuid.UUID, j jornada) error {
 		if err != nil {
 			return err
 		}
-		if err := sincronizarAtletasTx(ctx, tx, cid, j, m, cfg, degradado); err != nil {
-			return err
-		}
-		if err := aplicarNotasTx(ctx, tx, cid, j, cfg, m); err != nil {
-			return err
-		}
+		// the fantasy is one game for the whole event (fantasy_evento.go): its athletes and grades are synced
+		// on their own from the scoreboards of every day
 		mercados, err := cargarMercadosTx(ctx, tx, j.ID)
 		if err != nil {
 			return err

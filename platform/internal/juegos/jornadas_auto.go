@@ -109,8 +109,11 @@ func (s *Svc) reconciliarJornadas(ctx context.Context, cid uuid.UUID) error {
 // estadosAutomaticos opens the jornadas of today and the days to come (old drafts included) and closes the ones
 // whose day has passed. «En juego» comes from the reconciler when the day starts (enJuegoAutomatico).
 func (s *Svc) estadosAutomaticos(ctx context.Context, cid uuid.UUID) error {
+	// only the calendar decides: a draft of today or later opens, and a jornada put «en juego» before its day (the
+	// old manual button) goes back to open
 	if _, err := s.a.DB.Exec(ctx, `UPDATE jornadas SET estado = 'abierta', version = version + 1, updated_at = clock_timestamp()
-		WHERE competition_id = $1 AND estado = 'borrador' AND dia >= (now() AT TIME ZONE 'Europe/Madrid')::date`, cid); err != nil {
+		WHERE competition_id = $1 AND ((estado = 'borrador' AND dia >= (now() AT TIME ZONE 'Europe/Madrid')::date)
+			OR (estado = 'en_juego' AND dia > (now() AT TIME ZONE 'Europe/Madrid')::date))`, cid); err != nil {
 		return err
 	}
 	rows, err := s.a.DB.Query(ctx, selJornada+` FROM jornadas WHERE competition_id = $1 AND estado IN ('borrador', 'abierta', 'en_juego')
@@ -135,6 +138,10 @@ func (s *Svc) estadosAutomaticos(ctx context.Context, cid uuid.UUID) error {
 			if err := cerrarMercadosJornadaTx(ctx, tx, cid, j.ID); err != nil {
 				return err
 			}
+			// the fantasy rooms (only in the last jornada) play until here: they start and get their palmarés
+			if err := iniciarSalasTx(ctx, tx, cid, j); err != nil {
+				return err
+			}
 			return s.finalizarSalasTx(ctx, tx, cid, j)
 		}); err != nil {
 			return err
@@ -144,7 +151,8 @@ func (s *Svc) estadosAutomaticos(ctx context.Context, cid uuid.UUID) error {
 }
 
 // enJuegoAutomatico moves today's open jornada to «en juego» once its day has begun (first session of the
-// published schedule, or the live desk already broadcasting) and starts its rooms, what the «En juego» button did.
+// published schedule, or the live desk already broadcasting). The fantasy rooms are not touched: they take members
+// until the event ends.
 func (s *Svc) enJuegoAutomatico(ctx context.Context, cid uuid.UUID, j jornada) error {
 	if j.Estado != "abierta" {
 		return nil
@@ -158,15 +166,9 @@ func (s *Svc) enJuegoAutomatico(ctx context.Context, cid uuid.UUID, j jornada) e
 	if !empezado {
 		return nil
 	}
-	return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-		tag, err := tx.Exec(ctx, `UPDATE jornadas SET estado = 'en_juego', version = version + 1, updated_at = clock_timestamp()
-			WHERE id = $1 AND estado = 'abierta'`, j.ID)
-		if err != nil || tag.RowsAffected() == 0 {
-			return err
-		}
-		j.Estado = "en_juego"
-		return iniciarSalasTx(ctx, tx, cid, j)
-	})
+	_, err := s.a.DB.Exec(ctx, `UPDATE jornadas SET estado = 'en_juego', version = version + 1, updated_at = clock_timestamp()
+		WHERE id = $1 AND estado = 'abierta'`, j.ID)
+	return err
 }
 
 // reconciliarTodas runs reconciliarJornadas for every competition that juegos knows (configured or with
@@ -188,6 +190,9 @@ func (s *Svc) reconciliarTodas(ctx context.Context) {
 	for _, c := range cids {
 		if err := s.reconciliarJornadas(ctx, c); err != nil && ctx.Err() == nil {
 			s.a.Log.Warn("jornadas automáticas", "cid", c, "err", err)
+		}
+		if err := s.sincronizarFantasy(ctx, c); err != nil && ctx.Err() == nil {
+			s.a.Log.Warn("fantasy del evento", "cid", c, "err", err)
 		}
 	}
 }

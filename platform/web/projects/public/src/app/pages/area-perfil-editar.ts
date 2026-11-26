@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, PLATFORM_ID, computed, inject, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { isPlatformBrowser } from '@angular/common';
-import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, GrTelefono } from '@grcup/ui';
+import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, GrTelefono, telefonoTexto } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import { textoError } from '../core/errores';
 import { I18n } from '../core/i18n';
@@ -66,9 +66,9 @@ const api = '/api/area-atleta/perfil-editar';
                 <div class="flex flex-col gap-0.5 rounded-md bg-bg-raised px-3 py-2">
                   <dt class="text-label-xs text-text-tertiary uppercase">{{ c.campo }}</dt>
                   <dd class="flex min-w-0 flex-wrap items-baseline gap-2 text-body-s">
-                    <span class="text-text-tertiary line-through">{{ c.antes || t().vacio }}</span>
+                    <span class="text-text-tertiary line-through">{{ valor(c, c.antes) }}</span>
                     <gr-icon name="arrow-right" [size]="12" class="text-text-muted" />
-                    <span class="font-semibold text-text-primary">{{ c.despues || t().vacio }}</span>
+                    <span class="font-semibold text-text-primary">{{ valor(c, c.despues) }}</span>
                   </dd>
                 </div>
               }
@@ -230,6 +230,11 @@ export class AreaPerfilEditar {
   /** Menor de 18 hoy (aviso y campo de Instagram oculto). */
   protected esMenor(): boolean {
     return esMenorDe(this.d.fechaNacimiento);
+  }
+
+  /** El valor de un cambio, listo para leer: el teléfono se agrupa («+34 600 000 002»), el resto va tal cual. */
+  protected valor(c: CambioCampo, v: string): string {
+    return (c.clave === 'telefono' ? telefonoTexto(v) : v) || this.t().vacio;
   }
 
   /** Total de las marcas en vivo. */

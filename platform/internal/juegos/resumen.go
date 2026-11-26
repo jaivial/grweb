@@ -232,8 +232,11 @@ func (s *Svc) cargarResumenPorra(ctx context.Context, cid uuid.UUID) (resumenPor
 
 func (s *Svc) cargarResumenFantasy(ctx context.Context, cid uuid.UUID) (resumenFantasy, error) {
 	o := resumenFantasy{Top3: []filaFantasyPublic{}, ServerTime: time.Now()}
-	j, err := s.jornadaHome(ctx, cid)
-	if err != nil || j == nil {
+	j, err := s.jornadaFantasy(ctx, s.a.DB, cid) // one fantasy for the whole event
+	if err == errSinJornada {
+		return o, nil
+	}
+	if err != nil {
 		return o, err
 	}
 	o.Jornada = ptr(j.out())

@@ -85,6 +85,8 @@ type MarcadorAtleta struct {
 	PuestoMovimiento map[string]int               `json:"puestoMovimiento"`
 	Blanqueo         map[string]bool              `json:"blanqueo"`
 	Terminado        bool                         `json:"terminado"`
+	// Dia is set by juegos (marcadorFantasy): the date of the scoreboard the athlete came from.
+	Dia string `json:"-"`
 }
 
 // Marcador mirrors the response of GET /internal/competiciones/{cid}/marcador.

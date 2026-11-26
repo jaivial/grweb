@@ -43,6 +43,31 @@ async function seoMap(): Promise<SeoMap | null> {
 const STATIC_ROUTES_ES = ['/', '/categorias-de-peso', '/marcas-minimas', '/reglamento', '/atletas', '/participantes', '/horarios', '/entradas', '/sorteo', '/en-directo', '/resultados', '/resultados/2025', '/ediciones/2025', '/publico', '/preguntas-frecuentes', '/patrocinadores', '/galeria', '/voluntarios', '/como-llegar', '/donde-dormir-y-comer', '/mapa-de-accesos', '/blog', '/privacidad', '/terminos', '/cookies', '/consentimiento-datos', '/politica-concurso', '/alta-atleta'];
 const STATIC_ROUTES = [...STATIC_ROUTES_ES, ...STATIC_ROUTES_ES.map((u) => (u === '/' ? '/en' : '/en' + u))];
 
+/**
+ * Retired routes and the trailing-slash copy of a page: 301, never 302. The Angular router's `redirectTo` answers 302,
+ * which Search Console keeps reporting as «Page with redirect» (temporary); a permanent move must be a 301. The EN tree
+ * mounts the same pages, so `/en/clubs` goes to `/en`.
+ */
+const REDIRECTOS_301: Record<string, string> = {
+  '/clubs': '/', // página retirada (14-nov): el club ya solo es un campo del atleta
+  '/rifa': '/sorteo',
+  '/sorteo/confirmacion': '/sorteo',
+  '/directo': '/en-directo',
+};
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  const en = /^\/en\//.test(req.path);
+  const es = en ? REDIRECTOS_301[req.path.slice(3)] : REDIRECTOS_301[req.path];
+  const destino = en && es ? (es === '/' ? '/en' : '/en' + es) : es;
+  if (destino) return res.redirect(301, destino + req.originalUrl.slice(req.path.length));
+  // «/horarios/» is the same page as «/horarios» (canonical without the slash): one permanent redirect, no duplicate.
+  if (req.path.length > 1 && req.path.endsWith('/')) {
+    const sin = req.path.replace(/\/+$/, '') || '/';
+    return res.redirect(301, sin + req.originalUrl.slice(req.path.length));
+  }
+  next();
+});
+
 /** Redirects managed from the backoffice («Páginas y SEO · Redirecciones»). */
 app.use(async (req, res, next) => {
   if ((req.method !== 'GET' && req.method !== 'HEAD') || req.path.includes('.')) return next();
@@ -78,7 +103,9 @@ app.use(['/_componentes', '/_overlays'], (_req, res, next) => {
   next();
 });
 app.get('/robots.txt', (_req, res) => {
-  res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /pantalla/\nDisallow: /_componentes\nDisallow: /_overlays\nSitemap: ${ORIGIN}/sitemap.xml\n`);
+  // The calendar of /en-directo is a public file that Google may crawl (otherwise /api/ blocks it and it shows up as
+  // «Blocked by robots.txt»); the longest rule wins, so only that file is allowed under /api/.
+  res.type('text/plain').send(`User-agent: *\nAllow: /\nAllow: /api/competiciones/*/horarios.ics$\nDisallow: /api/\nDisallow: /pantalla/\nDisallow: /_componentes\nDisallow: /_overlays\nSitemap: ${ORIGIN}/sitemap.xml\n`);
 });
 
 app.get('/sitemap.xml', async (_req, res) => {

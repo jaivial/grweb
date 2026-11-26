@@ -6,6 +6,7 @@ import { GrButton, GrIcon, GrInput, GrSkeleton } from '@grcup/ui';
 import { DESTINO_INTERNO, FanSession, codigoError, detalleError } from '../core/fan';
 import { I18n, LocPipe } from '../core/i18n';
 import { Page } from '../layout/page';
+import { Seo } from '../core/seo';
 
 const T = {
   es: {
@@ -113,6 +114,8 @@ export class AccesoPage {
   protected readonly destino = signal('/en-directo');
 
   constructor() {
+    // Enlace mágico de un solo uso: ni se indexa ni se sigue (única página pública sin SEO propio que sí se rastreaba).
+    inject(Seo).set({ title: this.t().titulo, description: this.t().h1, path: '/acceso', robots: 'noindex, nofollow' });
     effect(() => {
       const token = this.route.snapshot.queryParamMap.get('acceso') ?? '';
       if (!this.browser) return;

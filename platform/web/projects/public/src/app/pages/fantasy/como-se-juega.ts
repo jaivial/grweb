@@ -92,7 +92,7 @@ const T = {
       {
         titulo: 'Tu cartera y tu alineación',
         puntos: [
-          '1.000.000 monedas fantasy por jornada, separadas de las de la porra.',
+          '1.000.000 monedas fantasy para todo el evento (los dos días), separadas de las de la porra.',
           `Alineación de exactamente ${v.plantillaMax} atletas, sin suplentes.`,
           'Se juega por salas de 2 a 10 jugadores: un atleta tiene como mucho un dueño por sala.',
           'Un atleta no se puede cambiar mientras su flight esté en curso (candado).',
@@ -111,7 +111,7 @@ const T = {
         titulo: 'Clausulazo',
         puntos: [
           'Pagas la cláusula de un atleta con dueño y el dinero va al dueño anterior.',
-          `Máximo ${v.maxClausulazos} clausulazos por usuario y jornada; se cierran al empezar la última sesión del día.`,
+          `Máximo ${v.maxClausulazos} clausulazos por usuario en todo el evento; se cierran al empezar la última sesión del último día.`,
           `Protección de ${v.proteccionMin} minutos tras cualquier fichaje o clausulazo.`,
           'Sin deuda: no se puede dejar el saldo en negativo.',
         ],
@@ -187,7 +187,7 @@ const T = {
       {
         titulo: 'Your wallet and your line-up',
         puntos: [
-          '1,000,000 fantasy coins per day, separate from the betting pool ones.',
+          '1,000,000 fantasy coins for the whole event (both days), separate from the betting pool ones.',
           `A line-up of exactly ${v.plantillaMax} athletes, no substitutes.`,
           'Played in leagues of 2 to 10 players: an athlete has at most one owner per league.',
           "An athlete can't be swapped while their flight is under way (locked).",
@@ -206,7 +206,7 @@ const T = {
         titulo: 'Clause buy-out',
         puntos: [
           "You pay the release clause of an owned athlete and the money goes to the previous owner.",
-          `Up to ${v.maxClausulazos} clause buy-outs per user and day; they close when the day's last session begins.`,
+          `Up to ${v.maxClausulazos} clause buy-outs per user for the whole event; they close when the last day's last session begins.`,
           `${v.proteccionMin} minutes' protection after any signing or clause buy-out.`,
           'No debt: your balance can never go negative.',
         ],

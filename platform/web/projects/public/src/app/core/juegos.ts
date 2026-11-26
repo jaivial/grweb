@@ -122,6 +122,8 @@ export interface Nota {
 export interface AtletaMercado {
   atletaId: string;
   nombre: string;
+  /** Día en que compite (GRS Fantasy junta los atletas de todos los días del evento): YYYY-MM-DD. */
+  dia?: string;
   fotoUrl?: string;
   sexo: Sexo;
   categoria: string;
@@ -518,6 +520,12 @@ export const cuota = (v: number | null | undefined, lang: Lang = 'es'): string =
 /** «Femenino» / «Masculino». */
 export const sexoTxt = (s: Sexo | string, lang: Lang = 'es'): string => (lang === 'en' ? (s === 'F' ? 'Women' : 'Men') : s === 'F' ? 'Femenino' : 'Masculino');
 /** «−63 kg» (la categoría del backend viene como «-63»). */
+/** «sáb 19» del día de un atleta (vacío sin día). */
+export function diaCorto(dia: string | undefined, locale: string): string {
+  if (!dia) return '';
+  return new Date(dia.slice(0, 10) + 'T12:00:00Z').toLocaleDateString(locale, { weekday: 'short', day: 'numeric', timeZone: 'UTC' }).replace(',', '').replace('.', '');
+}
+
 export const categoriaTxt = (c: string | undefined): string => (c ? c.replace('-', '−') + ' kg' : '');
 /** Etiqueta del movimiento de porra. */
 export const MOV_PORRA: Record<Mov, string> = { sq: 'Sentadilla', bp: 'Press banca', dl: 'Peso muerto' };
