@@ -1,5 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, TransferState, computed, inject, input, makeStateKey } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { GrButton, GrIcon } from '@grcup/ui';
 import { I18n, LocPipe } from '../core/i18n';
@@ -66,7 +66,7 @@ export class JuegosCerrados {
   imports: [RouterOutlet, Page, JuegosCerrados],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (estado.cerrados()) {
+    @if (aviso()) {
       <gr-page [title]="t().titulo" [eyebrow]="t().eyebrow" [centrado]="true">
         <gr-juegos-cerrados />
       </gr-page>
@@ -78,10 +78,21 @@ export class JuegosCerrados {
 export class JuegosPuerta {
   protected readonly estado = inject(JuegosEstado);
   protected readonly t = inject(I18n).dict(T);
+  private readonly vivo = inject(JuegosEnVivo);
+  /** What the server rendered, until the browser has its own config (hydration sees the same branch). */
+  private readonly inicial: boolean;
+  protected readonly aviso = computed(() => (this.estado.config() || this.vivo.activo() !== null ? this.estado.cerrados() : this.inicial));
 
   constructor() {
-    // the server renders the right side (SSR waits for the config); the browser always re-reads it
+    // the server renders the right side (SSR waits for the config) and hands it over; the browser always re-reads it
     const browser = isPlatformBrowser(inject(PLATFORM_ID));
-    void inject(PendingTasks).run(() => this.estado.cargarConfig(browser));
+    const ts = inject(TransferState);
+    this.inicial = ts.get(CERRADOS, false);
+    void inject(PendingTasks).run(async () => {
+      await this.estado.cargarConfig(browser);
+      if (!browser) ts.set(CERRADOS, this.estado.cerrados());
+    });
   }
 }
+
+const CERRADOS = makeStateKey<boolean>('juegos-cerrados');
