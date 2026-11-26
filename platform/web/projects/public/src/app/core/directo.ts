@@ -89,6 +89,14 @@ export class DirectoPublic {
   readonly failed = signal(false);
 
   directo(): Promise<Directo | null> { return this.get<Directo>(`/api/competiciones/${COMPETITION_SLUG}/directo`); }
+  /** Light poll of the «espectadores» count only (the snapshot is refetched on live events). Silent on failure. */
+  async espectadores(): Promise<number | null> {
+    try {
+      return (await firstValueFrom(this.http.get<{ espectadores: number }>(`/api/competiciones/${COMPETITION_SLUG}/directo/espectadores`))).espectadores;
+    } catch {
+      return null;
+    }
+  }
   resultados(slug: string): Promise<ResultadosPublicos | null> { return this.get<ResultadosPublicos>(`/api/competiciones/${slug}/resultados`); }
 
   async pantalla(slug: string, token: string, previa: boolean): Promise<Pantalla | 'enlace' | null> {

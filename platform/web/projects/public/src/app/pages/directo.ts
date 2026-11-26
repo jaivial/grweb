@@ -275,9 +275,17 @@ export class EnDirectoPage {
       };
       const cerrar = escuchar(EVENTOS, () => void recargar(), (e) => this.conexion.set(e), () => void chat.cargarEstadoSala(), true);
       const poll = setInterval(() => void recargar(), 30_000);
+      // the eye follows reality without desk activity: only the count, only while live and the tab is visible
+      const ojo = setInterval(async () => {
+        if (document.hidden || this.dir()?.fase !== 'en_directo') return;
+        const n = await this.api.espectadores();
+        const d = this.dir();
+        if (n !== null && d && d.espectadores !== n) this.dir.set({ ...d, espectadores: n });
+      }, 15_000);
       inject(DestroyRef).onDestroy(() => {
         clearInterval(tick);
         clearInterval(poll);
+        clearInterval(ojo);
         cerrar();
       });
     }
