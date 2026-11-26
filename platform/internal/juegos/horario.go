@@ -60,7 +60,7 @@ func (c clausulazoVista) problema() error {
 		return nil
 	}
 	if c.Cierre == nil {
-		return problem.Conflict("CLAUSULAZO_CERRADO", "Los clausulazos están bloqueados hasta que se publique el horario del día.")
+		return problem.Conflict("CLAUSULAZO_CERRADO", "Los clausulazos están bloqueados hasta que se publique el horario de la competición.")
 	}
 	return problem.Conflict("CLAUSULAZO_CERRADO", "Los clausulazos se cerraron a las "+c.Cierre.In(madrid()).Format("15:04")+", al empezar la última sesión del día.")
 }

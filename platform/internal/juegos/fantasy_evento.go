@@ -138,3 +138,30 @@ func (s *Svc) sincronizarFantasy(ctx context.Context, cid uuid.UUID) error {
 		return aplicarNotasTx(ctx, tx, cid, *j, cfg, m)
 	})
 }
+
+// horarioFantasy is the schedule the fantasy follows: for the fantasy jornada, the whole event (first session of
+// the first day to the last session of the last day with sessions), so clausulazos stay open until the last
+// session of the event even when the last date has no published schedule yet; for any other jornada, its day.
+func (s *Svc) horarioFantasy(ctx context.Context, cid uuid.UUID, j jornada) horarioDia {
+	if !s.esFantasy(ctx, cid, j) {
+		return s.horario(ctx, cid, j.Dia)
+	}
+	var h horarioDia
+	for _, d := range s.diasDelHorario(ctx, cid) {
+		x := s.horario(ctx, cid, d)
+		if !x.OK {
+			continue
+		}
+		if !h.OK || x.Inicio.Before(h.Inicio) {
+			h.Inicio = x.Inicio
+		}
+		if !h.OK || x.UltimaSesion.After(h.UltimaSesion) {
+			h.UltimaSesion = x.UltimaSesion
+		}
+		h.OK = true
+	}
+	if !h.OK {
+		return s.horario(ctx, cid, j.Dia)
+	}
+	return h
+}

@@ -509,7 +509,7 @@ func (s *Svc) registerPublic() {
 			if o.Body.Atletas, err = s.mercadoFantasy(ctx, c.ID, *j, salaID, fanID); err != nil {
 				return nil, err
 			}
-			o.Body.Clausulazo = s.horario(ctx, c.ID, j.Dia).clausulazo(time.Now())
+			o.Body.Clausulazo = s.horarioFantasy(ctx, c.ID, *j).clausulazo(time.Now())
 			return o, nil
 		})
 
@@ -557,7 +557,7 @@ func (s *Svc) registerPublic() {
 			o.Body.Sala = resumenDe(sl)
 			o.Body.Atletas = []atletaMercado{}
 			o.Body.Alineacion = cfg.PlantillaMax
-			o.Body.Clausulazo = s.horario(ctx, c.ID, j.Dia).clausulazo(time.Now())
+			o.Body.Clausulazo = s.horarioFantasy(ctx, c.ID, *j).clausulazo(time.Now())
 			_ = s.a.DB.QueryRow(ctx, `SELECT saldo FROM saldos WHERE jornada_id = $1 AND fan_id = $2 AND moneda = 'fantasy'`, j.ID, f.ID).Scan(&o.Body.Saldo)
 			if sl == nil {
 				return o, nil
@@ -642,7 +642,7 @@ func (s *Svc) registerPublic() {
 				case "vender":
 					err = s.venderTx(ctx, tx, c.ID, *j, cfg, sl.ID, f.ID, f.Alias, in.Body.AtletaID)
 				default:
-					err = s.clausulazoTx(ctx, tx, c.ID, *j, cfg, s.horario(ctx, c.ID, j.Dia).clausulazo(time.Now()), sl.ID, f.ID, f.Alias, in.Body.AtletaID)
+					err = s.clausulazoTx(ctx, tx, c.ID, *j, cfg, s.horarioFantasy(ctx, c.ID, *j).clausulazo(time.Now()), sl.ID, f.ID, f.Alias, in.Body.AtletaID)
 				}
 				if err != nil {
 					return err

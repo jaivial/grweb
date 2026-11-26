@@ -210,7 +210,7 @@ func (s *Svc) registerSalas() {
 			o.Body.Atletas = s.atletasDelDia(ctx, c.ID, *j)
 			var hayPlazas bool
 			o.Body.PlazasMax, hayPlazas = plazasSala(o.Body.Atletas, cfg.PlantillaMax)
-			h := s.horario(ctx, c.ID, j.Dia)
+			h := s.horarioFantasy(ctx, c.ID, *j)
 			o.Body.Empezada, o.Body.Horario = !j.jugable(), h.vista()
 			o.Body.PuedeCrear = hayPlazas && !o.Body.Empezada && j.jugable()
 			o.Body.SolicitudesMax = maxSolicitudes
@@ -364,7 +364,7 @@ func (s *Svc) registerSalas() {
 					return nil, err
 				}
 			}
-			h := s.horario(ctx, c.ID, j.Dia)
+			h := s.horarioFantasy(ctx, c.ID, *j)
 			o.Body.Clausulazo = h.clausulazo(time.Now())
 			o.Body.Empezada, o.Body.Horario = !j.jugable(), h.vista()
 			o.Body.PlazasMax, _ = plazasSala(s.atletasDelDia(ctx, c.ID, *j), cfg.PlantillaMax)
@@ -437,7 +437,7 @@ func (s *Svc) registerSalas() {
 				o.Body.Miembros = append(o.Body.Miembros, mv)
 			}
 		}
-		h := s.horario(ctx, c.ID, j.Dia)
+		h := s.horarioFantasy(ctx, c.ID, *j)
 		o.Body.Horario = h.vista()
 		otra, err := miSala(ctx, s.a.DB, j.ID, fanID)
 		if err != nil {
