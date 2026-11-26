@@ -197,6 +197,26 @@ const PUBLIC_WEB = webPublica();
                       @if (canEdit()) { <label class="mt-3 flex min-h-11 items-start gap-3 text-body-s text-text-secondary"><input type="checkbox" [(ngModel)]="registrarConsentimiento" class="mt-1 size-5 accent-[#C42B3E]" />Registrar el consentimiento firmado en papel (formulario de la organización)</label> }
                     }
                   </div>
+                  <!-- Avisos por WhatsApp: consentimiento que el atleta dio en el alta o al organizador -->
+                  <div class="mt-4 rounded-md border border-line-subtle bg-bg-surface p-4">
+                    <div class="flex items-center justify-between gap-3">
+                      <p class="flex items-center gap-2 text-label-s"><gr-icon name="message" [size]="16" />Avisos por WhatsApp</p>
+                      <div class="flex items-center gap-3">
+                        <gr-badge [tone]="a.whatsapp ? 'success' : 'warning'">{{ a.whatsapp ? 'Confirmado' : 'Sin consentimiento' }}</gr-badge>
+                        <bo-toggle [(value)]="whatsapp" label="Consentimiento de avisos por WhatsApp" [disabled]="!canEdit()" />
+                      </div>
+                    </div>
+                    @if (a.whatsapp; as wa) {
+                      <dl class="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 text-body-xs">
+                        <dt class="text-text-tertiary">Texto aceptado</dt><dd class="truncate text-right text-mono-xs">WHATSAPP {{ wa.version || '–' }}</dd>
+                        <dt class="text-text-tertiary">Origen</dt><dd class="text-right text-mono-xs uppercase">{{ wa.origen }}</dd>
+                        <dt class="text-text-tertiary">Fecha</dt><dd class="text-right text-mono-xs">{{ fecha(wa.at) }} (Europe/Madrid)</dd>
+                      </dl>
+                    } @else {
+                      <p class="mt-2 text-body-xs text-text-secondary">Sin consentimiento no le llegan avisos por WhatsApp (solo email). Actívalo si el atleta te lo dio a ti.</p>
+                    }
+                    @if (whatsapp !== !!a.whatsapp) { <p class="mt-2 text-body-xs text-warning">{{ whatsapp ? 'Se registrará al guardar (otorgado al organizador).' : 'Se retirará al guardar: dejará de recibir avisos por WhatsApp.' }}</p> }
+                  </div>
                 </section>
               </div>
 
@@ -384,6 +404,8 @@ export class AtletaFichaPage {
   }
   protected d = this.blankDatos();
   protected registrarConsentimiento = false;
+  /** Interruptor «Avisos por WhatsApp» (se guarda con «Guardar cambios»). */
+  protected whatsapp = false;
 
   protected readonly canEdit = computed(() => this.auth.can(this.comps.current()?.id, 'atletas.editar'));
   protected readonly canWeigh = computed(() => this.auth.can(this.comps.current()?.id, 'checkin.escanear') || this.canEdit());
@@ -461,6 +483,7 @@ export class AtletaFichaPage {
     this.errLicencia.set('');
     this.errEmail.set('');
     this.registrarConsentimiento = false;
+    this.whatsapp = !!a.whatsapp;
     this.rev.update((v) => v + 1);
   }
 
@@ -469,7 +492,7 @@ export class AtletaFichaPage {
     this.rev();
     const a = this.atleta();
     if (!a) return false;
-    return JSON.stringify(this.perfilBody()) !== JSON.stringify(this.perfilBody(a.perfil)) || this.registrarConsentimiento || JSON.stringify(this.d) !== JSON.stringify(this.datosDe(a));
+    return JSON.stringify(this.perfilBody()) !== JSON.stringify(this.perfilBody(a.perfil)) || this.registrarConsentimiento || this.whatsapp !== !!a.whatsapp || JSON.stringify(this.d) !== JSON.stringify(this.datosDe(a));
   }
 
   protected descartar(): void {
@@ -498,8 +521,9 @@ export class AtletaFichaPage {
     this.toasts.items.update((l) => l.filter((t) => t.title !== 'No se pudo guardar'));
     try {
       if (JSON.stringify(this.d) !== JSON.stringify(this.datosDe(a))) a = await this.guardarDatos(cid, a);
-      if (JSON.stringify(this.perfilBody()) !== JSON.stringify(this.perfilBody(a.perfil)) || this.registrarConsentimiento) {
-        a = await this.api.guardarPerfil(cid, a, { ...this.perfilBody(), registrarConsentimiento: this.registrarConsentimiento });
+      const cambiaWa = this.whatsapp !== !!a.whatsapp;
+      if (JSON.stringify(this.perfilBody()) !== JSON.stringify(this.perfilBody(a.perfil)) || this.registrarConsentimiento || cambiaWa) {
+        a = await this.api.guardarPerfil(cid, a, { ...this.perfilBody(), registrarConsentimiento: this.registrarConsentimiento, whatsapp: cambiaWa ? this.whatsapp : undefined });
       }
       this.set(a);
       this.historial.set(await this.api.historial(cid, a.id));

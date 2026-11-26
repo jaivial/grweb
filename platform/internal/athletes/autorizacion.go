@@ -203,20 +203,12 @@ func datosFormulario(r row) DatosFormulario {
 }
 
 // waAceptado: the athlete accepted WhatsApp notices, recorded on their record (a consent given to the organiser) or in
-// their approved alta (the box of the form). Every athlete notice by WhatsApp uses it.
+// their approved alta (the box of the form); a withdrawal recorded by the team overrides both. Every athlete notice by
+// WhatsApp uses it.
 func waAceptado(ctx context.Context, q interface {
 	QueryRow(context.Context, string, ...any) pgx.Row
 }, cid, atleta uuid.UUID) bool {
-	var ficha bool
-	if err := q.QueryRow(ctx, `SELECT whatsapp_at IS NOT NULL FROM atletas WHERE competition_id = $1 AND id = $2`, cid, atleta).Scan(&ficha); err == nil && ficha {
-		return true
-	}
-	var sol solicitud
-	if err := q.QueryRow(ctx, `SELECT consentimientos::text FROM solicitudes_atleta WHERE competition_id = $1 AND match_atleta_id = $2
-		AND tipo = 'alta' AND estado = 'aprobada' ORDER BY revisado_at DESC NULLS LAST LIMIT 1`, cid, atleta).Scan(&sol.Consentimientos); err != nil {
-		return false
-	}
-	return sol.consent("whatsapp").Aceptado
+	return consentimientoWA(ctx, q, cid, atleta) != nil
 }
 
 // publicaFormulario draws the form of the athlete and publishes it (the key is derived from its content: it cannot

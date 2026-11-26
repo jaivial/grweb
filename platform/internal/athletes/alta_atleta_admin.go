@@ -1289,7 +1289,7 @@ func (s *Svc) rechazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm, moti
 			para, tel = contactoActual(ctx, tx, sol)
 			plantilla, urlAviso = "atleta-cambio-perfil-rechazado", s.webURL+"/area-atleta"
 			vars["urlArea"] = urlAviso
-			waConsentido = waConsentido || (sol.MatchAtletaID != nil && waAceptado(ctx, tx, cid, *sol.MatchAtletaID))
+			waConsentido = sol.MatchAtletaID != nil && waAceptado(ctx, tx, cid, *sol.MatchAtletaID)
 			// A photo that was only pending review is discarded (never the approved one).
 			if u := fotoCambio(leeCambios(sol)); u != "" && sol.MatchAtletaID != nil {
 				var actual string
