@@ -3,7 +3,6 @@ import { PLATFORM_ID, inject } from '@angular/core';
 import type { CanActivateFn } from '@angular/router';
 import { Router } from '@angular/router';
 import { AreaSesion, esVista } from './area';
-import { I18n } from './i18n';
 
 /**
  * Guard of the athlete area subpages (`/area-atleta?vista=…`): without an area session the athlete lands on the area
@@ -19,10 +18,11 @@ export const areaGuard: CanActivateFn = async (route) => {
   const browser = isPlatformBrowser(inject(PLATFORM_ID));
   const sesion = inject(AreaSesion);
   const router = inject(Router);
-  const i18n = inject(I18n);
   if (!browser) return true;
   if (await sesion.haySesion()) return true;
-  const login = router.parseUrl(i18n.path('/area-atleta'));
+  // El idioma sale del árbol de rutas (/en/area-atleta), no del estado de i18n: la guarda puede ser su primer lector.
+  const en = route.pathFromRoot.some((s) => s.url.length === 1 && s.url[0].path === 'en');
+  const login = router.parseUrl(en ? '/en/area-atleta' : '/area-atleta');
   login.queryParams = { volver: vista };
   return login;
 };
