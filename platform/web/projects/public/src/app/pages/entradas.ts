@@ -776,7 +776,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
     }
 
     <ng-template #sesiones>
-      @if (hidratado() && avisoSesion()) { <p class="flex items-start gap-2 rounded-md border border-warning/60 bg-warning/8 p-3 text-body-s text-text-secondary" role="status"><gr-icon name="circle-alert" [size]="16" class="mt-0.5 shrink-0 text-warning" />{{ t().pg.sesionPerdida }}</p> }
+      @if (avisoSesion()) { <p class="flex items-start gap-2 rounded-md border border-warning/60 bg-warning/8 p-3 text-body-s text-text-secondary" role="status"><gr-icon name="circle-alert" [size]="16" class="mt-0.5 shrink-0 text-warning" />{{ t().pg.sesionPerdida }}</p> }
       <div class="flex flex-col gap-3" role="radiogroup" [attr.aria-label]="t().pg.sesionAria">
         @for (s of d!.sesiones; track s.id) {
           <button type="button" role="radio" [attr.aria-checked]="sesion() === s.id" [disabled]="s.estado === 'cerrada' || s.estado === 'proximamente'" (click)="elegir(s)"
@@ -979,8 +979,9 @@ export class EntradasPage {
       afterNextRender(() => {
         this.hidratado.set(true);
         if (this.borradorCampos) { Object.assign(this.f, this.borradorCampos); this.borradorCampos = null; }
-        // the chosen session fixes how many people the draft can bring
-        if (this.sesion()) this.f.personas = Math.max(1, Math.min(this.f.personas, this.maxPersonas()));
+        // the draft's session, once the server markup is hydrated (never before: it would not match)
+        this.aplicarSesionBorrador();
+        this.preseleccionar();
         void this.fan.cargar().then((y) => { if (y?.email && !this.f.email) this.f.email = y.email; cd.markForCheck(); });
         const el = this.reservarEl()?.nativeElement;
         const io = new IntersectionObserver(([e]) => this.formVisible.set(e.isIntersecting), { rootMargin: '0px 0px -30% 0px' });
@@ -1022,8 +1023,10 @@ export class EntradasPage {
   private aplicarSesionBorrador(): void {
     const id = this.borradorSesion;
     const d = this.data();
-    if (!id || d === undefined) return;
+    // after hydration: the first render has to match the SSR markup, where the draft (browser storage) does not exist
+    if (!id || d === undefined || !this.hidratado()) return;
     this.borradorSesion = '';
+    this.sesion.set('');
     if (!this.sesionVigente(id, d?.sesiones ?? [])) return this.avisoSesion.set(true);
     this.sesion.set(id);
     this.f.personas = Math.max(1, Math.min(this.f.personas, this.maxPersonas()));
