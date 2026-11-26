@@ -42,12 +42,14 @@ type atletaMercado struct {
 	EsMio          bool       `json:"esMio"`
 	SesionEnCurso  bool       `json:"sesionEnCurso"`
 	Nota           notaAtleta `json:"nota"`
+	// Dia is the date the athlete competes (the fantasy mixes every day of the event): YYYY-MM-DD.
+	Dia string `json:"dia,omitempty"`
 }
 
 // mercadoFantasy lists the athletes of a jornada with clause and grade and, inside a room (salaID), the owner
 // (public alias) and the protection. Without a room every athlete shows as free.
 func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, salaID, fanID uuid.UUID) ([]atletaMercado, error) {
-	m, _, err := s.marcador(ctx, cid, j.Dia)
+	m, _, err := s.marcadorFantasy(ctx, cid, j)
 	if err != nil {
 		// live down and no last good scoreboard: the market still lists clauses and owners, without grades or
 		// photos (ST3-R2-2), instead of failing the page.
@@ -59,6 +61,7 @@ func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, sala
 	}
 	enCurso := map[uuid.UUID]bool{}
 	fotos := map[uuid.UUID]string{}
+	dias := map[uuid.UUID]string{}
 	for i := range m.Atletas {
 		if m.Atletas[i].SesionEnCurso {
 			enCurso[m.Atletas[i].AtletaID] = true
@@ -66,6 +69,7 @@ func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, sala
 		if m.Atletas[i].FotoURL != "" {
 			fotos[m.Atletas[i].AtletaID] = m.Atletas[i].FotoURL
 		}
+		dias[m.Atletas[i].AtletaID] = m.Atletas[i].Dia
 	}
 	notas := notasDelMarcador(cfg.Puntos, m)
 	// COALESCE: `protegido_hasta > now()` is NULL when the athlete was never signed (NULL > now() = NULL) and a
@@ -89,6 +93,7 @@ func (s *Svc) mercadoFantasy(ctx context.Context, cid uuid.UUID, j jornada, sala
 		a.EsMio = dueno != nil && fanID != uuid.Nil && *dueno == fanID
 		a.SesionEnCurso = enCurso[a.AtletaID]
 		a.FotoURL = fotos[a.AtletaID]
+		a.Dia = dias[a.AtletaID]
 		a.Nota = notas[a.AtletaID]
 		if a.Nota.Desglose == nil {
 			a.Nota.Desglose = []notaLinea{}

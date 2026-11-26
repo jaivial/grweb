@@ -35,11 +35,7 @@ func (s *Svc) sincronizarMercados(ctx context.Context, cid uuid.UUID, j jornada)
 			return err
 		}
 		creados, err = sincronizarMercadosTx(ctx, tx, cid, j, cfg, m, degradado)
-		if err != nil {
-			return err
-		}
-		// both days are playable from the start: the fantasy market of a day to come is filled in too
-		return sincronizarAtletasTx(ctx, tx, cid, j, m, cfg, degradado)
+		return err
 	})
 	return creados, err
 }

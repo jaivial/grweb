@@ -263,9 +263,11 @@ func cerrarMercado(m *Marcador, mc mercadoRow) bool {
 		}
 		return false
 	}
+	// the market stays open through the first attempts and closes once a 2nd attempt is judged (Jaime 26-nov:
+	// the 3rd attempt is lived with the porra already closed)
 	juzgado := func(ma *MarcadorAtleta, mov string) bool {
 		for _, mi := range ma.Intentos[mov] {
-			if mi.Resultado != "pendiente" {
+			if mi.N >= 2 && mi.Resultado != "pendiente" {
 				return true
 			}
 		}

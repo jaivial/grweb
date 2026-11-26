@@ -104,7 +104,11 @@ func (s *Svc) recompensaHito(ctx context.Context, cid uuid.UUID, raw json.RawMes
 			}
 		}
 		if fantasy > 0 {
-			if _, err := acreditarTx(ctx, tx, *j, d.FanID, Fantasy, fantasy, "hito_chat", "hito:"+j.ID.String()+":"+d.FanID.String()+":"+itoa(d.Mensajes)+":fantasy", d.Alias); err != nil {
+			jf, err := s.jornadaFantasy(ctx, tx, cid) // one fantasy wallet for the whole event
+			if err != nil {
+				return err
+			}
+			if _, err := acreditarTx(ctx, tx, *jf, d.FanID, Fantasy, fantasy, "hito_chat", "hito:"+j.ID.String()+":"+d.FanID.String()+":"+itoa(d.Mensajes)+":fantasy", d.Alias); err != nil {
 				return err
 			}
 		}
@@ -132,7 +136,11 @@ func (s *Svc) recompensaDonacion(ctx context.Context, cid uuid.UUID, raw json.Ra
 		if importe <= 0 {
 			return nil
 		}
-		_, err = acreditarTx(ctx, tx, *j, d.FanID, Fantasy, importe, "donacion", "fantasy:donacion:"+d.DonacionID.String(), d.Alias)
+		jf, err := s.jornadaFantasy(ctx, tx, cid) // one fantasy wallet for the whole event
+		if err != nil {
+			return err
+		}
+		_, err = acreditarTx(ctx, tx, *jf, d.FanID, Fantasy, importe, "donacion", "fantasy:donacion:"+d.DonacionID.String(), d.Alias)
 		return err
 	})
 }
