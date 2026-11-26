@@ -274,18 +274,20 @@ export class EnDirectoPage {
         if (d) this.dir.set(d);
       };
       const cerrar = escuchar(EVENTOS, () => void recargar(), (e) => this.conexion.set(e), () => void chat.cargarEstadoSala(), true);
-      const poll = setInterval(() => void recargar(), 30_000);
-      // the eye follows reality without desk activity: only the count, only while live and the tab is visible
-      const ojo = setInterval(async () => {
+      // the eye follows reality without desk activity: every 15 s the snapshot (every other tick, as before every
+      // 30 s) or, in between, only the count (live and tab visible), so a venue behind one NAT pays one extra
+      // light request per viewer every 30 s
+      const ojo = async () => {
         if (document.hidden || this.dir()?.fase !== 'en_directo') return;
         const n = await this.api.espectadores();
         const d = this.dir();
         if (n !== null && d && d.espectadores !== n) this.dir.set({ ...d, espectadores: n });
-      }, 15_000);
+      };
+      let ticks = 0;
+      const poll = setInterval(() => void (++ticks % 2 ? ojo() : recargar()), 15_000);
       inject(DestroyRef).onDestroy(() => {
         clearInterval(tick);
         clearInterval(poll);
-        clearInterval(ojo);
         cerrar();
       });
     }
