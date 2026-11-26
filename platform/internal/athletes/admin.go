@@ -326,8 +326,9 @@ func (s *Svc) registerAdmin() {
 					}
 				}
 				// one account per email: the directo account of this athlete follows a new email
-				// Only when the address changes: existing duplicates already saved must stay editable.
-				if prev.Email == nil || !strings.EqualFold(*prev.Email, b.Email) {
+				// Checked when the address changes or the athlete leaves «baja» (a reactivated one cannot take an
+				// address already in use). Existing duplicates already saved stay editable.
+				if prev.Email == nil || !strings.EqualFold(*prev.Email, b.Email) || prev.Estado == "baja" && b.Estado != "baja" {
 					if err := s.emailEnUso(ctx, tx, in.CID, in.ID, b.Email); err != nil {
 						return err
 					}

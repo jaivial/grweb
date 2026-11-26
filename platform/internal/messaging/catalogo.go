@@ -66,6 +66,7 @@ var automatizaciones = []Automatizacion{
 	{Clave: "resultados", Nombre: "Resultados publicados", Cuando: "al publicar cada categoría", Publico: "Atletas de la categoría y sus seguidores", Canales: []string{"email"}},
 	{Clave: "plaza", Nombre: "Plaza libre en la reserva", Cuando: "al liberarse plaza", Publico: "Lista de reserva", Canales: []string{"email"}},
 	{Clave: "novedades", Nombre: "Novedades: doble opt-in", Cuando: "al suscribirse · recordatorio a las 48 h", Publico: "Suscripciones pendientes", Canales: []string{"email"}},
+	{Clave: "proximas", Nombre: "Avísame de la próxima competición", Cuando: "al dejar el email en «Avísame»", Publico: "Quien se apunta a la lista de aviso", Canales: []string{"email"}},
 	{Clave: "entradas", Nombre: "Entradas: confirmación, cambios y anulación", Cuando: "al reservar o cambiar", Publico: "Reservas", Canales: []string{"email"}, Esencial: true},
 	{Clave: "espera", Nombre: "Lista de espera: alta y oferta de plaza", Cuando: "al apuntarse · al liberarse plaza", Publico: "Lista de espera", Canales: []string{"email"}, Esencial: true},
 	{Clave: "recordatorios", Nombre: "Recordatorios de la entrada", Cuando: "T−7 · T−1 (con QR)", Publico: "Reservas activas", Canales: []string{"email"}},
@@ -196,7 +197,7 @@ var catalogo = []Plantilla{
 		map[string]string{"enlace": "https://grcup.example/novedades/confirmar?t=…", "baja": "https://grcup.example/baja?t=…"},
 		Contenido{Asunto: "Confirma que quieres recibir novedades", Titulo: "Confirma tu suscripción", Cuerpo: "Has pedido recibir las novedades de la GRS Cup 2: fechas, horarios, sorteo y próximas competiciones. Un email al mes como mucho.\n\nConfirma con el botón. Si no lo has pedido tú, ignora este email.", BotonTexto: "Confirmar suscripción", BotonURL: "{{enlace}}"}),
 	// GRS3 «Avísame»: una sola confirmación, solo la primera vez que se apunta ese email (nunca en los repetidos).
-	p("aviso-evento-confirmado", "Avísame: estás en la lista", "Al dejar el email en «Avísame» de una próxima competición (solo la primera vez)", "crm", "novedades", false, []string{"evento", "enlace"},
+	p("aviso-evento-confirmado", "Avísame: estás en la lista", "Al dejar el email en «Avísame» de una próxima competición (solo la primera vez)", "crm", "proximas", false, []string{"evento", "enlace"},
 		map[string]string{"evento": "GRS Cup 3", "enlace": "https://grcup.example"},
 		Contenido{Asunto: "Te avisaremos cuando abra la {{evento}}", Preheader: "Ya estás en la lista", Titulo: "Ya estás en la lista",
 			Cuerpo: "Hemos apuntado tu email: te escribiremos en cuanto abramos las inscripciones de la **{{evento}}**, con las fechas y cómo reservar tu plaza.\n\nNo hace falta que hagas nada más. Si no lo has pedido tú, responde a este email y te quitamos de la lista.",
