@@ -1,4 +1,4 @@
-import type { GrTone } from '@grcup/ui';
+import { telefonoTexto, type GrTone } from '@grcup/ui';
 import type { EstadoSolicitud, TipoMatch, TipoSolicitud } from './solicitudes-api';
 
 /** The 18 fields of the public form, in the order of the review panel. */
@@ -64,6 +64,11 @@ export const tipoTone = (t: TipoSolicitud) => TIPO_TONE[t] ?? TIPO_TONE.alta;
 
 export function nombreCompleto(s: { nombre: string; apellidos: string }): string {
   return [s.nombre, s.apellidos].filter(Boolean).join(' ');
+}
+
+/** Value of a field ready to read: a phone goes out as «+34 600 000 009» (display only, the API keeps E.164). */
+export function valorTexto(clave: string, v: string): string {
+  return clave === 'telefono' ? telefonoTexto(v) : v;
 }
 
 /** Status badge of a request (an unauthorised minor wins over the stored status). */
