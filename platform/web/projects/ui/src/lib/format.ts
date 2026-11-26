@@ -20,6 +20,26 @@ export function fmtLongDate(iso: string | null | undefined): string {
   return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ }).format(d);
 }
 
+/**
+ * «18–20 de diciembre de 2026» (EN: «18–20 December 2026»); the long date when there is one day.
+ * The month and the year are written once when both dates share them.
+ */
+export function fmtDateRange(ini: string | null | undefined, fin?: string | null, locale = 'es-ES'): string {
+  const fecha = (iso: string) => new Date(iso.length === 10 ? iso + 'T12:00:00Z' : iso);
+  const partes = (d: Date) => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ }).formatToParts(d).filter((p) => p.type !== 'literal');
+  const valor = (p: Intl.DateTimeFormatPart[], t: string) => p.find((x) => x.type === t)?.value ?? '';
+  if (!ini) return '';
+  const a = fecha(ini), b = fin ? fecha(fin) : a;
+  const pa = partes(a), pb = partes(b);
+  if (Number.isNaN(a.getTime())) return '';
+  if (Number.isNaN(b.getTime()) || a.getTime() === b.getTime()) return fmtLongDate(ini);
+  const diaA = valor(pa, 'day'), diaB = valor(pb, 'day'), mes = valor(pb, 'month'), anio = valor(pb, 'year');
+  if (valor(pa, 'month') === mes && valor(pa, 'year') === anio) {
+    return locale.startsWith('es') ? `${diaA}–${diaB} de ${mes} de ${anio}` : `${diaA}–${diaB} ${mes} ${anio}`;
+  }
+  return `${fmtLongDate(ini)} – ${fmtLongDate(fin)}`;
+}
+
 /** Whole days from today to a date (negative when past). */
 export function daysUntil(iso: string | null | undefined, now = new Date()): number | null {
   if (!iso) return null;

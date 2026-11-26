@@ -71,10 +71,19 @@ export interface PruebaOpcion {
   codigo: string;
   nombre: string;
   fecha?: string;
+  /** Último día, cuando la competición dura varios (AEP-2: 18 y 19). */
+  fechaFin?: string;
+  /** Código del nivel («regional»), que la web traduce. */
   nivel: string;
   plazas: number;
   ocupadas: number;
 }
+
+/** Niveles de la AEP que devuelve el API, en los dos idiomas (el código viaja estable, el texto se pinta aquí). */
+const NIVELES: Record<string, { es: string; en: string }> = {
+  regional: { es: 'Nivel regional', en: 'Regional level' },
+  nacional: { es: 'Nivel nacional', en: 'National level' },
+};
 
 /** Una tarjeta del selector de competición (el alta y «Editar mi perfil» pintan la misma). */
 export interface PruebaTarjeta {
@@ -87,10 +96,20 @@ export interface PruebaTarjeta {
 /** Las tarjetas de «¿En qué competición compites?» (Figma 219:169366: sin chips ni contador; completa = deshabilitada). */
 export function tarjetasPrueba(pruebas: PruebaOpcion[] | undefined, locale: string, txtCompleta: string): PruebaTarjeta[] {
   const dia = (iso?: string) => iso ? new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(iso + 'T00:00:00Z')).replace(',', '').replace('.', '') : '';
+  /** «viernes 18 y sábado 19 dic» (EN: «Friday Dec 18 & Saturday Dec 19»): the days the competition runs. */
+  const fechas = (p: PruebaOpcion) => {
+    const a = dia(p.fecha);
+    if (!a || !p.fechaFin || p.fechaFin === p.fecha) return a;
+    const b = dia(p.fechaFin);
+    const [ta, tb] = [a.split(' '), b.split(' ')];
+    if (locale.startsWith('es') && ta.length > 2 && tb.length > 2 && ta[ta.length - 1] === tb[tb.length - 1]) return ta.slice(0, -1).join(' ') + ' y ' + b;
+    const conj = locale.startsWith('en') ? ' & ' : ' y ';
+    return a + conj + b;
+  };
   return (pruebas ?? []).map((p) => {
     const completa = p.plazas > 0 && p.plazas - p.ocupadas <= 0;
-    const fecha = dia(p.fecha);
-    const nivel = p.nivel ? p.nivel.charAt(0).toUpperCase() + p.nivel.slice(1) : '';
+    const fecha = fechas(p);
+    const nivel = p.nivel ? NIVELES[p.nivel.toLowerCase()]?.[locale.startsWith('en') ? 'en' : 'es'] ?? p.nivel.charAt(0).toUpperCase() + p.nivel.slice(1) : '';
     return { codigo: p.codigo, titulo: fecha ? `${p.nombre} · ${fecha}` : p.nombre, completa, detalle: completa ? txtCompleta : nivel };
   });
 }

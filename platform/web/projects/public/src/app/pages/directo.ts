@@ -133,7 +133,9 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
                 <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
                   <p class="text-mono-xs text-text-secondary">{{ futuro() ? t().empiezaEn : t().empezara }}</p>
                   @if (futuro()) { <p class="font-display text-[34px] leading-none uppercase italic md:text-[56px]">{{ cuentaTexto() }}</p> }
-                  <a [href]="ics" class="mt-2 inline-flex h-10 items-center gap-2 rounded-pill border border-line-strong bg-bg-base/60 px-4 text-label-s hover:border-white">{{ t().recordar }} <gr-icon name="arrow-right" [size]="14" /></a>
+                  @if (d.horariosPublicados) {
+                    <a [href]="ics" class="mt-2 inline-flex h-10 items-center gap-2 rounded-pill border border-line-strong bg-bg-base/60 px-4 text-label-s hover:border-white">{{ t().recordar }} <gr-icon name="arrow-right" [size]="14" /></a>
+                  }
                 </div>
               } @else if (d.fase === 'finalizado') {
                 @if (d.replayUrl) { <a [href]="d.replayUrl" target="_blank" rel="noopener" class="absolute inset-0 flex items-center justify-center" [attr.aria-label]="t().verRep"><span class="flex size-16 items-center justify-center rounded-pill bg-accent shadow-glow"><gr-icon name="play" [size]="28" /></span></a> }
@@ -171,7 +173,7 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
                       @for (p of cuenta(); track p.l) { <div class="flex h-[76px] flex-col items-center justify-center rounded-md border border-line-subtle bg-bg-card"><span class="text-display-s tabular-nums">{{ p.v }}</span><span class="text-mono-xs text-text-tertiary">{{ p.l }}</span></div> }
                     </div>
                   }
-                  @if (d.proximo; as p) {
+                  @if (bloque(); as p) {
                     <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
                       <p class="text-mono-xs text-text-tertiary">{{ t().primerBloque }}</p>
                       <p class="mt-2 text-label-m first-letter:uppercase">{{ diaHora(p.inicio) }} · {{ p.titulo }}</p>
@@ -180,7 +182,9 @@ const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'dire
                   } @else {
                     <section class="rounded-lg border border-line-subtle bg-bg-card p-5"><p class="text-label-m">{{ t().horarios2 }}</p><a [routerLink]="'/horarios' | loc" class="mt-3 inline-flex text-label-s text-accent-text">{{ t().verHorarios }} →</a></section>
                   }
-                  <a [href]="ics" class="flex h-12 items-center justify-center gap-2 rounded-md bg-accent text-label-m text-white shadow-glow hover:bg-accent-hover"><gr-icon name="calendar-plus" [size]="18" />{{ t().recordar }}</a>
+                  @if (d.horariosPublicados) {
+                    <a [href]="ics" class="flex h-12 items-center justify-center gap-2 rounded-md bg-accent text-label-m text-white shadow-glow hover:bg-accent-hover"><gr-icon name="calendar-plus" [size]="18" />{{ t().recordar }}</a>
+                  }
                 }
                 @case ('finalizado') {
                   <gr-alert tone="success" [title]="t().terminadaT">{{ t().terminadaD }}
@@ -240,6 +244,12 @@ export class EnDirectoPage {
     return p ? new Date(p.inicio).getTime() - this.ahora() : 0;
   });
   protected readonly futuro = computed(() => this.ms() > 0);
+  /** First block to announce: only with the schedule published (otherwise the card says «Horarios por publicar»). */
+  protected readonly bloque = computed(() => {
+    const d = this.dir();
+    const p = d?.proximo;
+    return d?.horariosPublicados && p?.titulo ? p : null;
+  });
   protected readonly cuenta = computed(() => {
     const s = Math.max(0, Math.floor(this.ms() / 1000));
     const pad = (n: number) => String(n).padStart(2, '0');

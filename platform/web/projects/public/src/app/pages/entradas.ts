@@ -48,7 +48,7 @@ const T = {
       comoFunc: 'Cómo funciona',
       personas: 'personas',
       yaTienen: 'ya tienen entrada',
-      ejTitular: 'Tu nombre + 2 acompañantes',
+      ejTitular: (n: number) => 'Tu nombre + ' + n + (n === 1 ? ' acompañante' : ' acompañantes'),
       limT: 'Demasiadas visitas desde tu red',
       limX: 'Hemos recibido muchas peticiones desde tu conexión. Espera un minuto y vuelve a cargar la página.',
       errT: 'No hemos podido cargar las entradas',
@@ -87,7 +87,6 @@ const T = {
       rgpd2: 'o desde cualquier email.',
       reservar: 'Reservar',
       persona: 'persona',
-      reservarGratis: 'Reservar entrada gratis',
       sinSpam: 'Solo usamos tus datos para tu entrada. Sin spam.',
       verT: 'Qué vas a *ver*',
       sinColas: 'Sin colas',
@@ -236,7 +235,7 @@ const T = {
       comoFunc: 'How it works',
       personas: 'people',
       yaTienen: 'already have a ticket',
-      ejTitular: 'Your name + 2 guests',
+      ejTitular: (n: number) => 'Your name + ' + n + (n === 1 ? ' guest' : ' guests'),
       limT: 'Too many visits from your network',
       limX: 'We have received too many requests from your connection. Wait a minute and reload the page.',
       errT: 'We could not load the tickets',
@@ -275,7 +274,6 @@ const T = {
       rgpd2: 'or from any email.',
       reservar: 'Book',
       persona: 'person',
-      reservarGratis: 'Book free ticket',
       sinSpam: 'We only use your details for your ticket. No spam.',
       verT: 'What you will *see*',
       sinColas: 'No queues',
@@ -608,9 +606,9 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
               <li class="flex items-center gap-2"><gr-icon name="map-pin" [size]="16" class="text-accent-text" />{{ comp.data()?.sede?.nombre || 'Almussafes' }}</li>
               @if (diasEvento().length > 1) {
                 <!-- BIZ-209: each day on its own card (date, doors, prizes) so both dates read at a glance -->
-                <li class="w-full md:basis-full"><ul class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3" [attr.aria-label]="t().pg.porDia">
+                <li class="w-full md:basis-full"><ul class="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:gap-3" [attr.aria-label]="t().pg.porDia">
                   @for (x of diasEvento(); track x.dia) {
-                    <li class="flex min-w-0 flex-col gap-1 rounded-md border border-line-subtle bg-bg-card/80 px-3 py-2.5 sm:min-w-[184px]">
+                    <li class="flex min-w-0 flex-col gap-1 rounded-md border border-line-subtle bg-bg-card/80 px-2 py-2.5 sm:min-w-[184px] sm:px-3">
                       <span class="flex items-center gap-2 text-label-m text-text-primary"><gr-icon name="calendar" [size]="16" class="text-accent-text" />{{ x.dia }}</span>
                       @if (x.puertas) { <span class="flex items-start gap-2"><gr-icon name="clock" [size]="14" class="mt-[3px] shrink-0 text-text-tertiary" />{{ t().pg.puertas }} {{ x.puertas }}</span> }
                       @if (x.premios) { <span class="flex items-start gap-2"><gr-icon name="trophy" [size]="14" class="mt-[3px] shrink-0 text-text-tertiary" />{{ t().pg.premiosSorteoC }} {{ x.premios }}</span> }
@@ -638,7 +636,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
           </div>
           <!-- Figma «Ticket» (rotated 4°) and «Aforo meter»: desktop only -->
           <div class="hidden flex-col gap-5 lg:flex">
-            <gr-ticket class="rotate-[4deg]" [linea1]="ejemplo().l1" [linea2]="ejemplo().l2" [lugar]="comp.data()?.sede?.nombre ?? ''" [titular]="t().pg.ejTitular" codigo="" qr="E:ejemplo" />
+            <gr-ticket class="rotate-[4deg]" [linea1]="ejemplo().l1" [linea2]="ejemplo().l2" [lugar]="comp.data()?.sede?.nombre ?? ''" [titular]="t().pg.ejTitular(maxPorReserva() - 1)" codigo="" qr="E:ejemplo" />
             @if ((d?.sesiones?.length ?? 0) > 1) { <ng-container [ngTemplateOutlet]="aforoDias" /> }
             @else if (sesHero(); as s) { <ng-container [ngTemplateOutlet]="aforo" [ngTemplateOutletContext]="{ $implicit: s }" /> }
           </div>
@@ -728,7 +726,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                 <div class="sticky bottom-0 z-10 -mx-5 border-t border-line-subtle bg-bg-base/95 px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur-[10px] transition-opacity duration-200 ease-[cubic-bezier(.2,.8,.2,1)] md:hidden" [class.opacity-0]="enviarVisible()" [class.pointer-events-none]="enviarVisible()" [attr.inert]="enviarVisible() || null">
                   <button grButton variant="primary" size="l" type="submit" class="w-full" [disabled]="!hidratado()" [loading]="enviando()">{{ t().pg.reservar }} · {{ f.personas }} {{ f.personas === 1 ? t().pg.persona : t().pg.personas }}@if (sesSel(); as s) { · {{ s.nombre }} }</button>
                 </div>
-                <button #enviarBtn grButton variant="primary" size="l" type="submit" class="w-full" [disabled]="!hidratado()" [loading]="enviando()">{{ t().pg.reservarGratis }}</button>
+                <button #enviarBtn grButton variant="primary" size="l" type="submit" class="w-full" [disabled]="!hidratado()" [loading]="enviando()">{{ t().pg.reservar }} · {{ f.personas }} {{ f.personas === 1 ? t().pg.persona : t().pg.personas }}@if (sesSel(); as s) { · {{ s.nombre }} }</button>
                 <p class="flex items-center gap-1.5 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />{{ t().pg.sinSpam }}</p>
               </form>
             }
@@ -905,6 +903,8 @@ export class EntradasPage {
     return x ? { l1: lineaTicket(x.inicio, x.nombre, this.i18n.locale(), x.id === this.AMBOS ? this.par()?.[1].inicio : undefined), l2: lineaPuertas(this.t().pg, this.i18n.locale(), x, x.id === this.AMBOS ? this.par()?.[1] : undefined) } : { l1: this.t().pg.ejL1, l2: this.t().pg.ejL2 };
   });
   protected readonly maxPersonas = computed(() => Math.min(this.sesSel()?.maxPorReserva ?? 6, Math.max(1, this.sesSel()?.estado === 'agotada' ? 6 : (this.sesSel()?.libres ?? 6))));
+  /** Guests of a full booking (maxPorReserva − 1): the number on the example ticket and the CTA. */
+  protected readonly maxPorReserva = computed(() => Math.max(1, this.sesHero()?.maxPorReserva ?? 4));
   protected readonly ciudad = computed(() => this.comp.data()?.sede?.ciudad || 'Almussafes');
   protected readonly fechas = computed(() => {
     const c = this.comp.data();
