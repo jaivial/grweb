@@ -240,7 +240,7 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 	// Footer links per template (Figma 78): only links the recipient can use.
 	enlaces := link(web+"/atletas", "Atletas") + " · " + link(web+"/area-atleta", "Área de atleta")
 	switch clave {
-	case "atleta-solicitud-nueva":
+	case "atleta-solicitud-nueva", "atleta-cambio-perfil-nueva":
 		enlaces = link(btnURL, "Panel de solicitudes") + " · " + link(strings.TrimSuffix(btnURL, "/atletas/solicitudes")+"/sistema", "Sistema")
 	case "atleta-solicitud-aprobada":
 		ficha := full["urlFicha"]

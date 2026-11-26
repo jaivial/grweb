@@ -2,11 +2,12 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { GrButton, GrField, GrIcon, GrInput } from '@grcup/ui';
+import { GrButton, GrIcon } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
-import { AREA_API, type Marcas, type Panel } from '../core/area';
+import { AREA_API, type Panel } from '../core/area';
 import { textoError } from '../core/errores';
 import { I18n, LocPipe } from '../core/i18n';
+import { AreaPerfilEditar } from './area-perfil-editar';
 
 const T = {
   es: {
@@ -15,11 +16,9 @@ const T = {
     subiendo: 'Subiendo…', subirFoto: 'Subir foto', cambiar: 'Cambiar',
     noPublica: 'Tu foto no se publicará en tu ficha hasta que aceptes el consentimiento de imagen.',
     acepto: 'Acepto que la organización publique mi foto en la web de la competición (', consImg: 'consentimiento de imagen', retirarlo: '). Puedo retirarlo cuando quiera.', retirar: 'Retirarlo',
+    consentGuardar: 'Guardar el consentimiento',
     consAceptado: (v: string) => `Consentimiento de imagen aceptado (${v}).`,
-    ciudad: 'Ciudad', usuario: '@usuario', sobreTi: 'Sobre ti (máx. 280)', bioPh: 'Tercera temporada en powerlifting. Vengo de la halterofilia…',
-    marcas: 'Mejores marcas (kg)', marcasMal: 'Las marcas van entre 0 y 600 kg.',
     mostrar: 'Mostrar mi perfil público', mostrarTxt: 'Tu ficha en /atletas con foto, bio, Instagram y marcas. Tu nombre, club, categoría, horario y resultados son públicos siempre en participantes y resultados.',
-    guardarPerfil: 'Guardar perfil',
     noSubir: 'No se pudo subir la foto.', noGuardarGen: 'No se pudo guardar. Inténtalo de nuevo.', caducada: 'Tu sesión ha caducado.',
   },
   en: {
@@ -28,22 +27,21 @@ const T = {
     subiendo: 'Uploading…', subirFoto: 'Upload photo', cambiar: 'Change',
     noPublica: 'Your photo will not be published on your page until you accept the image consent.',
     acepto: 'I agree that the organisers may publish my photo on the competition website (', consImg: 'image consent', retirarlo: '). I can withdraw it at any time.', retirar: 'Withdraw it',
+    consentGuardar: 'Save consent',
     consAceptado: (v: string) => `Image consent accepted (${v}).`,
-    ciudad: 'City', usuario: '@username', sobreTi: 'About you (max. 280)', bioPh: 'Third season in powerlifting. I come from weightlifting…',
-    marcas: 'Best lifts (kg)', marcasMal: 'Lifts must be between 0 and 600 kg.',
     mostrar: 'Show my public profile', mostrarTxt: 'Your page on /atletas with photo, bio, Instagram and lifts. Your name, club, weight class, schedule and results are always public in participants and results.',
-    guardarPerfil: 'Save profile',
     noSubir: "Couldn't upload the photo.", noGuardarGen: "Couldn't save. Please try again.", caducada: 'Your session has expired.',
   },
 };
 
 /**
- * `/area-atleta?vista=perfil`: «Editar mi perfil» (área de atleta). Today's editing UI lives here as its own block;
- * a profile change request flow can replace the form without touching the area shell, the routing or the guard.
+ * `/area-atleta?vista=perfil`: «Editar mi perfil» (área de atleta). The photo, the visibility of the page and the image
+ * consent are settings and are saved at once; the details of the record (name, contact, club, bio, lifts…) are a
+ * change request reviewed by the team, so nothing is written until they approve it.
  */
 @Component({
   selector: 'gr-area-perfil',
-  imports: [RouterLink, LocPipe, FormsModule, GrButton, GrField, GrIcon, GrInput],
+  imports: [RouterLink, LocPipe, FormsModule, GrButton, GrIcon, AreaPerfilEditar],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto max-w-xl">
@@ -68,29 +66,21 @@ const T = {
           <input type="checkbox" name="imagen" [(ngModel)]="aceptaImagen" class="mt-0.5 size-6 shrink-0 accent-[#C42B3E]" />
           <span>{{ t().acepto }}<a [href]="'/consentimiento-datos' | loc" target="_blank" class="text-accent-text underline">{{ t().consImg }}</a>{{ t().retirarlo }}</span>
         </label>
+        <button grButton variant="secondary" class="mt-3 self-start" [disabled]="!aceptaImagen || guardando()" (click)="consentimiento(false)">{{ t().consentGuardar }}</button>
       } @else {
-        <p class="mt-4 text-body-xs text-text-tertiary">{{ t().consAceptado(panel().atleta.perfil.imagen!.version) }} <button type="button" class="text-accent-text underline" (click)="retirar = true; guardarPerfil()">{{ t().retirar }}</button></p>
+        <p class="mt-4 text-body-xs text-text-tertiary">{{ t().consAceptado(panel().atleta.perfil.imagen!.version) }} <button type="button" class="text-accent-text underline" (click)="consentimiento(true)">{{ t().retirar }}</button></p>
       }
-      <form class="mt-6 flex flex-col gap-5" (ngSubmit)="guardarPerfil()" novalidate>
-        <gr-field label="Club" for="f-club"><input grInput id="f-club" name="club" [(ngModel)]="f.club" maxlength="120" /></gr-field>
-        <gr-field [label]="t().ciudad" for="f-city"><input grInput id="f-city" name="ciudad" autocomplete="address-level2" [(ngModel)]="f.ciudad" maxlength="80" /></gr-field>
-        @if (!panel().atleta.menor) { <gr-field label="Instagram" for="f-ig" [optional]="true"><input grInput id="f-ig" name="ig" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off" [(ngModel)]="f.instagram" [placeholder]="t().usuario" maxlength="60" /></gr-field> }
-        <gr-field [label]="t().sobreTi" for="f-bio"><textarea grInput id="f-bio" name="bio" rows="4" [(ngModel)]="f.bio" maxlength="280" [placeholder]="t().bioPh"></textarea></gr-field>
-        <fieldset><legend class="text-label-s">{{ t().marcas }}</legend>
-          <div class="mt-2 grid grid-cols-3 gap-3">
-            @for (m of lifts; track m.k) { <label class="flex flex-col gap-1"><span class="text-mono-xs text-text-tertiary">{{ m.s }}</span><input grInput type="number" inputmode="decimal" step="2.5" min="0" max="600" [name]="'m' + m.k" [(ngModel)]="f.marcas[m.k]" [attr.aria-invalid]="fuera(f.marcas[m.k]) || null" [attr.aria-describedby]="fuera(f.marcas[m.k]) ? 'm-err' : null" [class.border-accent]="fuera(f.marcas[m.k])" /></label> }
-          </div>
-          @if (marcasMal()) { <p id="m-err" class="mt-2 text-body-s text-accent-text" role="alert">{{ t().marcasMal }}</p> }
-        </fieldset>
-        <div class="flex items-center justify-between gap-4 rounded-md border border-line-subtle bg-bg-card p-4">
-          <span><span class="block text-label-m">{{ t().mostrar }}</span><span class="block text-body-xs text-text-tertiary">{{ t().mostrarTxt }}</span></span>
-          <button type="button" role="switch" [attr.aria-checked]="f.visible" (click)="f.visible = !f.visible" class="flex h-11 w-12 shrink-0 items-center justify-center" [attr.aria-label]="t().mostrar">
-            <span class="relative h-6 w-10 rounded-pill" [class]="f.visible ? 'bg-accent' : 'bg-line-strong'"><span class="absolute top-0.5 size-5 rounded-full bg-white transition-[left]" [style.left.px]="f.visible ? 18 : 2"></span></span>
-          </button>
-        </div>
-        @if (error()) { <p class="text-body-s text-accent-text" role="alert">{{ error() }}</p> }
-        <div class="max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-5 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-5 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]"><button grButton variant="primary" size="l" type="submit" [block]="true" [loading]="guardando()" [disabled]="marcasMal()">{{ t().guardarPerfil }}</button></div>
-      </form>
+      <!-- Visibilidad de la ficha: es un ajuste, se guarda al momento -->
+      <div class="mt-4 flex items-center justify-between gap-4 rounded-md border border-line-subtle bg-bg-card p-4">
+        <span><span class="block text-label-m">{{ t().mostrar }}</span><span class="block text-body-xs text-text-tertiary">{{ t().mostrarTxt }}</span></span>
+        <button type="button" role="switch" [attr.aria-checked]="panel().atleta.perfil.visible" (click)="visibilidad(!panel().atleta.perfil.visible)" [disabled]="guardando()"
+          class="flex h-11 w-12 shrink-0 items-center justify-center disabled:opacity-50" [attr.aria-label]="t().mostrar">
+          <span class="relative h-6 w-10 rounded-pill" [class]="panel().atleta.perfil.visible ? 'bg-accent' : 'bg-line-strong'"><span class="absolute top-0.5 size-5 rounded-full bg-white transition-[left]" [style.left.px]="panel().atleta.perfil.visible ? 18 : 2"></span></span>
+        </button>
+      </div>
+      @if (error()) { <p class="mt-3 text-body-s text-accent-text" role="alert">{{ error() }}</p> }
+      <!-- Los datos de la ficha: propuesta de cambio que el equipo revisa antes de aplicar -->
+      <gr-area-perfil-editar class="mt-8" (sesionCaducada)="expirada.emit()" />
     </div>
   `,
 })
@@ -107,27 +97,16 @@ export class AreaPerfilPage implements OnInit {
   private readonly http = inject(HttpClient);
 
   protected aceptaImagen = false;
-  protected retirar = false;
   protected fx = 50;
   protected fy = 50;
-  protected f = { club: '', ciudad: '', instagram: '', bio: '', marcas: {} as Marcas, visible: true };
-  protected readonly lifts: { k: keyof Marcas; s: string }[] = [{ k: 'sq', s: 'SQ' }, { k: 'bp', s: 'BP' }, { k: 'dl', s: 'DL' }];
   protected readonly subiendo = signal(false);
   protected readonly guardando = signal(false);
   protected readonly error = signal('');
 
   ngOnInit(): void {
     const a = this.panel().atleta;
-    this.f = { club: a.club, ciudad: a.ciudad, instagram: a.perfil.instagram, bio: a.perfil.bio || a.perfil.frase, marcas: { ...a.perfil.marcas }, visible: a.perfil.visible };
     this.fx = a.perfil.focalX;
     this.fy = a.perfil.focalY;
-  }
-
-  protected fuera(v: unknown): boolean {
-    return v !== null && v !== undefined && v !== '' && !(Number(v) >= 0 && Number(v) <= 600);
-  }
-  protected marcasMal(): boolean {
-    return this.lifts.some((m) => this.fuera(this.f.marcas[m.k]));
   }
 
   /** Tapping the photo fixes the framing (the focus point of the public profile picture). */
@@ -161,23 +140,33 @@ export class AreaPerfilPage implements OnInit {
     }
   }
 
-  protected async guardarPerfil(): Promise<void> {
+  /** Acepta o retira el consentimiento de imagen (es inmediato: no pasa por la revisión de los cambios). */
+  protected async consentimiento(retirar: boolean): Promise<void> {
+    const p = await this.inmediato(retirar ? { retirarConsentimiento: true } : { aceptaUsoDeImagen: true });
+    if (!p) return;
+    this.aceptaImagen = false;
+    this.listo.emit(p);
+  }
+
+  /** Muestra u oculta la ficha pública (es un ajuste: se guarda al momento y se sigue en la página). */
+  protected async visibilidad(visible: boolean): Promise<void> {
+    const p = await this.inmediato({ visible });
+    if (p) this.guardado.emit(p);
+  }
+
+  /**
+   * Lo que se guarda al momento en la ficha: la visibilidad y el consentimiento de imagen. Los datos personales ya
+   * no se escriben aquí: van como solicitud de cambio y el equipo los revisa antes de aplicarlos.
+   */
+  private async inmediato(v: { visible?: boolean; aceptaUsoDeImagen?: boolean; retirarConsentimiento?: boolean }): Promise<Panel | null> {
+    if (this.guardando()) return null;
     this.error.set('');
-    const mal = this.lifts.filter((m) => this.fuera(this.f.marcas[m.k])).map((m) => m.s);
-    if (mal.length) return this.error.set(mal.join(', ') + ' · ' + this.t().marcasMal);
-    if (this.guardando()) return;
     this.guardando.set(true);
-    const n = (v: unknown) => (v === null || v === undefined || v === '' ? undefined : Number(v));
     try {
-      const p = await firstValueFrom(this.http.put<Panel>(`${AREA_API}/perfil`, {
-        club: this.f.club, ciudad: this.f.ciudad, instagram: this.f.instagram, bio: this.f.bio, marcas: { sq: n(this.f.marcas.sq), bp: n(this.f.marcas.bp), dl: n(this.f.marcas.dl) },
-        visible: this.f.visible, aceptaUsoDeImagen: this.aceptaImagen, retirarConsentimiento: this.retirar,
-      }));
-      this.retirar = false;
-      this.aceptaImagen = false;
-      this.listo.emit(p);
+      return await firstValueFrom(this.http.put<Panel>(`${AREA_API}/perfil`, v));
     } catch (e) {
       this.error.set(this.msg(e, this.t().noGuardarGen));
+      return null;
     } finally {
       this.guardando.set(false);
     }

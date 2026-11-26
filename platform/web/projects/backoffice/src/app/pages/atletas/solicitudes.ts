@@ -15,7 +15,7 @@ import {
   SolicitudesApi,
   type Candidato, type Consentimiento, type Diferencia, type EstadoSolicitud, type SolicitudDetalle, type SolicitudItem, type SolicitudLista, type TipoMatch,
 } from './solicitudes-api';
-import { CAMPOS, CONSENTIMIENTOS, MATCH, estadoDe, matchTone, matchTxt, nombreCompleto, type FilaCampo, type FilaConsentimiento } from './solicitudes-model';
+import { CAMPOS, CONSENTIMIENTOS, MATCH, estadoDe, matchTone, matchTxt, nombreCompleto, tipoTone, tipoTxt, type FilaCampo, type FilaConsentimiento } from './solicitudes-model';
 import { SolicitudesLista } from './solicitudes-lista';
 import { SolicitudesDialogo } from './solicitudes-dialogo';
 import { SolicitudesCupos } from './solicitudes-cupos';
@@ -133,6 +133,11 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
         <gr-icon name="search" [size]="16" class="absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary" />
         <input grInput type="search" class="pl-9" placeholder="Buscar en solicitudes…" [ngModel]="q()" (ngModelChange)="buscar($event)" />
       </label>
+      <gr-select tipo="campo" [ngModel]="fTipo()" (ngModelChange)="fTipo.set($event); recargar(1)" aria-label="Tipo de solicitud">
+        <option value="">Tipo: todas</option>
+        <option value="alta">Altas de atleta</option>
+        <option value="cambio_perfil">Cambios de perfil</option>
+      </gr-select>
       <gr-select tipo="campo" [ngModel]="fMatch()" (ngModelChange)="fMatch.set($event); recargar(1)" aria-label="Coincidencia">
         <option value="">Coincidencia: todas</option>
         <option value="licencia">Licencia</option>
@@ -159,7 +164,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
     <!-- ===== Review (Figma 171:81822 desktop 520 px · mobile full screen): one scroll, actions on one row ===== -->
     @if (abierto()) {
     <div class="fixed inset-0 z-40 bg-black/60" (click)="cerrar()"></div>
-    <aside class="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-line-strong bg-bg-card shadow-card sm:w-[520px]" role="dialog" aria-modal="true"
+    <aside class="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-line-strong bg-bg-card shadow-card" [class]="esCambio() ? 'sm:w-[960px] sm:max-w-[90vw]' : 'sm:w-[520px]'" role="dialog" aria-modal="true"
       [attr.aria-label]="detalle() ? 'Revisar solicitud de ' + nombreCompleto(detalle()!) : 'Revisar solicitud'" cdkTrapFocus [cdkTrapFocusAutoCapture]="true">
       <header class="flex shrink-0 flex-col gap-1 px-4 pt-3 sm:px-6 sm:pt-5">
         <div class="flex items-center gap-2 sm:hidden">
@@ -180,10 +185,72 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
 
           <div class="-mt-2 flex flex-wrap gap-1">
             <gr-badge [tone]="estado(d).tone">{{ estado(d).l }}</gr-badge>
-            <gr-badge [tone]="matchTone(d.match)">{{ match(d.match) }}</gr-badge>
+            @if (esCambio()) {
+              <gr-badge [tone]="tipoTone(d.tipo)">{{ tipoTxt(d.tipo) }}</gr-badge>
+            } @else {
+              <gr-badge [tone]="matchTone(d.match)">{{ match(d.match) }}</gr-badge>
+            }
           </div>
 
-          @if (sinPlazas()) {
+          @if (esCambio()) {
+            <!-- ===== Cambio de perfil: solo los campos que cambian, antes | después ===== -->
+            @if (d.estado === 'aprobada') {
+              <gr-alert tone="success" title="Cambios aplicados">La ficha de {{ d.atleta?.nombre || nombreCompleto(d) }} ya tiene los datos nuevos{{ avisarEmail() ? ' y se le ha avisado por email' : '' }} · queda en su historial y en la auditoría.</gr-alert>
+            }
+            @if (d.estado === 'rechazada') {
+              <gr-alert tone="danger" title="Cambios rechazados">Motivo: {{ d.motivoRechazo || 'sin motivo' }} · su ficha sigue como estaba.</gr-alert>
+            }
+            @if (d.atleta) {
+              <p class="text-body-s text-text-secondary">Atleta: <strong class="text-text-primary">{{ d.atleta.nombre }}</strong>@if (d.atleta.licencia) { · {{ d.atleta.licencia }} }@if (d.atleta.club) { · {{ d.atleta.club }} }. Solo se aplican los campos que aparecen abajo: el resto de su ficha no se toca.</p>
+            }
+            @if (cambiaEmail() && d.estado !== 'aprobada' && d.estado !== 'rechazada') {
+              <gr-alert tone="warning" title="Cambia el email de acceso">Al aprobar, {{ d.atleta?.nombre || 'el atleta' }} entrará al área de atleta y recibirá los avisos con el email nuevo. Revisa que esté bien escrito: este cambio también se envía al email actual, así que un error deja su cuenta sin acceso a los avisos. Si no lo tienes claro, recházalo con el motivo.</gr-alert>
+            }
+            <section>
+              <h3 class="text-label-xs text-text-muted uppercase">Cambios solicitados · {{ d.cambios.length }} {{ d.cambios.length === 1 ? 'campo' : 'campos' }}</h3>
+              @if (!d.cambios.length) {
+                <p class="mt-2 text-body-s text-text-tertiary">La solicitud no trae cambios.</p>
+              } @else {
+                <!-- Móvil: dos pestañas, antes o después -->
+                <div class="mt-3 flex gap-2 sm:hidden" role="tablist" aria-label="Comparación de los cambios">
+                  <button type="button" role="tab" id="cmp-tab-antes" aria-controls="cmp-panel" [attr.aria-selected]="lado() === 'antes'" (click)="lado.set('antes')"
+                    class="flex h-11 flex-1 items-center justify-center rounded-sm border text-label-s"
+                    [class]="lado() === 'antes' ? 'border-accent-text bg-accent-deep/20 text-accent-text' : 'border-line-strong text-text-secondary'">Antes</button>
+                  <button type="button" role="tab" id="cmp-tab-despues" aria-controls="cmp-panel" [attr.aria-selected]="lado() === 'despues'" (click)="lado.set('despues')"
+                    class="flex h-11 flex-1 items-center justify-center rounded-sm border text-label-s"
+                    [class]="lado() === 'despues' ? 'border-accent-text bg-accent-deep/20 text-accent-text' : 'border-line-strong text-text-secondary'">Después</button>
+                </div>
+                <div id="cmp-panel" role="tabpanel" [attr.aria-labelledby]="lado() === 'antes' ? 'cmp-tab-antes' : 'cmp-tab-despues'" class="mt-3 flex flex-col gap-2 sm:hidden">
+                  @for (c of d.cambios; track c.clave) {
+                    <div class="rounded-md border border-line-subtle bg-bg-raised px-3 py-2">
+                      <p class="text-label-xs text-text-tertiary uppercase">{{ c.campo }}</p>
+                      @if (lado() === 'antes') {
+                        <p class="mt-0.5 text-body-s text-text-tertiary">{{ c.antes || 'vacío' }}</p>
+                      } @else {
+                        <p class="mt-0.5 text-body-s font-semibold text-accent-text">{{ c.despues || 'vacío' }}</p>
+                      }
+                    </div>
+                  }
+                </div>
+                <!-- Escritorio: dos columnas, antes | después -->
+                <div class="mt-3 hidden overflow-hidden rounded-md border border-line-subtle sm:block">
+                  <div class="grid grid-cols-[160px_minmax(0,1fr)_minmax(0,1fr)] border-b border-line-subtle bg-bg-surface px-4 py-2 text-label-xs text-text-muted uppercase">
+                    <span>Campo</span><span>Antes</span><span>Después</span>
+                  </div>
+                  @for (c of d.cambios; track c.clave) {
+                    <div class="grid grid-cols-[160px_minmax(0,1fr)_minmax(0,1fr)] items-start gap-3 border-b border-line-subtle px-4 py-2.5 last:border-0">
+                      <span class="text-body-s text-text-secondary">{{ c.campo }}</span>
+                      <span class="text-body-s break-words text-text-tertiary line-through">{{ c.antes || 'vacío' }}</span>
+                      <span class="text-body-s font-semibold break-words text-accent-text">{{ c.despues || 'vacío' }}</span>
+                    </div>
+                  }
+                </div>
+                <p class="mt-2 text-body-xs text-text-tertiary">En resaltado, el valor que se aplicará al aprobar. Los campos que no aparecen no cambian.</p>
+              }
+            </section>
+          }
+
+          @if (!esCambio() && sinPlazas()) {
             <gr-alert tone="warning" title="No quedan plazas en el evento">
               {{ sinPlazas() }} Las plazas del evento se editan en «Plazas y cupo por competición», encima de la lista.
               <span alertAction class="mt-2 flex flex-wrap gap-4">
@@ -198,16 +265,16 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
               <button alertAction type="button" class="mt-2 inline-flex h-9 items-center gap-1 text-label-s text-accent-text" (click)="recargarDetalle()">Refrescar <gr-icon name="arrow-right" [size]="14" /></button>
             </gr-alert>
           }
-          @if (d.atletaEmail && d.estado !== 'aprobada' && d.estado !== 'rechazada') {
+          @if (!esCambio() && d.atletaEmail && d.estado !== 'aprobada' && d.estado !== 'rechazada') {
             <gr-alert tone="info" title="Este email ya es de un atleta: {{ d.atletaEmail }}">Al aprobar, la solicitud se enlaza a ese atleta: no se crea un duplicado y no se le envía ningún aviso.</gr-alert>
           }
-          @if (d.cuentaPublico) {
+          @if (!esCambio() && d.cuentaPublico) {
             <gr-alert tone="info" title="Este email ya tiene una cuenta de público del directo">Al aprobar, su cuenta de público pasará a ser de atleta: mismo alias, misma contraseña, sus apuestas y su equipo de GRS Fantasy. No se crea una segunda cuenta.</gr-alert>
           }
-          @if (d.estado === 'aprobada') {
+          @if (!esCambio() && d.estado === 'aprobada') {
             <gr-alert tone="success" title="Aprobada">Perfil creado o enlazado{{ d.esMenor ? ' (menor de edad)' : imagenAceptada() ? '' : ' (sin consentimiento de imagen)' }} · una ficha nueva queda privada hasta que el atleta active su publicación desde el área de atleta; una existente conserva su visibilidad · enlace de acceso enviado.</gr-alert>
           }
-          @if (d.estado === 'rechazada') {
+          @if (!esCambio() && d.estado === 'rechazada') {
             <gr-alert tone="danger" title="Solicitud rechazada">
               Motivo: {{ d.motivoRechazo || 'sin motivo' }}
             </gr-alert>
@@ -236,7 +303,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
             </section>
           }
 
-          @if (foto() || (d.estado !== 'aprobada' && d.estado !== 'rechazada')) {
+          @if (!esCambio() && (foto() || (d.estado !== 'aprobada' && d.estado !== 'rechazada'))) {
           <section class="flex flex-col gap-3 sm:flex-row sm:gap-4">
             @if (foto(); as url) {
               <img [src]="url" [alt]="'Foto de ' + nombreCompleto(d)" class="aspect-[4/5] w-full rounded-md bg-bg-raised object-cover sm:h-[300px] sm:w-[240px]" />
@@ -253,6 +320,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
           </section>
           }
 
+          @if (!esCambio()) {
           <section>
             <h3 class="text-label-xs text-text-muted uppercase">Datos declarados vs atleta enlazado</h3>
             @if (!verTodos()) {
@@ -283,6 +351,9 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
             }
           </section>
 
+          }
+
+          @if (!esCambio()) {
           <section>
             <h3 class="text-label-xs text-text-muted uppercase">Coincidencia y enlazado</h3>
             <div class="mt-2 flex flex-wrap items-center gap-2">
@@ -313,6 +384,9 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
             }
           </section>
 
+          }
+
+          @if (!esCambio()) {
           <section>
             <h3 class="text-label-xs text-text-muted uppercase">Consentimientos con prueba</h3>
             <div class="mt-2 flex flex-col gap-3 rounded-md bg-bg-raised p-4">
@@ -337,7 +411,9 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
             </div>
           </section>
 
-          @if (d.estado !== 'aprobada' && d.estado !== 'rechazada') {
+          }
+
+          @if (!esCambio() && d.estado !== 'aprobada' && d.estado !== 'rechazada') {
             <section class="flex flex-col gap-4">
               <h3 class="text-label-xs text-text-muted uppercase">Editar antes de aprobar</h3>
               <gr-field for="ed-frase" label="Frase del perfil" hint="Aparece en su ficha pública">
@@ -400,13 +476,13 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
             <button grButton variant="danger" [disabled]="ocupado()" (click)="dialogo.set('borrar')">Borrar…</button>
           } @else {
             <!-- Mobile: Approve full width on top, the other two below; desktop: the three on one row. -->
-            <button grButton variant="primary" class="order-first w-full sm:order-last sm:w-auto" [disabled]="ocupado() || bloqueadoAprobar()" (click)="dialogo.set('aprobar')">Aprobar (ficha privada)</button>
+            <button grButton variant="primary" class="order-first w-full sm:order-last sm:w-auto" [disabled]="ocupado() || bloqueadoAprobar()" (click)="dialogo.set('aprobar')">{{ esCambio() ? 'Aprobar cambios' : 'Aprobar (ficha privada)' }}</button>
             <button grButton class="flex-1 sm:flex-none" [disabled]="ocupado()" (click)="marcarRevision()">Marcar en revisión</button>
             <button grButton variant="danger" class="flex-1 sm:flex-none" [disabled]="ocupado()" (click)="dialogo.set('rechazar')">Rechazar…</button>
           }
         }
       </footer>
-      @if (detalle()?.estado === 'rechazada') { <p class="shrink-0 bg-bg-card px-4 pb-4 text-body-xs text-text-tertiary sm:px-6">Borrar elimina solicitud, foto privada y consentimientos · confirmación en dos pasos</p> }
+      @if (detalle()?.estado === 'rechazada') { <p class="shrink-0 bg-bg-card px-4 pb-4 text-body-xs text-text-tertiary sm:px-6">Borrar elimina la solicitud y sus datos · confirmación en dos pasos</p> }
       @if (bloqueadoAprobar()) { <p class="shrink-0 bg-bg-card px-4 pb-4 text-body-xs text-warning sm:px-6">Aprobar se desbloquea al subir la autorización firmada.</p> }
     </aside>
     }
@@ -421,7 +497,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
     }
 
     @if (dialogo(); as dl) {
-      <bo-solicitudes-dialogo [tipo]="dl" [nombre]="detalle() ? nombreCompleto(detalle()!) : ''" [imagenAceptada]="imagenAceptada()"
+      <bo-solicitudes-dialogo [tipo]="dl" [nombre]="detalle() ? nombreCompleto(detalle()!) : ''" [imagenAceptada]="imagenAceptada()" [cambio]="esCambio()" [cambiaEmail]="cambiaEmail()"
         [destino]="destinoAprueba().texto" [ocupado]="ocupado()" [(avisarEmail)]="avisarEmail" [(avisarWhatsApp)]="avisarWhatsApp"
         (cerrar)="dialogo.set(null)" (aprobar)="aprobar()" (rechazar)="rechazar($event)" (borrar)="borrar()" />
     }
@@ -453,7 +529,10 @@ export class SolicitudesPage {
   protected readonly pestana = signal<Pestana>('todas');
   protected readonly q = signal('');
   protected readonly fMatch = signal('');
+  protected readonly fTipo = signal('');
   protected readonly fMenor = signal('');
+  /** Móvil: qué lado de la comparación se ve (antes o después). */
+  protected readonly lado = signal<'antes' | 'despues'>('despues');
   protected readonly fRecibida = signal('');
   protected readonly pagina = signal(1);
   protected readonly nuevas = signal<Set<string>>(new Set());
@@ -492,15 +571,17 @@ export class SolicitudesPage {
   protected readonly filtros = signal(false);
   protected readonly acciones = signal(false);
   protected readonly pestanaActual = computed(() => this.pestanas.find((t) => t.k === this.pestana())?.l ?? '');
-  protected readonly nFiltros = computed(() => [this.pestana() !== 'todas', this.q(), this.fMatch(), this.fMenor(), this.fRecibida()].filter(Boolean).length);
+  protected readonly nFiltros = computed(() => [this.pestana() !== 'todas', this.q(), this.fMatch(), this.fTipo(), this.fMenor(), this.fRecibida()].filter(Boolean).length);
   protected limpiar(): void {
-    this.q.set(''); this.fMatch.set(''); this.fMenor.set(''); this.fRecibida.set('');
+    this.q.set(''); this.fMatch.set(''); this.fTipo.set(''); this.fMenor.set(''); this.fRecibida.set('');
     this.irPestana('todas');
   }
   protected readonly kpiEtiquetas = [{ l: 'Pendientes de revisar' }, { l: 'En revisión' }, { l: 'Aprobadas' }, { l: 'Rechazadas' }];
   protected readonly hace = fmtAgo;
   protected readonly match = matchTxt;
   protected readonly matchTone = matchTone;
+  protected readonly tipoTxt = tipoTxt;
+  protected readonly tipoTone = tipoTone;
   protected readonly estado = estadoDe;
   protected readonly nombreCompleto = nombreCompleto;
 
@@ -536,6 +617,10 @@ export class SolicitudesPage {
     const d = this.detalle();
     return !!d && d.esMenor && !d.autorizacion;
   });
+  /** The open request is a profile change from the athlete area (wider panel, before | after). */
+  protected readonly esCambio = computed(() => (this.detalle()?.tipo ?? this.tipoPendiente()) === 'cambio_perfil');
+  /** The change moves the athlete's email: it is also the address they log in with. */
+  protected readonly cambiaEmail = computed(() => (this.detalle()?.cambios ?? []).some((c) => c.clave === 'email'));
 
   private t: ReturnType<typeof setTimeout> | undefined;
   private tEnlace: ReturnType<typeof setTimeout> | undefined;
@@ -566,11 +651,12 @@ export class SolicitudesPage {
     effect(() => { document.body.style.overflow = this.abierto() ? 'hidden' : ''; });
     const sub = this.live.events.subscribe((e) => {
       if (!e.tipo.startsWith('athletes.solicitud_')) return;
-      const d = e.datos as { id?: string; nombre?: string; match?: string } | undefined;
+      const d = e.datos as { id?: string; nombre?: string; match?: string; tipo?: string } | undefined;
       if (e.tipo === 'athletes.solicitud_creada') {
         if (d?.id) this.nuevas.update((s) => new Set(s).add(d.id!));
-        this.anuncio.set(`Nueva solicitud de ${d?.nombre ?? 'un atleta'}`);
-        this.toasts.info(`Nueva solicitud de ${d?.nombre ?? 'un atleta'}`, d?.match === 'nombre' ? 'Coincidencia sugerida · toca para revisarla' : 'Toca para revisarla');
+        const que = d?.tipo === 'cambio_perfil' ? 'cambio de perfil' : 'solicitud';
+        this.anuncio.set(`Nuevo ${que} de ${d?.nombre ?? 'un atleta'}`);
+        this.toasts.info(`Nuevo ${que} de ${d?.nombre ?? 'un atleta'}`, d?.tipo === 'cambio_perfil' ? 'Cambios pendientes · nada cambia hasta que los apruebes' : d?.match === 'nombre' ? 'Coincidencia sugerida · toca para revisarla' : 'Toca para revisarla');
       }
       this.refrescar();
     });
@@ -615,7 +701,7 @@ export class SolicitudesPage {
     if (!cid || !this.puede()) return;
     try {
       const l = await this.api.lista(cid, {
-        estado: this.pestana(), match: this.fMatch(), menor: this.fMenor(), q: this.q().trim(), pagina: this.pagina(),
+        estado: this.pestana(), tipo: this.fTipo(), match: this.fMatch(), menor: this.fMenor(), q: this.q().trim(), pagina: this.pagina(),
       });
       this.lista.set(l);
       this.por.set(Math.max(1, l.items.length));
@@ -729,7 +815,7 @@ export class SolicitudesPage {
   protected async revisar(s: { id: string }, push = true): Promise<void> {
     if (push && this.idDeUrl(this.location.path()) !== s.id) this.location.go(`${this.urlLista()}/${s.id}`);
     this.abierto.set(true);
-    this.pendienteId = s.id;
+    this.pendienteId.set(s.id);
     this.nuevas.update((n) => {
       const c = new Set(n);
       c.delete(s.id);
@@ -740,6 +826,7 @@ export class SolicitudesPage {
     this.conflicto.set('');
     this.sinPlazas.set('');
     this.verTodos.set(false);
+    this.lado.set('despues');
     this.candidatos.set([]);
     this.qEnlace.set('');
     this.atletaElegido.set(null);
@@ -750,7 +837,7 @@ export class SolicitudesPage {
   protected async recargarDetalle(): Promise<void> {
     const cid = this.cid();
     const d = this.detalle();
-    const id = d?.id ?? this.pendienteId;
+    const id = d?.id ?? this.pendienteId();
     if (!cid || !id) return;
     this.cargandoDetalle.set(true);
     try {
@@ -793,7 +880,12 @@ export class SolicitudesPage {
     if (this.abierto()) this.cerrar();
   }
 
-  private pendienteId = '';
+  private readonly pendienteId = signal('');
+  /** The type of the open request is known from the list before the detail arrives (the panel is sized on load). */
+  private readonly tipoPendiente = computed(() => {
+    const id = this.pendienteId();
+    return id ? this.lista()?.items.find((s) => s.id === id)?.tipo : undefined;
+  });
 
   protected cerrar(push = true): void {
     if (push && this.idDeUrl(this.location.path())) this.location.go(this.urlLista());
@@ -946,7 +1038,11 @@ export class SolicitudesPage {
         ...destino.cuerpo, cambios, avisarEmail: this.avisarEmail(), avisarWhatsApp: this.avisarWhatsApp(),
       });
       this.dialogo.set(null);
-      this.toasts.success(res.publica ? 'Aprobada y publicada' : 'Aprobada · ficha privada', d.atletaEmail ? 'Enlazada al atleta que ya tenía este email: sin avisos.' : this.avisarEmail() ? `Le hemos escrito a ${d.email}.` : '');
+      if (d.tipo === 'cambio_perfil') {
+        this.toasts.success('Cambios aplicados', this.avisarEmail() ? `Le hemos escrito a ${d.atleta?.email || d.email}.` : 'Su ficha ya tiene los datos nuevos.');
+      } else {
+        this.toasts.success(res.publica ? 'Aprobada y publicada' : 'Aprobada · ficha privada', d.atletaEmail ? 'Enlazada al atleta que ya tenía este email: sin avisos.' : this.avisarEmail() ? `Le hemos escrito a ${d.email}.` : '');
+      }
       await this.cargar();
       await this.recargarDetalle();
     } catch (e) {
@@ -960,6 +1056,11 @@ export class SolicitudesPage {
   /** Where the approval will link the request: the chosen athlete, the linked one or a new one. */
   protected destinoAprueba(): { texto: string; cuerpo: { atletaId?: string; nuevo?: boolean } } {
     const d = this.detalle();
+    // A change request does not create or link anything: it writes the snapshot on the athlete it belongs to.
+    if (d?.tipo === 'cambio_perfil') {
+      const quien = d.atleta ? `${d.atleta.nombre}${d.atleta.licencia ? ' · ' + d.atleta.licencia : ''}` : nombreCompleto(d);
+      return { texto: `Se aplicarán los ${d.cambios.length} ${d.cambios.length === 1 ? 'campo' : 'campos'} en la ficha de ${quien}`, cuerpo: {} };
+    }
     const elegido = this.atletaElegido();
     if (elegido) {
       const c = this.candidatos().find((x) => x.id === elegido);
@@ -982,6 +1083,7 @@ export class SolicitudesPage {
   /** Only the fields the reviewer actually changed. */
   private cambiosCorregidos(d: SolicitudDetalle): Record<string, string | number | null> {
     const out: Record<string, string | number | null> = {};
+    if (d.tipo === 'cambio_perfil') return out; // the request carries its own snapshot: the reviewer approves or rejects
     const pares: [string, string | number | null, string | number | null][] = [
       ['frase', this.cambios.frase, d.frase], ['bio', this.cambios.bio, d.bio], ['instagram', this.cambios.instagram, d.instagram],
       ['club', this.cambios.club, d.club], ['ciudad', this.cambios.ciudad, d.ciudad], ['entrenador', this.cambios.entrenador, d.entrenador],
@@ -997,7 +1099,8 @@ export class SolicitudesPage {
 
   protected async rechazar(motivo: string): Promise<void> {
     const d = this.detalle();
-    if (!d || this.ocupado() || motivo.length < 3) return;
+    // The reason is optional for a change of profile (nothing changes) and required for an alta.
+    if (!d || this.ocupado() || (d.tipo !== 'cambio_perfil' && motivo.length < 3)) return;
     this.ocupado.set(true);
     this.error.set('');
     try {
@@ -1152,8 +1255,8 @@ export class SolicitudesPage {
         return `"${safe.replace(/"/g, '""')}"`;
       };
       const filas = [
-        ['Nombre', 'Email', 'Club', 'Edad', 'Coincidencia', 'Estado', 'Recibida'],
-        ...items.map((s) => [this.nombreCompleto(s), s.email, s.club, String(s.edad), MATCH[s.match], s.estado, s.createdAt]),
+        ['Nombre', 'Email', 'Club', 'Edad', 'Tipo', 'Coincidencia', 'Estado', 'Recibida'],
+        ...items.map((s) => [this.nombreCompleto(s), s.email, s.club, String(s.edad), tipoTxt(s.tipo), MATCH[s.match], s.estado, s.createdAt]),
       ];
       const blob = new Blob(['﻿' + filas.map((f) => f.map(esc).join(';')).join('\n')], { type: 'text/csv;charset=utf-8' });
       const a = document.createElement('a');
