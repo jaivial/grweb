@@ -46,14 +46,17 @@ func (s *Svc) handleWhatsapp(ctx context.Context, e events.Event) error {
 			destinos = append(destinos, num)
 		}
 	}
-	// With a group chosen (a JID, never normalised as a phone) the organisers' messages go only to the group: one
-	// message instead of one per phone, so the rate limit is left for the athletes' messages.
-	if d.Organizadores && strings.HasSuffix(avisos.GrupoID, "@g.us") {
-		destinos = append(destinos, avisos.GrupoID)
-	} else if d.Organizadores && avisos.AOrganizadores {
-		for _, tel := range avisos.Telefonos {
-			if tel.Numero != "" {
-				destinos = append(destinos, tel.Numero)
+	// «WhatsApp a organizadores» governs both. With a group chosen (a JID, never normalised as a phone) the
+	// organisers' messages go only to the group: one message instead of one per phone, so the rate limit is left for
+	// the athletes' messages.
+	if d.Organizadores && avisos.AOrganizadores {
+		if strings.HasSuffix(avisos.GrupoID, "@g.us") {
+			destinos = append(destinos, avisos.GrupoID)
+		} else {
+			for _, tel := range avisos.Telefonos {
+				if tel.Numero != "" {
+					destinos = append(destinos, tel.Numero)
+				}
 			}
 		}
 	}

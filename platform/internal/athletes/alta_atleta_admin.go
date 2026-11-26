@@ -1281,7 +1281,7 @@ func (s *Svc) rechazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm, moti
 		plantilla, urlAviso := "atleta-solicitud-rechazada", s.webURL+"/alta-atleta"
 		vars := map[string]string{"nombre": sol.Nombre, "motivo": motivo}
 		// The guardian's authorisation: the same link to upload it again (a new one if it was revoked or expired). The
-		// WhatsApp goes like the request of the authorisation did (that request carries no boxes of its own).
+		// WhatsApp follows the consent of the alta, as the request of the authorisation did.
 		waConsentido := cons["whatsapp"].Aceptado
 		switch sol.Tipo {
 		case "cambio_perfil":
@@ -1297,7 +1297,7 @@ func (s *Svc) rechazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm, moti
 			}
 		case "autorizacion":
 			para, tel = contactoActual(ctx, tx, sol)
-			plantilla, waConsentido = "atleta-autorizacion-rechazada", true
+			plantilla, waConsentido = "atleta-autorizacion-rechazada", sol.MatchAtletaID != nil && waAceptado(ctx, tx, cid, *sol.MatchAtletaID)
 			if sol.MatchAtletaID != nil {
 				enlace, err := s.enlaceVigente(ctx, tx, cid, *sol.MatchAtletaID)
 				if err != nil {

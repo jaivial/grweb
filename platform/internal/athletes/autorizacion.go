@@ -202,6 +202,19 @@ func datosFormulario(r row) DatosFormulario {
 	return d
 }
 
+// waAceptado: the athlete accepted WhatsApp notices in their approved alta (the proof every athlete notice uses; the
+// authorisation requests carry no boxes of their own).
+func waAceptado(ctx context.Context, q interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}, cid, atleta uuid.UUID) bool {
+	var sol solicitud
+	if err := q.QueryRow(ctx, `SELECT consentimientos::text FROM solicitudes_atleta WHERE competition_id = $1 AND match_atleta_id = $2
+		AND tipo = 'alta' AND estado = 'aprobada' ORDER BY revisado_at DESC NULLS LAST LIMIT 1`, cid, atleta).Scan(&sol.Consentimientos); err != nil {
+		return false
+	}
+	return sol.consent("whatsapp").Aceptado
+}
+
 // publicaFormulario draws the form of the athlete and publishes it (the key is derived from its content: it cannot
 // be guessed and the same data reuses the same file).
 func (s *Svc) publicaFormulario(ctx context.Context, r row) (string, error) {
@@ -255,8 +268,10 @@ func (s *Svc) registerAutorizacion() {
 			if r.Email != nil {
 				correo = strings.TrimSpace(*r.Email)
 			}
-			if correo == "" && r.Telefono == "" {
-				return nil, problem.Unprocessable("SIN_CONTACTO", "Este atleta no tiene email ni teléfono: añádelos en «Competición».")
+			// WhatsApp only with the consent of the alta, as every athlete notice; without it, email only.
+			wa := r.Telefono != "" && waAceptado(ctx, s.a.DB, in.CID, r.ID)
+			if correo == "" && !wa {
+				return nil, problem.Unprocessable("SIN_CONTACTO", "Este atleta no tiene email ni un teléfono con WhatsApp aceptado: añade su email en «Competición».")
 			}
 			form, err := s.publicaFormulario(ctx, r)
 			if err != nil {
@@ -282,7 +297,7 @@ func (s *Svc) registerAutorizacion() {
 					}
 					o.Body.Email = true
 				}
-				if r.Telefono != "" {
+				if wa {
 					if err := whatsapp(ctx, tx, in.CID, r.Telefono, false, "atleta-autorizacion-pedida", v, form); err != nil {
 						return err
 					}
@@ -490,6 +505,11 @@ func (s *Svc) apruebaAutorizacion(ctx context.Context, cid, id uuid.UUID, ifm st
 	d := s.compDate(ctx, cid)
 	out := &AprobarOut{}
 	err = s.change(ctx, cid, "athletes.perfil_actualizado", map[string]any{"id": *pre.MatchAtletaID, "origen": "autorizacion"}, func(tx pgx.Tx) error {
+		// The athlete first, then the request: the same lock order as the area paths.
+		r, err := s.lock(ctx, tx, cid, *pre.MatchAtletaID, "")
+		if err != nil {
+			return err
+		}
 		sol, err := s.lockSolicitud(ctx, tx, cid, id, ifm)
 		if err != nil {
 			return err
@@ -503,10 +523,6 @@ func (s *Svc) apruebaAutorizacion(ctx context.Context, cid, id uuid.UUID, ifm st
 		url := urlAutorizacion(sol)
 		if url == "" {
 			return problem.Unprocessable("AUTORIZACION_OBLIGATORIA", "Esta solicitud no tiene archivo de autorización.")
-		}
-		r, err := s.lock(ctx, tx, cid, *sol.MatchAtletaID, "")
-		if err != nil {
-			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE perfiles SET autorizacion_url = $2, updated_at = now() WHERE atleta_id = $1`, r.ID, url); err != nil {
 			return err
@@ -539,7 +555,7 @@ func (s *Svc) apruebaAutorizacion(ctx context.Context, cid, id uuid.UUID, ifm st
 				return err
 			}
 		}
-		if avisarWhatsApp && tel != "" {
+		if avisarWhatsApp && tel != "" && waAceptado(ctx, tx, cid, r.ID) {
 			if err := whatsapp(ctx, tx, cid, tel, false, "atleta-autorizacion-aprobada", v, ""); err != nil {
 				return err
 			}

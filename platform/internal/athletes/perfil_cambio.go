@@ -68,7 +68,7 @@ var camposPerfil = []struct{ clave, campo string }{
 }
 
 // camposRevisados need the team's review; every other field of «Editar mi perfil» is applied at once (the birth date
-// too, unless it changes whether the athlete is a minor on competition day).
+// too, when it changes whether the athlete is a minor on competition day or their division).
 var camposRevisados = map[string]bool{"nombre": true, "apellidos": true, "email": true, "sexo": true, "prueba": true, "foto": true}
 
 // partirCambios splits the changes in the ones applied at once and the ones the team reviews.
@@ -86,16 +86,26 @@ func partirCambios(c cambiosPerfil, revisa func(clave string) bool) (auto, revis
 	return auto, revision
 }
 
-// fusionaCambios is the new snapshot of the open request: the fields the caller owns come from nuevos (dropped when
-// they no longer change) and the rest stay as they were in the open request.
-func fusionaCambios(abierta *cambiosPerfil, nuevos cambiosPerfil, propia func(clave string) bool) cambiosPerfil {
+// fusionaCambios is the new snapshot of the open request. The fields the caller does not own stay as they were. For
+// an owned field: a value equal to the pending one keeps the pending entry, another changed value replaces it, and a
+// field sent back with the value it has now (actual) drops the pending entry only when that differs from the pending
+// one (an explicit revert: a pending entry that already equals actual is kept).
+func fusionaCambios(abierta *cambiosPerfil, nuevos cambiosPerfil, actual DatoPerfil, propia func(clave string) bool) cambiosPerfil {
 	out := cambiosPerfil{Claves: []string{}, Antes: map[string]any{}, Despues: map[string]any{}}
 	for _, f := range camposPerfil {
+		var pend any
+		tienePend := false
+		if abierta != nil {
+			pend, tienePend = abierta.Despues[f.clave]
+		}
 		src := &nuevos
 		if !propia(f.clave) {
 			if abierta == nil {
 				continue
 			}
+			src = abierta
+		} else if d, ok := nuevos.Despues[f.clave]; tienePend && ((ok && textoPerfil(f.clave, d) == textoPerfil(f.clave, pend)) ||
+			(!ok && textoPerfil(f.clave, pend) == textoPerfil(f.clave, actual.valor(f.clave)))) {
 			src = abierta
 		}
 		if d, ok := src.Despues[f.clave]; ok {
@@ -149,6 +159,7 @@ type CambioPerfilPendiente struct {
 	ID        uuid.UUID           `json:"id"`
 	EnviadaAt time.Time           `json:"enviadaAt"`
 	Cambios   []CambioPerfilCampo `json:"cambios"`
+	valores   map[string]any      // the raw «despues» of the snapshot (prefills the form)
 }
 
 // PerfilEditar is what «Editar mi perfil» needs: the current data (prefilled), the competitions the athlete can
@@ -157,6 +168,9 @@ type PerfilEditar struct {
 	Datos     DatoPerfil             `json:"datos"`
 	Opciones  []PruebaAlta           `json:"opciones" doc:"AEP-2 y AEP-3, con su fecha y sus plazas"`
 	Pendiente *CambioPerfilPendiente `json:"pendiente,omitempty"`
+	// Propuesto: the current data with the pending reviewed values, to prefill the form (a field left as it is keeps
+	// its pending change; one set back to the current value withdraws it).
+	Propuesto *DatoPerfil `json:"propuesto,omitempty"`
 	// Autorizada: the signed authorisation of the guardian is on file (the minor notice is not needed).
 	Autorizada bool `json:"autorizada"`
 }
@@ -426,7 +440,8 @@ func cambioPendiente(ctx context.Context, q querier, cid, atleta uuid.UUID) (*Ca
 		return nil, err
 	}
 	sol := list[0]
-	return &CambioPerfilPendiente{ID: sol.ID, EnviadaAt: sol.CreatedAt, Cambios: camposCambio(leeCambios(sol))}, nil
+	c := leeCambios(sol)
+	return &CambioPerfilPendiente{ID: sol.ID, EnviadaAt: sol.CreatedAt, Cambios: camposCambio(c), valores: c.Despues}, nil
 }
 
 func (s *Svc) registerPerfilCambio() {
@@ -453,6 +468,15 @@ func (s *Svc) registerPerfilCambio() {
 			}
 			if p.Pendiente, err = cambioPendiente(ctx, s.a.DB, r.CompetitionID, r.ID); err != nil {
 				return nil, err
+			}
+			if p.Pendiente != nil {
+				pr := p.Datos
+				for k, v := range p.Pendiente.valores {
+					if camposRevisados[k] || k == "fechaNacimiento" {
+						_ = pr.pon(k, v)
+					}
+				}
+				p.Propuesto = &pr
 			}
 			return &datosOut{Body: p}, nil
 		})
@@ -494,8 +518,8 @@ func (s *Svc) registerPerfilCambio() {
 		})
 }
 
-// creaCambioPerfil saves the athlete's proposal: the contact, club, marks and texts (and the birth date when it does
-// not change whether they are a minor) are applied at once; the name, email, sex, competition and photo wait for the
+// creaCambioPerfil saves the athlete's proposal: the contact, club, marks and texts (and the birth date when it keeps
+// their minor status and division) are applied at once; the name, email, sex, competition and photo wait for the
 // team in a «cambio_perfil» request (one open request per athlete: a new submission is merged into it).
 func (s *Svc) creaCambioPerfil(ctx context.Context, r row, b DatoPerfil) (*CambioPerfilEnviado, error) {
 	// The same validation as the public form (it also normalises the phone, the email and the Instagram).
@@ -514,17 +538,25 @@ func (s *Svc) creaCambioPerfil(ctx context.Context, r row, b DatoPerfil) (*Cambi
 	}
 	propuesto := datoDeAlta(d)
 	c := comparaPerfil(datoDeRow(r), propuesto)
-	if len(c.Claves) == 0 {
-		return nil, problem.Conflict("SIN_CAMBIOS", "No has cambiado nada: tu ficha ya tiene esos datos.")
-	}
 	cid := r.CompetitionID
+	// Nothing changed is an error only without an open request (with one, the same data can withdraw its changes).
+	if len(c.Claves) == 0 {
+		if p, err := cambioPendiente(ctx, s.a.DB, cid, r.ID); err != nil || p == nil {
+			return nil, problem.Conflict("SIN_CAMBIOS", "No has cambiado nada: tu ficha ya tiene esos datos.")
+		}
+	}
 	dia := s.compDate(ctx, cid)
+	slug, anio := "", time.Now().Year()
+	if comp, err := s.comps.ByID(ctx, cid); err == nil {
+		slug, anio = comp.Slug, comp.Year()
+	}
 	auto, revision := partirCambios(c, func(k string) bool {
 		if k == "fechaNacimiento" {
-			// A birth date that makes the athlete a minor (or an adult) changes what may be published: reviewed.
+			// A birth date that makes the athlete a minor (or an adult), or moves their division, changes what may be
+			// published and where they compete: reviewed. Only one that keeps both is applied at once.
 			r2 := r
 			r2.FechaNacimiento = fecha(d.FechaNacimiento)
-			return r2.menor(dia) != r.menor(dia)
+			return r2.FechaNacimiento == nil || r2.menor(dia) != r.menor(dia) || DivisionPorEdad(*r2.FechaNacimiento, anio) != r.Division
 		}
 		return camposRevisados[k]
 	})
@@ -541,10 +573,6 @@ func (s *Svc) creaCambioPerfil(ctx context.Context, r row, b DatoPerfil) (*Cambi
 		}
 	}
 	equipo := s.equipoAdmins(ctx, cid)
-	slug, anio := "", time.Now().Year()
-	if comp, err := s.comps.ByID(ctx, cid); err == nil {
-		slug, anio = comp.Slug, comp.Year()
-	}
 	out := &CambioPerfilEnviado{Cambios: []CambioPerfilCampo{}, Aplicados: auto.Claves}
 	ev := ""
 	if len(auto.Claves) > 0 {
@@ -564,8 +592,11 @@ func (s *Svc) creaCambioPerfil(ctx context.Context, r row, b DatoPerfil) (*Cambi
 				return err
 			}
 		}
-		// The form owns every reviewed field but the photo (that one comes from its own upload).
-		out.Pendiente, borrar, err = s.guardaCambioPerfil(ctx, tx, prev, &propuesto, revision, func(k string) bool { return k != "foto" }, equipo, slug)
+		// The form owns every reviewed field but the photo (that one comes from its own upload), and the fields it has
+		// just applied (a pending value of an older request is superseded); the rest of an older request is kept.
+		out.Pendiente, borrar, err = s.guardaCambioPerfil(ctx, tx, prev, &propuesto, revision, func(k string) bool {
+			return k != "foto" && (camposRevisados[k] || k == "fechaNacimiento" || cambiaClave(auto, k))
+		}, equipo, slug)
 		return err
 	})
 	if err != nil {
@@ -622,7 +653,12 @@ func (s *Svc) guardaCambioPerfil(ctx context.Context, tx pgx.Tx, r row, datos *D
 		c := leeCambios(*abierta)
 		antes = &c
 	}
-	c := fusionaCambios(antes, nuevos, propia)
+	// What the submission leaves in each field: the proposed data, or the current one (photo upload).
+	actual := datoDeRow(r)
+	if datos != nil {
+		actual = *datos
+	}
+	c := fusionaCambios(antes, nuevos, actual, propia)
 	borrar := ""
 	if antes != nil {
 		if u := fotoCambio(*antes); u != "" && u != fotoCambio(c) && u != r.FotoURL {
@@ -782,9 +818,22 @@ func (s *Svc) apruebaCambioPerfil(ctx context.Context, cid, id uuid.UUID, ifm st
 	if c, err := s.comps.ByID(ctx, cid); err == nil {
 		anio = c.Year()
 	}
-	var destino uuid.UUID
+	// The athlete is locked before the request, as «Editar mi perfil» and the photo upload do (the same lock order
+	// everywhere: no deadlock when the athlete saves while the team approves).
+	pre, err := getSolicitud(ctx, s.a.DB, cid, id)
+	if err != nil {
+		return nil, err
+	}
+	if pre.Tipo != "cambio_perfil" || pre.MatchAtletaID == nil {
+		return nil, problem.Conflict("TIPO_INVALIDO", "Esta solicitud no es un cambio de perfil enlazado a un atleta.")
+	}
+	destino := *pre.MatchAtletaID
 	var fotoAnterior string
-	err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+	err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+		prev, err := s.lock(ctx, tx, cid, destino, "")
+		if err != nil {
+			return err
+		}
 		sol, err := s.lockSolicitud(ctx, tx, cid, id, ifm)
 		if err != nil {
 			return err
@@ -792,13 +841,8 @@ func (s *Svc) apruebaCambioPerfil(ctx context.Context, cid, id uuid.UUID, ifm st
 		if err := yaRevisada(sol); err != nil {
 			return err
 		}
-		if sol.Tipo != "cambio_perfil" || sol.MatchAtletaID == nil {
+		if sol.Tipo != "cambio_perfil" || sol.MatchAtletaID == nil || *sol.MatchAtletaID != destino {
 			return problem.Conflict("TIPO_INVALIDO", "Esta solicitud no es un cambio de perfil enlazado a un atleta.")
-		}
-		destino = *sol.MatchAtletaID
-		prev, err := s.lock(ctx, tx, cid, destino, "")
-		if err != nil {
-			return err
 		}
 		if prev.Estado == "baja" {
 			return problem.Conflict("ATLETA_DE_BAJA", "Ese atleta está de baja: el cambio ya no se puede aplicar. Recházalo.")

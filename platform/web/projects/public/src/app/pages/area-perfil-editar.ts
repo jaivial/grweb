@@ -22,9 +22,12 @@ interface CambioPendiente {
   enviadaAt: string;
   cambios: CambioCampo[];
 }
-/** Lo que devuelve el servicio: los datos de hoy (para rellenar) y el cambio pendiente. */
+type DatosPerfil = Omit<CamposPerfil, 'marcaSQ' | 'marcaBP' | 'marcaDL'> & { marcaSQ?: number; marcaBP?: number; marcaDL?: number };
+/** Lo que devuelve el servicio: los datos de hoy, los que rellenan el formulario y el cambio pendiente. */
 interface PerfilEditar {
-  datos: Omit<CamposPerfil, 'marcaSQ' | 'marcaBP' | 'marcaDL'> & { marcaSQ?: number; marcaBP?: number; marcaDL?: number };
+  datos: DatosPerfil;
+  /** Los datos de hoy con los valores pendientes de revisión: dejarlos tal cual mantiene el cambio pendiente. */
+  propuesto?: DatosPerfil;
   opciones: PruebaOpcion[];
   esMenor: boolean;
   pendiente?: CambioPendiente;
@@ -41,7 +44,7 @@ const api = '/api/area-atleta/perfil-editar';
 
 /**
  * «Editar mi perfil» del área de atleta: el atleta cambia los mismos datos que pidió en el alta. Nombre, apellidos,
- * email, sexo y competición (y la fecha si cambia la minoría de edad) los revisa el equipo antes de aplicarlos y
+ * email, sexo y competición (y la fecha si cambia la minoría de edad o la división) los revisa el equipo antes de aplicarlos y
  * pueden cancelarse mientras esperan; el resto se guarda al momento. Las reglas de validación son las del
  * formulario público (/alta-atleta).
  */
@@ -344,9 +347,9 @@ export class AreaPerfilEditar {
     }
   }
 
-  /** Copia los datos del servicio al formulario (la fecha se ve dd/mm/aaaa). */
+  /** Copia los datos del servicio al formulario, con los cambios pendientes (la fecha se ve dd/mm/aaaa). */
   private rellena(p: PerfilEditar): void {
-    const x = p.datos;
+    const x = p.propuesto ?? p.datos;
     const num = (v?: number) => (v === null || v === undefined ? '' : String(v));
     this.d = {
       nombre: x.nombre, apellidos: x.apellidos, email: x.email, telefono: x.telefono, sexo: x.sexo,
@@ -444,6 +447,8 @@ export class AreaPerfilEditar {
       this.aplicados.set([]);
       this.revisados.set([]);
       this.ok.set(this.t().cancelado);
+      // The form showed the pending values: it goes back to the data of the record.
+      await this.cargar();
     } catch (e) {
       this.error.set(this.msg(e));
     } finally {

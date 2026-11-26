@@ -231,7 +231,7 @@ type Dialogo = 'desconectar' | null;
                   <bo-toggle [(value)]="alAtleta" label="WhatsApp al atleta" (changed)="guardar()" />
                 </div>
                 <div class="mt-3 flex items-center justify-between gap-3 rounded-md border border-line-subtle bg-bg-surface px-4 py-3">
-                  <span class="min-w-0"><span class="block text-label-s">WhatsApp a organizadores</span><span class="block text-body-xs text-text-tertiary">Con grupo elegido, un solo mensaje al grupo; sin grupo, uno por cada teléfono de la lista, con la foto de la solicitud.</span></span>
+                  <span class="min-w-0"><span class="block text-label-s">WhatsApp a organizadores</span><span class="block text-body-xs text-text-tertiary">Con grupo elegido, un solo mensaje al grupo; sin grupo, uno por cada teléfono de la lista, con la foto de la solicitud. Apagado, no se avisa ni al grupo ni a los teléfonos.</span></span>
                   <bo-toggle [(value)]="aOrganizadores" label="WhatsApp a organizadores" (changed)="guardar()" />
                 </div>
                 @let av = avisos()!;
