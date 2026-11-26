@@ -1,4 +1,5 @@
 import type { Routes } from '@angular/router';
+import { areaGuard } from './core/area-guard';
 import { HomePage, NotFoundPage } from './home/home';
 
 /** Pages (Spanish paths); the same tree is mounted again under /en (one UI, texts from core/i18n dictionaries). */
@@ -53,7 +54,9 @@ const paginas: Routes = [
   { path: 'resultados/:anio', loadComponent: () => import('./pages/directo').then((m) => m.ResultadosEdicionPage) },
   { path: 'ediciones/:anio', loadComponent: () => import('./pages/directo').then((m) => m.EdicionPage) },
   { path: 'pantalla/:slug', loadComponent: () => import('./pages/directo').then((m) => m.PantallaPublicaPage) },
-  { path: 'area-atleta', loadComponent: () => import('./pages/area').then((m) => m.AreaAtletaPage) },
+  // Área de atleta: el panel y sus subpáginas (`?vista=perfil|horarios|acreditacion|pesaje`); la guarda manda al
+  // acceso a quien no tiene sesión y le devuelve a la subpágina después de entrar.
+  { path: 'area-atleta', canActivate: [areaGuard], loadComponent: () => import('./pages/area').then((m) => m.AreaAtletaPage) },
   // «Comparte tu cuenta atrás» (Figma 83): story 1080×1920 para atletas con sesión de área.
   { path: 'area-atleta/compartir', loadComponent: () => import('./pages/area-compartir').then((m) => m.AreaCompartirPage) },
   { path: 'alta-atleta', loadComponent: () => import('./pages/alta-atleta').then((m) => m.AltaAtletaPage) },

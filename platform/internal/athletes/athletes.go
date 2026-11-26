@@ -138,6 +138,8 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerAreaPrueba()
 	s.registerAreaPassword()
 	s.registerAreaStory()
+	s.registerAreaAcreditacion()
+	s.registerAreaHorario()
 	s.registerInternal()
 	s.registerKPIs()
 	s.registerOpenLifter()
