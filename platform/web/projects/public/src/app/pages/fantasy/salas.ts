@@ -34,8 +34,6 @@ const T = {
     desc: 'Solicita unirte a una sala o crea la tuya. Mínimo 2 jugadores, máximo según los atletas inscritos.',
     sinConexion: 'Sin conexión en tiempo real',
     reconectando: 'Reconectando… las salas pueden estar desactualizadas.',
-    hoyHay: (a: number, p: number) => `Hoy hay ${a} atletas · máx. ${p} jugadores por sala`,
-    hoyHayTxt: (a: number, p: number) => `${a} ÷ 5 = ${p} plazas (cada jugador alinea 5 atletas; tope 10, mínimo 2). El anfitrión decide quién entra.`,
     misSolicitudes: 'Mis solicitudes',
     maximo: 'Máximo de solicitudes alcanzado',
     maximoTxt: (n: number) => `Ya tienes ${n} solicitudes pendientes. Cancela una para solicitar otra sala.`,
@@ -102,8 +100,6 @@ const T = {
     desc: "Ask to join a league or create your own. Minimum 2 players, maximum depending on the registered athletes.",
     sinConexion: 'No real-time connection',
     reconectando: 'Reconnecting… the leagues may be out of date.',
-    hoyHay: (a: number, p: number) => `Today there are ${a} athletes · max. ${p} players per league`,
-    hoyHayTxt: (a: number, p: number) => `${a} ÷ 5 = ${p} places (each player fields 5 athletes; cap of 10, minimum 2). The host decides who gets in.`,
     misSolicitudes: 'My requests',
     maximo: 'Request limit reached',
     maximoTxt: (n: number) => `You already have ${n} pending requests. Cancel one to request another league.`,
@@ -178,11 +174,6 @@ const T = {
 
         @if (vivo.caida()) {
           <gr-aviso tono="aviso" [titulo]="t().sinConexion">{{ t().reconectando }}</gr-aviso>
-        }
-        @if (lobby(); as l) {
-          @if (l.puedeCrear) {
-            <gr-aviso [titulo]="t().hoyHay(l.atletas, l.plazasMax)">{{ t().hoyHayTxt(l.atletas, l.plazasMax) }}</gr-aviso>
-          }
         }
         @if (error(); as e) {
           <gr-aviso tono="error" [titulo]="e.titulo">{{ e.texto }}</gr-aviso>

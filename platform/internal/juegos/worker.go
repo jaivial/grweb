@@ -27,6 +27,7 @@ var tiposWorker = []string{
 	"directo.intento", "directo.veredicto", "directo.correccion", "resultados.publicados",
 	"horarios.generados", "horarios.publicados", "horarios.dias",
 	"athletes.",
+	"fantasy.solicitud", // the host of the room is notified of a new request (email + WhatsApp)
 }
 
 // comandoWorker runs the consumer loop; no public API, only health probes on HTTP_ADDR.
@@ -124,6 +125,8 @@ func (s *Svc) manejarEvento(sucias *sucias) events.Handler {
 			return s.recompensaDonacion(ctx, cid, e.Data)
 		case "donacion.reembolsada":
 			return s.reembolsoDonacion(ctx, cid, e.Data)
+		case "fantasy.solicitud":
+			return s.avisoSolicitud(ctx, cid, e.Data)
 		case "horarios.generados", "horarios.publicados", "horarios.dias":
 			if err := s.reconciliarJornadas(ctx, cid); err != nil {
 				return err // a new or removed date: its jornada follows at once

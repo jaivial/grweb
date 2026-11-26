@@ -97,7 +97,7 @@ const T = {
       <gr-fantasy-cabecera [titulo]="sala()?.nombre ?? t().sala" [migas]="[t().salas, sala()?.nombre ?? t().sala]" [descripcion]="subtitulo()" [reservar]="true" />
       <div class="flex flex-col gap-4 md:gap-6">
         <!-- UX6-R1-7: dentro de la sala, en móvil basta la barra de sala y las migas -->
-        <div class="hidden md:block"><gr-juegos-nav juego="fantasy" activa="salas" /></div>
+        <div class="hidden md:block"><gr-juegos-nav juego="fantasy" activa="salas" [pestanas]="!cargando() && !detalle()" /></div>
 
         @if (cargando()) {
           <div class="flex flex-col gap-3" aria-busy="true">

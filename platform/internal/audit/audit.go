@@ -79,6 +79,8 @@ var noAudit = map[string]bool{"import.progreso": true, "athletes.email_solicitad
 	"raffle.email_solicitado": true, "raffle.contacto": true, "sorteo.compra": true, "sorteo.estado": true, "sorteo.ganador": true,
 	// athlete sign-up: WhatsApp requests carry the phone number
 	"athletes.whatsapp_solicitado": true,
+	// GRS Fantasy: the notice to the host of a room carries his email and phone
+	"juegos.email_solicitado": true, "juegos.whatsapp_solicitado": true,
 	// one account per email: carries the email of the athlete request (fans logs fans.convertido_atleta)
 	"athletes.cuenta_atleta": true}
 
