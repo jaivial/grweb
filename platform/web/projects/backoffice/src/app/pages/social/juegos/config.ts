@@ -160,7 +160,7 @@ const cfgPorDefecto: ConfigJuegos = {
                 <p class="text-label-s">Elegir la hora a mano</p>
                 <p class="text-body-xs text-text-tertiary">{{ form().clausulazoCierreManual
                   ? 'Se cierran el ' + ultimoDia() + ' a la hora que elijas (hora de Madrid).'
-                  : 'Se cierran al empezar la última sesión del horario del ' + ultimoDia() + '.' }}</p>
+                  : 'Se cierran al empezar la última sesión publicada en el horario de la competición.' }}</p>
               </div>
               <bo-toggle [value]="form().clausulazoCierreManual" (changed)="set({ clausulazoCierreManual: $event })" label="Elegir la hora de cierre de los clausulazos a mano" [disabled]="!puede()" />
             </div>
