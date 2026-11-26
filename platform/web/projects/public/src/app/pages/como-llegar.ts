@@ -11,7 +11,7 @@ import { Page } from '../layout/page';
 import { applySeo } from './content';
 import { Community, Related, type RelatedLink } from './landings';
 import { Sitios } from './sitios';
-import { GIMNASIOS, HOTELES, detalleDe, mapaDe, type Sitio } from './donde-dormir-y-comer';
+import { mapaDe, sitiosDelCms } from './donde-dormir-y-comer';
 
 
 const T = {
@@ -176,18 +176,19 @@ const T = {
               <p class="text-body-s text-text-tertiary">{{ t().alojTexto }}</p>
               <a grButton variant="outline" size="l" class="mt-1 w-full sm:w-auto sm:self-start" [routerLink]="'/donde-dormir-y-comer' | loc">{{ t().verAloj }}</a>
             </article>
-            <gr-sitios [sitios]="hoteles" icono="building" />
+            <gr-sitios [sitios]="hoteles()" icono="building" />
           </section>
+          @if (gimnasios().length) {
           <section id="entrenar" class="flex flex-col gap-5 md:gap-7">
             <gr-cabecera [eyebrow]="t().entrenar" [titulo]="t().dondeEntrenar" [centro]="false" tam="m" />
             <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              @for (g of gimnasios; track g.nombre) {
+              @for (g of gimnasios(); track g.nombre) {
                 <li class="flex flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card p-5">
                   <div class="flex items-center gap-3">
                     @if (g.logo) { <span class="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-black p-1"><img [src]="g.logoOscuro || g.logo" [alt]="g.nombre" class="size-full object-contain" loading="lazy" /></span> } @else { <span class="flex size-12 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent-text"><gr-icon name="trophy" [size]="20" /></span> }
                     <h3 class="text-label-m">{{ g.nombre }}</h3>
                   </div>
-                  <p class="text-body-s text-text-tertiary">{{ detalle(g) }}</p>
+                  @if (g.detalle) { <p class="text-body-s text-text-tertiary">{{ g.detalle }}</p> }
                   <div class="mt-auto flex flex-wrap gap-x-4 gap-y-1 pt-1">
                     @if (g.web) { <a [href]="g.web" target="_blank" rel="noopener nofollow" class="inline-flex items-center gap-1.5 text-label-s text-accent-text hover:underline">{{ t().verWeb }}<gr-icon name="external-link" [size]="14" /></a> }
                     <a [href]="mapa(g)" target="_blank" rel="noopener nofollow" class="inline-flex items-center gap-1.5 text-label-s text-accent-text hover:underline">{{ t().verMapa }}<gr-icon name="external-link" [size]="14" /></a>
@@ -196,6 +197,7 @@ const T = {
               }
             </ul>
           </section>
+          }
 
           <gr-related [items]="t().relacionados" />
           <gr-community />
@@ -214,10 +216,11 @@ export class ComoLlegarPage {
   protected readonly foto = signal(0);
   /** Photo open in the lightbox (−1: closed). */
   protected readonly ver = signal(-1);
-  protected readonly gimnasios = GIMNASIOS;
-  protected readonly hoteles = HOTELES;
+  /** Hotels and gyms of the backoffice (Colaboradores Refugio), live by SSE. */
+  private readonly sitios = sitiosDelCms();
+  protected readonly gimnasios = computed(() => this.sitios.gimnasios() ?? []);
+  protected readonly hoteles = computed(() => (this.sitios.hoteles() ?? []).filter((s) => s.tipo === 'hotel'));
   protected readonly mapa = mapaDe;
-  protected readonly detalle = (s: Sitio) => detalleDe(s, this.i18n.lang());
   protected readonly enc = encodeURIComponent;
   private readonly fotosCms = signal<{ imagen: string; alt?: string }[]>([]);
   protected readonly fotos = computed(() =>
@@ -251,7 +254,7 @@ export class ComoLlegarPage {
     const cms = inject(Cms);
     const seo = inject(Seo);
     void inject(PendingTasks).run(async () => {
-      const [c, home] = await Promise.all([competition.load(), cms.home().catch(() => null)]);
+      const [c, home] = await Promise.all([competition.load(), cms.home().catch(() => null), this.sitios.cargar()]);
       this.comp.set(c);
       // the venue photos are the ones of the home «Localización» section (one place to edit them)
       const loc = home?.secciones?.['localizacion'];

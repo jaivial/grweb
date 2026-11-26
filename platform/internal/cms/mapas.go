@@ -170,8 +170,10 @@ func (s *Svc) registerMapas() {
 			URL string `json:"url"`
 		}
 	}
-	// The same upload publishes the sponsor banners (patrocinio): web.editar is also the permission of the banners.
-	for _, d := range []struct{ id, carpeta, que string }{{"mapas-imagen", "mapas", "un mapa de accesos"}, {"patrocinio-imagen", "patrocinio", "un banner de patrocinio"}} {
+	// The same upload publishes the sponsor banners (patrocinio) and the images and logos of Colaboradores Refugio:
+	// web.editar is also their permission.
+	for _, d := range []struct{ id, carpeta, que string }{{"mapas-imagen", "mapas", "un mapa de accesos"}, {"patrocinio-imagen", "patrocinio", "un banner de patrocinio"},
+		{"hoteles-restaurantes-imagen", "hoteles-restaurantes", "un hotel o restaurante"}, {"gimnasios-imagen", "gimnasios", "un gimnasio"}} {
 		carpeta := d.carpeta
 		huma.Register(api, huma.Operation{OperationID: d.id, Method: http.MethodPost, Path: "/api/admin/competiciones/{cid}/web/" + carpeta + "/imagen", Summary: "Subir la imagen de " + d.que + " al CDN (JPG, PNG o WebP, máx. 10 MB)",
 			Tags: []string{"Web y contenidos"}, Security: bearer, DefaultStatus: http.StatusCreated, MaxBodyBytes: maxUpload, BodyReadTimeout: time.Minute},
@@ -203,7 +205,7 @@ func (s *Svc) registerMapas() {
 				key := carpeta + "/" + newID().String() + ext
 				url, err := st.Put(ctx, key, tipo, data)
 				if err != nil {
-					s.a.Log.Error("no se ha podido publicar el mapa de accesos", "err", err, "key", key)
+					s.a.Log.Error("no se ha podido publicar la imagen", "err", err, "key", key)
 					return nil, problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No hemos podido subir la imagen. Inténtalo en unos minutos.")
 				}
 				out := &upOut{}
