@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, computed, inject, input, output, signal, viewChild } from '@angular/core';
 import { GrButton, GrIcon } from '@grcup/ui';
 import { I18n } from '../core/i18n';
+import { GrTelefono } from '../layout/telefono';
 
 const T = {
   es: {
@@ -30,12 +31,14 @@ export interface Recorte {
 /** Reference phone of Figma 83 (iPhone + Instagram story UI): visual reference only, never exported. */
 @Component({
   selector: 'gr-story-movil',
-  imports: [GrIcon],
+  imports: [GrIcon, GrTelefono],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block w-[236px] md:w-[280px] lg:w-[300px]' },
   template: `
-    <div class="rounded-[44px] border-[6px] border-[#2a2a2e] bg-black p-2 shadow-2xl">
-      <div class="relative aspect-[9/16] overflow-hidden rounded-[34px]" [style.background]="fondo() || '#000'">
+    <gr-telefono>
+      <!-- status bar (safe area) above the 9:16 story, as on a real iPhone -->
+      <div class="h-[6.5%] shrink-0" aria-hidden="true"></div>
+      <div class="relative aspect-[9/16] shrink-0 overflow-hidden" [style.background]="fondo() || '#000'">
         @if (fondo()) { <div class="absolute inset-0 bg-cover bg-center grayscale" [style.background-image]="'url(' + fondo() + ')'"></div> }
         @if (src()) { <img [src]="src()" [alt]="alt()" class="absolute inset-0 h-full w-full object-cover" [class.blur-[6px]]="borroso()" /> }
         @else { <div class="absolute inset-0 animate-pulse bg-white/5"></div> }
@@ -44,7 +47,7 @@ export interface Recorte {
         }
         <!-- status bar, story progress and Instagram header -->
         <div class="pointer-events-none absolute inset-x-0 top-0 px-4 pt-2 text-white" aria-hidden="true">
-          <div class="flex items-center justify-between text-[12px] font-semibold"><span></span><span class="h-5 w-16 rounded-full bg-black"></span><span></span></div>
+          <div class="flex items-center justify-between text-[12px] font-semibold"><span></span><span class="invisible h-5 w-16"></span><span></span></div>
           @if (!borroso()) {
             <div class="mt-2 h-0.5 rounded bg-white/30"><div class="h-full w-1/3 rounded bg-white"></div></div>
             <div class="mt-2 flex items-center gap-1.5 text-[9px] font-semibold"><span class="size-4 rounded-full border border-white/60 bg-white/20"></span>{{ usuario() || t().usuario }} · 1 min<gr-icon class="ml-auto" name="x" [size]="12" /></div>
@@ -55,9 +58,8 @@ export interface Recorte {
             <span class="flex-1 rounded-full border border-white/70 px-3 py-1 text-[8px]">{{ t().mensaje }}</span><gr-icon name="heart" [size]="14" /><gr-icon name="send" [size]="14" />
           </div>
         }
-        <span class="pointer-events-none absolute bottom-1.5 left-1/2 h-1 w-1/3 -translate-x-1/2 rounded-full bg-white/80" aria-hidden="true"></span>
       </div>
-    </div>
+    </gr-telefono>
   `,
 })
 export class StoryMovil {
