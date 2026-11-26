@@ -379,7 +379,7 @@ const T = {
               </header>
               <nav class="mt-4 grid grid-cols-2 gap-3 md:mt-6 md:grid-cols-5 md:gap-4" [attr.aria-label]="t().accesos">
                 @for (x of accesos(); track x.id) {
-                  <a [routerLink]="x.ruta ? (x.ruta | loc) : ('/area-atleta' | loc)" [queryParams]="x.vista ? { vista: x.vista } : {}" [class]="x.ancho ? tileAncho : tile"><span [class]="tileIcono"><gr-icon [name]="x.icono" [size]="26" /></span><span class="text-[15px] leading-tight font-semibold md:text-[17px]">{{ x.texto }}</span></a>
+                  <a [routerLink]="x.ruta ? (x.ruta | loc) : ('/area-atleta' | loc)" [queryParams]="x.vista ? { vista: x.vista } : (x.query ?? {})" [class]="x.ancho ? tileAncho : tile"><span [class]="tileIcono"><gr-icon [name]="x.icono" [size]="26" /></span><span class="text-[15px] leading-tight font-semibold md:text-[17px]">{{ x.texto }}</span></a>
                 }
               </nav>
               @for (a of p.avisos; track a) { <gr-alert class="mt-6" tone="info" [title]="t().importante">{{ a }}</gr-alert> }
@@ -577,12 +577,13 @@ export class AreaAtletaPage {
   protected readonly tileAncho = this.tile + ' max-md:col-span-2 max-md:aspect-auto max-md:py-5';
   protected readonly tileIcono = 'flex size-14 items-center justify-center rounded-lg bg-accent/16 text-accent-text transition-colors group-hover:bg-accent/24 md:size-16';
   /** Los accesos rápidos son URLs: cada subpágina del área tiene la suya (`?vista=…`) y atrás/adelante funcionan. */
-  protected readonly accesos: Signal<{ id: string; texto: string; icono: 'pencil' | 'qr' | 'calendar' | 'instagram' | 'trophy'; vista?: AreaVista; ruta?: string; ancho?: boolean }[]> = computed(() => [
+  protected readonly accesos: Signal<{ id: string; texto: string; icono: 'pencil' | 'qr' | 'calendar' | 'instagram' | 'trophy'; vista?: AreaVista; ruta?: string; query?: Record<string, string>; ancho?: boolean }[]> = computed(() => [
     { id: 'perfil', texto: this.t().editar, icono: 'pencil', vista: 'perfil' },
     { id: 'acreditacion', texto: this.t().miAcreditacion, icono: 'qr', vista: 'acreditacion' },
     { id: 'horarios', texto: this.t().verHorarios, icono: 'calendar', vista: 'horarios' },
     { id: 'post', texto: this.t().postBuilder, icono: 'instagram', vista: 'post' },
-    { id: 'resultados', texto: this.t().verResultados, icono: 'trophy', ruta: '/resultados', ancho: true },
+    // the results of this edition filtered by the athlete's name (no per-athlete results page)
+    { id: 'resultados', texto: this.t().verResultados, icono: 'trophy', ruta: '/resultados' + (this.anioComp() ? '/' + this.anioComp() : ''), query: this.anioComp() && this.panel()?.atleta.nombreCompleto ? { q: this.panel()!.atleta.nombreCompleto } : undefined, ancho: true },
   ]);
 
   /** Estado de la sesión; ya dentro, la subpágina sale de la URL. */
@@ -647,6 +648,7 @@ export class AreaAtletaPage {
   protected pz: { rackSq?: number; rackBp?: number; segurosBp?: number; intentos: Marcas } = { intentos: {} };
   protected readonly lifts: { k: keyof Marcas; s: string }[] = [{ k: 'sq', s: 'SQ' }, { k: 'bp', s: 'BP' }, { k: 'dl', s: 'DL' }];
   protected readonly steppers: Signal<{ k: 'rackSq' | 'rackBp' | 'segurosBp'; label: string }[]> = computed(() => [{ k: 'rackSq', label: this.t().rackSq }, { k: 'rackBp', label: this.t().rackBp }, { k: 'segurosBp', label: this.t().seguros }]);
+  private readonly anioComp = computed(() => this.comp.data()?.fechaInicio?.slice(0, 4) ?? '');
   protected readonly nombreComp = computed(() => this.comp.data()?.nombre || 'GR Cup');
   protected readonly sede = computed(() => this.comp.data()?.sede?.ciudad ?? '');
   protected readonly contacto = computed(() => this.comp.data()?.evento.emailContacto ?? '');

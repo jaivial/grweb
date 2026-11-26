@@ -11,7 +11,6 @@ import (
 	"embed"
 	"encoding/base64"
 	"io/fs"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,6 +27,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 	"github.com/jaivial/grweb/platform/pkg/svcclient"
+	"github.com/jaivial/grweb/platform/pkg/visitas"
 )
 
 //go:embed migrations/*.sql
@@ -140,9 +140,9 @@ func (s *Svc) bump(ctx context.Context, cid uuid.UUID) {
 	s.cache.Del(ctx, "plan:"+cid.String())
 }
 
-// espectadores sums the public SSE connections that the realtime pods report: the set of pods of the competition
-// and one counter per pod (refreshed every 20 s with a 60 s expiry, so a crashed pod stops counting). No SCAN: the
-// Redis is shared. Cached 5 s in the process.
+// espectadores is the number of people with /en-directo open: the distinct browser ids (?v=) that the realtime pods
+// report (pkg/visitas: every 10 s, counting for 25 s, so a browser that leaves or a crashed pod stops counting).
+// Several tabs, overlapping reconnections or two pods count once. Cached 5 s in the process.
 func (s *Svc) espectadores(ctx context.Context, cid uuid.UUID) int {
 	s.espMu.Lock()
 	if c, ok := s.esp[cid]; ok && time.Since(c.at) < 5*time.Second {
@@ -150,30 +150,17 @@ func (s *Svc) espectadores(ctx context.Context, cid uuid.UUID) int {
 		return c.n
 	}
 	s.espMu.Unlock()
-	pods, err := s.a.Redis.SMembers(ctx, s.a.Keys.Of("rt", "pods", cid.String())).Result()
-	var total int
-	if err == nil && len(pods) > 0 {
-		keys := make([]string, len(pods))
-		for i, p := range pods {
-			keys[i] = s.a.Keys.Of("rt", "conexiones", cid.String(), p)
-		}
-		vals, _ := s.a.Redis.MGet(ctx, keys...).Result()
-		for _, v := range vals {
-			if str, ok := v.(string); ok {
-				if n, err := strconv.Atoi(str); err == nil {
-					total += n
-				}
-			}
-		}
-	}
+	// distinct browsers with /en-directo open on any realtime pod (pkg/visitas), not connections
+	n, _ := visitas.Contar(ctx, s.a.Redis, s.a.Keys.Of("rt", "visitas", cid.String()))
+	total := int(n)
 	s.espMu.Lock()
 	s.esp[cid] = espCache{n: total, at: time.Now()}
 	s.espMu.Unlock()
 	return total
 }
 
-// evento queues a live event. Public ones carry no names (the clients fetch the public snapshot, which only names
-// athletes with a public profile).
+// evento queues a live event. Public ones carry no names (the clients fetch the public snapshot, which names the
+// confirmed athletes like /participantes and links only public profiles).
 func evento(ctx context.Context, tx pgx.Tx, cid uuid.UUID, typ string, data map[string]any, opts ...events.Option) error {
 	o := append([]events.Option{events.Competition(cid.String()), events.Audience(events.Public)}, opts...)
 	return events.Enqueue(ctx, tx, events.New(ctx, typ, data, o...))

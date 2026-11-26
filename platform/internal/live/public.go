@@ -16,8 +16,8 @@ import (
 
 var tagPub = []string{"Público"}
 
-// EnPlataforma is an athlete on (or waiting for) the platform, as the public sees it: name, club and slug only with
-// a public profile.
+// EnPlataforma is an athlete on (or waiting for) the platform, as the public sees it: name and club of every
+// confirmed athlete (as the public start list /participantes); the profile link only with a public profile.
 type EnPlataforma struct {
 	Nombre     string     `json:"nombre"`
 	Slug       string     `json:"slug,omitempty"`
@@ -63,9 +63,9 @@ type Directo struct {
 }
 
 func enPlataforma(a *atleta, mov string, n int, peso float64) *EnPlataforma {
-	x := &EnPlataforma{Nombre: "Atleta", Sexo: a.Sexo, Categoria: a.Categoria, Division: a.DivisionNombre, Movimiento: mov, Numero: n, Peso: peso}
+	x := &EnPlataforma{Nombre: a.Nombre, Club: a.Club, Sexo: a.Sexo, Categoria: a.Categoria, Division: a.DivisionNombre, Movimiento: mov, Numero: n, Peso: peso}
 	if a.Publico {
-		x.Nombre, x.Slug, x.Club = a.Nombre, a.Slug, a.Club
+		x.Slug = a.Slug
 	}
 	return x
 }

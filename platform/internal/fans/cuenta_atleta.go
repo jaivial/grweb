@@ -15,6 +15,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/auth"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/events"
+	"github.com/jaivial/grweb/platform/pkg/fanauth"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
@@ -169,6 +170,56 @@ func (s *Svc) registerMoverEmailCuentaAtleta() {
 			}
 			return &struct{}{}, nil
 		})
+}
+
+// registerPasswordAtleta: the athlete area set a new password (own change or a new initial one). The directo account
+// of that athlete takes the same hash (one account per email, one password); no linked account, nothing to do.
+func (s *Svc) registerPasswordAtleta() {
+	type in struct {
+		CID  uuid.UUID `path:"cid"`
+		Body struct {
+			AtletaID     uuid.UUID `json:"atletaId"`
+			PasswordHash string    `json:"passwordHash" minLength:"1" maxLength:"200"`
+		}
+	}
+	huma.Register(s.a.API, huma.Operation{OperationID: "internal-fan-password-atleta", Method: http.MethodPut,
+		Path: "/internal/competiciones/{cid}/fans/password-atleta", Summary: "Contraseña nueva del área de atleta (solo athletes)", Tags: []string{"Interno"}, Hidden: true, DefaultStatus: http.StatusNoContent},
+		func(ctx context.Context, in *in) (*struct{}, error) {
+			p, err := auth.RequireService(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if p.Service != "athletes" {
+				return nil, problem.Forbidden("Solo athletes.")
+			}
+			if !strings.HasPrefix(in.Body.PasswordHash, "$argon2id$") {
+				return nil, problem.Unprocessable("HASH_NO_VALIDO", "El hash no es argon2id.")
+			}
+			var fanID uuid.UUID
+			err = s.a.DB.QueryRow(ctx, `UPDATE fans SET password_hash = $3, password_reset_hasta = NULL, updated_at = now()
+				WHERE competition_id = $1 AND atleta_id = $2 AND tipo = 'atleta' AND password_hash <> $3 RETURNING id`, in.CID, in.Body.AtletaID, in.Body.PasswordHash).Scan(&fanID)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return &struct{}{}, nil
+			} else if err != nil {
+				return nil, err
+			}
+			// Same rule as a password set here: the other sessions close with the old password.
+			if _, err := s.bumpVersion(ctx, fanID); err != nil {
+				s.a.Log.Warn("fans: versión tras la contraseña del área de atleta", "err", err)
+			}
+			return &struct{}{}, nil
+		})
+}
+
+// passwordAAtleta copies a new password of an athlete's account to the athlete area. Best effort: the directo keeps
+// working if athletes is down.
+func (s *Svc) passwordAAtleta(ctx context.Context, cid uuid.UUID, tipo string, atleta uuid.UUID, hash string) {
+	if tipo != fanauth.TipoAtleta || atleta == uuid.Nil || hash == "" {
+		return
+	}
+	if err := s.atletas.password(ctx, cid, atleta, hash); err != nil {
+		s.a.Log.Warn("fans: contraseña no copiada al área de atleta", "atleta", atleta, "err", err)
+	}
 }
 
 // atletaDeEmail is the athlete of an email for a público account (uuid.Nil when none or athletes is down).

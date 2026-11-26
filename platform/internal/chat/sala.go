@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/jaivial/grweb/platform/pkg/app"
@@ -97,7 +98,8 @@ type sala struct {
 
 	mu     sync.Mutex
 	subs   map[chan frame]struct{}
-	lastID string // reader position ("$" until the first entry arrives)
+	vis    map[chan frame]string // visitor of each subscriber (pkg/visitas): «conectados» counts people
+	lastID string                // reader position ("$" until the first entry arrives)
 	last   time.Time
 	parado bool
 }
@@ -207,10 +209,26 @@ func (h *hub) gc(ctx context.Context) {
 	}
 }
 
-func (s *sala) sub() chan frame {
+// visitantes adds the distinct visitors of the local subscribers to set.
+func (s *sala) visitantes(set map[string]struct{}) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, v := range s.vis {
+		set[v] = struct{}{}
+	}
+}
+
+func (s *sala) sub() chan frame { return s.subDe(uuid.NewString()) }
+
+// subDe subscribes a client of visitor v (the browser id, so its tabs and reconnections count once).
+func (s *sala) subDe(v string) chan frame {
 	ch := make(chan frame, subBuffer)
 	s.mu.Lock()
 	s.subs[ch] = struct{}{}
+	if s.vis == nil {
+		s.vis = map[chan frame]string{}
+	}
+	s.vis[ch] = v
 	s.last = time.Now()
 	s.mu.Unlock()
 	return ch
@@ -220,6 +238,7 @@ func (s *sala) unsub(ch chan frame) {
 	s.mu.Lock()
 	if _, ok := s.subs[ch]; ok {
 		delete(s.subs, ch)
+		delete(s.vis, ch)
 		close(ch)
 	}
 	s.mu.Unlock()
@@ -243,6 +262,7 @@ func (s *sala) enviarFrame(fr frame) {
 	}
 	for _, ch := range lentos {
 		delete(s.subs, ch)
+		delete(s.vis, ch)
 		close(ch)
 	}
 	s.mu.Unlock()

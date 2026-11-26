@@ -452,8 +452,9 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
+			hash := passhash.Hash(in.Body.Password)
 			tag, err := s.a.DB.Exec(ctx, `UPDATE fans SET password_hash = $3, password_reset_hasta = NULL, updated_at = now()
-				WHERE id = $1 AND competition_id = $2 AND (password_hash = '' OR password_reset_hasta > now())`, f.ID, cid, passhash.Hash(in.Body.Password))
+				WHERE id = $1 AND competition_id = $2 AND (password_hash = '' OR password_reset_hasta > now())`, f.ID, cid, hash)
 			if err != nil {
 				return nil, err
 			}
@@ -464,6 +465,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
+			s.passwordAAtleta(ctx, cid, row.Tipo, row.AtletaID, hash)
 			// Every other session dies with the old password; this one is re-issued.
 			if row.Version, err = s.bumpVersion(ctx, row.ID); err != nil {
 				return nil, err
