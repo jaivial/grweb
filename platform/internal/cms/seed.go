@@ -412,7 +412,7 @@ El sorteo del GR Cup 2026 está organizado por GR Strength, con domicilio en Esp
 El periodo de participación en el sorteo del GR Cup 2026 comprende desde la fecha de inicio hasta la fecha de cierre indicadas en la página oficial del sorteo. Las fechas específicas serán comunicadas a través de:
 
 - La página web oficial del sorteo
-- Las redes sociales de GR Strength (Instagram: @grstrength)
+- Las redes sociales de GR Strength (Instagram: @grstrengthclub)
 - Comunicados por correo electrónico a los participantes registrados
 
 ## Elegibilidad para Participar
@@ -428,7 +428,7 @@ Requisitos obligatorios:
 
 Requisitos adicionales para ser elegible:
 
-- Seguir la cuenta oficial de Instagram de GR Strength (@grstrength) durante todo el periodo del sorteo
+- Seguir la cuenta oficial de Instagram de GR Strength (@grstrengthclub) durante todo el periodo del sorteo
 - Completar correctamente todos los campos del formulario de inscripción
 - Aceptar el presente política del concurso
 - Aceptar el tratamiento de sus datos personales conforme al consentimiento informado
