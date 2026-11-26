@@ -98,6 +98,10 @@ export interface ConfigJuegos {
   pctPuesto: number[];
   puntos: PuntosCfg;
   activo: boolean;
+  /** false: los clausulazos se cierran al empezar la última sesión del horario del último día. */
+  clausulazoCierreManual: boolean;
+  /** «HH:MM» (Madrid) del último día cuando el cierre es manual. */
+  clausulazoCierreHora: string;
   version: number;
   updatedPor: string;
 }
