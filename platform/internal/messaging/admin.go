@@ -116,6 +116,24 @@ type AutoItem struct {
 
 func editable(t Plantilla) bool { return t.Servicio != "identity" }
 
+// varEnlacePersonal are the variables that carry a link of the recipient: a magic link, a payment or an
+// unsubscribe token. Never shown to staff, not even the URL.
+var varEnlacePersonal = map[string]bool{"enlace": true, "url": true, "baja": true, "bajaPost": true}
+
+// enlacePersonal is what the backoffice shows instead of one of those links.
+const enlacePersonal = "[enlace personal]"
+
+// limpiarDestinos cleans the destinations of the outbox filter (emails arrive in lower case, phones as stored).
+func limpiarDestinos(in []string) []string {
+	out := make([]string, 0, len(in))
+	for _, d := range in {
+		if d = strings.ToLower(strings.TrimSpace(d)); d != "" {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
 func (s *Svc) item(ctx context.Context, cid uuid.UUID, t Plantilla) (PlantillaItem, error) {
 	e, err := s.plantilla(ctx, cid, t.Clave)
 	if err != nil {
@@ -394,11 +412,12 @@ func (s *Svc) registerAdmin() {
 
 	// ---- outbox ----
 	type salidaIn struct {
-		CID    uuid.UUID `path:"cid"`
-		Estado string    `query:"estado" enum:",en_cola,enviado,reintentando,rebotado,fallido,omitido,cancelado,problemas"`
-		Canal  string    `query:"canal" enum:",email,whatsapp"`
-		Q      string    `query:"q" maxLength:"100"`
-		Pagina int       `query:"pagina" minimum:"1" default:"1"`
+		CID      uuid.UUID `path:"cid"`
+		Estado   string    `query:"estado" enum:",en_cola,enviado,reintentando,rebotado,fallido,omitido,cancelado,problemas"`
+		Canal    string    `query:"canal" enum:",email,whatsapp"`
+		Q        string    `query:"q" maxLength:"100"`
+		Destinos []string  `query:"destino,explode" maxItems:"10" doc:"Solo los mensajes enviados a estas direcciones (email o teléfono)"`
+		Pagina   int       `query:"pagina" minimum:"1" default:"1"`
 	}
 	type salidaOut struct {
 		Body struct {
@@ -433,6 +452,10 @@ func (s *Svc) registerAdmin() {
 			if q := strings.TrimSpace(in.Q); q != "" {
 				args = append(args, "%"+strings.ToLower(q)+"%")
 				where += fmt.Sprintf(` AND (destino::text LIKE $%d OR plantilla LIKE $%d)`, len(args), len(args))
+			}
+			if ds := limpiarDestinos(in.Destinos); len(ds) > 0 {
+				args = append(args, ds)
+				where += fmt.Sprintf(` AND lower(destino::text) = ANY($%d::text[])`, len(args))
 			}
 			o := &salidaOut{}
 			o.Body.Pagina, o.Body.Por = in.Pagina, 25
@@ -489,17 +512,33 @@ func (s *Svc) registerAdmin() {
 			}
 			// Access links (magic links, payment links, unsubscribe) belong to the recipient: never shown to staff,
 			// and a secret variable (an initial password) only shows as dots.
+			originales := vars
 			vars = crypto.OcultarVars(vars)
 			for k := range vars {
-				if k == "enlace" || k == "url" || k == "baja" {
-					vars[k] = "https://enlace-privado.invalid/"
+				if varEnlacePersonal[k] && vars[k] != "" {
+					vars[k] = enlacePersonal
 				}
 			}
 			o := &verOut{}
 			o.Body.Mensaje = m
 			// A WhatsApp keeps the exact text it sent (Contenido.Cuerpo): no email layout.
-			if m.Canal == "whatsapp" && enviado != nil {
-				o.Body.Texto = enviado.Cuerpo
+			if m.Canal == "whatsapp" {
+				texto := ""
+				switch {
+				case enviado != nil:
+					texto = enviado.Cuerpo
+				default: // still queued: the text it will send, with the secrets masked
+					if e, err := s.plantilla(ctx, in.CID, m.Plantilla); err == nil && e.WA != nil {
+						texto, _ = renderizarWA(e.WA.Texto, vars, e.Variables)
+					}
+				}
+				// The stored copy may keep the real personal links: masked here too.
+				for k, v := range originales {
+					if varEnlacePersonal[k] && v != "" {
+						texto = strings.ReplaceAll(texto, v, enlacePersonal)
+					}
+				}
+				o.Body.Texto = texto
 			} else if e, err := s.plantilla(ctx, in.CID, m.Plantilla); err == nil {
 				c := e.Contenido
 				if enviado != nil {

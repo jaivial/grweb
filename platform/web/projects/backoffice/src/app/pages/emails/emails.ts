@@ -249,12 +249,24 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
           <dt class="text-text-tertiary">Para</dt><dd class="truncate">{{ m.destino }}</dd>
           <dt class="text-text-tertiary">Canal</dt><dd>{{ m.canal === 'whatsapp' ? 'WhatsApp' : 'Email' }}</dd>
           <dt class="text-text-tertiary">Plantilla</dt><dd>{{ m.nombre }}</dd>
+          <dt class="text-text-tertiary">Asunto</dt><dd>{{ m.asunto || '—' }}</dd>
           <dt class="text-text-tertiary">Creado</dt><dd>{{ hora(m.createdAt) }}</dd>
           <dt class="text-text-tertiary">Intentos</dt><dd>{{ m.intentos }} · {{ m.detalle }}</dd>
           @if (m.proveedorId) { <dt class="text-text-tertiary">Message-ID</dt><dd class="truncate font-mono text-mono-xs">{{ m.proveedorId }}</dd> }
         </dl>
-        <p class="mt-4 text-body-xs text-text-tertiary">Los enlaces personales (acceso, pago, baja) no se muestran: son de la persona.</p>
-        @if (msgHtml(); as h) { <iframe title="Contenido del email" sandbox="" class="mt-2 h-[560px] w-full rounded-md border border-line-subtle bg-white" [srcdoc]="h"></iframe> }
+        <p class="mt-4 text-body-xs text-text-tertiary">Los enlaces personales (acceso, pago, baja) y las contraseñas se muestran enmascarados: son de la persona.</p>
+        @if (msgTexto(); as t) {
+          <div class="mt-3">
+            <p class="text-label-s">Texto del mensaje</p>
+            <pre class="mt-1.5 max-h-[420px] overflow-auto rounded-md border border-line-subtle bg-bg-surface p-3 font-sans text-body-s whitespace-pre-wrap text-text-secondary">{{ t }}</pre>
+          </div>
+        }
+        @if (msgHtml(); as h) {
+          <div class="mt-3">
+            <p class="text-label-s">Vista previa</p>
+            <iframe title="Contenido del email" sandbox="" class="mt-1.5 h-[560px] w-full rounded-md border border-line-subtle bg-white" [srcdoc]="h"></iframe>
+          </div>
+        }
       }
       <ng-container drawerActions>
         @if (msg() && reintentable(msg()!)) { <button grButton icon="refresh" (click)="bulk('reintentar', [msg()!.id])">Reintentar</button> }
@@ -299,6 +311,7 @@ export class EmailsPage {
   protected readonly verOpen = signal(false);
   protected readonly msg = signal<Mensaje | null>(null);
   protected readonly msgHtml = signal<SafeHtml | null>(null);
+  protected readonly msgTexto = signal<string | null>(null);
   /** BIZ-207: state, channel and search live in the «Filtros» sheet (side on desktop/tablet, bottom on phones). */
   protected readonly filtrosOpen = signal(false);
   protected readonly nFiltros = computed(() => [this.estado(), this.canal(), this.q().trim()].filter(Boolean).length);
@@ -462,10 +475,12 @@ export class EmailsPage {
   protected async ver(m: Mensaje): Promise<void> {
     this.msg.set(m);
     this.msgHtml.set(null);
+    this.msgTexto.set(null);
     this.verOpen.set(true);
     try {
       const d = await this.api.mensaje(this.cid(), m.id);
       this.msg.set(d);
+      this.msgTexto.set(d.texto || null);
       this.msgHtml.set(d.html ? this.san.bypassSecurityTrustHtml(d.html) : null);
     } catch {
       /* details stay */
