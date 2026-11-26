@@ -83,14 +83,16 @@ type Panel struct {
 		Slug   string `json:"slug"`
 		Nombre string `json:"nombre"`
 	} `json:"competicion"`
-	Atleta        Atleta        `json:"atleta"`
-	Acreditacion  string        `json:"acreditacion" doc:"Contenido del QR de la inscripción (se enseña en el pesaje)"`
-	Checklist     []Check       `json:"checklist"`
-	PesajeAbierto bool          `json:"pesajeAbierto" doc:"Las alturas y primeros intentos se pueden cambiar hasta el pesaje"`
-	Avisos        []string      `json:"avisos"`
-	Referido      *ReferidoArea `json:"referido,omitempty" doc:"Invita y ahorra (inscripción propia con referidos)"`
-	Prueba        *PruebaArea   `json:"prueba,omitempty" doc:"Tu competición: AEP-2 o AEP-3"`
-	TienePassword bool          `json:"tienePassword" doc:"Ya puede entrar con email y contraseña"`
+	Atleta       Atleta `json:"atleta"`
+	Acreditacion string `json:"acreditacion" doc:"Contenido del QR de la inscripción (se enseña en el pesaje)"`
+	// AcreditacionURL: the PNG of that QR on the Bunny CDN (empty while it has not been generated: the web draws it).
+	AcreditacionURL string        `json:"acreditacionUrl,omitempty" doc:"URL del PNG del QR en el CDN"`
+	Checklist       []Check       `json:"checklist"`
+	PesajeAbierto   bool          `json:"pesajeAbierto" doc:"Las alturas y primeros intentos se pueden cambiar hasta el pesaje"`
+	Avisos          []string      `json:"avisos"`
+	Referido        *ReferidoArea `json:"referido,omitempty" doc:"Invita y ahorra (inscripción propia con referidos)"`
+	Prueba          *PruebaArea   `json:"prueba,omitempty" doc:"Tu competición: AEP-2 o AEP-3"`
+	TienePassword   bool          `json:"tienePassword" doc:"Ya puede entrar con email y contraseña"`
 	// PasswordTemporal: the password is the initial one the organisers sent; the area asks for a new one.
 	PasswordTemporal bool `json:"passwordTemporal,omitempty" doc:"Entró con la contraseña inicial: debe cambiarla"`
 }
@@ -140,7 +142,7 @@ func (s *Svc) panel(ctx context.Context, r row) (Panel, error) {
 	}
 	p.Prueba = s.pruebaArea(ctx, r.CompetitionID, r.ID, r.Prueba)
 	p.TienePassword = s.tienePassword(ctx, r.ID)
-	_ = s.a.DB.QueryRow(ctx, `SELECT password_temporal FROM atletas WHERE id = $1`, r.ID).Scan(&p.PasswordTemporal)
+	_ = s.a.DB.QueryRow(ctx, `SELECT password_temporal, acreditacion_url FROM atletas WHERE id = $1`, r.ID).Scan(&p.PasswordTemporal, &p.AcreditacionURL)
 	if r.Estado == "reserva" {
 		p.Avisos = append(p.Avisos, fmt.Sprintf("Estás en la lista de reserva (puesto %d). Te avisaremos por email si queda una plaza libre.", deref(r.OrdenReserva)))
 	}
@@ -187,7 +189,7 @@ func (s *Svc) registerArea() {
 		Body struct {
 			Competicion string `json:"competicion" pattern:"^[a-z0-9-]{2,41}$" doc:"Slug de la competición"`
 			Email       string `json:"email" format:"email" maxLength:"254"`
-			Next        string `json:"next,omitempty" pattern:"^(/area-atleta/compartir)?$" doc:"Página a la que vuelve el enlace"`
+			Next        string `json:"next,omitempty" pattern:"^(/area-atleta/compartir|/area-atleta\\?vista=(perfil|horarios|acreditacion|pesaje|post))?$" doc:"Página a la que vuelve el enlace"`
 			Motivo      string `json:"motivo,omitempty" enum:"acceso,contrasena" doc:"contrasena = «¿Has olvidado tu contraseña?» (mismo enlace, email para cambiarla)"`
 		}
 	}

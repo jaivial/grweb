@@ -310,12 +310,12 @@ var catalogo = []Plantilla{
 	// viaja sellada (pkg/crypto.SellarVar): solo se abre al renderizar el mensaje que se envía. ----
 	pwa("atleta-perfil-existe", "Tu perfil de atleta ya existe", "Al pulsar «Enviar acceso al perfil» en Atletas (backoffice)", "athletes", "inscripcion", true, []string{"nombre", "enlace", "email", "password"},
 		map[string]string{"nombre": "Jaime", "enlace": "https://grscup.com/area-atleta", "email": "jaime@example.com", "password": "jaime4589"},
-		Contenido{Asunto: "Tu perfil de atleta en la GRS Cup 2 ya existe", Preheader: "Entra con tu email y tu contraseña y complétalo", Titulo: "{{nombre}}, tu perfil de atleta ya existe",
+		Contenido{Asunto: "{{nombre}}, bienvenido a la GRS Cup 2", Preheader: "Entra con tu email y tu contraseña y complétalo", Titulo: "{{nombre}}, bienvenido a la GRS Cup 2",
 			Cuerpo:     "Ya hemos creado tu perfil de atleta en la **GRS Cup 2**. Entra en tu área de atleta y complétalo para que tu ficha esté lista antes de la competición.\n\n**Qué puedes completar**\n\n✓ Tus datos de contacto: email y teléfono.\n\n✓ Tu foto de perfil.\n\n✓ Tus mejores marcas y tu frase.\n\n**Tus datos de acceso**\n\n**Página de acceso:** {{enlace}}\n\n**Email:** {{email}}\n\n**Contraseña inicial:** {{password}}\n\n⚠ Cambia la contraseña al entrar. Es una contraseña inicial: al entrar por primera vez te pediremos que elijas una tuya de al menos 10 caracteres.",
 			BotonTexto: "Entrar en mi área de atleta", BotonURL: "{{enlace}}",
 			Pie:  "¿No puedes entrar? En la misma página puedes pedir un enlace por email, o escríbenos a admin@grstrength.com.",
 			Nota: "Recibes este email porque tienes un perfil de atleta en la GRS Cup 2."},
-		ContenidoWA{Texto: "*{{nombre}}, tu perfil de atleta en la GRS Cup 2 ya existe* 🏋️\n\nEntra en tu área de atleta y complétalo: datos de contacto, foto, marcas y frase.\n\nEmail: {{email}}\nContraseña inicial: *{{password}}*\n\nAl entrar por primera vez te pediremos que la cambies.", Botones: []BotonWA{{Texto: "Entrar en mi área", URL: "{{enlace}}"}}}),
+		ContenidoWA{Texto: "*{{nombre}}, bienvenido a la GRS Cup 2* 🏋️\n\nEntra en tu área de atleta y complétalo: datos de contacto, foto, marcas y frase.\n\nEmail: {{email}}\nContraseña inicial: *{{password}}*\n\nAl entrar por primera vez te pediremos que la cambies.", Botones: []BotonWA{{Texto: "Entrar en mi área", URL: "{{enlace}}"}}}),
 	// ---- Avisos al público (cuentas del directo de tipo público; baja con {{baja}}) ----
 	pwa("publico-horarios-publicados", "Horarios publicados (público)", "Al publicar los horarios por primera vez", "fans", "publico", false, []string{"alias", "competicion", "horarios", "baja"}, ejPublico,
 		Contenido{Asunto: "Ya están los horarios de la {{competicion}}", Preheader: "Qué día y a qué hora compite cada atleta", Titulo: "Ya hay horarios",

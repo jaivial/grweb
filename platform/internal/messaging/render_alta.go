@@ -19,6 +19,9 @@ var (
 	disenoAtleta = map[string]bool{"atleta-perfil-existe": true}
 )
 
+// reEmail: a value that is only an address (an email of the access data of a template).
+var reEmail = regexp.MustCompile(`^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$`)
+
 const (
 	aFont  = `font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif`
 	aCard  = `background:#141112;border:1px solid #2e2729;border-radius:12px`
@@ -41,6 +44,19 @@ type altaBloque struct {
 	items  [][2]string
 }
 
+// enlaceTexto renders a body link with an explicit colour and without underline, as an anchor, so no client
+// repaints it: Gmail and iOS turn URLs and addresses into blue underlined links on their own (an address needs
+// the mailto to stop the auto-link).
+func enlaceTexto(h, color string) string {
+	h = reURL.ReplaceAllStringFunc(h, func(u string) string {
+		return `<a href="` + u + `" style="color:` + color + `;text-decoration:none">` + u + `</a>`
+	})
+	if reEmail.MatchString(h) {
+		return `<a href="mailto:` + h + `" style="color:` + color + `;text-decoration:none">` + h + `</a>`
+	}
+	return h
+}
+
 func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []string, m Marca) string {
 	full := map[string]string{}
 	for _, v := range permitidas {
@@ -50,6 +66,12 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 	sub := func(s string) string { h, _ := sustituir(html.EscapeString(s), ev, false); return h }
 	strong := func(h string) string {
 		return reBold.ReplaceAllString(h, `<strong style="color:#ffffff;font-weight:600">$1</strong>`)
+	}
+	// Body links of the data table: the «Tu perfil de atleta ya existe» template shows the access page and the
+	// email there, and both must read like the rest of the text (white, no underline).
+	enlace := linkify
+	if clave == "atleta-perfil-existe" {
+		enlace = func(h string) string { return enlaceTexto(h, "#ebe5e5") }
 	}
 
 	// Paragraphs after substitution (a variable may carry several paragraphs, e.g. {{pasos}}).
@@ -130,7 +152,7 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 				v = "—"
 			}
 			h += `<tr><td class="kl" width="182" valign="top" style="width:182px;padding:8px 8px 8px 0;border-bottom:1px solid #2e2729;font-size:12px;line-height:16px;font-weight:500;color:` + aMuted + `">` + esc(it[0]) +
-				`</td><td valign="top" style="padding:7px 0;border-bottom:1px solid #2e2729;font-size:13px;line-height:17px;color:#ebe5e5;word-break:break-word">` + linkify(esc(v)) + `</td></tr>`
+				`</td><td valign="top" style="padding:7px 0;border-bottom:1px solid #2e2729;font-size:13px;line-height:17px;color:#ebe5e5;word-break:break-word">` + enlace(esc(v)) + `</td></tr>`
 		}
 		return h + `</table>`
 	}
@@ -230,9 +252,11 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 		enlaces = link(web+"/alta-atleta", "Alta de atleta") + " · " + link(web+"/atletas", "Atletas")
 	}
 	enlaces += " · " + link(web+"/privacidad", "Política de privacidad")
+	// Brand header: 72 px high (retina: the image is 588 px wide, five times the box) with the size in attributes
+	// and inline, because clients ignore stylesheets.
 	logo := `<span style="font-size:18px;font-weight:700;color:#ffffff">` + esc(m.Nombre) + `</span>`
 	if m.Logo != "" {
-		logo = `<img src="` + esc(m.Logo) + `" alt="` + esc(m.Nombre) + `" height="40" style="display:block;margin:0 auto;height:40px;border:0;color:#ffffff;font-size:14px;font-weight:700">`
+		logo = `<img src="` + esc(m.Logo) + `" alt="` + esc(m.Nombre) + `" width="116" height="72" style="display:block;margin:0 auto;width:116px;height:72px;border:0;color:#ffffff;font-size:14px;font-weight:700">`
 	}
 	return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark">` +
 		`<title>` + esc(asunto) + `</title><link href="https://fonts.googleapis.com/css2?family=Contrail+One&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">` +

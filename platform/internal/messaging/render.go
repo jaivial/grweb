@@ -206,7 +206,9 @@ func renderizar(c Contenido, vars map[string]string, permitidas []string, m Marc
 	}
 	logo := ""
 	if m.Logo != "" {
-		logo = `<img src="` + html.EscapeString(m.Logo) + `" alt="` + html.EscapeString(m.Nombre) + `" height="40" style="display:block;margin:0 auto;height:40px;border:0">`
+		// Brand header: 72 px high (retina: the image is 588 px wide, five times the box) with the size in
+		// attributes and inline, because clients ignore stylesheets.
+		logo = `<img src="` + html.EscapeString(m.Logo) + `" alt="` + html.EscapeString(m.Nombre) + `" width="116" height="72" style="display:block;margin:0 auto;width:116px;height:72px;border:0">`
 	}
 	h := `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light">` +
 		`<title>` + html.EscapeString(asunto) + `</title></head><body style="margin:0;padding:0;background:#f2eeee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">` +
