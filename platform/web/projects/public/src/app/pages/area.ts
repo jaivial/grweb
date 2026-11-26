@@ -11,6 +11,7 @@ import { COMPETITION_SLUG, Competition } from '../core/competition';
 import { I18n, LocPipe, divisionEn } from '../core/i18n';
 import { Seo } from '../core/seo';
 import { Footer, Navbar } from '../layout/layout';
+import { AreaPerfilEditar } from './area-perfil-editar';
 
 interface Marcas {
   sq?: number;
@@ -121,15 +122,9 @@ const T = {
     consImg: "consentimiento de imagen",
     retirarlo: "). Puedo retirarlo cuando quiera.",
     retirar: "Retirarlo",
-    ciudad: "Ciudad",
-    usuario: "@usuario",
-    sobreTi: "Sobre ti (máx. 280)",
-    bioPh: "Tercera temporada en powerlifting. Vengo de la halterofilia…",
-    marcas: "Mejores marcas (kg)",
-    marcasMal: "Las marcas van entre 0 y 600 kg.",
+    consentGuardar: "Guardar el consentimiento",
     mostrar: "Mostrar mi perfil público",
     mostrarTxt: "Tu ficha en /atletas con foto, bio, Instagram y marcas. Tu nombre, club, categoría, horario y resultados son públicos siempre en participantes y resultados.",
-    guardarPerfil: "Guardar perfil",
     tuSesion: "Tu sesión: ",
     pesajeSp: " · pesaje ",
     horarioPP: "Horario por publicar",
@@ -284,15 +279,9 @@ const T = {
     consImg: "image consent",
     retirarlo: "). I can withdraw it at any time.",
     retirar: "Withdraw it",
-    ciudad: "City",
-    usuario: "@username",
-    sobreTi: "About you (max. 280)",
-    bioPh: "Third season in powerlifting. I come from weightlifting…",
-    marcas: "Best lifts (kg)",
-    marcasMal: "Lifts must be between 0 and 600 kg.",
+    consentGuardar: "Save consent",
     mostrar: "Show my public profile",
     mostrarTxt: "Your page on /atletas with photo, bio, Instagram and lifts. Your name, club, weight class, schedule and results are always public in participants and results.",
-    guardarPerfil: "Save profile",
     tuSesion: "Your session: ",
     pesajeSp: " · weigh-in ",
     horarioPP: "Schedule to be announced",
@@ -377,7 +366,7 @@ const T = {
 /** /area-atleta (Figma page 42): password-less access, panel, profile editor and weigh-in preview. Not indexed. */
 @Component({
   selector: 'gr-area-atleta',
-  imports: [RouterLink, LocPipe, FormsModule, NgTemplateOutlet, Navbar, Footer, GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [RouterLink, LocPipe, FormsModule, NgTemplateOutlet, Navbar, Footer, GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, AreaPerfilEditar],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let p = panel();
@@ -576,29 +565,20 @@ const T = {
                     <input type="checkbox" name="imagen" [(ngModel)]="aceptaImagen" class="mt-0.5 size-6 shrink-0 accent-[#C42B3E]" />
                     <span>{{ t().acepto }}<a [href]="'/consentimiento-datos' | loc" target="_blank" class="text-accent-text underline">{{ t().consImg }}</a>{{ t().retirarlo }}</span>
                   </label>
+                  <button grButton variant="secondary" class="mt-3 self-start" [disabled]="!aceptaImagen || busy()" (click)="consentimientoImagen(false)">{{ t().consentGuardar }}</button>
                 } @else {
-                  <p class="mt-4 text-body-xs text-text-tertiary">{{ t().consAceptado(p.atleta.perfil.imagen.version) }} <button type="button" class="text-accent-text underline" (click)="retirar = true; guardarPerfil()">{{ t().retirar }}</button></p>
+                  <p class="mt-4 text-body-xs text-text-tertiary">{{ t().consAceptado(p.atleta.perfil.imagen.version) }} <button type="button" class="text-accent-text underline" (click)="consentimientoImagen(true)">{{ t().retirar }}</button></p>
                 }
-                <form class="mt-6 flex flex-col gap-5" (ngSubmit)="guardarPerfil()" novalidate>
-                  <gr-field label="Club" for="f-club"><input grInput id="f-club" name="club" [(ngModel)]="f.club" maxlength="120" /></gr-field>
-                  <gr-field [label]="t().ciudad" for="f-city"><input grInput id="f-city" name="ciudad" autocomplete="address-level2" [(ngModel)]="f.ciudad" maxlength="80" /></gr-field>
-                  @if (!p.atleta.menor) { <gr-field label="Instagram" for="f-ig" [optional]="true"><input grInput id="f-ig" name="ig" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off" [(ngModel)]="f.instagram" [placeholder]="t().usuario" maxlength="60" /></gr-field> }
-                  <gr-field [label]="t().sobreTi" for="f-bio"><textarea grInput id="f-bio" name="bio" rows="4" [(ngModel)]="f.bio" maxlength="280" [placeholder]="t().bioPh"></textarea></gr-field>
-                  <fieldset><legend class="text-label-s">{{ t().marcas }}</legend>
-                    <div class="mt-2 grid grid-cols-3 gap-3">
-                      @for (m of lifts; track m.k) { <label class="flex flex-col gap-1"><span class="text-mono-xs text-text-tertiary">{{ m.s }}</span><input grInput type="number" inputmode="decimal" step="2.5" min="0" max="600" [name]="'m' + m.k" [(ngModel)]="f.marcas[m.k]" [attr.aria-invalid]="fuera(f.marcas[m.k]) || null" [attr.aria-describedby]="fuera(f.marcas[m.k]) ? 'm-err' : null" [class.border-accent]="fuera(f.marcas[m.k])" /></label> }
-                    </div>
-                    @if (marcasMal()) { <p id="m-err" class="mt-2 text-body-s text-accent-text" role="alert">{{ t().marcasMal }}</p> }
-                  </fieldset>
-                  <div class="flex items-center justify-between gap-4 rounded-md border border-line-subtle bg-bg-card p-4">
-                    <span><span class="block text-label-m">{{ t().mostrar }}</span><span class="block text-body-xs text-text-tertiary">{{ t().mostrarTxt }}</span></span>
-                    <button type="button" role="switch" [attr.aria-checked]="f.visible" (click)="f.visible = !f.visible" class="flex h-11 w-12 shrink-0 items-center justify-center" [attr.aria-label]="t().mostrar">
-                      <span class="relative h-6 w-10 rounded-pill" [class]="f.visible ? 'bg-accent' : 'bg-line-strong'"><span class="absolute top-0.5 size-5 rounded-full bg-white transition-[left]" [style.left.px]="f.visible ? 18 : 2"></span></span>
-                    </button>
-                  </div>
-                  @if (error()) { <p class="text-body-s text-accent-text" role="alert">{{ error() }}</p> }
-                  <div class="max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-5 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-5 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]"><button grButton variant="primary" size="l" type="submit" [block]="true" [loading]="busy()" [disabled]="marcasMal()">{{ t().guardarPerfil }}</button></div>
-                </form>
+                <!-- Visibilidad de la ficha: se guarda al momento (no pasa por la revisión de los datos) -->
+                <div class="mt-4 flex items-center justify-between gap-4 rounded-md border border-line-subtle bg-bg-card p-4">
+                  <span><span class="block text-label-m">{{ t().mostrar }}</span><span class="block text-body-xs text-text-tertiary">{{ t().mostrarTxt }}</span></span>
+                  <button type="button" role="switch" [attr.aria-checked]="p.atleta.perfil.visible" (click)="visibilidad(!p.atleta.perfil.visible)" class="flex h-11 w-12 shrink-0 items-center justify-center" [attr.aria-label]="t().mostrar">
+                    <span class="relative h-6 w-10 rounded-pill" [class]="p.atleta.perfil.visible ? 'bg-accent' : 'bg-line-strong'"><span class="absolute top-0.5 size-5 rounded-full bg-white transition-[left]" [style.left.px]="p.atleta.perfil.visible ? 18 : 2"></span></span>
+                  </button>
+                </div>
+                @if (error()) { <p class="mt-3 text-body-s text-accent-text" role="alert">{{ error() }}</p> }
+                <!-- «Editar mi perfil»: los datos del alta, enviados a revisión (nada cambia hasta que el equipo los aprueba) -->
+                <gr-area-perfil-editar class="mt-8" />
               </div>
             }
           }
@@ -741,7 +721,6 @@ export class AreaAtletaPage {
   protected retirar = false;
   protected fx = 50;
   protected fy = 50;
-  protected f = { club: '', ciudad: '', instagram: '', bio: '', marcas: {} as Marcas, visible: true };
   protected pz: { rackSq?: number; rackBp?: number; segurosBp?: number; intentos: Marcas } = { intentos: {} };
   protected readonly lifts: { k: keyof Marcas; s: string }[] = [{ k: 'sq', s: 'SQ' }, { k: 'bp', s: 'BP' }, { k: 'dl', s: 'DL' }];
   protected readonly steppers: Signal<{ k: 'rackSq' | 'rackBp' | 'segurosBp'; label: string }[]> = computed(() => [{ k: 'rackSq', label: this.t().rackSq }, { k: 'rackBp', label: this.t().rackBp }, { k: 'segurosBp', label: this.t().seguros }]);
@@ -833,8 +812,36 @@ export class AreaAtletaPage {
   protected intentosMal(): boolean {
     return this.lifts.some((m) => this.fueraIntento(this.pz.intentos[m.k]));
   }
-  protected marcasMal(): boolean {
-    return this.lifts.some((m) => this.fuera(this.f.marcas[m.k]));
+
+  /** Acepta o retira el consentimiento de imagen (es inmediato: no pasa por la revisión de los cambios). */
+  protected async consentimientoImagen(retirar: boolean): Promise<void> {
+    await this.inmediato(retirar ? { retirarConsentimiento: true } : { aceptaUsoDeImagen: true });
+  }
+
+  /** Muestra u oculta la ficha pública (inmediato: es un ajuste, no un dato de la ficha). */
+  protected async visibilidad(visible: boolean): Promise<void> {
+    await this.inmediato({ visible });
+  }
+
+  /**
+   * Lo que se guarda al momento en la ficha (visibilidad y consentimiento de imagen). Los datos personales ya no se
+   * editan aquí: van como solicitud de cambio y el equipo los revisa antes de aplicarlos.
+   */
+  private async inmediato(v: { visible?: boolean; aceptaUsoDeImagen?: boolean; retirarConsentimiento?: boolean }): Promise<void> {
+    if (this.busy()) return;
+    this.error.set('');
+    this.busy.set(true);
+    try {
+      const p = await firstValueFrom(this.http.put<Panel>(`${api}/perfil`, v));
+      this.aceptaImagen = false;
+      this.retirar = false;
+      this.set(p);
+      this.aviso(this.t().perfilGuardado);
+    } catch (e) {
+      this.error.set(this.msg(e));
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   private async recargar(): Promise<void> {
@@ -918,7 +925,6 @@ export class AreaAtletaPage {
     if (!a) return;
     this.error.set('');
     if (v === 'perfil') {
-      this.f = { club: a.club, ciudad: a.ciudad, instagram: a.perfil.instagram, bio: a.perfil.bio || a.perfil.frase, marcas: { ...a.perfil.marcas }, visible: a.perfil.visible };
       this.fx = a.perfil.focalX;
       this.fy = a.perfil.focalY;
       this.aceptaImagen = false;
@@ -976,28 +982,6 @@ export class AreaAtletaPage {
       this.error.set(textoError(e, this.t().noSubir));
     } finally {
       this.subiendo.set(false);
-    }
-  }
-
-  protected async guardarPerfil(): Promise<void> {
-    this.error.set('');
-    const mal = this.lifts.filter((m) => this.fuera(this.f.marcas[m.k])).map((m) => m.s);
-    if (mal.length) return this.error.set(mal.join(', ') + ': las marcas van entre 0 y 600 kg.');
-    this.busy.set(true);
-    const n = (v: unknown) => (v === null || v === undefined || v === '' ? undefined : Number(v));
-    try {
-      const p = await firstValueFrom(this.http.put<Panel>(`${api}/perfil`, {
-        club: this.f.club, ciudad: this.f.ciudad, instagram: this.f.instagram, bio: this.f.bio, marcas: { sq: n(this.f.marcas.sq), bp: n(this.f.marcas.bp), dl: n(this.f.marcas.dl) },
-        visible: this.f.visible, aceptaUsoDeImagen: this.aceptaImagen, retirarConsentimiento: this.retirar,
-      }));
-      this.set(p);
-      this.retirar = false;
-      this.ir('panel');
-      this.aviso(this.t().perfilGuardado);
-    } catch (e) {
-      this.error.set(this.msg(e));
-    } finally {
-      this.busy.set(false);
     }
   }
 

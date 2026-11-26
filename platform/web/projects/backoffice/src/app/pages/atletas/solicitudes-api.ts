@@ -4,6 +4,8 @@ import { firstValueFrom } from 'rxjs';
 
 /** Estado of an «alta de atleta» request (athletes service). */
 export type EstadoSolicitud = 'pendiente' | 'revision' | 'aprobada' | 'rechazada';
+/** Type of request: the public sign-up form or the profile changes asked from the athlete area. */
+export type TipoSolicitud = 'alta' | 'cambio_perfil';
 /** How the request was matched against the athletes' list: licence, e-mail, name suggestion, by hand or nothing. */
 export type TipoMatch = '' | 'licencia' | 'email' | 'nombre' | 'manual';
 export type TipoDiferencia = 'igual' | 'distinto' | 'nuevo';
@@ -24,6 +26,8 @@ export interface Kpis {
 
 export interface SolicitudItem {
   id: string;
+  /** alta = formulario público; cambio_perfil = cambios pedidos desde el área de atleta. */
+  tipo: TipoSolicitud;
   nombre: string;
   apellidos: string;
   email: string;
@@ -66,6 +70,13 @@ export interface Diferencia {
   nuevo: string;
   tipo: TipoDiferencia;
 }
+/** One field of a «cambio_perfil» request, with the value before and after (only the fields that change). */
+export interface CambioPerfilCampo {
+  clave: string;
+  campo: string;
+  antes: string;
+  despues: string;
+}
 export interface Consentimiento {
   casilla: string;
   aceptado: boolean;
@@ -100,6 +111,8 @@ export interface SolicitudDetalle extends SolicitudItem {
   marcaDL: number | null;
   atleta: AtletaEnlace | null;
   diferencias: Diferencia[];
+  /** Before/after snapshot of a «cambio_perfil» (empty for an alta). */
+  cambios: CambioPerfilCampo[];
   consentimientos: Consentimiento[];
   /** The email already has a público account of the live stream: approving turns it into the athlete's account. */
   cuentaPublico?: boolean;
@@ -144,7 +157,7 @@ export class SolicitudesApi {
     return new HttpHeaders({ 'If-Match': `"${version}"` });
   }
 
-  lista(cid: string, f: { estado?: string; match?: string; menor?: string; q?: string; pagina?: number }): Promise<SolicitudLista> {
+  lista(cid: string, f: { estado?: string; tipo?: string; match?: string; menor?: string; q?: string; pagina?: number }): Promise<SolicitudLista> {
     const p: Record<string, string> = {};
     for (const [k, v] of Object.entries(f)) if (v !== '' && v !== undefined && v !== null) p[k] = String(v);
     return firstValueFrom(this.http.get<SolicitudLista>(this.base(cid), { params: p }));

@@ -144,7 +144,20 @@ func (s *Svc) panel(ctx context.Context, r row) (Panel, error) {
 	if r.Estado == "reserva" {
 		p.Avisos = append(p.Avisos, fmt.Sprintf("Estás en la lista de reserva (puesto %d). Te avisaremos por email si queda una plaza libre.", deref(r.OrdenReserva)))
 	}
+	// «Editar mi perfil» leaves a change request: the panel says it is waiting for the team.
+	if cp, err := cambioPendiente(ctx, s.a.DB, r.CompetitionID, r.ID); err == nil && cp != nil {
+		p.Avisos = append(p.Avisos, fmt.Sprintf("Tienes %d %s de perfil pendientes de revisión. Puedes verlos o cancelarlos en «Editar mi perfil».",
+			len(cp.Cambios), plural(len(cp.Cambios), "cambio", "cambios")))
+	}
 	return p, nil
+}
+
+// plural picks the singular or the plural of a word.
+func plural(n int, uno, varios string) string {
+	if n == 1 {
+		return uno
+	}
+	return varios
 }
 
 func deref(p *int) int {
@@ -276,44 +289,35 @@ func (s *Svc) registerArea() {
 			return &panelOut{Body: p}, err
 		})
 
+	// The athlete can change here what is a setting (visibility, image consent). The details of the record (name,
+	// contact, club, bio, marks…) are a change request that the team reviews first: nothing is written until approving.
 	type perfilIn struct {
 		Session string `cookie:"gr_area"`
 		Body    struct {
-			Club                  string `json:"club,omitempty" maxLength:"120"`
-			Ciudad                string `json:"ciudad,omitempty" maxLength:"80"`
-			Instagram             string `json:"instagram,omitempty" maxLength:"60"`
-			Bio                   string `json:"bio,omitempty" maxLength:"280"`
-			Frase                 string `json:"frase,omitempty" maxLength:"80"`
-			Marcas                Marcas `json:"marcas"`
-			Visible               bool   `json:"visible,omitempty" doc:"Mostrar mi perfil público (foto, bio, Instagram y marcas)"`
-			AceptaUsoDeImagen     bool   `json:"aceptaUsoDeImagen,omitempty" doc:"Casilla sin premarcar: consentimiento de uso de imagen en la web"`
-			RetirarConsentimiento bool   `json:"retirarConsentimiento,omitempty" doc:"Retira el consentimiento de imagen (la foto deja de mostrarse)"`
+			Visible               *bool `json:"visible,omitempty" doc:"Mostrar mi perfil público (foto, bio, Instagram y marcas)"`
+			AceptaUsoDeImagen     bool  `json:"aceptaUsoDeImagen,omitempty" doc:"Casilla sin premarcar: consentimiento de uso de imagen en la web"`
+			RetirarConsentimiento bool  `json:"retirarConsentimiento,omitempty" doc:"Retira el consentimiento de imagen (la foto deja de mostrarse)"`
 		}
 	}
-	huma.Register(api, huma.Operation{OperationID: "area-perfil", Method: http.MethodPut, Path: base + "/perfil", Summary: "Editar mi perfil público", Tags: tagArea},
+	huma.Register(api, huma.Operation{OperationID: "area-perfil", Method: http.MethodPut, Path: base + "/perfil", Summary: "Mi visibilidad y el consentimiento de imagen", Tags: tagArea},
 		func(ctx context.Context, in *perfilIn) (*panelOut, error) {
 			r, err := s.session(ctx, in.Session)
 			if err != nil {
 				return nil, err
 			}
 			b := in.Body
-			for _, v := range []*float64{b.Marcas.SQ, b.Marcas.BP, b.Marcas.DL} {
-				if v != nil && (*v < 0 || *v > 600) {
-					return nil, problem.Unprocessable("MARCA_INVALIDA", "Las marcas deben estar entre 0 y 600 kg.")
-				}
-			}
-			menor := r.menor(s.compDate(ctx, r.CompetitionID))
-			ig := normInstagram(b.Instagram)
-			if menor {
-				ig = "" // minors: no social links are stored
-			}
 			err = s.change(ctx, r.CompetitionID, "athletes.perfil_actualizado", map[string]any{"id": r.ID, "origen": "area"}, func(tx pgx.Tx) error {
-				if _, err := tx.Exec(ctx, `UPDATE atletas SET club = $2, ciudad = $3, version = version + 1, updated_at = now() WHERE id = $1`, r.ID, strings.TrimSpace(b.Club), strings.TrimSpace(b.Ciudad)); err != nil {
-					return err
-				}
-				if _, err := tx.Exec(ctx, `UPDATE perfiles SET instagram = $2, bio = $3, frase = $4, marca_sq = $5, marca_bp = $6, marca_dl = $7, visible = $8, updated_at = now() WHERE atleta_id = $1`,
-					r.ID, ig, strings.TrimSpace(b.Bio), strings.TrimSpace(b.Frase), b.Marcas.SQ, b.Marcas.BP, b.Marcas.DL, b.Visible); err != nil {
-					return err
+				if b.Visible != nil && *b.Visible != r.Visible {
+					if _, err := tx.Exec(ctx, `UPDATE perfiles SET visible = $2, updated_at = now() WHERE atleta_id = $1`, r.ID, *b.Visible); err != nil {
+						return err
+					}
+					accion := "Perfil público activado por el atleta"
+					if !*b.Visible {
+						accion = "Perfil público desactivado por el atleta"
+					}
+					if err := hist(ctx, tx, r.ID, accion, ""); err != nil {
+						return err
+					}
 				}
 				switch {
 				case b.RetirarConsentimiento && r.ImagenAt != nil:
@@ -326,7 +330,7 @@ func (s *Svc) registerArea() {
 				case b.AceptaUsoDeImagen && r.ImagenAt == nil:
 					v, h := s.legalVigente(ctx, r.CompetitionID, "consentimiento")
 					if v == "" {
-						return problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "Ahora no podemos registrar tu consentimiento. Inténtalo en unos minutos (el resto del perfil no se ha guardado).")
+						return problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "Ahora no podemos registrar tu consentimiento. Inténtalo en unos minutos.")
 					}
 					if _, err := tx.Exec(ctx, `UPDATE perfiles SET imagen_at = now(), imagen_version = $2, imagen_hash = $3, imagen_origen = 'área del atleta', imagen_ip = $4 WHERE atleta_id = $1`,
 						r.ID, v, h, anonIP(httpx.ClientIPFrom(ctx))); err != nil {
@@ -336,7 +340,7 @@ func (s *Svc) registerArea() {
 						return err
 					}
 				}
-				return hist(ctx, tx, r.ID, "Perfil editado por el atleta", "")
+				return nil
 			})
 			if err != nil {
 				return nil, err

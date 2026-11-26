@@ -1,9 +1,10 @@
 import { HttpClient } from '@angular/common/http';
 import { mascaraFecha } from './fecha-mascara';
+import { MAX_BIO, MAX_FRASE, MAX_MARCA, esMenorDe, totalMarcas, validarPerfil } from '../core/perfil-campos';
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { GrButton, GrIcon, GrSkeleton, GrTelefono, telefonoValido } from '@grcup/ui';
+import { GrButton, GrIcon, GrSkeleton, GrTelefono } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import { AltchaConfig } from '../core/altcha';
 import { Cms } from '../core/cms';
@@ -51,15 +52,7 @@ type Vista = 'cargando' | 'formulario' | 'exito' | 'cerrada' | 'legal' | 'error'
 /** Estado de la tarjeta de la izquierda cuando el envío falla. */
 type Aviso = 'ninguno' | 'duplicado' | 'aprobada' | 'limite' | 'red';
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const BORRADOR = 'grcup:alta-atleta:borrador';
-const MAX_NOMBRE = 60;
-const MAX_APELLIDOS = 60;
-const MAX_BIO = 280;
-const MAX_FRASE = 80;
-const RE_INSTAGRAM = /^@?[A-Za-z0-9._]{1,30}$/;
-const MAX_CAMPO = 80;
-const MAX_MARCA = 600;
 
 /**
  * /alta-atleta (Figma 75): la página pública del alta de atleta con revisión humana.
@@ -518,15 +511,7 @@ export class AltaAtletaPage {
 
   /** Menor de 18 años (aviso de autorización del tutor; Instagram oculto). */
   protected esMenor(): boolean {
-    const f = this.d.fechaNacimiento;
-    if (!f) return false;
-    const n = new Date(f + 'T00:00:00');
-    if (isNaN(n.getTime())) return false;
-    const h = new Date();
-    let edad = h.getFullYear() - n.getFullYear();
-    const m = h.getMonth() - n.getMonth();
-    if (m < 0 || (m === 0 && h.getDate() < n.getDate())) edad--;
-    return edad < 18;
+    return esMenorDe(this.d.fechaNacimiento);
   }
 
   /** Una marca (o null si está vacía). Los campos numéricos dan número: se normaliza a texto. */
@@ -546,17 +531,8 @@ export class AltaAtletaPage {
 
   /** Total de las marcas en vivo (null si no hay ninguna). */
   protected total(): string | null {
-    let suma = 0;
-    let hay = false;
-    for (const m of this.marcasCampos) {
-      const v = this.texto(m.k);
-      if (!v) continue;
-      const n = Number(v);
-      if (isNaN(n)) continue;
-      suma += n;
-      hay = true;
-    }
-    return hay ? suma.toLocaleString(this.i18n.locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null;
+    const total = totalMarcas(this.d);
+    return total === null ? null : total.toLocaleString(this.i18n.locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   }
 
   /** Errores por campo (con el texto corto del resumen). */
@@ -690,46 +666,10 @@ export class AltaAtletaPage {
 
   /** Valida el formulario: devuelve los errores por campo. */
   private validar(): Record<string, string> {
-    const d = this.d;
-    const e: Record<string, string> = {};
-    if (!d.nombre.trim()) e['nombre'] = this.t().v.oblig;
-    else if (!tieneLetra(d.nombre)) e['nombre'] = this.t().v.nombreLetras;
-    else if (d.nombre.trim().length > MAX_NOMBRE) e['nombre'] = this.t().v.largo60;
-    if (!d.apellidos.trim()) e['apellidos'] = this.t().v.obligPl;
-    else if (!tieneLetra(d.apellidos)) e['apellidos'] = this.t().v.apellidosLetras;
-    else if (d.apellidos.trim().length > MAX_APELLIDOS) e['apellidos'] = this.t().v.largos60;
-    const mail = d.email.trim();
-    if (!mail) e['email'] = this.t().v.oblig;
-    else if (mail.length > 254 || !EMAIL.test(mail)) e['email'] = this.t().v.email;
-    if (this.acepta.whatsapp && !d.telefono.trim()) e['telefono'] = this.t().v.waTel;
-    else if (d.telefono.trim() && !telefonoValido(d.telefono)) e['telefono'] = this.t().v.telCorto;
-    if (!d.sexo) e['sexo'] = this.t().v.opcion;
-    if (!d.fechaNacimiento) e['fechaNacimiento'] = /^\d{2}\/\d{2}\/\d{1,3}$/.test(this.fechaTexto) ? this.t().v.anio : this.t().v.fecha;
-    else {
-      const n = new Date(d.fechaNacimiento + 'T00:00:00');
-      if (isNaN(n.getTime())) e['fechaNacimiento'] = this.t().v.fecha;
-      else {
-        const h = new Date();
-        let edad = h.getFullYear() - n.getFullYear();
-        const m = h.getMonth() - n.getMonth();
-        if (m < 0 || (m === 0 && h.getDate() < n.getDate())) edad--;
-        if (edad < 14 || edad > 90) e['fechaNacimiento'] = this.t().v.edad;
-      }
-    }
-    if (d.club.trim().length > MAX_CAMPO) e['club'] = this.t().v.largo;
-    if (d.ciudad.trim().length > MAX_CAMPO) e['ciudad'] = this.t().v.larga;
-    if (d.entrenador.trim().length > MAX_CAMPO) e['entrenador'] = this.t().v.largo;
-    if (d.frase.length > MAX_FRASE) e['frase'] = this.t().v.larga80;
-    if (d.bio.length > MAX_BIO) e['bio'] = this.t().v.largo280;
-    if (!this.esMenor() && d.instagram.trim() && !RE_INSTAGRAM.test(d.instagram.trim())) e['instagram'] = this.t().v.ig;
-    if (this.cfg()?.pruebas?.length && !d.prueba) e['prueba'] = this.t().v.prueba;
-    for (const m of this.marcasCampos) {
-      const v = this.texto(m.k);
-      if (!v) continue;
-      const n = Number(v);
-      if (isNaN(n) || n < 0 || n > MAX_MARCA) e[m.k] = this.t().v.marca;
-      else if (!Number.isInteger(n * 2)) e[m.k] = this.t().v.paso;
-    }
+    // The profile fields are validated with the same rules as «Editar mi perfil» of the athlete area.
+    const e = validarPerfil(this.d, this.t().v, { fechaTexto: this.fechaTexto, esMenor: this.esMenor(), whatsapp: this.acepta.whatsapp });
+    // What only the public form asks: the competition and the consent boxes.
+    if (this.cfg()?.pruebas?.length && !this.d.prueba) e['prueba'] = this.t().v.prueba;
     if (!this.acepta.terminos || !this.acepta.privacidad) e['consentimiento'] = this.t().v.acepta;
     return e;
   }
@@ -1011,12 +951,6 @@ export class AltaAtletaPage {
 }
 
 /** Nombre de la competición (para el JSON-LD). */
-
-/** Hay al menos una letra visible tras quitar los invisibles (control, Cf, relleno Hangul, U+2800). */
-function tieneLetra(v: string): boolean {
-  return /\p{L}/u.test(v.replace(/[\p{Cc}\p{Cf}\u3164\uFFA0\u115F\u1160\u2800]/gu, ''));
-}
-
 function competicionNombre(c: { nombre?: string } | null): string {
   return c?.nombre || 'GRS Cup 2026';
 }

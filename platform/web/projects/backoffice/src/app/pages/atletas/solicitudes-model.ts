@@ -1,5 +1,5 @@
 import type { GrTone } from '@grcup/ui';
-import type { EstadoSolicitud, TipoMatch } from './solicitudes-api';
+import type { EstadoSolicitud, TipoMatch, TipoSolicitud } from './solicitudes-api';
 
 /** The 18 fields of the public form, in the order of the review panel. */
 export const CAMPOS: { clave: string; etiqueta: string }[] = [
@@ -36,6 +36,10 @@ export const CONSENTIMIENTOS: { clave: string; texto: string; etiqueta: string }
 export const MATCH: Record<TipoMatch, string> = { licencia: 'Licencia', email: 'Email', nombre: 'Sugerida', manual: 'Enlazado', '': 'Sin coincidencia' };
 export const MATCH_TONE: Record<TipoMatch, GrTone> = { licencia: 'success', email: 'info', nombre: 'warning', manual: 'info', '': 'neutral' };
 
+/** Badge of the request type: a profile change is reviewed differently from a sign-up. */
+export const TIPO: Record<TipoSolicitud, string> = { alta: 'Alta', cambio_perfil: 'Cambio de perfil' };
+export const TIPO_TONE: Record<TipoSolicitud, GrTone> = { alta: 'neutral', cambio_perfil: 'info' };
+
 /** The 18 fields of the form, with the value declared by the athlete and the difference with the linked athlete. */
 export interface FilaCampo {
   clave: string;
@@ -55,6 +59,8 @@ export interface FilaConsentimiento {
 
 export const matchTxt = (m: TipoMatch) => MATCH[m];
 export const matchTone = (m: TipoMatch) => MATCH_TONE[m];
+export const tipoTxt = (t: TipoSolicitud) => TIPO[t] ?? TIPO.alta;
+export const tipoTone = (t: TipoSolicitud) => TIPO_TONE[t] ?? TIPO_TONE.alta;
 
 export function nombreCompleto(s: { nombre: string; apellidos: string }): string {
   return [s.nombre, s.apellidos].filter(Boolean).join(' ');
