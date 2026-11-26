@@ -985,8 +985,9 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 			events.Competition(cid.String()), events.ForPermission("atletas.editar"))); err != nil {
 			return err
 		}
-		// The notices to the athlete (optional). WhatsApp requires the consent recorded on submission.
-		avisarWA := avisarWhatsApp && sol.Telefono != "" && cons["whatsapp"].Aceptado
+		// The notices to the athlete (optional). WhatsApp requires the consent: the box of the form or, for an existing
+		// athlete, the one on their record.
+		avisarWA := avisarWhatsApp && sol.Telefono != "" && (cons["whatsapp"].Aceptado || waAceptado(ctx, tx, cid, *destino))
 		urlArea := s.webURL + "/area-atleta"
 		// Without the image consent (or for a minor) the profile is not public: never promise its URL.
 		urlFicha := s.webURL + "/atletas/" + slug
@@ -1288,6 +1289,7 @@ func (s *Svc) rechazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm, moti
 			para, tel = contactoActual(ctx, tx, sol)
 			plantilla, urlAviso = "atleta-cambio-perfil-rechazado", s.webURL+"/area-atleta"
 			vars["urlArea"] = urlAviso
+			waConsentido = waConsentido || (sol.MatchAtletaID != nil && waAceptado(ctx, tx, cid, *sol.MatchAtletaID))
 			// A photo that was only pending review is discarded (never the approved one).
 			if u := fotoCambio(leeCambios(sol)); u != "" && sol.MatchAtletaID != nil {
 				var actual string
