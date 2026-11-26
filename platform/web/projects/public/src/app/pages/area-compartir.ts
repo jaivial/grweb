@@ -48,6 +48,8 @@ const T = {
     ayudaCuenta: 'La cuenta atrás es estática: muestra los días que faltan el día que generas la imagen (hora de Madrid).',
     formato: 'Formato', ayudaStory: 'Story completa: tu foto en blanco y negro con el texto y los logos encima.',
     ayudaSticker: 'PNG transparente con el texto y los logos, como el de Strava. Lo pegas en Instagram encima de tu foto.',
+    colores: 'Colores del texto y logos', coloresAria: 'Colores', enColor: 'En color', bn: 'Blanco y negro',
+    ayudaColor: 'El texto y los logos se ven con sus colores originales.', ayudaBn: 'El texto y los logos van todo en blanco y negro.',
     alineacion: 'Alineación del texto', alineacionAria: 'Alineación',
     ayudaAlin: 'Coloca el bloque de texto y logos a la izquierda, centrado o a la derecha para que no tape lo importante de tu foto.',
     comoPoner: 'Cómo ponerlo sobre tu foto', paso1: 'Pulsa «Compartir sticker» y elige «Guardar imagen» (o Instagram › Historia).',
@@ -99,6 +101,8 @@ const T = {
     ayudaCuenta: 'The countdown is static: it shows the days left on the day you generate the image (Madrid time).',
     formato: 'Format', ayudaStory: 'Full story: your photo in black and white with the text and logos on top.',
     ayudaSticker: 'Transparent PNG with the text and logos, like the Strava one. You paste it in Instagram over your photo.',
+    colores: 'Text and logo colours', coloresAria: 'Colours', enColor: 'In colour', bn: 'Black and white',
+    ayudaColor: 'The text and logos keep their original colours.', ayudaBn: 'The text and logos are all in black and white.',
     alineacion: 'Text alignment', alineacionAria: 'Alignment',
     ayudaAlin: 'Place the text and logos on the left, centre or right so they do not cover the important part of your photo.',
     comoPoner: 'How to place it over your photo', paso1: 'Tap «Share sticker» and choose «Save image» (or Instagram › Story).',
@@ -238,13 +242,18 @@ const T = {
                   <p class="ayuda">{{ formato() === 'story' ? t().ayudaStory : t().ayudaSticker }}</p>
                 </section>
                 <section class="card">
-                  <h2><span>04</span>{{ t().alineacion }}</h2>
+                  <h2><span>04</span>{{ t().colores }}</h2>
+                  <div class="seg mt-4" role="radiogroup" [attr.aria-label]="t().coloresAria">@for (o of colores(); track o.v) { <button type="button" role="radio" [attr.aria-checked]="color() === o.v" (click)="color.set(o.v)">{{ o.l }}</button> }</div>
+                  <p class="ayuda">{{ color() === 'bn' ? t().ayudaBn : t().ayudaColor }}</p>
+                </section>
+                <section class="card">
+                  <h2><span>05</span>{{ t().alineacion }}</h2>
                   <div class="seg mt-4" role="radiogroup" [attr.aria-label]="t().alineacionAria">@for (o of alins(); track o.v) { <button type="button" role="radio" [attr.aria-checked]="alin() === o.v" (click)="alin.set(o.v)"><gr-icon [name]="o.i!" [size]="14" /><span class="max-sm:sr-only">{{ o.l }}</span></button> }</div>
                   <p class="ayuda">{{ t().ayudaAlin }}</p>
                 </section>
                 @if (formato() === 'sticker') {
                   <section class="card">
-                    <h2><span>06</span>{{ t().comoPoner }}</h2>
+                    <h2><span>07</span>{{ t().comoPoner }}</h2>
                     <ol class="mt-3 flex flex-col gap-2 text-body-s">
                       <li><span class="mr-2 font-mono text-[11px] text-accent-text">01</span>{{ t().paso1 }}</li>
                       <li><span class="mr-2 font-mono text-[11px] text-accent-text">02</span>{{ t().paso2 }}</li>
@@ -254,7 +263,7 @@ const T = {
                   </section>
                 }
                 <section class="card">
-                  <h2><span>05</span>{{ t().tusDatos }}</h2>
+                  <h2><span>06</span>{{ t().tusDatos }}</h2>
                   <dl class="mt-2">@for (f of filas(); track f[0]) { <div class="flex justify-between gap-4 border-t border-line-subtle py-3 text-body-s"><dt class="text-text-tertiary">{{ f[0] }}</dt><dd class="text-right font-semibold">{{ f[1] }}</dd></div> }</dl>
                   <a [routerLink]="'/area-atleta' | loc" [queryParams]="{ vista: 'perfil' }" class="text-[13px] text-accent-text hover:underline">{{ t().salen }}</a>
                 </section>
@@ -311,6 +320,7 @@ export class AreaCompartirPage {
   protected readonly t = this.i18n.dict(T);
   protected readonly modos = computed(() => [opt('cuenta_atras' as const, this.t().cuentaAtras), opt('fecha' as const, this.t().fecha)]);
   protected readonly formatos = computed(() => [opt('story' as const, this.t().conFoto), opt('sticker' as const, this.t().soloSticker)]);
+  protected readonly colores = computed(() => [opt('color' as const, this.t().enColor), opt('bn' as const, this.t().bn)]);
   protected readonly alins = computed(() => [opt('izq' as const, this.t().izq, 'align-start'), opt('centro' as const, this.t().centro, 'align-center'), opt('der' as const, this.t().der, 'align-end')]);
   protected readonly vista = signal<Vista>('cargando');
   protected readonly motivo = signal('');
@@ -327,6 +337,7 @@ export class AreaCompartirPage {
   protected readonly modo = signal<StoryDatos['modo']>('cuenta_atras');
   protected readonly formato = signal<StoryDatos['formato']>('story');
   protected readonly alin = signal<StoryDatos['alin']>('izq');
+  protected readonly color = signal<NonNullable<StoryDatos['color']>>('color');
   protected readonly url = signal('');
   protected readonly alt = signal('');
   protected readonly busy = signal(false);
@@ -391,7 +402,7 @@ export class AreaCompartirPage {
       const t = this.t();
       const d: StoryDatos = {
         lang: this.i18n.lang(),
-        modo: this.enDirecto() ? 'fecha' : this.modo(), formato: this.formato(), alin: this.alin(), dias: Math.max(0, this.dias()),
+        modo: this.enDirecto() ? 'fecha' : this.modo(), formato: this.formato(), alin: this.alin(), color: this.color(), dias: Math.max(0, this.dias()),
         fecha: fechaCorta(f), detalleFecha: detalle(f, this.i18n.locale(), t.puertas, this.comp.data()?.evento?.puertas),
         nombre: a.nombreCompleto, prueba: (this.prueba()?.codigo ?? '').toUpperCase().replace('AEP', 'AEP-'), peso: peso(a.categoria).toUpperCase(),
         sexo: (a.sexo === 'F' ? t.fem : t.masc).toUpperCase(), foto: this.foto(), focalX: r.focalX, focalY: r.focalY, zoom: r.zoom,

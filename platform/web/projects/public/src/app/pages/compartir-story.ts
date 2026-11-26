@@ -7,6 +7,7 @@ export interface StoryDatos {
   modo: 'cuenta_atras' | 'fecha';
   formato: 'story' | 'sticker';
   alin: 'izq' | 'centro' | 'der';
+  color?: 'color' | 'bn'; // overlay (text and logos) in colour or all black and white (default 'color')
   dias: number;
   fecha: string; // «25.07.26»
   detalleFecha: string; // «SÁBADO · PUERTAS 08:30»
@@ -120,17 +121,19 @@ export async function componer(d: StoryDatos): Promise<HTMLCanvasElement> {
   g.fillStyle = '#fff';
   y += 70;
   const h = 56, sep = 40;
-  const fila = [coaching, aep, alm];
-  const total = fila.reduce((a, i) => a + ancho(i, h), 0) + sep * 2 * (fila.length - 1);
+  // GRS Powerlifting Coaching at half the height of the other two, centred on the row
+  const fila: [HTMLImageElement, number][] = [[coaching, h / 2], [aep, h], [alm, h]];
+  const total = fila.reduce((a, [i, hi]) => a + ancho(i, hi), 0) + sep * 2 * (fila.length - 1);
   let lx = alinX(total);
-  fila.forEach((img, i) => {
+  fila.forEach(([img, hi], i) => {
     if (i) {
       g.fillRect(lx + sep - 1, y + 6, 2, h - 12);
       lx += sep * 2;
     }
-    logo(img, h, y, lx);
-    lx += ancho(img, h);
+    logo(img, hi, y + (h - hi) / 2, lx);
+    lx += ancho(img, hi);
   });
+  if (d.color === 'bn') grises(g, 1);
   return c;
 }
 
@@ -169,12 +172,12 @@ export function textoStory(d: StoryDatos): string {
   return `${d.formato === 'sticker' ? 'Sticker' : 'Story'}: ${cab}. ${d.nombre} · ${[d.prueba, d.peso, d.sexo].filter(Boolean).join(' · ')}. Almussafes · Valencia.`;
 }
 
-/** Black and white with contrast 1.18 (canvas `filter` is not available in Safari). */
-function grises(g: CanvasRenderingContext2D) {
+/** Black and white with contrast 1.18 by default (canvas `filter` is not available in Safari). Alpha is kept. */
+function grises(g: CanvasRenderingContext2D, contraste = 1.18) {
   const img = g.getImageData(0, 0, W, H);
   const p = img.data;
   for (let i = 0; i < p.length; i += 4) {
-    const l = Math.min(255, Math.max(0, (p[i] * 0.299 + p[i + 1] * 0.587 + p[i + 2] * 0.114 - 128) * 1.18 + 128));
+    const l = Math.min(255, Math.max(0, (p[i] * 0.299 + p[i + 1] * 0.587 + p[i + 2] * 0.114 - 128) * contraste + 128));
     p[i] = p[i + 1] = p[i + 2] = l;
   }
   g.putImageData(img, 0, 0);
