@@ -139,9 +139,9 @@ const MEDALLA = [
           <span class="flex items-center gap-2 font-display text-[24px] leading-[1.25] tracking-[0.04em]"><span class="size-2 rounded-full bg-accent shadow-[0_0_8px_#c42b3e]" aria-hidden="true"></span>Top 3 <span class="bg-accent-grain bg-clip-text text-transparent">{{ t().enVivo }}</span></span>
           <span class="pb-1 text-[13px] text-text-tertiary">{{ t().topAtletas }}</span>
           @for (f of r?.top3 ?? []; track f.atletaId; let i = $index) {
-            <span class="flex w-full max-w-[240px] min-w-0 items-center gap-3 rounded-xl px-3 py-2.5" [class]="medalla[i].fila">
+            <span class="flex w-full max-w-[320px] min-w-0 items-center gap-3 rounded-xl px-3 py-2.5" [class]="medalla[i].fila">
               <span class="flex size-7 shrink-0 items-center justify-center rounded-full font-mono text-[13px] font-medium text-bg-base" [class]="medalla[i].disco">{{ f.puesto }}</span>
-              <span class="min-w-0 flex-1 truncate text-left text-[15px] font-semibold" [title]="f.nombre">{{ f.nombre }}</span>
+              <span class="line-clamp-2 min-w-0 flex-1 text-left text-[15px] leading-5 font-semibold" [title]="f.nombre">{{ f.nombre }}</span>
               <span class="shrink-0 font-mono text-[15px] font-medium" [class]="medalla[i].saldo">{{ monedas(f.apostado) }}</span>
             </span>
           } @empty {
