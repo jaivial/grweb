@@ -9,7 +9,7 @@ import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG, Competition } from '../core/competition';
 import { I18n, LocPipe } from '../core/i18n';
 import { Seo } from '../core/seo';
-import { Footer, Navbar } from '../layout/layout';
+import { Footer, INSTAGRAM, Navbar } from '../layout/layout';
 import { StoryMovil, StoryRecorte, type Recorte } from './area-compartir-ui';
 import { StoryDatos, cargarImagen, componer, diasHasta, textoStory } from './compartir-story';
 
@@ -296,7 +296,7 @@ const T = {
                   <button grButton variant="primary" size="l" [block]="true" icon="instagram" class="min-w-0 flex-1 overflow-hidden" [loading]="busy()" [disabled]="!listo()" (click)="compartir()"><span class="min-w-0 truncate">{{ formato() === 'sticker' ? t().compSticker : t().compIg }}</span></button>
                 </div>
                 <button grButton variant="secondary" size="l" [block]="true" [disabled]="!listo()" (click)="descargar()">{{ formato() === 'sticker' ? t().descPng : t().descImg }}</button>
-                <a grButton variant="link" iconRight="arrow-right" href="https://instagram.com/grstrengthclub" target="_blank" rel="noopener" class="inline-flex min-h-11 items-center self-center">{{ t().siguenos }}</a>
+                <a grButton variant="link" iconRight="arrow-right" [href]="instagram" target="_blank" rel="noopener" class="inline-flex min-h-11 items-center self-center">{{ t().siguenos }}</a>
                 <p class="text-center text-[13px] text-text-tertiary">{{ ayudaBotones() }}</p>
               }
             </div>
@@ -324,6 +324,8 @@ export class AreaCompartirPage {
   protected readonly alins = computed(() => [opt('izq' as const, this.t().izq, 'align-start'), opt('centro' as const, this.t().centro, 'align-center'), opt('der' as const, this.t().der, 'align-end')]);
   protected readonly vista = signal<Vista>('cargando');
   protected readonly motivo = signal('');
+  /** «Síguenos»: the organiser's official account. */
+  protected readonly instagram = INSTAGRAM;
   protected readonly p = signal<PanelStory | null>(null);
   protected readonly foto = signal<HTMLImageElement | undefined>(undefined);
   protected readonly fotoSrc = signal('');

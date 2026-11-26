@@ -156,7 +156,7 @@ class Cs {
                   <gr-cs id="cs-checkbox" [w]="sets['checkbox'].w" [h]="sets['checkbox'].h">
                     @for (c of checks; track $index) {
                       <gr-checkbox class="absolute w-[360px]" [style.left.px]="c.x" [style.top.px]="c.y" [kind]="c.p['Kind'] === 'Instagram' ? 'instagram' : 'legal'" [checked]="c.p['Checked'] === 'On'">
-                        @if (c.p['Kind'] === 'Instagram') { Os sigo en Instagram <span class="text-accent-text">&#64;grstrength</span> }
+                        @if (c.p['Kind'] === 'Instagram') { Os sigo en Instagram <span class="text-accent-text">&#64;grstrengthclub</span> }
                         @else { He leído y acepto la <a routerLink="/privacidad" class="text-accent-text">política de tratamiento de mis datos</a> }
                       </gr-checkbox>
                     }
