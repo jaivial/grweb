@@ -74,7 +74,7 @@ const api = '/api/area-atleta/perfil-editar';
             <dl class="mt-4 flex flex-col gap-2">
               @for (c of p.cambios; track c.clave) {
                 <div class="flex flex-col gap-0.5 rounded-md bg-bg-raised px-3 py-2">
-                  <dt class="text-label-xs text-text-tertiary uppercase">{{ c.campo }}</dt>
+                  <dt class="text-label-xs text-text-tertiary uppercase">{{ t().campos[c.clave] ?? c.campo }}</dt>
                   <dd class="flex min-w-0 flex-wrap items-baseline gap-2 text-body-s">
                     @if (c.clave === 'foto') {
                       @if (c.antes) { <img [src]="c.antes" [alt]="t().fotoActual" class="h-20 w-15 rounded-sm object-cover opacity-60" /> } @else { <span class="text-text-tertiary">{{ t().vacio }}</span> }
@@ -419,7 +419,7 @@ export class AreaPerfilEditar {
       const antes = new Map((this.pendiente()?.cambios ?? []).map((c) => [c.clave, c.despues]));
       const nada = !!p && p.cambios.every((c) => antes.get(c.clave) === c.despues);
       this.aplicados.set(aplicados);
-      this.revisados.set(p ? p.cambios.map((c) => c.campo) : []);
+      this.revisados.set(p ? p.cambios.map((c) => this.t().campos[c.clave] ?? c.campo) : []);
       this.pendiente.set(p ?? null);
       this.intentado = false;
       this.err.set({});
@@ -497,7 +497,7 @@ const T = {
     fotoActual: 'Tu foto actual', fotoNueva: 'Tu nueva foto, pendiente de revisión',
     cancelar: 'Cancelar el cambio',
     cancelado: 'Cambio cancelado: esos datos de tu ficha siguen como estaban.',
-    intro: 'Cambia tus datos y guárdalos. El equipo solo revisa el nombre, los apellidos, el email, el sexo, la competición, la foto y la fecha de nacimiento si cambia tu categoría o tu mayoría de edad; el resto se guarda al momento.',
+    intro: 'Cambia tus datos y guárdalos. El equipo solo revisa el nombre, los apellidos, el email, el sexo, la competición, la foto y la fecha de nacimiento si cambia tu división o tu mayoría de edad; el resto se guarda al momento.',
     revisa: (n: number) => 'Revisa ' + (n === 1 ? 'un campo' : n + ' campos') + ' antes de enviar',
     tusDatos: 'Tus datos',
     nombre: 'Nombre', apellidos: 'Apellidos', email: 'Email', emailAyuda: 'Es el email con el que entras a tu área: si lo cambias, entrarás con el nuevo.',
@@ -522,9 +522,9 @@ const T = {
     guardadoYEnviado: 'Cambios guardados. Algunos los tiene que revisar el equipo: te avisamos por email cuando estén aprobados.',
     guardados: 'Cambios guardados:',
     pendientesDe: 'Pendiente de revisión:',
-    aviso: 'El nombre, los apellidos, el email, el sexo, la competición, la foto y la fecha de nacimiento si cambia tu categoría o tu mayoría de edad los revisa el equipo antes de aplicarlos (puedes cancelarlos mientras esperan). El resto se guarda al momento.',
+    aviso: 'El nombre, los apellidos, el email, el sexo, la competición, la foto y la fecha de nacimiento si cambia tu división o tu mayoría de edad los revisa el equipo antes de aplicarlos (puedes cancelarlos mientras esperan). El resto se guarda al momento.',
     enviar: 'Guardar los cambios',
-    campos: { nombre: 'Nombre', apellidos: 'Apellidos', email: 'Email', telefono: 'Teléfono', sexo: 'Sexo', fechaNacimiento: 'Fecha de nacimiento', club: 'Club', ciudad: 'Ciudad', entrenador: 'Entrenador', frase: 'Frase', bio: 'Sobre ti', instagram: 'Instagram', marcaSQ: 'Sentadilla', marcaBP: 'Press de banca', marcaDL: 'Peso muerto' } as Record<string, string>,
+    campos: { nombre: 'Nombre', apellidos: 'Apellidos', email: 'Email', telefono: 'Teléfono', sexo: 'Sexo', fechaNacimiento: 'Fecha de nacimiento', club: 'Club', ciudad: 'Ciudad', entrenador: 'Entrenador', frase: 'Frase', bio: 'Sobre ti', instagram: 'Instagram', marcaSQ: 'Sentadilla', marcaBP: 'Press de banca', marcaDL: 'Peso muerto', prueba: 'Competición', foto: 'Foto' } as Record<string, string>,
     v: {
       oblig: 'Es obligatorio.', nombreLetras: 'El nombre debe contener letras.', largo60: 'Es demasiado largo (60 caracteres como máximo).', obligPl: 'Son obligatorios.',
       apellidosLetras: 'Los apellidos deben contener letras.', largos60: 'Son demasiado largos (60 caracteres como máximo).', email: 'Introduce un email válido.',
@@ -571,7 +571,7 @@ const T = {
     pendientesDe: 'Pending review:',
     aviso: 'Your first name, surname, email, sex, competition, photo, and your date of birth if it changes your division or whether you are under 18, are reviewed by the team before they are applied (you can cancel them while they wait). Everything else is saved at once.',
     enviar: 'Save the changes',
-    campos: { nombre: 'First name', apellidos: 'Surname', email: 'Email', telefono: 'Phone', sexo: 'Sex', fechaNacimiento: 'Date of birth', club: 'Club', ciudad: 'City', entrenador: 'Coach', frase: 'Line', bio: 'About you', instagram: 'Instagram', marcaSQ: 'Squat', marcaBP: 'Bench press', marcaDL: 'Deadlift' } as Record<string, string>,
+    campos: { nombre: 'First name', apellidos: 'Surname', email: 'Email', telefono: 'Phone', sexo: 'Sex', fechaNacimiento: 'Date of birth', club: 'Club', ciudad: 'City', entrenador: 'Coach', frase: 'Line', bio: 'About you', instagram: 'Instagram', marcaSQ: 'Squat', marcaBP: 'Bench press', marcaDL: 'Deadlift', prueba: 'Competition', foto: 'Photo' } as Record<string, string>,
     v: {
       oblig: 'This is required.', nombreLetras: 'Your first name must contain letters.', largo60: 'It is too long (60 characters max).', obligPl: 'This is required.',
       apellidosLetras: 'Your surname must contain letters.', largos60: 'It is too long (60 characters max).', email: 'Enter a valid email.',
