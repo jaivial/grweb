@@ -33,7 +33,7 @@ export interface Recorte {
   selector: 'gr-story-movil',
   imports: [GrIcon, GrTelefono],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'block w-[236px] md:w-[280px] lg:w-[300px]' },
+  host: { class: 'block w-[200px] md:w-[230px] lg:w-[250px]' },
   template: `
     <gr-telefono>
       <!-- status bar (safe area) above the 9:16 story, as on a real iPhone -->
