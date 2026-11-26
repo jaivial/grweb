@@ -77,8 +77,9 @@ export async function componer(d: StoryDatos): Promise<HTMLCanvasElement> {
   const ancho = (img: HTMLImageElement, h: number) => (img.naturalWidth / img.naturalHeight) * h;
   const alinX = (w: number) => (d.alin === 'izq' ? m : d.alin === 'der' ? W - m - w : (W - w) / 2);
 
-  // block ends ≈81 % of the height: clear of Instagram's reply bar (bottom ~250 px)
-  let y = 780;
+  // block ends ≈92 % of the height (≈94 % with a two-line name): the logo row falls inside Instagram's reply bar
+  // area (bottom ~250 px), placed this low on purpose
+  let y = 980;
   logo(grs, 120, y, alinX(ancho(grs, 120)));
   y += 200;
   g.font = '600 30px Inter, sans-serif';
