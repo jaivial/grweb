@@ -83,8 +83,9 @@ export function telefonoValido(v: string): boolean {
 }
 
 /**
- * A phone to read it («+34 600 000 002»): dial code and the national digits in blocks of three. Presentation only:
- * the stored value stays E.164. Empty in, empty out.
+ * A phone to read it («+34 600 000 002»): dial code and the national digits in blocks of three, the last block taking
+ * the remainder (a 10-digit number ends with four: «+1 555 123 4567»). Presentation only: the stored value stays
+ * E.164. Empty in, empty out.
  */
 export function telefonoTexto(v: string, isoActual = 'ES'): string {
   const { iso, digitos } = partirTelefono(v, isoActual);
