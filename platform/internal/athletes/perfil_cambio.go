@@ -252,6 +252,16 @@ func comparaPerfil(antes, despues DatoPerfil) cambiosPerfil {
 	return c
 }
 
+// cambiaClave says if the request changes a field.
+func cambiaClave(c cambiosPerfil, clave string) bool {
+	for _, k := range c.Claves {
+		if k == clave {
+			return true
+		}
+	}
+	return false
+}
+
 // leeCambios parses the snapshot of a request (empty when it has none).
 func leeCambios(sol solicitud) cambiosPerfil {
 	c := cambiosPerfil{Claves: []string{}, Antes: map[string]any{}, Despues: map[string]any{}}
@@ -593,8 +603,10 @@ func (s *Svc) apruebaCambioPerfil(ctx context.Context, cid, id uuid.UUID, ifm st
 		if fechaNac == nil {
 			fechaNac = prev.FechaNacimiento // the birth date is required by the form: never wipe it
 		}
+		// The division only follows the birth date, and only when the athlete changed it: a bio change must not
+		// overwrite a division the team set by hand.
 		division := prev.Division
-		if fechaNac != nil {
+		if fechaNac != nil && cambiaClave(c, "fechaNacimiento") {
 			division = DivisionPorEdad(*fechaNac, anio)
 		}
 		if _, err := tx.Exec(ctx, `UPDATE atletas SET nombre = $2, apellidos = $3, email = NULLIF($4,''), telefono = $5, sexo = $6,
