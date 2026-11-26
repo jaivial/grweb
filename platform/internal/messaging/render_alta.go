@@ -31,11 +31,21 @@ const (
 // renderizarDe renders a catalogue template with its layout.
 func renderizarDe(t Plantilla, c Contenido, vars map[string]string, m Marca) (Render, error) {
 	r, err := renderizar(c, vars, t.Variables, m, t.Esencial, t.QR)
+	if err == nil && formularioAutorizacion(t.Clave) {
+		// The image of these templates is the form to sign, not the photo of a request.
+		r.Texto = strings.Replace(r.Texto, "Foto de la solicitud: ", "Formulario de autorización: ", 1)
+	}
 	if err != nil || (t.Auto != altaGrp && !disenoAtleta[t.Clave]) {
 		return r, err
 	}
 	r.HTML = altaHTML(t.Clave, c, vars, t.Variables, m)
 	return r, nil
+}
+
+// formularioAutorizacion: the templates to the athlete whose image is the authorisation form (a public file that
+// does not expire).
+func formularioAutorizacion(clave string) bool {
+	return clave == "atleta-autorizacion-pedida" || clave == "atleta-autorizacion-rechazada"
 }
 
 type altaBloque struct {
@@ -199,6 +209,9 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 				fotoHecha = true
 				// Blocked images: the alt carries the instruction of Figma 171:91164 (the client shows it in the dashed box).
 				alt := "Foto de la solicitud · " + strings.TrimSpace(full["nombre"]+" "+full["apellidos"]) + " (blanco y negro). Imagen no cargada: tu cliente bloquea las imágenes; abre la solicitud en el backoffice para verla."
+				if formularioAutorizacion(clave) {
+					alt = "Formulario de autorización. Imagen no cargada: va adjunto a este email y también puedes descargarlo desde el enlace."
+				}
 				cuerpo.WriteString(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px"><tr>` +
 					`<td class="col" width="180" valign="top" style="width:180px;padding:0 16px 16px 0"><img src="` + esc(imgURL) + `" alt="` + esc(alt) + `" width="180" height="225" style="display:block;width:180px;max-width:100%;height:225px;object-fit:cover;border:1px dashed #2e2729;border-radius:8px;background:#141112;color:#d1d5db;font-size:11px;line-height:15px;text-align:center">` +
 					`<p style="margin:8px 0 0;font-size:11px;line-height:14px;color:#948f91">Foto · blanco y negro · 960×1200</p></td>` +
@@ -223,7 +236,7 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 	cuerpo.WriteString(boton)
 	if c.Pie != "" && !vacia(c.Pie, full) {
 		pie := c.Pie
-		if foto {
+		if foto && !formularioAutorizacion(clave) {
 			pie = "La foto de este mensaje caduca en 7 días por seguridad. " + pie
 		}
 		cuerpo.WriteString(`<p style="margin:0;font-size:12px;line-height:18px;color:#6b7280">` + linkify(sub(pie)) + `</p>`)

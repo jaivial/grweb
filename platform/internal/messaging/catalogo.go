@@ -325,11 +325,11 @@ var catalogo = []Plantilla{
 	pwa("atleta-autorizacion-rechazada", "Autorización del tutor rechazada", "Al rechazar la autorización del tutor (si se marca «Avisar»)", "athletes", "solicitudes-atleta", true,
 		[]string{"nombre", "motivo", "enlace"},
 		map[string]string{"nombre": "Lucía", "motivo": "Falta la firma del tutor en la parte de abajo.", "enlace": "https://grcup.example/autorizacion/…"},
-		Contenido{Asunto: "Tenemos que revisar de nuevo tu autorización", Titulo: "{{nombre}}, falta algo en la autorización",
+		Contenido{Asunto: "Necesitamos una nueva autorización firmada", Preheader: "Corrígela y súbela de nuevo con el mismo enlace", Titulo: "{{nombre}}, falta algo en la autorización",
 			Cuerpo:     "Hemos revisado la autorización de tu madre, padre o tutor y no la hemos podido aprobar.\n\n**Motivo**\n\n{{motivo}}\n\n✓ Corrígelo y súbela de nuevo con el mismo enlace.",
 			BotonTexto: "Subirla de nuevo", BotonURL: "{{enlace}}",
 			Nota: "Recibes este email porque estás inscrito como atleta menor de edad."},
-		ContenidoWA{Texto: "Hola {{nombre}}, no hemos podido aprobar la autorización de tu tutor.\n\n*Motivo:* {{motivo}}\n\nCorrígelo y súbela de nuevo aquí:\n{{enlace}}"}),
+		ContenidoWA{Texto: "Hola {{nombre}}, necesitamos una nueva autorización firmada de tu tutor: no hemos podido aprobar la que enviaste.\n\n*Motivo:* {{motivo}}\n\nCorrígelo y súbela de nuevo aquí:\n{{enlace}}"}),
 
 	// ---- Cuentas, contraseña y acción necesaria (Jaime 15-nov: avisos que faltaban) ----
 	pwa("publico-cuenta-creada", "Cuenta de público creada", "Al crear la cuenta del directo como público", "fans", "accesos", true, []string{"alias", "competicion", "enlace", "fantasy", "porra"}, ejPublico,

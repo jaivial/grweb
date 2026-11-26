@@ -43,6 +43,7 @@ type AutorizacionEstado struct {
 	EnviadaAt   *time.Time `json:"enviadaAt,omitempty"`
 	SolicitudID *uuid.UUID `json:"solicitudId,omitempty"`
 	Motivo      string     `json:"motivo,omitempty"`
+	AprobadaAt  *time.Time `json:"aprobadaAt,omitempty"`
 }
 
 // AutorizacionPub is what the public page /autorizacion/<token> shows.
@@ -107,6 +108,9 @@ func (s *Svc) estadoAutorizacion(ctx context.Context, r row) AutorizacionEstado 
 	switch {
 	case r.AutorizacionURL != "":
 		e.Estado = "aprobada"
+		if sol != nil && sol.Estado == "aprobada" {
+			e.AprobadaAt = sol.RevisadoAt
+		}
 	case sol == nil:
 	case sol.Estado == "pendiente" || sol.Estado == "revision":
 		e.Estado = "revision"

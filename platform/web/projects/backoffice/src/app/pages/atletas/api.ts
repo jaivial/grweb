@@ -108,6 +108,7 @@ export interface EstadoAutorizacion {
   enviadaAt?: string;
   solicitudId?: string;
   motivo?: string;
+  aprobadaAt?: string;
 }
 export interface AutorizacionPedida {
   enviadaAt: string;

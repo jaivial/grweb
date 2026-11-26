@@ -163,6 +163,14 @@ type DetalleSolicitud struct {
 	AtletaEmail     string               `json:"atletaEmail,omitempty" doc:"Nombre del atleta que ya tiene este email: al aprobar se enlaza a él, sin duplicado ni avisos"`
 	// AutorizacionURL is the file uploaded by the guardian («autorizacion» requests: an image or a PDF).
 	AutorizacionURL string `json:"autorizacionUrl,omitempty" doc:"Autorización firmada subida por el tutor (tipo autorizacion)"`
+	// Anteriores: the earlier rejected authorisations of the same athlete (tipo autorizacion), newest first.
+	Anteriores []AutorizacionAnterior `json:"anteriores,omitempty"`
+}
+
+// AutorizacionAnterior is an earlier rejected authorisation: when and why.
+type AutorizacionAnterior struct {
+	Fecha  time.Time `json:"fecha"`
+	Motivo string    `json:"motivo"`
 }
 
 // Candidato is an athlete the reviewer can link the request to.
@@ -467,11 +475,12 @@ func (s *Svc) listaSolicitudes(ctx context.Context, in *FiltrosLista) (*ListaSol
 		return nil, err
 	}
 	kpis := KPIsSolicitud{}
+	// The same scope as the counters (the type and the other filters, not the state), so the cards agree.
 	if err := s.a.DB.QueryRow(ctx, `SELECT
 		count(*) FILTER (WHERE estado IN ('pendiente','revision') AND created_at::date = current_date),
 		count(*) FILTER (WHERE estado = 'aprobada' AND revisado_at::date = current_date),
 		count(*) FILTER (WHERE estado = 'rechazada' AND revisado_at::date = current_date)
-		FROM solicitudes_atleta WHERE competition_id = $1`, in.CID).Scan(&kpis.PendientesHoy, &kpis.AprobadasHoy, &kpis.RechazadasHoy); err != nil {
+		FROM solicitudes_atleta WHERE `+base, argsBase...).Scan(&kpis.PendientesHoy, &kpis.AprobadasHoy, &kpis.RechazadasHoy); err != nil {
 		return nil, err
 	}
 	out := &ListaSolicitud{Items: make([]ItemSolicitud, 0, len(list)), Total: total, Contadores: cont, KPIs: kpis}
@@ -545,6 +554,17 @@ func (s *Svc) itemSolicitud(cid uuid.UUID, sol solicitud) ItemSolicitud {
 	if it.Tipo == "" {
 		it.Tipo = "alta"
 	}
+	// A pending name change is not the athlete's name yet: the list and the drawer show the current one (the
+	// proposed one is only in the diff).
+	if it.Tipo == "cambio_perfil" {
+		c := leeCambios(sol)
+		if v, ok := c.Antes["nombre"].(string); ok && v != "" {
+			it.Nombre = v
+		}
+		if v, ok := c.Antes["apellidos"].(string); ok && v != "" {
+			it.Apellidos = v
+		}
+	}
 	// A reviewed request no longer keeps its private photo (published or deleted on review).
 	if sol.FotoClave != "" && sol.Estado != "aprobada" && sol.Estado != "rechazada" {
 		it.FotoMiniatura = "/api/admin/competiciones/" + cid.String() + "/atletas/solicitudes/" + sol.ID.String() + "/foto"
@@ -572,6 +592,17 @@ func (s *Svc) detalleSolicitud(ctx context.Context, cid, id uuid.UUID) (DetalleS
 	}
 	if sol.Tipo == "autorizacion" {
 		d.AutorizacionURL = urlAutorizacion(sol)
+		if sol.MatchAtletaID != nil {
+			rows, err := s.a.DB.Query(ctx, `SELECT COALESCE(revisado_at, created_at), motivo_rechazo FROM solicitudes_atleta WHERE competition_id = $1
+				AND tipo = 'autorizacion' AND match_atleta_id = $2 AND estado = 'rechazada' AND id <> $3 ORDER BY created_at DESC LIMIT 10`, cid, *sol.MatchAtletaID, sol.ID)
+			if err == nil {
+				d.Anteriores, _ = pgx.CollectRows(rows, func(r pgx.CollectableRow) (AutorizacionAnterior, error) {
+					var a AutorizacionAnterior
+					err := r.Scan(&a.Fecha, &a.Motivo)
+					return a, err
+				})
+			}
+		}
 	}
 	// The consents, in the order of the form. A «cambio_perfil» request carries no boxes of its own (the athlete
 	// signed them in their alta): the panel shows the changes, not the proofs.

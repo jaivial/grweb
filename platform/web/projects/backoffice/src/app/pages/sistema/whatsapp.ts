@@ -225,19 +225,19 @@ type Dialogo = 'desconectar' | null;
             } @else {
               <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
                 <h2 class="text-ui-h5">Avisos de solicitudes de atleta</h2>
-                <p class="mt-1 text-body-s text-text-tertiary">Cuando entra una solicitud nueva: un WhatsApp al atleta (si consintió) y uno por cada teléfono de organizador. Los dos mensajes usan plantillas distintas y quedan en auditoría.</p>
+                <p class="mt-1 text-body-s text-text-tertiary">Cuando entra una solicitud nueva: un WhatsApp al atleta (si consintió) y el aviso a organizadores, que va al grupo elegido abajo o, si no hay grupo, uno por cada teléfono de organizador. Los dos mensajes usan plantillas distintas y quedan en auditoría.</p>
                 <div class="mt-5 flex items-center justify-between gap-3 rounded-md border border-line-subtle bg-bg-surface px-4 py-3">
                   <span class="min-w-0"><span class="block text-label-s">WhatsApp al atleta</span><span class="block text-body-xs text-text-tertiary">Confirmación de solicitud recibida. Solo si el atleta aceptó recibir avisos por WhatsApp.</span></span>
                   <bo-toggle [(value)]="alAtleta" label="WhatsApp al atleta" (changed)="guardar()" />
                 </div>
                 <div class="mt-3 flex items-center justify-between gap-3 rounded-md border border-line-subtle bg-bg-surface px-4 py-3">
-                  <span class="min-w-0"><span class="block text-label-s">WhatsApp a organizadores</span><span class="block text-body-xs text-text-tertiary">Un mensaje por cada teléfono de la lista, con la foto de la solicitud.</span></span>
+                  <span class="min-w-0"><span class="block text-label-s">WhatsApp a organizadores</span><span class="block text-body-xs text-text-tertiary">Con grupo elegido, un solo mensaje al grupo; sin grupo, uno por cada teléfono de la lista, con la foto de la solicitud.</span></span>
                   <bo-toggle [(value)]="aOrganizadores" label="WhatsApp a organizadores" (changed)="guardar()" />
                 </div>
                 @let av = avisos()!;
                 <div class="mt-3 rounded-md border border-line-subtle bg-bg-surface px-4 py-3">
                   <gr-field label="Grupo de WhatsApp para avisos de solicitudes" for="gr-whatsapp-grupo"
-                    [hint]="grupos() === null ? 'No se han podido leer los grupos del número vinculado. Cada nueva solicitud se avisa también en este grupo con el enlace para revisarla.' : 'Cada nueva solicitud se avisa también en este grupo con el enlace para revisarla.'">
+                    [hint]="grupos() === null ? 'No se han podido leer los grupos del número vinculado. Cada nueva solicitud se avisa en este grupo con el enlace para revisarla, en lugar de a cada teléfono de organizador.' : 'Cada nueva solicitud se avisa en este grupo con el enlace para revisarla, en lugar de a cada teléfono de organizador.'">
                     <gr-select tipo="campo" id="gr-whatsapp-grupo" [ngModel]="av.grupoId ?? ''" (ngModelChange)="elegirGrupo($event)" [disabled]="ocupado()">
                       <option value="">Ninguno</option>
                       @for (g of grupos() ?? []; track g.id) { <option [value]="g.id">{{ g.nombre }} · {{ g.miembros }} {{ g.miembros === 1 ? 'miembro' : 'miembros' }}</option> }

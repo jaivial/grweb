@@ -120,6 +120,8 @@ export interface SolicitudDetalle extends SolicitudItem {
   atletaEmail?: string;
   /** tipo autorizacion: the guardian's signed form uploaded from the public link (Bunny URL). */
   autorizacionUrl?: string;
+  /** tipo autorizacion: earlier rejected attempts of the same athlete (newest first). */
+  anteriores?: { fecha: string; motivo: string }[];
   motivoRechazo: string;
   revisadoAt: string;
   revisadoPor: string;

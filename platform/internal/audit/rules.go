@@ -517,6 +517,8 @@ func resumenSolicitudActualizada(d map[string]any) string {
 		return "borró una solicitud de atleta rechazada"
 	case "enlazada":
 		return "enlazó una solicitud de atleta con su ficha"
+	case "ampliada":
+		return "añadió cambios a su cambio de perfil pendiente"
 	}
 	switch str(d["estado"]) {
 	case "revision":

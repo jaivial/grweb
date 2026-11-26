@@ -115,7 +115,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
     </div>
 
     <bo-sheet title="Filtrar solicitudes" [(open)]="filtros" [filtered]="nFiltros() > 0" (reset)="limpiar()"
-      [resultLabel]="'Ver ' + visibles().length + (visibles().length === 1 ? ' solicitud' : ' solicitudes')">
+      [resultLabel]="'Ver ' + resultados() + (resultados() === 1 ? ' solicitud' : ' solicitudes')">
       <div class="flex flex-col gap-2">
         <span class="text-label-s text-text-primary" id="sol-estado">Estado</span>
         <div class="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="sol-estado">
@@ -223,7 +223,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
               <dl class="mt-2 flex flex-col">
                 <div class="flex items-start justify-between gap-3 border-b border-line-subtle py-2">
                   <dt class="w-28 shrink-0 text-body-xs text-text-tertiary">Nombre</dt>
-                  <dd class="min-w-0 flex-1 text-body-s">{{ nombreCompleto(d) }}@if (d.edad) { · {{ d.edad }} años }</dd>
+                  <dd class="min-w-0 flex-1 text-body-s">{{ nombreCompleto(d) }} · {{ d.fechaNacimiento ? d.edad + ' años' : 'sin fecha de nacimiento' }}</dd>
                 </div>
                 <div class="flex items-start justify-between gap-3 border-b border-line-subtle py-2">
                   <dt class="w-28 shrink-0 text-body-xs text-text-tertiary">Email</dt>
@@ -238,6 +238,19 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
                 <a class="mt-2 inline-flex h-11 items-center gap-1 text-label-s text-accent-text" [routerLink]="['/', comps.current()?.slug, 'atletas', d.atletaId]">Ver ficha del atleta <gr-icon name="arrow-right" [size]="14" /></a>
               }
             </section>
+            @if (d.anteriores?.length) {
+              <section>
+                <h3 class="text-label-xs text-text-muted uppercase">Intentos anteriores rechazados</h3>
+                <ul class="mt-2 flex flex-col">
+                  @for (x of d.anteriores; track $index) {
+                    <li class="flex flex-col gap-0.5 border-b border-line-subtle py-2">
+                      <span class="text-mono-xs text-text-tertiary">{{ fechaHora(x.fecha) }}</span>
+                      <span class="text-body-s">«{{ x.motivo || 'sin motivo' }}»</span>
+                    </li>
+                  }
+                </ul>
+              </section>
+            }
           }
 
           @if (esCambio()) {
@@ -668,6 +681,8 @@ export class SolicitudesPage {
     });
   });
   protected readonly total = computed(() => this.lista()?.total ?? 0);
+  /** Lo que da el filtro entero (todas las páginas); el de «recibida» filtra solo la página cargada. */
+  protected readonly resultados = computed(() => (this.fRecibida() ? this.visibles().length : this.total()));
   protected readonly paginas = computed(() => Math.max(1, Math.ceil(this.total() / Math.max(1, this.por()))));
   protected readonly desde = computed(() => (this.visibles().length ? (this.pagina() - 1) * this.por() + 1 : 0));
   protected readonly hasta = computed(() => Math.min(this.pagina() * this.por(), (this.pagina() - 1) * this.por() + this.visibles().length));
@@ -1089,7 +1104,7 @@ export class SolicitudesPage {
     return 'terminos';
   }
 
-  private fechaHora(iso: string): string {
+  protected fechaHora(iso: string): string {
     const d = new Date(iso);
     const p = new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).formatToParts(d);
     const v = (t: string) => p.find((x) => x.type === t)?.value ?? '';

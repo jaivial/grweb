@@ -28,6 +28,8 @@ interface PerfilEditar {
   opciones: PruebaOpcion[];
   esMenor: boolean;
   pendiente?: CambioPendiente;
+  /** La autorización firmada del tutor ya está: el aviso de menor sobra. */
+  autorizada?: boolean;
 }
 /** Respuesta del envío: lo aplicado al momento y lo que queda para revisión (null si nada). */
 interface EnvioOut {
@@ -86,7 +88,7 @@ const api = '/api/area-atleta/perfil-editar';
           <p class="text-body-s text-text-secondary">{{ t().intro }}</p>
 
           @if (resumen().length) {
-            <div class="rounded-md border border-accent bg-accent/8 p-4" role="alert">
+            <div id="pe-resumen" class="scroll-mt-24 rounded-md border border-accent bg-accent/8 p-4" role="alert">
               <p class="flex items-center gap-2 text-label-s"><gr-icon name="circle-alert" [size]="18" class="text-accent-text" />{{ t().revisa(resumen().length) }}</p>
               <ul class="mt-2 flex flex-col gap-1 text-body-s text-text-secondary">
                 @for (e of resumen(); track e.campo) { <li>• {{ e.label }}: {{ e.msg }}</li> }
@@ -126,7 +128,7 @@ const api = '/api/area-atleta/perfil-editar';
             <gr-field [label]="t().nacimiento" for="pe-nacimiento" [hint]="t().fechaAyuda" [error]="err()['fechaNacimiento'] ?? null">
               <input grInput id="pe-nacimiento" name="fechaNacimiento" inputmode="numeric" autocomplete="bday" [placeholder]="t().fechaPh" [value]="fechaTexto" (input)="fechaCambia($any($event.target))" />
             </gr-field>
-            @if (esMenor()) {
+            @if (esMenor() && !datos()?.autorizada) {
               <p class="flex items-start gap-3 rounded-md border border-warning/40 bg-warning/8 p-4 text-body-s text-text-secondary"><gr-icon name="clock" [size]="18" class="mt-0.5 shrink-0 text-warning" />{{ t().menor }}</p>
             }
           </fieldset>
@@ -369,7 +371,9 @@ export class AreaPerfilEditar {
   }
 
   private validar(): Record<string, string> {
-    return validarPerfil(this.d, this.t().v, { fechaTexto: this.fechaTexto, esMenor: this.esMenor() });
+    // Sin fecha guardada (subjúnior sin fecha) puede seguir sin ella; si la escribe, se valida igual.
+    const fechaOpcional = !this.datos()?.datos.fechaNacimiento;
+    return validarPerfil(this.d, this.t().v, { fechaTexto: this.fechaTexto, esMenor: this.esMenor(), fechaOpcional });
   }
 
   /** Envía el cambio: lo que no necesita revisión se aplica ya; el resto queda pendiente. */
@@ -382,7 +386,10 @@ export class AreaPerfilEditar {
     this.intentado = true;
     const e = this.validar();
     this.err.set(e);
-    if (Object.keys(e).length) return;
+    if (Object.keys(e).length) {
+      this.irAlError();
+      return;
+    }
     this.enviando.set(true);
     const numero = (v: string | number) => {
       const s = String(v ?? '').trim();
@@ -411,6 +418,18 @@ export class AreaPerfilEditar {
     } finally {
       this.enviando.set(false);
     }
+  }
+
+  /** Validación fallida: lleva al resumen y pone el foco en el primer campo con error (si no, el botón parece no hacer nada). */
+  private irAlError(): void {
+    setTimeout(() => {
+      document.getElementById('pe-resumen')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      const campo = this.resumen()[0]?.campo;
+      const sel = campo === 'sexo' ? '[aria-labelledby="pe-l-sexo"] button' : `[name="${campo}"]`;
+      const host = campo ? document.querySelector<HTMLElement>(`gr-area-perfil-editar ${sel}`) : null;
+      const el = host?.matches('input, textarea, button') ? host : host?.querySelector<HTMLElement>('input, textarea, button');
+      el?.focus({ preventScroll: true });
+    }, 50);
   }
 
   /** Cancela el cambio pendiente: nada se había aplicado. */

@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -156,6 +157,8 @@ type PerfilEditar struct {
 	Datos     DatoPerfil             `json:"datos"`
 	Opciones  []PruebaAlta           `json:"opciones" doc:"AEP-2 y AEP-3, con su fecha y sus plazas"`
 	Pendiente *CambioPerfilPendiente `json:"pendiente,omitempty"`
+	// Autorizada: the signed authorisation of the guardian is on file (the minor notice is not needed).
+	Autorizada bool `json:"autorizada"`
 }
 
 // datoDeRow is the current data of the athlete.
@@ -443,7 +446,7 @@ func (s *Svc) registerPerfilCambio() {
 			if err != nil {
 				return nil, err
 			}
-			p := PerfilEditar{Datos: datoDeRow(r)}
+			p := PerfilEditar{Datos: datoDeRow(r), Autorizada: r.AutorizacionURL != ""}
 			// The same options (and places) the public form offers: the athlete moves from one competition to the other.
 			if c, err := s.comps.ByID(ctx, r.CompetitionID); err == nil {
 				p.Opciones, _ = s.pruebas(ctx, c)
@@ -501,7 +504,12 @@ func (s *Svc) creaCambioPerfil(ctx context.Context, r row, b DatoPerfil) (*Cambi
 		FechaNacimiento: b.FechaNacimiento, Prueba: b.Prueba, Club: b.Club, Ciudad: b.Ciudad, Entrenador: b.Entrenador,
 		Frase: b.Frase, Bio: b.Bio, Instagram: b.Instagram, MarcaSQ: b.MarcaSQ, MarcaBP: b.MarcaBP, MarcaDL: b.MarcaDL,
 	})
-	if errs := s.validaDatos(d); len(errs) > 0 {
+	errs := s.validaDatos(d)
+	if r.FechaNacimiento == nil && d.FechaNacimiento == "" {
+		// The birth date stays optional for an athlete who never gave one (the rest of the profile can still change).
+		errs = slices.DeleteFunc(errs, func(e *huma.ErrorDetail) bool { return e.Location == "body.fechaNacimiento" })
+	}
+	if len(errs) > 0 {
 		return nil, validacion("Revisa los campos marcados.", errs...)
 	}
 	propuesto := datoDeAlta(d)
@@ -599,7 +607,7 @@ func datoDeSolicitud(sol solicitud) DatoPerfil {
 }
 
 // guardaCambioPerfil merges the reviewed changes into the open request of the athlete (the fields the caller owns are
-// replaced, the rest kept) and notifies the team only when the request is created or changes. datos are the values
+// replaced, the rest kept, in place) and notifies the team only when the request is created. datos are the values
 // stored in the request (nil keeps those of the open request). It returns the pending request (nil when nothing is
 // left to review) and the URL of a pending photo that is no longer wanted (to remove from the CDN after the commit).
 func (s *Svc) guardaCambioPerfil(ctx context.Context, tx pgx.Tx, r row, datos *DatoPerfil, nuevos cambiosPerfil, propia func(string) bool,
@@ -623,13 +631,12 @@ func (s *Svc) guardaCambioPerfil(ctx context.Context, tx pgx.Tx, r row, datos *D
 		if mismosCambios(*antes, c) {
 			return &CambioPerfilPendiente{ID: abierta.ID, EnviadaAt: abierta.CreatedAt, Cambios: camposCambio(c)}, "", nil
 		}
-		// One open request: the pending one is replaced (never two).
-		if _, err := tx.Exec(ctx, `DELETE FROM solicitudes_atleta WHERE competition_id = $1 AND id = $2`, cid, abierta.ID); err != nil {
-			return nil, "", err
-		}
 	}
 	if len(c.Claves) == 0 {
 		if abierta != nil {
+			if _, err := tx.Exec(ctx, `DELETE FROM solicitudes_atleta WHERE competition_id = $1 AND id = $2`, cid, abierta.ID); err != nil {
+				return nil, "", err
+			}
 			if err := events.Enqueue(ctx, tx, events.New(ctx, "athletes.solicitud_actualizada",
 				map[string]any{"id": abierta.ID, "accion": "cancelada", "estado": "cancelada", "tipo": "cambio_perfil"},
 				events.Competition(cid.String()), events.ForPermission("atletas.editar"))); err != nil {
@@ -645,6 +652,24 @@ func (s *Svc) guardaCambioPerfil(ctx context.Context, tx pgx.Tx, r row, datos *D
 	case abierta != nil:
 		v = datoDeSolicitud(*abierta)
 	}
+	snap, _ := json.Marshal(c)
+	// One open request: a new submission updates the pending one in place (same id, so the links the team already
+	// got keep working) and the team is not notified again.
+	if abierta != nil {
+		if _, err := tx.Exec(ctx, `UPDATE solicitudes_atleta SET cambios = $3, nombre = $4, apellidos = $5, email = $6, telefono = $7, sexo = $8,
+			fecha_nacimiento = $9, club = $10, ciudad = $11, frase = $12, bio = $13, instagram = $14, entrenador = $15, marca_sq = $16,
+			marca_bp = $17, marca_dl = $18, version = version + 1, updated_at = now() WHERE competition_id = $1 AND id = $2`,
+			cid, abierta.ID, string(snap), v.Nombre, v.Apellidos, v.Email, v.Telefono, v.Sexo, fecha(v.FechaNacimiento), v.Club, v.Ciudad,
+			v.Frase, v.Bio, v.Instagram, v.Entrenador, v.MarcaSQ, v.MarcaBP, v.MarcaDL); err != nil {
+			return nil, "", err
+		}
+		if err := events.Enqueue(ctx, tx, events.New(ctx, "athletes.solicitud_actualizada",
+			map[string]any{"id": abierta.ID, "accion": "ampliada", "estado": abierta.Estado, "tipo": "cambio_perfil"},
+			events.Competition(cid.String()), events.ForPermission("atletas.editar"))); err != nil {
+			return nil, "", err
+		}
+		return &CambioPerfilPendiente{ID: abierta.ID, EnviadaAt: abierta.CreatedAt, Cambios: camposCambio(c)}, borrar, nil
+	}
 	// The boxes were signed in the alta: its proof travels with the request (with its own timestamp) so the notices
 	// can use the WhatsApp consent without asking for it again.
 	var cons string
@@ -657,7 +682,6 @@ func (s *Svc) guardaCambioPerfil(ctx context.Context, tx pgx.Tx, r row, datos *D
 	if strings.TrimSpace(cons) == "" {
 		cons = "{}"
 	}
-	snap, _ := json.Marshal(c)
 	id := newID()
 	// prueba stays empty on purpose: the change request does not hold a place of the event (the destination
 	// competition travels in the snapshot and the place moves when it is approved).

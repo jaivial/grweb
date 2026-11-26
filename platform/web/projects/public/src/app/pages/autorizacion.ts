@@ -32,12 +32,13 @@ const T = {
     explica: (c: string, a: string) => `Para que ${a} pueda participar en la ${c} y para usar sus datos e imagen (ficha en la web, horarios, resultados y directo), necesitamos una autorización firmada por su madre, padre o tutor legal.`,
     pasos: 'Cómo hacerlo',
     paso1: 'Descarga el formulario. Ya lleva los datos del atleta.',
-    paso2: 'Rellena tus datos, la fecha y firma.',
+    paso2: 'Pide a tu madre, padre o tutor que rellene sus datos, ponga la fecha y firme.',
     paso3: 'Haz una foto o escanéalo y súbelo aquí.',
     descargar: 'Descargar el formulario',
     formAlt: 'Vista previa del formulario de autorización',
     subirTitulo: 'Sube la autorización firmada',
     arrastra: 'Arrastra aquí la foto o el PDF',
+    toca: 'Toca para elegir un archivo',
     formatos: 'JPG, PNG, WebP o PDF · máx. 10 MB',
     elegir: 'Elegir archivo',
     subiendo: (f: string) => `Subiendo ${f}…`,
@@ -66,12 +67,13 @@ const T = {
     explica: (c: string, a: string) => `For ${a} to take part in ${c} and for us to use their data and image (athlete page, schedules, results and live stream), we need an authorisation signed by their parent or legal guardian.`,
     pasos: 'How to do it',
     paso1: 'Download the form. It already has the athlete’s details.',
-    paso2: 'Fill in your details, the date and sign it.',
+    paso2: 'Ask your parent or guardian to fill in their details, add the date and sign it.',
     paso3: 'Take a photo or scan it and upload it here.',
     descargar: 'Download the form',
     formAlt: 'Preview of the authorisation form',
     subirTitulo: 'Upload the signed authorisation',
     arrastra: 'Drag the photo or PDF here',
+    toca: 'Tap to choose a file',
     formatos: 'JPG, PNG, WebP or PDF · max. 10 MB',
     elegir: 'Choose file',
     subiendo: (f: string) => `Uploading ${f}…`,
@@ -135,8 +137,11 @@ const T = {
           @if (d) {
             @if (vista() === 'rechazada') {
               <gr-alert class="mt-6 block" tone="warning" [title]="t().rechazadaTitulo">
-                @if (d.motivo) { <strong>{{ t().motivo }}</strong> {{ d.motivo }} }
-                {{ t().rechazadaTxt }}
+                @if (d.motivo) {
+                  <strong>{{ t().motivo }}</strong>
+                  <blockquote class="my-2 border-l-2 border-warning/60 pl-3 italic">«{{ d.motivo }}»</blockquote>
+                }
+                <p>{{ t().rechazadaTxt }}</p>
               </gr-alert>
             }
             <p class="mt-6 text-body-l text-text-primary">{{ t().hola(d.nombre) }}</p>
@@ -151,13 +156,13 @@ const T = {
                   }
                 </ol>
                 @if (d.formularioUrl) {
-                  <a [href]="d.formularioUrl" target="_blank" rel="noopener" download class="block w-32 shrink-0 self-center overflow-hidden rounded-md border border-line-strong bg-white sm:self-start" [attr.aria-label]="t().descargar">
+                  <a [href]="d.formularioUrl" target="_blank" rel="noopener" download (click)="descargar($event, d)" class="block w-32 shrink-0 self-center overflow-hidden rounded-md border border-line-strong bg-white sm:self-start" [attr.aria-label]="t().descargar">
                     <img [src]="d.formularioUrl" [alt]="t().formAlt" class="aspect-[1/1.414] w-full object-cover object-top" loading="lazy" />
                   </a>
                 }
               </div>
               @if (d.formularioUrl) {
-                <a grButton class="mt-5" icon="download" [href]="d.formularioUrl" target="_blank" rel="noopener" download>{{ t().descargar }}</a>
+                <a grButton class="mt-5" icon="download" [href]="d.formularioUrl" target="_blank" rel="noopener" download (click)="descargar($event, d)">{{ t().descargar }}</a>
               }
             </section>
 
@@ -172,7 +177,7 @@ const T = {
                 <div class="mt-4 flex flex-col items-center gap-2 rounded-md border border-dashed px-4 py-8 text-center" [class]="arrastrando() ? 'border-accent bg-accent/5' : errorSubida() ? 'border-accent/70' : 'border-line-strong'"
                   (dragover)="$event.preventDefault(); arrastrando.set(true)" (dragleave)="arrastrando.set(false)" (drop)="soltar($event)">
                   <gr-icon name="upload" [size]="20" />
-                  <p class="text-label-m">{{ t().arrastra }}</p>
+                  <p class="text-label-m">{{ tactil ? t().toca : t().arrastra }}</p>
                   <p class="text-body-xs text-text-tertiary" id="aut-formatos">{{ t().formatos }}</p>
                   <button grButton type="button" variant="primary" class="mt-1 min-h-11" aria-describedby="aut-formatos" (click)="input.click()">{{ t().elegir }}</button>
                 </div>
@@ -200,11 +205,35 @@ export class AutorizacionPage {
   protected readonly errorSubida = signal('');
   protected readonly arrastrando = signal(false);
   protected readonly anuncio = signal('');
+  /** Pantalla táctil: no se puede arrastrar, se invita a tocar. */
+  protected tactil = false;
 
   constructor() {
     inject(Seo).set({ title: this.t().h1 + ' · GRS Cup', description: this.t().seoDesc, path: '/autorizacion', robots: 'noindex' });
     if (!isPlatformBrowser(inject(PLATFORM_ID))) return;
+    this.tactil = matchMedia('(pointer: coarse)').matches;
     void this.cargar();
+  }
+
+  /** El PNG está en otro origen (Bunny) y ahí el navegador ignora «download»: se baja como blob con nombre propio. Si falla, se abre el enlace. */
+  protected async descargar(ev: MouseEvent, d: Autorizacion): Promise<void> {
+    if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey) return;
+    ev.preventDefault();
+    const nombre = 'autorizacion-' + (d.competicion.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'formulario') + '.png';
+    try {
+      const r = await fetch(d.formularioUrl, { mode: 'cors' });
+      if (!r.ok) throw new Error(String(r.status));
+      const url = URL.createObjectURL(await r.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = nombre;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      window.open(d.formularioUrl, '_blank', 'noopener');
+    }
   }
 
   protected async cargar(): Promise<void> {
