@@ -21,6 +21,9 @@ import { BoToggle } from '../../shared/ui';
           </div>
           @if (cambio()) {
             <p class="mt-3 text-body-s text-text-secondary">{{ destino() }}. Los cambios se aplican en cuanto confirmes (solo esos campos) y la solicitud queda en el historial del atleta y en la auditoría.</p>
+            @if (cambiaEmail()) {
+              <p class="mt-2 flex items-start gap-2 rounded-md border border-warning/40 bg-warning/8 p-3 text-body-s text-text-secondary"><gr-icon name="circle-alert" [size]="18" class="mt-0.5 shrink-0 text-warning" />El email cambia: desde ese momento entra al área de atleta con el nuevo. Comprueba que esté bien escrito.</p>
+            }
           } @else {
             <p class="mt-3 text-body-s text-text-secondary">{{ destino() }}. El perfil queda privado: no aparece en /atletas hasta que el atleta active su publicación desde el área de atleta{{ imagenAceptada() ? '.' : ' (sin consentimiento de imagen, la foto no se publica).' }}</p>
           }
@@ -103,6 +106,8 @@ export class SolicitudesDialogo {
   readonly imagenAceptada = input(false);
   /** A profile-change request: nothing is created, its snapshot is applied on approval. */
   readonly cambio = input(false);
+  /** The approval moves the athlete's email (also their login address). */
+  readonly cambiaEmail = input(false);
   readonly destino = input('');
   readonly ocupado = input(false);
   readonly avisarEmail = model(true);

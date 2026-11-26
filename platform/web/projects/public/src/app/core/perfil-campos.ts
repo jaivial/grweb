@@ -59,9 +59,9 @@ export interface TextosPerfil {
 
 /** Marcas del formulario, en el orden en que se leen. */
 export const MARCAS_PERFIL = [
-  { k: 'marcaSQ' as const, corto: 'SQ', nombre: 'sentadilla' },
-  { k: 'marcaBP' as const, corto: 'BP', nombre: 'press de banca' },
-  { k: 'marcaDL' as const, corto: 'DL', nombre: 'peso muerto' },
+  { k: 'marcaSQ' as const, corto: 'SQ' },
+  { k: 'marcaBP' as const, corto: 'BP' },
+  { k: 'marcaDL' as const, corto: 'DL' },
 ];
 
 /** A real letter (not a control, format or blank-rendering filler). */

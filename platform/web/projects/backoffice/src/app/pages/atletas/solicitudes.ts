@@ -203,21 +203,24 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
             @if (d.atleta) {
               <p class="text-body-s text-text-secondary">Atleta: <strong class="text-text-primary">{{ d.atleta.nombre }}</strong>@if (d.atleta.licencia) { · {{ d.atleta.licencia }} }@if (d.atleta.club) { · {{ d.atleta.club }} }. Solo se aplican los campos que aparecen abajo: el resto de su ficha no se toca.</p>
             }
-            <section id="cmp" tabindex="-1" class="scroll-mt-20 outline-none">
+            @if (cambiaEmail() && d.estado !== 'aprobada' && d.estado !== 'rechazada') {
+              <gr-alert tone="warning" title="Cambia el email de acceso">Al aprobar, {{ d.atleta?.nombre || 'el atleta' }} entrará al área de atleta y recibirá los avisos con el email nuevo. Revisa que esté bien escrito: este cambio también se envía al email actual, así que un error deja su cuenta sin acceso a los avisos. Si no lo tienes claro, recházalo con el motivo.</gr-alert>
+            }
+            <section>
               <h3 class="text-label-xs text-text-muted uppercase">Cambios solicitados · {{ d.cambios.length }} {{ d.cambios.length === 1 ? 'campo' : 'campos' }}</h3>
               @if (!d.cambios.length) {
                 <p class="mt-2 text-body-s text-text-tertiary">La solicitud no trae cambios.</p>
               } @else {
                 <!-- Móvil: dos pestañas, antes o después -->
                 <div class="mt-3 flex gap-2 sm:hidden" role="tablist" aria-label="Comparación de los cambios">
-                  <button type="button" role="tab" [attr.aria-selected]="lado() === 'antes'" (click)="lado.set('antes')"
+                  <button type="button" role="tab" id="cmp-tab-antes" aria-controls="cmp-panel" [attr.aria-selected]="lado() === 'antes'" (click)="lado.set('antes')"
                     class="flex h-11 flex-1 items-center justify-center rounded-sm border text-label-s"
                     [class]="lado() === 'antes' ? 'border-accent-text bg-accent-deep/20 text-accent-text' : 'border-line-strong text-text-secondary'">Antes</button>
-                  <button type="button" role="tab" [attr.aria-selected]="lado() === 'despues'" (click)="lado.set('despues')"
+                  <button type="button" role="tab" id="cmp-tab-despues" aria-controls="cmp-panel" [attr.aria-selected]="lado() === 'despues'" (click)="lado.set('despues')"
                     class="flex h-11 flex-1 items-center justify-center rounded-sm border text-label-s"
                     [class]="lado() === 'despues' ? 'border-accent-text bg-accent-deep/20 text-accent-text' : 'border-line-strong text-text-secondary'">Después</button>
                 </div>
-                <div class="mt-3 flex flex-col gap-2 sm:hidden">
+                <div id="cmp-panel" role="tabpanel" [attr.aria-labelledby]="lado() === 'antes' ? 'cmp-tab-antes' : 'cmp-tab-despues'" class="mt-3 flex flex-col gap-2 sm:hidden">
                   @for (c of d.cambios; track c.clave) {
                     <div class="rounded-md border border-line-subtle bg-bg-raised px-3 py-2">
                       <p class="text-label-xs text-text-tertiary uppercase">{{ c.campo }}</p>
@@ -494,7 +497,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
     }
 
     @if (dialogo(); as dl) {
-      <bo-solicitudes-dialogo [tipo]="dl" [nombre]="detalle() ? nombreCompleto(detalle()!) : ''" [imagenAceptada]="imagenAceptada()" [cambio]="esCambio()"
+      <bo-solicitudes-dialogo [tipo]="dl" [nombre]="detalle() ? nombreCompleto(detalle()!) : ''" [imagenAceptada]="imagenAceptada()" [cambio]="esCambio()" [cambiaEmail]="cambiaEmail()"
         [destino]="destinoAprueba().texto" [ocupado]="ocupado()" [(avisarEmail)]="avisarEmail" [(avisarWhatsApp)]="avisarWhatsApp"
         (cerrar)="dialogo.set(null)" (aprobar)="aprobar()" (rechazar)="rechazar($event)" (borrar)="borrar()" />
     }
@@ -615,7 +618,9 @@ export class SolicitudesPage {
     return !!d && d.esMenor && !d.autorizacion;
   });
   /** The open request is a profile change from the athlete area (wider panel, before | after). */
-  protected readonly esCambio = computed(() => this.detalle()?.tipo === 'cambio_perfil');
+  protected readonly esCambio = computed(() => (this.detalle()?.tipo ?? this.tipoPendiente()) === 'cambio_perfil');
+  /** The change moves the athlete's email: it is also the address they log in with. */
+  protected readonly cambiaEmail = computed(() => (this.detalle()?.cambios ?? []).some((c) => c.clave === 'email'));
 
   private t: ReturnType<typeof setTimeout> | undefined;
   private tEnlace: ReturnType<typeof setTimeout> | undefined;
@@ -810,7 +815,7 @@ export class SolicitudesPage {
   protected async revisar(s: { id: string }, push = true): Promise<void> {
     if (push && this.idDeUrl(this.location.path()) !== s.id) this.location.go(`${this.urlLista()}/${s.id}`);
     this.abierto.set(true);
-    this.pendienteId = s.id;
+    this.pendienteId.set(s.id);
     this.nuevas.update((n) => {
       const c = new Set(n);
       c.delete(s.id);
@@ -832,7 +837,7 @@ export class SolicitudesPage {
   protected async recargarDetalle(): Promise<void> {
     const cid = this.cid();
     const d = this.detalle();
-    const id = d?.id ?? this.pendienteId;
+    const id = d?.id ?? this.pendienteId();
     if (!cid || !id) return;
     this.cargandoDetalle.set(true);
     try {
@@ -875,7 +880,12 @@ export class SolicitudesPage {
     if (this.abierto()) this.cerrar();
   }
 
-  private pendienteId = '';
+  private readonly pendienteId = signal('');
+  /** The type of the open request is known from the list before the detail arrives (the panel is sized on load). */
+  private readonly tipoPendiente = computed(() => {
+    const id = this.pendienteId();
+    return id ? this.lista()?.items.find((s) => s.id === id)?.tipo : undefined;
+  });
 
   protected cerrar(push = true): void {
     if (push && this.idDeUrl(this.location.path())) this.location.go(this.urlLista());
@@ -1029,7 +1039,7 @@ export class SolicitudesPage {
       });
       this.dialogo.set(null);
       if (d.tipo === 'cambio_perfil') {
-        this.toasts.success('Cambios aplicados', this.avisarEmail() ? `Le hemos escrito a ${d.atletaEmail || d.email}.` : 'Su ficha ya tiene los datos nuevos.');
+        this.toasts.success('Cambios aplicados', this.avisarEmail() ? `Le hemos escrito a ${d.atleta?.email || d.email}.` : 'Su ficha ya tiene los datos nuevos.');
       } else {
         this.toasts.success(res.publica ? 'Aprobada y publicada' : 'Aprobada · ficha privada', d.atletaEmail ? 'Enlazada al atleta que ya tenía este email: sin avisos.' : this.avisarEmail() ? `Le hemos escrito a ${d.email}.` : '');
       }
@@ -1245,8 +1255,8 @@ export class SolicitudesPage {
         return `"${safe.replace(/"/g, '""')}"`;
       };
       const filas = [
-        ['Nombre', 'Email', 'Club', 'Edad', 'Coincidencia', 'Estado', 'Recibida'],
-        ...items.map((s) => [this.nombreCompleto(s), s.email, s.club, String(s.edad), MATCH[s.match], s.estado, s.createdAt]),
+        ['Nombre', 'Email', 'Club', 'Edad', 'Tipo', 'Coincidencia', 'Estado', 'Recibida'],
+        ...items.map((s) => [this.nombreCompleto(s), s.email, s.club, String(s.edad), tipoTxt(s.tipo), MATCH[s.match], s.estado, s.createdAt]),
       ];
       const blob = new Blob(['﻿' + filas.map((f) => f.map(esc).join(';')).join('\n')], { type: 'text/csv;charset=utf-8' });
       const a = document.createElement('a');

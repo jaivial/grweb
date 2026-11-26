@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, PLATFORM_ID, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, PLATFORM_ID, computed, inject, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { isPlatformBrowser } from '@angular/common';
 import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, GrTelefono } from '@grcup/ui';
@@ -212,6 +212,8 @@ export class AreaPerfilEditar {
   protected readonly maxBio = MAX_BIO;
   protected readonly maxMarca = MAX_MARCA;
 
+  /** The session expired: the page shows the access screen instead of a form that cannot be sent. */
+  readonly sesionCaducada = output<void>();
   protected readonly cargando = signal(true);
   protected readonly datos = signal<PerfilEditar | null>(null);
   protected readonly pendiente = signal<CambioPendiente | null>(null);
@@ -267,6 +269,7 @@ export class AreaPerfilEditar {
       this.pendiente.set(p.pendiente ?? null);
       this.rellena(p);
     } catch (e) {
+      if (this.caducada(e)) return;
       this.datos.set(null);
       this.error.set(textoError(e, this.t().noCargar));
     } finally {
@@ -355,8 +358,18 @@ export class AreaPerfilEditar {
     }
   }
 
+  /** 401: the area session is gone — the page asks for a new link instead of showing «no se pudo cargar». */
+  private caducada(e: unknown): boolean {
+    if (e instanceof HttpErrorResponse && e.status === 401) {
+      this.sesionCaducada.emit();
+      return true;
+    }
+    return false;
+  }
+
   /** 409 con código (sin cambios, email en uso) se lee en el propio formulario. */
   private msg(e: unknown): string {
+    if (this.caducada(e)) return '';
     const code = e instanceof HttpErrorResponse ? (e.error?.code as string | undefined) : undefined;
     if (code === 'EMAIL_EN_USO') {
       this.err.update((x) => ({ ...x, email: this.t().emailEnUso }));

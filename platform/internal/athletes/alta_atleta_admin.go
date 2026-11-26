@@ -1218,13 +1218,19 @@ func (s *Svc) rechazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm, moti
 			para, tel = contactoActual(ctx, tx, sol)
 			plantilla, urlAviso = "atleta-cambio-perfil-rechazado", s.webURL+"/area-atleta"
 		}
+		vars := map[string]string{"nombre": sol.Nombre, "motivo": motivo}
+		if sol.Tipo == "cambio_perfil" {
+			vars["urlArea"] = urlAviso
+		} else {
+			vars["urlAlta"] = urlAviso
+		}
 		if avisarEmail {
-			if err := email(ctx, tx, cid, para, plantilla, map[string]string{"nombre": sol.Nombre, "motivo": motivo, "urlAlta": urlAviso, "urlArea": urlAviso}); err != nil {
+			if err := email(ctx, tx, cid, para, plantilla, vars); err != nil {
 				return err
 			}
 		}
 		if avisarWhatsApp && tel != "" && cons["whatsapp"].Aceptado {
-			if err := whatsapp(ctx, tx, cid, tel, false, plantilla, map[string]string{"nombre": sol.Nombre, "motivo": motivo, "urlAlta": urlAviso, "urlArea": urlAviso}, ""); err != nil {
+			if err := whatsapp(ctx, tx, cid, tel, false, plantilla, vars, ""); err != nil {
 				return err
 			}
 		}

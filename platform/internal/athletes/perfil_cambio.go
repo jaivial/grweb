@@ -89,7 +89,6 @@ type PerfilEditar struct {
 	Datos        DatoPerfil             `json:"datos"`
 	Prueba       string                 `json:"prueba" doc:"aep2, aep3 o vacío: se cambia en «Tu competición»"`
 	PruebaNombre string                 `json:"pruebaNombre"`
-	EsMenor      bool                   `json:"esMenor"`
 	Pendiente    *CambioPerfilPendiente `json:"pendiente,omitempty"`
 }
 
@@ -345,7 +344,7 @@ func (s *Svc) registerPerfilCambio() {
 			if err != nil {
 				return nil, err
 			}
-			p := PerfilEditar{Datos: datoDeRow(r), Prueba: r.Prueba, PruebaNombre: pruebaTexto(r.Prueba), EsMenor: r.menor(s.compDate(ctx, r.CompetitionID))}
+			p := PerfilEditar{Datos: datoDeRow(r), Prueba: r.Prueba, PruebaNombre: pruebaTexto(r.Prueba)}
 			if p.Pendiente, err = cambioPendiente(ctx, s.a.DB, r.CompetitionID, r.ID); err != nil {
 				return nil, err
 			}
@@ -547,6 +546,9 @@ func (s *Svc) apruebaCambioPerfil(ctx context.Context, cid, id uuid.UUID, ifm st
 		prev, err := getRow(ctx, tx, cid, destino)
 		if err != nil {
 			return err
+		}
+		if prev.Estado == "baja" {
+			return problem.Conflict("ATLETA_DE_BAJA", "Ese atleta está de baja: el cambio ya no se puede aplicar. Recházalo.")
 		}
 		c := leeCambios(sol)
 		next := datoDeRow(prev)

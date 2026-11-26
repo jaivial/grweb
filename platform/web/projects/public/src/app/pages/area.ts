@@ -578,7 +578,7 @@ const T = {
                 </div>
                 @if (error()) { <p class="mt-3 text-body-s text-accent-text" role="alert">{{ error() }}</p> }
                 <!-- «Editar mi perfil»: los datos del alta, enviados a revisión (nada cambia hasta que el equipo los aprueba) -->
-                <gr-area-perfil-editar class="mt-8" />
+                <gr-area-perfil-editar class="mt-8" (sesionCaducada)="vista.set('acceso')" />
               </div>
             }
           }

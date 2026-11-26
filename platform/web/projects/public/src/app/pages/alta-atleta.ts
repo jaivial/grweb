@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { mascaraFecha } from './fecha-mascara';
-import { MAX_BIO, MAX_FRASE, MAX_MARCA, esMenorDe, totalMarcas, validarPerfil } from '../core/perfil-campos';
+import { MARCAS_PERFIL, MAX_BIO, MAX_FRASE, MAX_MARCA, esMenorDe, totalMarcas, validarPerfil } from '../core/perfil-campos';
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -482,11 +482,8 @@ export class AltaAtletaPage {
   protected readonly maxFrase = MAX_FRASE;
   protected readonly maxBio = MAX_BIO;
   protected readonly maxMarca = MAX_MARCA;
-  protected readonly marcasCampos = [
-    { k: 'marcaSQ' as const, c: 'SQ', n: 'sentadilla' },
-    { k: 'marcaBP' as const, c: 'BP', n: 'press de banca' },
-    { k: 'marcaDL' as const, c: 'DL', n: 'peso muerto' },
-  ];
+  /** Las tres marcas (la misma lista que usa «Editar mi perfil»). */
+  protected readonly marcasCampos = MARCAS_PERFIL;
 
   protected readonly cerrada = computed(() => this.vista() === 'cerrada' || this.vista() === 'legal');
   /** La entradilla con «crea tu perfil de atleta» en negrita (Figma 75). */
