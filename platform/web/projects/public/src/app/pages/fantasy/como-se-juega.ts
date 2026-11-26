@@ -111,7 +111,7 @@ const T = {
         titulo: 'Clausulazo',
         puntos: [
           'Pagas la cláusula de un atleta con dueño y el dinero va al dueño anterior.',
-          `Máximo ${v.maxClausulazos} clausulazos por usuario en todo el evento; se cierran al empezar la última sesión del último día.`,
+          `Máximo ${v.maxClausulazos} clausulazos por usuario en todo el evento; se cierran el último día de competición (la hora exacta sale en el mercado).`,
           `Protección de ${v.proteccionMin} minutos tras cualquier fichaje o clausulazo.`,
           'Sin deuda: no se puede dejar el saldo en negativo.',
         ],
@@ -206,7 +206,7 @@ const T = {
         titulo: 'Clause buy-out',
         puntos: [
           "You pay the release clause of an owned athlete and the money goes to the previous owner.",
-          `Up to ${v.maxClausulazos} clause buy-outs per user for the whole event; they close when the last day's last session begins.`,
+          `Up to ${v.maxClausulazos} clause buy-outs per user for the whole event; they close on the last competition day (the exact time shows in the market).`,
           `${v.proteccionMin} minutes' protection after any signing or clause buy-out.`,
           'No debt: your balance can never go negative.',
         ],

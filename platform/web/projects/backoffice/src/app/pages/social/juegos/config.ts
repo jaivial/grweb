@@ -7,7 +7,7 @@ import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
 import { webPublica } from '../../../core/web';
 import { BoDatePicker, BoSheet } from '../../../shared/kit';
-import { BoPageHeader, errText } from '../../../shared/ui';
+import { BoPageHeader, BoToggle, errText } from '../../../shared/ui';
 import { SoCard, SoGrupo, SoGuardar, SoNumber, SoSkelFilas, diaCorto, num, rangoError } from '../ui';
 import { JuegosApi, type ConfigJuegos, type Jornada, type PuntosCfg } from './api';
 
@@ -33,7 +33,7 @@ const cfgPorDefecto: ConfigJuegos = {
   clausulaInicial: 200000, clausulaMin: 50000, clausulaMax: 5000000,
   pctValido: 5, pctNulo: -4, pctBlanqueo: -30, pctDemanda: 3, pctPuesto: [25, 15, 8],
   puntos: { intentos: 5, puesto: [3, 2.4, 1.8, 1.2, 0.6], pleno: 0.5, recordPersonal: 0.6, recordCompeticion: 1, total: 0.3, nulo: 0.3, pctClausula: 4 },
-  activo: true, version: 1, updatedPor: '',
+  activo: true, clausulazoCierreManual: false, clausulazoCierreHora: '', version: 1, updatedPor: '',
 };
 
 /**
@@ -44,7 +44,7 @@ const cfgPorDefecto: ConfigJuegos = {
  */
 @Component({
   selector: 'bo-juegos-config',
-  imports: [FormsModule, NgTemplateOutlet, RouterLink, BoDatePicker, BoPageHeader, BoSheet, GrAlert, GrButton, GrEmpty, GrIcon, GrIconButton, SoCard, SoGrupo, SoGuardar, SoNumber, SoSkelFilas],
+  imports: [FormsModule, NgTemplateOutlet, RouterLink, BoDatePicker, BoPageHeader, BoSheet, BoToggle, GrAlert, GrButton, GrEmpty, GrIcon, GrIconButton, SoCard, SoGrupo, SoGuardar, SoNumber, SoSkelFilas],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-[1280px] flex-col gap-6" [class.pb-24]="!sucio()" [class.pb-44]="sucio()">
@@ -153,6 +153,29 @@ const cfgPorDefecto: ConfigJuegos = {
           </div>
         </so-card>
 
+        <so-card titulo="Cierre de clausulazos" ayuda="GRS Fantasy es una partida de todo el evento: los clausulazos se cierran el último día">
+          <div class="flex flex-col gap-4">
+            <div class="flex items-center gap-4">
+              <div class="min-w-0 flex-1">
+                <p class="text-label-s">Elegir la hora a mano</p>
+                <p class="text-body-xs text-text-tertiary">{{ form().clausulazoCierreManual
+                  ? 'Se cierran el ' + ultimoDia() + ' a la hora que elijas (hora de Madrid).'
+                  : 'Se cierran al empezar la última sesión del horario del ' + ultimoDia() + '.' }}</p>
+              </div>
+              <bo-toggle [value]="form().clausulazoCierreManual" (changed)="set({ clausulazoCierreManual: $event })" label="Elegir la hora de cierre de los clausulazos a mano" [disabled]="!puede()" />
+            </div>
+            @if (form().clausulazoCierreManual) {
+              <div class="flex flex-wrap items-center gap-3">
+                <span class="text-body-s text-text-secondary">Cierre · {{ ultimoDia() }}</span>
+                <div class="w-[210px] max-w-full">
+                  <bo-date-picker tipo="time" placeholder="Elige la hora" aria-label="Hora de cierre de los clausulazos (24 h)"
+                    [disabled]="!puede()" [value]="form().clausulazoCierreHora" (valueChange)="set({ clausulazoCierreHora: $event })" />
+                </div>
+              </div>
+            }
+          </div>
+        </so-card>
+
         <so-card titulo="Nota fantasy (0–10)" ayuda="Nota de cada atleta = intentos + puesto + bonus − nulos · en décimas (5 = 0,5) · blanqueo = 0,0">
           @if (cambiosEn(puntosGrupos)) { <span cardActions class="inline-flex h-6 items-center rounded-2xs border border-warning/30 bg-warning/10 px-2 font-mono text-mono-xs text-warning">{{ cambiosEn(puntosGrupos) }} {{ cambiosEn(puntosGrupos) === 1 ? 'cambio' : 'cambios' }}</span> }
           <div class="grid grid-cols-1 gap-x-10 gap-y-6 md:grid-cols-2 xl:grid-cols-3">
@@ -210,6 +233,12 @@ export class JuegosConfigPage {
   protected readonly original = signal<ConfigJuegos>({ ...cfgPorDefecto });
   protected readonly jornadas = signal<Jornada[]>([]);
   protected readonly jornadasAbiertas = computed(() => this.jornadas().filter((j) => j.estado !== 'cerrada'));
+  /** El último día del horario (el de cierre de los clausulazos), p. ej. «dom, 20 dic». */
+  protected readonly ultimoDia = computed(() => {
+    const l = this.jornadasAbiertas().length ? this.jornadasAbiertas() : this.jornadas();
+    const u = [...l].sort((a, b) => a.dia.localeCompare(b.dia)).at(-1);
+    return u ? diaCorto(u.dia) : 'último día';
+  });
   protected readonly guardandoCierre = signal('');
   protected readonly info = signal(false);
   /** Hora de cierre editada por jornada, sin guardar. */
@@ -294,6 +323,7 @@ export class JuegosConfigPage {
   /** Primer valor fuera de rango («Cláusula · Mínima: Máximo 5.000.000»): bloquea el guardado. */
   protected readonly invalido = computed(() => {
     const f = this.form();
+    if (f.clausulazoCierreManual && !f.clausulazoCierreHora) return 'Elige la hora de cierre de los clausulazos';
     for (const c of this.todosCampos()) {
       const [mn, mx] = c.rango?.(f) ?? [null, null];
       const e = rangoError(c.valor(f), mn, mx);
