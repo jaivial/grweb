@@ -748,16 +748,13 @@ func validarDias(ds []Dia) error {
 type DiaInfo struct {
 	Fecha  string `json:"fecha" format:"date"`
 	Orden  int    `json:"orden" doc:"1 = primera fecha"`
-	Prueba string `json:"prueba" doc:"aep2 (1.ª fecha), aep3 (2.ª) o vacío"`
+	Prueba string `json:"prueba" doc:"aep2 (las fechas del principio) o aep3 (la última)"`
 }
 
 func diasInfo(ds []Dia) []DiaInfo {
 	out := make([]DiaInfo, len(ds))
 	for i, d := range ds {
-		out[i] = DiaInfo{Fecha: d.Fecha, Orden: i + 1}
-		if len(ds) >= len(ordenPruebas) && i < len(ordenPruebas) {
-			out[i].Prueba = ordenPruebas[i]
-		}
+		out[i] = DiaInfo{Fecha: d.Fecha, Orden: i + 1, Prueba: pruebaDeDia(len(ds), i)}
 	}
 	return out
 }

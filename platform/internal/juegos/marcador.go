@@ -6,30 +6,28 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-// ordenPruebas: AEP-2 runs the first day of the event and AEP-3 the second one (the split of schedule and athletes).
-var ordenPruebas = []string{"aep2", "aep3"}
-
 // pruebaDelDia tells live which confirmed athletes without a published sesion belong to the jornada of dia: every
 // approved athlete plays from the moment the request is approved, schedule or not. The dates are the ones of the
 // schedule (not every jornada: an old jornada that was played stays in the table): with one date per competition
-// (AEP-2 the first date, AEP-3 the second, as schedule splits them) each one goes to its own day; any other date,
-// or a schedule that cannot be read, gets "*" (all of them). Athletes without a competition go to every day.
+// (AEP-2 the dates before the last one, AEP-3 the last one, as schedule splits them) each one goes to its own day;
+// any other date, or a schedule that cannot be read, gets "*" (all of them). Athletes without a competition go to
+// every day.
 func (s *Svc) pruebaDelDia(ctx context.Context, cid uuid.UUID, dia string) string {
 	dias := s.diasDelHorario(ctx, cid)
-	if len(dias) < len(ordenPruebas) {
+	i := slices.Index(dias, dia)
+	if i < 0 {
 		return "*"
 	}
-	for i, d := range dias {
-		if d == dia && i < len(ordenPruebas) {
-			return ordenPruebas[i]
-		}
+	if len(dias) >= 2 && i == len(dias)-1 {
+		return "aep3"
 	}
-	return "*"
+	return "aep2"
 }
 
 type diasEntrada struct {
