@@ -21,6 +21,7 @@ import (
 // Until that route exists, tipo=atleta answers ATLETA_NO_ENCONTRADO (see porEmail).
 type athleteRef interface {
 	porEmail(ctx context.Context, cid uuid.UUID, email string) (uuid.UUID, error)
+	password(ctx context.Context, cid, atleta uuid.UUID, hash string) error
 }
 
 type athletesClient struct{ c *svcclient.Client }
@@ -40,4 +41,11 @@ func (a athletesClient) porEmail(ctx context.Context, cid uuid.UUID, email strin
 		return uuid.Nil, err
 	}
 	return out.ID, nil
+}
+
+// password copies the new password hash of an athlete's account to the athlete area (one account per email, one
+// password).
+func (a athletesClient) password(ctx context.Context, cid, atleta uuid.UUID, hash string) error {
+	return a.c.Do(ctx, http.MethodPut, "/internal/competiciones/"+cid.String()+"/atletas/"+atleta.String()+"/password",
+		map[string]any{"passwordHash": hash}, nil)
 }

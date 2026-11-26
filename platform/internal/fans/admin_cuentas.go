@@ -183,6 +183,7 @@ func (s *Svc) registerCuentas(api huma.API, base string, operar func(context.Con
 			if err != nil {
 				return nil, err
 			}
+			s.passwordAAtleta(ctx, in.CID, d.tipo, d.atletaID, hash)
 			f, err := s.fanAdmin(ctx, in.CID, id)
 			return &struct{ Body FanAdmin }{f}, err
 		})
@@ -236,6 +237,7 @@ func (s *Svc) registerCuentas(api huma.API, base string, operar func(context.Con
 			if err != nil {
 				return nil, err
 			}
+			s.passwordAAtleta(ctx, in.CID, d.tipo, d.atletaID, hash)
 			// The session carries alias and tipo, and a new password or email must close the old sessions.
 			if !(len(campos) == 1 && campos[0] == "teléfono") {
 				if _, err := s.bumpVersion(ctx, row.ID); err != nil {
