@@ -147,8 +147,9 @@ export class JuegosApi {
     return firstValueFrom(this.http.patch<void>(`${this.b(cid)}/mercados/${mid}`, { titulo }));
   }
 
-  sincronizarFantasy(cid: string, jornada: string): Promise<void> {
-    return firstValueFrom(this.http.post<void>(`${this.b(cid)}/fantasy/sincronizar`, { jornada }));
+  /** «Activar juegos»: con false la web enseña que los juegos aún no están abiertos. */
+  activo(cid: string, activo: boolean): Promise<ConfigJuegos> {
+    return firstValueFrom(this.http.put<ConfigJuegos>(`${this.b(cid)}/activo`, { activo }));
   }
 
   config(cid: string): Promise<ConfigJuegos> {

@@ -45,6 +45,8 @@ type configPublica struct {
 	PctDemanda      int       `json:"pctDemanda"`
 	PctPuesto       [3]int    `json:"pctPuesto"`
 	Puntos          PuntosCfg `json:"puntos"`
+	// «Activar juegos» del backoffice: false = la web enseña que los juegos aún no están abiertos
+	Activo bool `json:"activo"`
 }
 
 // registerPublicExtra adds the public config and the signings feed (asked by the web: «Cómo se juega», the bet
@@ -71,13 +73,13 @@ func (s *Svc) registerPublicExtra() {
 			if err != nil {
 				return nil, err
 			}
-			return &configOut{CacheControl: "public, max-age=30", Body: configPublica{
+			return &configOut{CacheControl: "public, max-age=5", Body: configPublica{
 				PorraMin: cfg.PorraMin, PorraMax: cfg.PorraMax, Hito5Porra: cfg.Hito5Porra, Hito10Porra: cfg.Hito10Porra,
 				Hito5Fantasy: cfg.Hito5Fantasy, Hito10Fantasy: cfg.Hito10Fantasy, FantasyPorEuro: cfg.FantasyPorEuro,
 				MaxClausulazos: cfg.MaxClausulazos, ProteccionMin: cfg.ProteccionMin, PlantillaMax: cfg.PlantillaMax,
 				TitularesMax: cfg.TitularesMax, ClausulaInicial: cfg.ClausulaInicial, ClausulaMin: cfg.ClausulaMin,
 				ClausulaMax: cfg.ClausulaMax, PctValido: cfg.PctValido, PctNulo: cfg.PctNulo, PctBlanqueo: cfg.PctBlanqueo,
-				PctDemanda: cfg.PctDemanda, PctPuesto: cfg.PctPuesto, Puntos: cfg.Puntos,
+				PctDemanda: cfg.PctDemanda, PctPuesto: cfg.PctPuesto, Puntos: cfg.Puntos, Activo: cfg.Activo,
 			}}, nil
 		})
 
