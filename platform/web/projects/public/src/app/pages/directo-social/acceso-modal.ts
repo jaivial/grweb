@@ -44,7 +44,7 @@ const T = {
     subFormulario: 'La solicitud va asociada a tu cuenta de GRS Cup 2. Vuelves al formulario para enviarla.',
     subSeguir: 'Sigue a tus atletas con tu cuenta de GRS Cup 2: te avisamos por email antes de que compitan.', subDef: 'Chatea, dona y juega con tu cuenta de directo.',
     errAlias: 'El alias debe tener entre 3 y 20 caracteres.', entrarConEmail: 'Entrar con este email', errEmail: 'Escribe un email válido.', errClave: 'Escribe tu contraseña.',
-    crearAtleta: 'Crea tu cuenta de atleta aquí', crearAtletaAyuda: 'La cuenta de atleta se crea en el alta: eliges tu categoría y subes tus marcas.',
+    crearAtleta: 'Crea tu cuenta de atleta aquí', crearAtletaAyuda: 'La cuenta de atleta se crea en el alta: rellenas tus datos, tu foto y tus mejores marcas.',
   },
   en: {
     cerrar: 'Close', enviadoA: 'Sent to ', otroDispositivo: 'You can open it on another device: it still takes you to the room.',
@@ -80,7 +80,7 @@ const T = {
     subFormulario: 'The request is linked to your GRS Cup 2 account. You return to the form to send it.',
     subSeguir: 'Follow your athletes with your GRS Cup 2 account: we will email you before they compete.', subDef: 'Chat, donate and play with your live account.',
     errAlias: 'The alias must be between 3 and 20 characters.', entrarConEmail: 'Sign in with this email', errEmail: 'Enter a valid email.', errClave: 'Enter your password.',
-    crearAtleta: 'Create your athlete account here', crearAtletaAyuda: 'Athlete accounts are created in the sign-up: you pick your class and upload your marks.',
+    crearAtleta: 'Create your athlete account here', crearAtletaAyuda: 'Athlete accounts are created in the sign-up: you fill in your details, photo and best lifts.',
   },
 };
 
@@ -194,15 +194,15 @@ const T = {
                 }
               </div>
               }
+              }
 
-              @if (!crearAtleta()) {
+              @if (modo() === 'crear' && !crearAtleta()) {
               <label class="mt-4 block">
                 <span class="text-label-s text-text-primary">{{ t().alias }}</span>
                 <input grInput grSize="l" type="text" autocomplete="nickname" class="mt-1.5" [placeholder]="t().aliasPh" aria-label="Alias" [invalid]="!!errorAlias()" [ngModel]="alias()" (ngModelChange)="alias.set($event); errorAlias.set(null)" (blur)="comprobar()" />
                 @if (errorAlias(); as e) { <span class="mt-1.5 flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />{{ e }}</span> }
                 @else { <span class="mt-1.5 block text-body-xs text-text-tertiary">{{ t().aliasAyuda }}</span> }
               </label>
-              }
               }
 
               @if (!crearAtleta()) {
