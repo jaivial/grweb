@@ -63,8 +63,12 @@ type Config struct {
 	PctPuesto       [3]int    `json:"pctPuesto"`
 	Puntos          PuntosCfg `json:"puntos"`
 	Activo          bool      `json:"activo"`
-	Version         int       `json:"version" required:"false"`
-	UpdatedPor      string    `json:"updatedPor" required:"false"`
+	// Cierre de los clausulazos: false = al empezar la última sesión del horario del último día; true = el último
+	// día a ClausulazoCierreHora («HH:MM», Europe/Madrid).
+	ClausulazoCierreManual bool   `json:"clausulazoCierreManual"`
+	ClausulazoCierreHora   string `json:"clausulazoCierreHora" pattern:"^(([01][0-9]|2[0-3]):[0-5][0-9])?$"`
+	Version                int    `json:"version" required:"false"`
+	UpdatedPor             string `json:"updatedPor" required:"false"`
 }
 
 // configPorDefecto matches the migration defaults (contract values).
@@ -83,7 +87,7 @@ func configPorDefecto() Config {
 const selConfig = `SELECT porra_min, porra_max, hito5_porra, hito10_porra, hito5_fantasy, hito10_fantasy,
 	fantasy_por_euro, max_hitos, max_clausulazos, proteccion_min, plantilla_max, titulares_max,
 	clausula_inicial, clausula_min, clausula_max, pct_valido, pct_nulo, pct_blanqueo, pct_demanda, pct_puesto,
-	puntos, activo, version, updated_por
+	puntos, activo, version, updated_por, clausulazo_cierre_manual, COALESCE(to_char(clausulazo_cierre_hora, 'HH24:MI'), '')
 	FROM config_juegos WHERE competition_id = $1`
 
 func scanConfig(r pgx.Row) (*Config, error) {
@@ -92,7 +96,7 @@ func scanConfig(r pgx.Row) (*Config, error) {
 	if err := r.Scan(&c.PorraMin, &c.PorraMax, &c.Hito5Porra, &c.Hito10Porra, &c.Hito5Fantasy, &c.Hito10Fantasy,
 		&c.FantasyPorEuro, &c.MaxHitos, &c.MaxClausulazos, &c.ProteccionMin, &c.PlantillaMax, &c.TitularesMax,
 		&c.ClausulaInicial, &c.ClausulaMin, &c.ClausulaMax, &c.PctValido, &c.PctNulo, &c.PctBlanqueo, &c.PctDemanda, &c.PctPuesto,
-		&pt, &c.Activo, &c.Version, &c.UpdatedPor); err != nil {
+		&pt, &c.Activo, &c.Version, &c.UpdatedPor, &c.ClausulazoCierreManual, &c.ClausulazoCierreHora); err != nil {
 		return nil, err
 	}
 	c.Puntos = puntosPorDefecto()

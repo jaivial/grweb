@@ -18,8 +18,32 @@
         <ul class="flex flex-col gap-0.5">
           @for (it of g.items; track it.path) {
             <li>
+              @if (it.hijos?.length) {
+                <!-- accordion: the item opens its overview page, the chevron shows or hides its sub-pages -->
+                <div class="flex items-center gap-0.5">
+                  <a boNavItem class="min-w-0 flex-1" [routerLink]="['/', comp()?.slug].concat(it.path.split('/'))" routerLinkActive [routerLinkActiveOptions]="{ exact: true }" #rla="routerLinkActive"
+                    [icon]="it.icon" [label]="it.label" [active]="rla.isActive" [collapsed]="collapsed()" [multilinea]="true" (click)="acordeonAbrir(it)"></a>
+                  @if (!collapsed()) {
+                    <button type="button" class="flex size-10 shrink-0 items-center justify-center rounded-sm text-text-tertiary hover:bg-bg-card hover:text-text-primary focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]"
+                      [attr.aria-expanded]="abierto(it)" [attr.aria-controls]="'nav-' + it.path" [attr.aria-label]="(abierto(it) ? 'Ocultar ' : 'Mostrar ') + 'las páginas de ' + it.label" (click)="alternar(it)">
+                      <gr-icon name="chevron-down" [size]="16" class="transition-transform motion-reduce:transition-none" [class.rotate-180]="abierto(it)" />
+                    </button>
+                  }
+                </div>
+                @if (abierto(it)) {
+                  <ul [id]="'nav-' + it.path" class="mt-0.5 flex flex-col gap-0.5" [class]="collapsed() ? '' : 'ml-4 border-l border-line-subtle pl-1.5'">
+                    @for (h of it.hijos; track h.path) {
+                      <li>
+                        <a boNavItem [routerLink]="['/', comp()?.slug].concat(h.path.split('/'))" routerLinkActive #rlh="routerLinkActive" [icon]="h.icon" [label]="h.label"
+                          [active]="rlh.isActive" [collapsed]="collapsed()" [multilinea]="true"></a>
+                      </li>
+                    }
+                  </ul>
+                }
+              } @else {
               <a boNavItem [routerLink]="['/', comp()?.slug].concat(it.path.split('/'))" routerLinkActive #rla="routerLinkActive" [icon]="it.icon" [label]="it.label"
                 [active]="rla.isActive" [collapsed]="collapsed()" [badge]="contadorDe(it)"></a>
+              }
             </li>
           }
         </ul>
@@ -152,10 +176,31 @@
       @for (g of nav(); track g.label) {
         <p class="mt-4 mb-1 px-3 text-mono-xs text-text-muted">{{ g.label }}</p>
         @for (it of g.items; track it.path) {
+          @if (it.hijos?.length) {
+            <div class="flex items-center gap-1">
+              <a [routerLink]="['/', comp()?.slug].concat(it.path.split('/'))" routerLinkActive="bg-accent-deep/40 text-text-primary" [routerLinkActiveOptions]="{ exact: true }" class="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-sm px-3 text-label-s text-text-secondary">
+                <gr-icon [name]="it.icon" [size]="20" /><span class="truncate">{{ it.label }}</span>
+              </a>
+              <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-sm text-text-tertiary" [attr.aria-expanded]="abierto(it)" [attr.aria-controls]="'nav-m-' + it.path"
+                [attr.aria-label]="(abierto(it) ? 'Ocultar ' : 'Mostrar ') + 'las páginas de ' + it.label" (click)="alternar(it)">
+                <gr-icon name="chevron-down" [size]="18" class="transition-transform motion-reduce:transition-none" [class.rotate-180]="abierto(it)" />
+              </button>
+            </div>
+            @if (abierto(it)) {
+              <div [id]="'nav-m-' + it.path" class="ml-5 flex flex-col border-l border-line-subtle pl-2">
+                @for (h of it.hijos; track h.path) {
+                  <a [routerLink]="['/', comp()?.slug].concat(h.path.split('/'))" routerLinkActive="bg-accent-deep/40 text-text-primary" class="flex h-11 items-center gap-3 rounded-sm px-3 text-label-s text-text-secondary">
+                    <gr-icon [name]="h.icon" [size]="20" />{{ h.label }}
+                  </a>
+                }
+              </div>
+            }
+          } @else {
           <a [routerLink]="['/', comp()?.slug].concat(it.path.split('/'))" routerLinkActive="bg-accent-deep/40 text-text-primary" class="flex h-11 items-center gap-3 rounded-sm px-3 text-label-s text-text-secondary">
             <gr-icon [name]="it.icon" [size]="20" />{{ it.label }}
             @if (contadorDe(it); as c) { <span class="ml-auto rounded-2xs bg-bg-raised px-1.5 text-mono-xs text-text-secondary">{{ c }}</span> }
           </a>
+          }
         }
       }
     </nav>

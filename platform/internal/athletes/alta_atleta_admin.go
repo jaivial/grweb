@@ -736,7 +736,8 @@ func (s *Svc) cambiaEstado(ctx context.Context, cid, id uuid.UUID, ifm, estado, 
 			return err
 		}
 		return events.Enqueue(ctx, tx, events.New(ctx, "athletes.solicitud_actualizada",
-			map[string]any{"id": id, "estado": estado}, events.Competition(cid.String()), events.ForPermission("atletas.editar")))
+			map[string]any{"id": id, "accion": "estado", "estado": estado, "tipo": sol.Tipo},
+			events.Competition(cid.String()), events.ForPermission("atletas.editar")))
 	})
 }
 
@@ -776,7 +777,8 @@ func (s *Svc) enlazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm string
 			return err
 		}
 		return events.Enqueue(ctx, tx, events.New(ctx, "athletes.solicitud_actualizada",
-			map[string]any{"id": id, "estado": sol.Estado}, events.Competition(cid.String()), events.ForPermission("atletas.editar")))
+			map[string]any{"id": id, "accion": "enlazada", "estado": sol.Estado, "tipo": sol.Tipo},
+			events.Competition(cid.String()), events.ForPermission("atletas.editar")))
 	})
 }
 
@@ -1207,8 +1209,23 @@ func (s *Svc) rechazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm, moti
 			return err
 		}
 		if err := events.Enqueue(ctx, tx, events.New(ctx, "athletes.solicitud_rechazada",
-			map[string]any{"id": id, "nombre": sol.Nombre}, events.Competition(cid.String()), events.ForPermission("atletas.editar"))); err != nil {
+			map[string]any{"id": id, "nombre": sol.Nombre, "tipo": sol.Tipo, "motivo": motivo},
+			events.Competition(cid.String()), events.ForPermission("atletas.editar"))); err != nil {
 			return err
+		}
+		// A rejected change also leaves its trace in the athlete's history (the email is not the only record): the
+		// fields that were asked for and, when the reviewer wrote it, the reason.
+		if sol.Tipo == "cambio_perfil" && sol.MatchAtletaID != nil {
+			partes := []string{}
+			if d := detalleCambios(leeCambios(sol)); d != "" {
+				partes = append(partes, d)
+			}
+			if motivo != "" {
+				partes = append(partes, "Motivo: "+motivo)
+			}
+			if err := hist(ctx, tx, *sol.MatchAtletaID, "Cambio de perfil rechazado", strings.Join(partes, " · ")); err != nil {
+				return err
+			}
 		}
 		// The notices: an alta writes to the address and the number of the form; a change request writes to the
 		// ones the athlete has today (the new ones are not verified until they are approved).
@@ -1261,7 +1278,7 @@ func (s *Svc) borraSolicitud(ctx context.Context, cid, id uuid.UUID) error {
 			return err
 		}
 		return events.Enqueue(ctx, tx, events.New(ctx, "athletes.solicitud_actualizada",
-			map[string]any{"id": id, "estado": "borrada"}, events.Competition(cid.String()), events.ForPermission("atletas.editar")))
+			map[string]any{"id": id, "accion": "borrada", "estado": "borrada", "tipo": sol.Tipo}, events.Competition(cid.String()), events.ForPermission("atletas.editar")))
 	})
 	if err != nil {
 		return err

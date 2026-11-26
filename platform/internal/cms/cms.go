@@ -118,6 +118,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerLegal()
 	s.registerMedios()
 	s.registerMapas()
+	s.registerRefugio()
 	s.registerPublic()
 	s.registerClubsAdmin()
 	s.registerVoluntariosAdmin()

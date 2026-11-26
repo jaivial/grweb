@@ -52,12 +52,12 @@ import { BoToggle } from '../../shared/ui';
             <h2 class="text-ui-h5">{{ cambio() ? 'Rechazar cambio de perfil' : 'Rechazar solicitud' }}</h2>
             <button type="button" class="-mt-2 -mr-2 flex size-11 items-center justify-center text-text-tertiary" aria-label="Cerrar" (click)="cerrar.emit()"><gr-icon name="x" [size]="18" /></button>
           </div>
-          <p class="mt-3 text-body-s text-text-secondary">{{ cambio() ? 'Explica el motivo (mínimo 3 caracteres): lo verá el atleta si le avisas. Su ficha no cambia.' : 'Explica el motivo (mínimo 3 caracteres): queda en el registro de auditoría y se borra la foto privada.' }}</p>
+          <p class="mt-3 text-body-s text-text-secondary">{{ cambio() ? 'Explica el motivo (opcional): lo verá el atleta si le avisas. Su ficha no cambia.' : 'Explica el motivo (mínimo 3 caracteres): queda en el registro de auditoría y se borra la foto privada.' }}</p>
           <div class="mt-4">
-            <gr-field [label]="cambio() ? 'Motivo (opcional)' : 'Motivo (obligatorio)'" [error]="cambio() ? null : motivoError()">
+            <gr-field [label]="cambio() ? 'Motivo (opcional)' : 'Motivo (obligatorio)'" [error]="motivoError()">
               <textarea grInput rows="3" maxlength="400" [ngModel]="motivo" (ngModelChange)="motivo = $event" [placeholder]="cambio() ? 'p. ej. El nuevo club no consta en el directorio' : 'p. ej. Los datos de club y licencia no coinciden con la AEP'"></textarea>
             </gr-field>
-            <p class="mt-1 text-body-xs text-text-tertiary">{{ cambio() ? 'Opcional · si lo escribes, el atleta lo verá en el aviso' : 'Mínimo 3 caracteres' }} · el motivo queda en el registro de auditoría</p>
+            <p class="mt-1 text-body-xs text-text-tertiary">{{ cambio() ? 'Opcional · si lo escribes, mínimo 3 caracteres y el atleta lo verá en el aviso' : 'Mínimo 3 caracteres' }} · el motivo queda en el registro de auditoría</p>
           </div>
           <div class="mt-4 flex items-center justify-between gap-3 rounded-md border border-line-subtle bg-bg-surface px-4 py-3">
             <span class="min-w-0"><span class="block text-label-s">Avisar por email</span><span class="block text-body-xs text-text-tertiary">Le llegará un email con el motivo del rechazo</span></span>
@@ -69,7 +69,7 @@ import { BoToggle } from '../../shared/ui';
           </div>
           <div class="mt-6 flex justify-end gap-2">
             <button grButton variant="ghost" (click)="cerrar.emit()">Cancelar</button>
-            <button grButton variant="danger" [loading]="ocupado()" [disabled]="!cambio() && motivo.trim().length < 3" (click)="rechazar.emit(motivo.trim())">{{ cambio() ? 'Rechazar cambios' : 'Rechazar solicitud' }}</button>
+            <button grButton variant="danger" [loading]="ocupado()" [disabled]="!motivoListo()" (click)="rechazar.emit(motivo.trim())">{{ cambio() ? 'Rechazar cambios' : 'Rechazar solicitud' }}</button>
           </div>
         </div>
       </div>
@@ -119,6 +119,11 @@ export class SolicitudesDialogo {
 
   protected motivo = '';
   protected borrarTexto = '';
+  /** Empty is fine in a change of profile (nothing to correct); when written, it needs at least 3 characters. */
+  protected motivoListo(): boolean {
+    if (!this.motivo.length) return this.cambio();
+    return this.motivo.trim().length >= 3;
+  }
   protected motivoError(): string | null {
     return this.motivo.length > 0 && this.motivo.trim().length < 3 ? 'Escribe al menos 3 caracteres' : null;
   }

@@ -288,10 +288,10 @@ var catalogo = []Plantilla{
 		map[string]string{"nombre": "Carlos", "motivo": "El nuevo club no consta en el directorio: escríbenos con el nombre completo y lo revisamos.",
 			"urlArea": "https://grcup.example/area-atleta"},
 		Contenido{Asunto: "No hemos podido aplicar los cambios de tu ficha", Titulo: "{{nombre}}, tus datos siguen como estaban",
-			Cuerpo:     "Hemos revisado los cambios que pediste y no los hemos aplicado. Tu ficha sigue exactamente como estaba: no has perdido nada.\n\n**Motivo**\n\n{{motivo}}\n\n✓ Puedes volver a pedir el cambio desde el área de atleta con los datos corregidos, o escribirnos si crees que es un error.",
+			Cuerpo:     "Hemos revisado los cambios que pediste y no los hemos aplicado. Tu ficha sigue exactamente como estaba: no has perdido nada.\n\n**Motivo:** {{motivo}}\n\n✓ Puedes volver a pedir el cambio desde el área de atleta con los datos corregidos, o escribirnos si crees que es un error.",
 			BotonTexto: "Ir a mi área", BotonURL: "{{urlArea}}",
 			Nota: "Recibes este email porque pediste cambiar los datos de tu ficha de atleta."},
-		ContenidoWA{Texto: "Hola {{nombre}}, no hemos aplicado los cambios de tu ficha: tus datos siguen como estaban.\n\n{{motivo}}", Botones: []BotonWA{{Texto: "Ir a mi área", URL: "{{urlArea}}"}}}),
+		ContenidoWA{Texto: "Hola {{nombre}}, no hemos aplicado los cambios de tu ficha: tus datos siguen como estaban.\n\n*Motivo:* {{motivo}}\n\nPuedes volver a pedir el cambio desde el área de atleta.", Botones: []BotonWA{{Texto: "Ir a mi área", URL: "{{urlArea}}"}}}),
 
 	// ---- Cuentas, contraseña y acción necesaria (Jaime 15-nov: avisos que faltaban) ----
 	pwa("publico-cuenta-creada", "Cuenta de público creada", "Al crear la cuenta del directo como público", "fans", "accesos", true, []string{"alias", "competicion", "enlace", "fantasy", "porra"}, ejPublico,

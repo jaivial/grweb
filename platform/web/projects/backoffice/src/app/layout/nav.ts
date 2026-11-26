@@ -20,6 +20,8 @@ export interface NavItem {
    * switched off the section leaves the menu and its routes go back to Inicio. Code and data stay.
    */
   modulo?: string;
+  /** Sub-pages shown as an accordion under the item (the item itself is their overview page). */
+  hijos?: NavItem[];
 }
 
 export interface NavGroup {
@@ -72,6 +74,11 @@ export const NAV: NavGroup[] = [
       { label: 'Emails y avisos', path: 'emails', icon: 'mail', perm: 'campanas.enviar' },
       { label: 'Clubs', path: 'clubs', icon: 'building', perm: 'web.editar', contador: 'clubs', modulo: 'clubs' },
       { label: 'Voluntarios', path: 'voluntarios', icon: 'heart', perm: 'web.editar', contador: 'voluntarios' },
+      // hotels, restaurants and gyms of /donde-dormir-y-comer and /como-llegar
+      { label: 'Colaboradores Refugio', path: 'refugio', icon: 'star', perm: 'web.editar', hijos: [
+        { label: 'Dónde dormir y comer', path: 'refugio/donde-dormir-y-comer', icon: 'building', perm: 'web.editar' },
+        { label: 'Gimnasios de powerlifting', path: 'refugio/gimnasios', icon: 'dumbbell', perm: 'web.editar' },
+      ] },
     ],
   },
   {
@@ -84,7 +91,8 @@ export const NAV: NavGroup[] = [
   },
 ];
 
-export const ALL_ITEMS = NAV.flatMap((g) => g.items);
+/** Every section, sub-pages first (the page title matches the most specific path of the URL). */
+export const ALL_ITEMS = NAV.flatMap((g) => g.items.flatMap((i) => [...(i.hijos ?? []), i]));
 
 /** A BO module is off only when the edition says so: editions without the key keep the section (old data). */
 export function moduloActivo(modulos: Record<string, { activo: boolean }> | undefined, clave?: string): boolean {

@@ -334,6 +334,9 @@ func (s *Svc) registerAdmin() {
 			if b.ClausulaInicial < b.ClausulaMin || b.ClausulaInicial > b.ClausulaMax {
 				return nil, problem.Unprocessable("CONFIG_NO_VALIDA", "La cláusula inicial tiene que estar entre la mínima y la máxima.")
 			}
+			if b.ClausulazoCierreManual && b.ClausulazoCierreHora == "" {
+				return nil, problem.Unprocessable("CONFIG_NO_VALIDA", "Elige la hora de cierre de los clausulazos o vuelve al cierre por horario.")
+			}
 			pt, _ := json.Marshal(b.Puntos)
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 				// The row may not exist yet (the first save): it is created with the defaults (version 1).
@@ -351,12 +354,13 @@ func (s *Svc) registerAdmin() {
 					hito5_fantasy = $6, hito10_fantasy = $7, fantasy_por_euro = $8, max_hitos = $9, max_clausulazos = $10, proteccion_min = $11,
 					plantilla_max = $12, titulares_max = $13, clausula_inicial = $14, clausula_min = $15, clausula_max = $16,
 					pct_valido = $17, pct_nulo = $18, pct_blanqueo = $19, pct_demanda = $20, pct_puesto = $21, puntos = $22,
+					clausulazo_cierre_manual = $24, clausulazo_cierre_hora = NULLIF($25, '')::time,
 					version = version + 1, updated_por = $23, updated_at = now()
 					WHERE competition_id = $1`,
 					in.CID, b.PorraMin, b.PorraMax, b.Hito5Porra, b.Hito10Porra, b.Hito5Fantasy, b.Hito10Fantasy,
 					b.FantasyPorEuro, b.MaxHitos, b.MaxClausulazos, b.ProteccionMin, b.PlantillaMax, b.TitularesMax,
 					b.ClausulaInicial, b.ClausulaMin, b.ClausulaMax, b.PctValido, b.PctNulo, b.PctBlanqueo, b.PctDemanda, b.PctPuesto,
-					pt, p.Name)
+					pt, p.Name, b.ClausulazoCierreManual, b.ClausulazoCierreHora)
 				return err
 			})
 			if err != nil {

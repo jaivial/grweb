@@ -8,6 +8,7 @@ package athletes
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -31,6 +32,7 @@ type DatoPerfil struct {
 	Telefono        string   `json:"telefono"`
 	Sexo            string   `json:"sexo"`
 	FechaNacimiento string   `json:"fechaNacimiento,omitempty"`
+	Prueba          string   `json:"prueba,omitempty"`
 	Club            string   `json:"club"`
 	Ciudad          string   `json:"ciudad"`
 	Entrenador      string   `json:"entrenador"`
@@ -50,6 +52,7 @@ var camposPerfil = []struct{ clave, campo string }{
 	{"telefono", "Teléfono"},
 	{"sexo", "Sexo"},
 	{"fechaNacimiento", "Fecha de nacimiento"},
+	{"prueba", "Competición"},
 	{"club", "Club"},
 	{"ciudad", "Ciudad"},
 	{"entrenador", "Entrenador/a"},
@@ -83,20 +86,19 @@ type CambioPerfilPendiente struct {
 	Cambios   []CambioPerfilCampo `json:"cambios"`
 }
 
-// PerfilEditar is what «Editar mi perfil» needs: the current data (prefilled), the chosen competition (read-only: it
-// is changed in «Tu competición», with its own deadline) and the pending request, if any.
+// PerfilEditar is what «Editar mi perfil» needs: the current data (prefilled), the competitions the athlete can
+// choose (AEP-2 / AEP-3, with their places) and the pending request, if any.
 type PerfilEditar struct {
-	Datos        DatoPerfil             `json:"datos"`
-	Prueba       string                 `json:"prueba" doc:"aep2, aep3 o vacío: se cambia en «Tu competición»"`
-	PruebaNombre string                 `json:"pruebaNombre"`
-	Pendiente    *CambioPerfilPendiente `json:"pendiente,omitempty"`
+	Datos     DatoPerfil             `json:"datos"`
+	Opciones  []PruebaAlta           `json:"opciones" doc:"AEP-2 y AEP-3, con su fecha y sus plazas"`
+	Pendiente *CambioPerfilPendiente `json:"pendiente,omitempty"`
 }
 
 // datoDeRow is the current data of the athlete.
 func datoDeRow(r row) DatoPerfil {
 	d := DatoPerfil{
 		Nombre: r.Nombre, Apellidos: r.Apellidos, Telefono: r.Telefono, Sexo: r.Sexo, Club: r.Club, Ciudad: r.Ciudad,
-		Entrenador: r.Entrenador, Frase: r.Frase, Bio: r.Bio, Instagram: r.Instagram,
+		Entrenador: r.Entrenador, Frase: r.Frase, Bio: r.Bio, Instagram: r.Instagram, Prueba: r.Prueba,
 		MarcaSQ: r.MarcaSQ, MarcaBP: r.MarcaBP, MarcaDL: r.MarcaDL,
 	}
 	if r.Email != nil {
@@ -112,7 +114,7 @@ func datoDeRow(r row) DatoPerfil {
 func datoDeAlta(d DatosAlta) DatoPerfil {
 	return DatoPerfil{
 		Nombre: d.Nombre, Apellidos: d.Apellidos, Email: d.Email, Telefono: d.Telefono, Sexo: d.Sexo,
-		FechaNacimiento: d.FechaNacimiento, Club: d.Club, Ciudad: d.Ciudad, Entrenador: d.Entrenador,
+		FechaNacimiento: d.FechaNacimiento, Prueba: d.Prueba, Club: d.Club, Ciudad: d.Ciudad, Entrenador: d.Entrenador,
 		Frase: d.Frase, Bio: d.Bio, Instagram: d.Instagram, MarcaSQ: d.MarcaSQ, MarcaBP: d.MarcaBP, MarcaDL: d.MarcaDL,
 	}
 }
@@ -132,6 +134,8 @@ func (d DatoPerfil) valor(clave string) any {
 		return d.Sexo
 	case "fechaNacimiento":
 		return d.FechaNacimiento
+	case "prueba":
+		return d.Prueba
 	case "club":
 		return d.Club
 	case "ciudad":
@@ -173,6 +177,12 @@ func (d *DatoPerfil) pon(clave string, v any) error {
 		d.Sexo = s
 	case "fechaNacimiento":
 		d.FechaNacimiento = s
+	case "prueba":
+		// Empty («Aún no lo sabe») is not offered by the form, but a snapshot must never hold an invented code.
+		if !pruebaValida(s) {
+			return problem.Unprocessable("VALIDACION", "La competición del cambio no es válida.")
+		}
+		d.Prueba = s
 	case "club":
 		d.Club = s
 	case "ciudad":
@@ -231,6 +241,12 @@ func textoPerfil(clave string, v any) string {
 			if t, ok := ParseFecha(x); ok {
 				return t.Format("02/01/2006")
 			}
+		case "prueba":
+			// The label of the competition, and empty for «no choice»: the panel reads it as «vacío».
+			if x == "" {
+				return ""
+			}
+			return pruebaTexto(x)
 		}
 		return x
 	}
@@ -354,7 +370,11 @@ func (s *Svc) registerPerfilCambio() {
 			if err != nil {
 				return nil, err
 			}
-			p := PerfilEditar{Datos: datoDeRow(r), Prueba: r.Prueba, PruebaNombre: pruebaTexto(r.Prueba)}
+			p := PerfilEditar{Datos: datoDeRow(r)}
+			// The same options (and places) the public form offers: the athlete moves from one competition to the other.
+			if c, err := s.comps.ByID(ctx, r.CompetitionID); err == nil {
+				p.Opciones, _ = s.pruebas(ctx, c)
+			}
 			if p.Pendiente, err = cambioPendiente(ctx, s.a.DB, r.CompetitionID, r.ID); err != nil {
 				return nil, err
 			}
@@ -404,7 +424,7 @@ func (s *Svc) creaCambioPerfil(ctx context.Context, r row, b DatoPerfil) (*Cambi
 	// The same validation as the public form (it also normalises the phone, the email and the Instagram).
 	d := s.normalizaDatos(DatosAlta{
 		Nombre: b.Nombre, Apellidos: b.Apellidos, Email: b.Email, Telefono: b.Telefono, Sexo: b.Sexo,
-		FechaNacimiento: b.FechaNacimiento, Club: b.Club, Ciudad: b.Ciudad, Entrenador: b.Entrenador,
+		FechaNacimiento: b.FechaNacimiento, Prueba: b.Prueba, Club: b.Club, Ciudad: b.Ciudad, Entrenador: b.Entrenador,
 		Frase: b.Frase, Bio: b.Bio, Instagram: b.Instagram, MarcaSQ: b.MarcaSQ, MarcaBP: b.MarcaBP, MarcaDL: b.MarcaDL,
 	})
 	if errs := s.validaDatos(d); len(errs) > 0 {
@@ -452,7 +472,8 @@ func (s *Svc) creaCambioPerfil(ctx context.Context, r row, b DatoPerfil) (*Cambi
 			AND match_atleta_id = $2 AND estado IN ('pendiente','revision')`, cid, r.ID); err != nil {
 			return err
 		}
-		// prueba stays empty: a change request never holds a place of the event.
+		// prueba stays empty on purpose: the change request does not hold a place of the event (the destination
+		// competition travels in the snapshot and the place moves when it is approved).
 		_, err := tx.Exec(ctx, `INSERT INTO solicitudes_atleta (id, competition_id, tipo, cambios, match_atleta_id, match_tipo, nombre, apellidos,
 			email, telefono, sexo, fecha_nacimiento, club, ciudad, frase, bio, instagram, entrenador, historial, marca_sq, marca_bp, marca_dl,
 			focal_x, focal_y, es_menor, estado, consentimientos, consentimiento_at, ip, user_agent, prueba)
@@ -509,7 +530,8 @@ func (s *Svc) cancelaCambioPerfil(ctx context.Context, r row, id uuid.UUID) erro
 			return err
 		}
 		return events.Enqueue(ctx, tx, events.New(ctx, "athletes.solicitud_actualizada",
-			map[string]any{"id": id, "estado": "cancelada"}, events.Competition(r.CompetitionID.String()), events.ForPermission("atletas.editar")))
+			map[string]any{"id": id, "accion": "cancelada", "estado": "cancelada", "tipo": "cambio_perfil"},
+			events.Competition(r.CompetitionID.String()), events.ForPermission("atletas.editar")))
 	})
 }
 
@@ -609,10 +631,25 @@ func (s *Svc) apruebaCambioPerfil(ctx context.Context, cid, id uuid.UUID, ifm st
 		if fechaNac != nil && cambiaClave(c, "fechaNacimiento") {
 			division = DivisionPorEdad(*fechaNac, anio)
 		}
+		// The competition: her place moves exactly as when the team changes it in the fiche (the same cupo rules,
+		// 409 CUPO_COMPLETO when the destination is full), and the team's own choice is not kept over the
+		// athlete's. Nothing else derives from prueba: the day and the session come from the published schedule and
+		// are moved by the schedule service, not by an edit (the admin path does the same).
+		if cambiaClave(c, "prueba") {
+			if err := s.muevePlaza(ctx, tx, cid, destino, next.Prueba, false); err != nil {
+				var pe *problem.Error
+				if errors.As(err, &pe) && pe.Status == http.StatusConflict {
+					return problem.Conflict("CUPO_COMPLETO", "La competición que pide no tiene plazas libres. Rechaza el cambio o cámbiasela desde su ficha.")
+				}
+				return err
+			}
+		}
 		if _, err := tx.Exec(ctx, `UPDATE atletas SET nombre = $2, apellidos = $3, email = NULLIF($4,''), telefono = $5, sexo = $6,
-			fecha_nacimiento = $7, division = $8, club = $9, ciudad = $10, version = version + 1, updated_at = now()
+			fecha_nacimiento = $7, division = $8, club = $9, ciudad = $10, prueba = $12,
+			prueba_org_at = CASE WHEN prueba <> $12 THEN NULL ELSE prueba_org_at END,
+			version = version + 1, updated_at = now()
 			WHERE competition_id = $1 AND id = $11`,
-			cid, next.Nombre, next.Apellidos, nuevo, next.Telefono, next.Sexo, fechaNac, division, next.Club, next.Ciudad, destino); err != nil {
+			cid, next.Nombre, next.Apellidos, nuevo, next.Telefono, next.Sexo, fechaNac, division, next.Club, next.Ciudad, destino, next.Prueba); err != nil {
 			if db.IsUniqueViolation(err, "") {
 				return problem.Conflict("DATOS_DUPLICADOS", "Esos datos ya son los de otro atleta.")
 			}

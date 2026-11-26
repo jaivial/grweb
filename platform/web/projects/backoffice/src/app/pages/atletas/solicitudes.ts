@@ -15,7 +15,7 @@ import {
   SolicitudesApi,
   type Candidato, type Consentimiento, type Diferencia, type EstadoSolicitud, type SolicitudDetalle, type SolicitudItem, type SolicitudLista, type TipoMatch,
 } from './solicitudes-api';
-import { CAMPOS, CONSENTIMIENTOS, MATCH, estadoDe, matchTone, matchTxt, nombreCompleto, tipoTone, tipoTxt, type FilaCampo, type FilaConsentimiento } from './solicitudes-model';
+import { CAMPOS, CONSENTIMIENTOS, MATCH, estadoDe, matchTone, matchTxt, nombreCompleto, tipoTone, tipoTxt, valorTexto, type FilaCampo, type FilaConsentimiento } from './solicitudes-model';
 import { SolicitudesLista } from './solicitudes-lista';
 import { SolicitudesDialogo } from './solicitudes-dialogo';
 import { SolicitudesCupos } from './solicitudes-cupos';
@@ -35,7 +35,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
   template: `
     @let l = lista();
     <div class="mx-auto flex max-w-[1280px] flex-col gap-4 pb-24 md:gap-5">
-      <bo-page-header title="Solicitudes de atleta" subtitle="Altas enviadas desde el formulario público · se revisan a mano antes de publicar"
+      <bo-page-header title="Solicitudes de atleta" [subtitle]="subtitulo()"
         [back]="false" [crumbs]="[comps.current()?.nombreCorto || '', 'Evento', { label: 'Atletas', link: secciones()[0].path }, 'Solicitudes']">
         @if (puede()) { <bo-tabs pageTabs label="Atletas" [alwaysTabs]="true" [tabs]="secciones()" /> }
       </bo-page-header>
@@ -115,7 +115,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
     </div>
 
     <bo-sheet title="Filtrar solicitudes" [(open)]="filtros" [filtered]="nFiltros() > 0" (reset)="limpiar()"
-      [resultLabel]="'Ver ' + visibles().length + ' solicitudes'">
+      [resultLabel]="'Ver ' + visibles().length + (visibles().length === 1 ? ' solicitud' : ' solicitudes')">
       <div class="flex flex-col gap-2">
         <span class="text-label-s text-text-primary" id="sol-estado">Estado</span>
         <div class="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="sol-estado">
@@ -180,7 +180,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
       <div class="flex-1 overflow-y-auto px-4 pb-6 sm:px-6">
       @if (detalle(); as d) {
         <div class="flex flex-col gap-5">
-          <p class="hidden text-body-s text-text-tertiary sm:block">Solicitud recibida {{ hace(d.createdAt) }} desde el formulario de alta</p>
+          <p class="hidden text-body-s text-text-tertiary sm:block">Solicitud @if (esCambio()) { de cambio de perfil enviada {{ hace(d.createdAt) }} desde el área de atleta } @else { recibida {{ hace(d.createdAt) }} desde el formulario de alta }</p>
           <p class="truncate text-body-s text-text-tertiary sm:hidden">{{ d.email }}</p>
 
           <div class="-mt-2 flex flex-wrap gap-1">
@@ -201,10 +201,13 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
               <gr-alert tone="danger" title="Cambios rechazados">Motivo: {{ d.motivoRechazo || 'sin motivo' }} · su ficha sigue como estaba.</gr-alert>
             }
             @if (d.atleta) {
-              <p class="text-body-s text-text-secondary">Atleta: <strong class="text-text-primary">{{ d.atleta.nombre }}</strong>@if (d.atleta.licencia) { · {{ d.atleta.licencia }} }@if (d.atleta.club) { · {{ d.atleta.club }} }. Solo se aplican los campos que aparecen abajo: el resto de su ficha no se toca.</p>
+              <p class="text-body-s text-text-secondary">Atleta: <strong class="text-text-primary">{{ d.atleta.nombre }}</strong>{{ extrasAtleta(d) }}. Solo se aplican los campos que aparecen abajo: el resto de su ficha no se toca.</p>
             }
             @if (cambiaEmail() && d.estado !== 'aprobada' && d.estado !== 'rechazada') {
               <gr-alert tone="warning" title="Cambia el email de acceso">Al aprobar, {{ d.atleta?.nombre || 'el atleta' }} entrará al área de atleta y recibirá los avisos con el email nuevo. Revisa que esté bien escrito: este cambio también se envía al email actual, así que un error deja su cuenta sin acceso a los avisos. Si no lo tienes claro, recházalo con el motivo.</gr-alert>
+            }
+            @if (cambiaPrueba() && d.estado !== 'aprobada' && d.estado !== 'rechazada') {
+              <gr-alert tone="warning" title="Cambia de competición">Al aprobar, su plaza pasa a la competición nueva. Si esa competición ya no tiene plazas, la aprobación no se aplica: rechaza el cambio o cámbiasela desde su ficha.</gr-alert>
             }
             <section>
               <h3 class="text-label-xs text-text-muted uppercase">Cambios solicitados · {{ d.cambios.length }} {{ d.cambios.length === 1 ? 'campo' : 'campos' }}</h3>
@@ -215,13 +218,13 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
                 <div class="mt-3 flex gap-2 sm:hidden" role="tablist" aria-label="Comparación de los cambios">
                   <button type="button" role="tab" id="cmp-tab-antes" aria-controls="cmp-panel" [attr.aria-selected]="lado() === 'antes'" (click)="lado.set('antes')"
                     class="flex h-11 flex-1 items-center justify-center rounded-sm border text-label-s"
-                    [class]="lado() === 'antes' ? 'border-accent-text bg-accent-deep/20 text-accent-text' : 'border-line-strong text-text-secondary'">Antes</button>
+                    [class]="lado() === 'antes' ? 'border-accent-text bg-accent-deep/20 font-semibold text-accent-text' : 'border-line-strong text-text-secondary'">Antes</button>
                   <button type="button" role="tab" id="cmp-tab-despues" aria-controls="cmp-panel" [attr.aria-selected]="lado() === 'despues'" (click)="lado.set('despues')"
                     class="flex h-11 flex-1 items-center justify-center rounded-sm border text-label-s"
-                    [class]="lado() === 'despues' ? 'border-accent-text bg-accent-deep/20 text-accent-text' : 'border-line-strong text-text-secondary'">Después</button>
+                    [class]="lado() === 'despues' ? 'border-accent-text bg-accent-deep/20 font-semibold text-accent-text' : 'border-line-strong text-text-secondary'">Después</button>
                 </div>
                 <div id="cmp-panel" role="tabpanel" [attr.aria-labelledby]="lado() === 'antes' ? 'cmp-tab-antes' : 'cmp-tab-despues'" class="mt-3 flex flex-col gap-2 sm:hidden">
-                  @for (c of d.cambios; track c.clave) {
+                  @for (c of cambiosFilas(); track c.clave) {
                     <div class="rounded-md border border-line-subtle bg-bg-raised px-3 py-2">
                       <p class="text-label-xs text-text-tertiary uppercase">{{ c.campo }}</p>
                       @if (lado() === 'antes') {
@@ -237,7 +240,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
                   <div class="grid grid-cols-[160px_minmax(0,1fr)_minmax(0,1fr)] border-b border-line-subtle bg-bg-surface px-4 py-2 text-label-xs text-text-muted uppercase">
                     <span>Campo</span><span>Antes</span><span>Después</span>
                   </div>
-                  @for (c of d.cambios; track c.clave) {
+                  @for (c of cambiosFilas(); track c.clave) {
                     <div class="grid grid-cols-[160px_minmax(0,1fr)_minmax(0,1fr)] items-start gap-3 border-b border-line-subtle px-4 py-2.5 last:border-0">
                       <span class="text-body-s text-text-secondary">{{ c.campo }}</span>
                       <span class="text-body-s break-words text-text-tertiary line-through">{{ c.antes || 'vacío' }}</span>
@@ -245,7 +248,8 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
                     </div>
                   }
                 </div>
-                <p class="mt-2 text-body-xs text-text-tertiary">En resaltado, el valor que se aplicará al aprobar. Los campos que no aparecen no cambian.</p>
+                <p class="mt-2 text-body-xs text-text-tertiary sm:hidden">@if (lado() === 'antes') { Así estaba su ficha antes del cambio · los campos que no aparecen no cambian. } @else { En resaltado, el valor que se aplicará al aprobar · los campos que no aparecen no cambian. }</p>
+                <p class="mt-2 hidden text-body-xs text-text-tertiary sm:block">En resaltado, el valor que se aplicará al aprobar. Los campos que no aparecen no cambian.</p>
               }
             </section>
           }
@@ -621,6 +625,23 @@ export class SolicitudesPage {
   protected readonly esCambio = computed(() => (this.detalle()?.tipo ?? this.tipoPendiente()) === 'cambio_perfil');
   /** The change moves the athlete's email: it is also the address they log in with. */
   protected readonly cambiaEmail = computed(() => (this.detalle()?.cambios ?? []).some((c) => c.clave === 'email'));
+  /** The change moves the athlete to the other competition: her place moves with her. */
+  protected readonly cambiaPrueba = computed(() => (this.detalle()?.cambios ?? []).some((c) => c.clave === 'prueba'));
+  /** Requested changes ready to read: a phone reads as «+34 600 000 009» (the API value stays E.164). */
+  protected readonly cambiosFilas = computed(() =>
+    (this.detalle()?.cambios ?? []).map((c) => ({ ...c, antes: valorTexto(c.clave, c.antes), despues: valorTexto(c.clave, c.despues) })));
+  /** Page subtitle: the list holds both kinds of request, so it follows the active type filter. */
+  protected readonly subtitulo = computed(() => {
+    const tipo = this.fTipo();
+    if (tipo === 'alta') return 'Altas enviadas desde el formulario público · se revisan a mano antes de publicar';
+    if (tipo === 'cambio_perfil') return 'Cambios de perfil enviados desde el área de atleta · se revisan a mano antes de aprobarlos';
+    return 'Altas enviadas desde el formulario público y cambios de perfil enviados desde el área de atleta · se revisan a mano antes de publicar';
+  });
+
+  /** « · Licencia · Club» (sin espacio final: el punto de la frase va pegado al club). */
+  protected extrasAtleta(d: SolicitudDetalle): string {
+    return [d.atleta?.licencia, d.atleta?.club].filter(Boolean).map((x) => ' · ' + x).join('');
+  }
 
   private t: ReturnType<typeof setTimeout> | undefined;
   private tEnlace: ReturnType<typeof setTimeout> | undefined;
@@ -918,8 +939,8 @@ export class SolicitudesPage {
     // The API sends the technical key («clave») and the label («campo»): the panel keys on the first one.
     const difs = d.diferencias ?? [];
     const dif = difs.find((x) => x.clave === clave);
-    const nuevo = this.valorCampo(clave, d);
-    let actual = dif?.actual ?? '';
+    const nuevo = valorTexto(clave, this.valorCampo(clave, d));
+    let actual = valorTexto(clave, dif?.actual ?? '');
     let tipo: 'igual' | 'distinto' | 'nuevo';
     if (clave === 'marcas') {
       // The summary of the three marks: the worst of the three.

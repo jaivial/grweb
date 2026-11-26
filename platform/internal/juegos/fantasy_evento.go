@@ -161,7 +161,18 @@ func (s *Svc) horarioFantasy(ctx context.Context, cid uuid.UUID, j jornada) hora
 		h.OK = true
 	}
 	if !h.OK {
-		return s.horario(ctx, cid, j.Dia)
+		h = s.horario(ctx, cid, j.Dia)
+	}
+	// Juegos › Configuración: the clausulazos may close the last day at a chosen hour instead of the last session
+	if cfg, err := configJuegos(ctx, s.a.DB, cid); err == nil && cfg.ClausulazoCierreManual && cfg.ClausulazoCierreHora != "" {
+		// the day of the fantasy jornada: the last date of the event (the one the backoffice names)
+		if t, err := time.ParseInLocation("2006-01-02 15:04", j.Dia+" "+cfg.ClausulazoCierreHora, madrid()); err == nil {
+			h.UltimaSesion = t
+			if !h.OK {
+				h.Inicio = t // no schedule yet: the rooms keep their own rules; only the buy-outs need the close
+			}
+			h.OK = true
+		}
 	}
 	return h
 }

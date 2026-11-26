@@ -44,7 +44,7 @@ type faqIn struct {
 	Respuesta string `json:"respuesta" minLength:"1" maxLength:"4000" doc:"Markdown"`
 	Destacada bool   `json:"destacada,omitempty"`
 	Publicada bool   `json:"publicada,omitempty"`
-	enField
+	EnField
 }
 
 // ---- Patrocinadores ----
@@ -84,7 +84,7 @@ type patroIn struct {
 	FocalX  int    `json:"focalX" required:"false" minimum:"0" maximum:"100" default:"50"`
 	FocalY  int    `json:"focalY" required:"false" minimum:"0" maximum:"100" default:"50"`
 	Alt     string `json:"alt,omitempty" maxLength:"200"`
-	enField
+	EnField
 }
 
 // ---- SEO and redirects ----
@@ -106,7 +106,7 @@ type seoIn struct {
 	Description string `json:"description,omitempty" maxLength:"170"`
 	ImagenURL   string `json:"imagenUrl,omitempty" maxLength:"500"`
 	Indexable   bool   `json:"indexable,omitempty"`
-	enField
+	EnField
 }
 
 type redirRow struct {
@@ -153,7 +153,7 @@ type paginaIn struct {
 	// Blog only: category (filters of /blog) and the source line under the header.
 	Categoria string `json:"categoria,omitempty" maxLength:"20"`
 	Fuente    string `json:"fuente,omitempty" maxLength:"200"`
-	enField
+	EnField
 }
 
 // categoriasBlog are the categories of /blog (Figma 34).
@@ -240,7 +240,7 @@ type albumIn struct {
 	Slug      string `json:"slug" pattern:"^[a-z0-9][a-z0-9-]{0,80}$"`
 	Fotos     []foto `json:"fotos,omitempty" maxItems:"300"`
 	Publicado bool   `json:"publicado,omitempty"`
-	enField
+	EnField
 }
 
 // ---- Voluntarios (admin side; they are created from the public form) ----

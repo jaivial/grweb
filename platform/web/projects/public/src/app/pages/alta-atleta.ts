@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { mascaraFecha } from './fecha-mascara';
-import { MARCAS_PERFIL, MAX_BIO, MAX_FRASE, MAX_MARCA, esMenorDe, totalMarcas, validarPerfil } from '../core/perfil-campos';
+import { MARCAS_PERFIL, MAX_BIO, MAX_FRASE, MAX_MARCA, esMenorDe, pruebaEnFoco, pruebaSiguiente, tarjetasPrueba, totalMarcas, validarPerfil } from '../core/perfil-campos';
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -431,38 +431,23 @@ export class AltaAtletaPage {
   }
 
   /** Las tarjetas de «¿En qué competición compites?» (Figma 219:169366: sin chips ni contador; completa = deshabilitada). */
-  protected opcionesPrueba(): { codigo: string; titulo: string; detalle: string; completa: boolean }[] {
-    const c = this.cfg();
-    const dia = (iso?: string) => iso ? new Intl.DateTimeFormat(this.i18n.locale(), { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(iso + 'T00:00:00Z')).replace(',', '').replace('.', '') : '';
-    return (c?.pruebas ?? []).map((p) => {
-      const completa = p.plazas > 0 && p.plazas - p.ocupadas <= 0;
-      const fecha = dia(p.fecha);
-      const nivel = p.nivel ? p.nivel.charAt(0).toUpperCase() + p.nivel.slice(1) : '';
-      return {
-        codigo: p.codigo, titulo: fecha ? `${p.nombre} · ${fecha}` : p.nombre, completa,
-        detalle: completa ? this.t().completa : nivel,
-      };
-    });
+  protected opcionesPrueba(): ReturnType<typeof tarjetasPrueba> {
+    return tarjetasPrueba(this.cfg()?.pruebas, this.i18n.locale(), this.t().completa);
   }
 
   /** La opción que entra en el recorrido del teclado (radiogroup: un solo tab stop). */
   protected pruebaFoco(): string {
-    const ops = this.opcionesPrueba().filter((o) => !o.completa);
-    return ops.some((o) => o.codigo === this.d.prueba) ? this.d.prueba : (ops[0]?.codigo ?? '');
+    return pruebaEnFoco(this.opcionesPrueba(), this.d.prueba);
   }
 
   /** Flechas en el radiogroup: mueven y eligen la opción siguiente o anterior (saltando las completas). */
   protected teclaPrueba(ev: KeyboardEvent): void {
-    const paso = ev.key === 'ArrowDown' || ev.key === 'ArrowRight' ? 1 : ev.key === 'ArrowUp' || ev.key === 'ArrowLeft' ? -1 : 0;
-    if (!paso) return;
+    const sig = pruebaSiguiente(this.opcionesPrueba(), this.d.prueba, ev.key);
+    if (!sig) return;
     ev.preventDefault();
-    const ops = this.opcionesPrueba().filter((o) => !o.completa);
-    if (!ops.length) return;
-    const i = ops.findIndex((o) => o.codigo === this.pruebaFoco());
-    const sig = ops[(i + paso + ops.length) % ops.length];
-    this.d.prueba = sig.codigo;
+    this.d.prueba = sig;
     this.revalidar();
-    (ev.currentTarget as HTMLElement).querySelector<HTMLElement>('[data-prueba="' + sig.codigo + '"]')?.focus();
+    (ev.currentTarget as HTMLElement).querySelector<HTMLElement>('[data-prueba="' + sig + '"]')?.focus();
   }
 
   protected readonly d: DatosAlta = {
