@@ -115,5 +115,5 @@ export const diaLargo = (f: string) => fecha(f, { weekday: 'long', day: 'numeric
 export const nombrePrueba = (p?: string) => (p ? p.toUpperCase().replace('AEP', 'AEP-') : '');
 export const cat = (c: string) => c.replace('-', '−');
 export const kg = (n?: number) => (n === undefined || n === null ? '–' : n.toLocaleString('es-ES', { maximumFractionDigits: 1 }));
-/** Competition of the i-th date (AEP-2 the first, AEP-3 the second, as the backend). */
-export const pruebaDeDia = (n: number, i: number) => (n >= 2 && i < 2 ? ['aep2', 'aep3'][i] : '');
+/** Competition of the i-th date of n: AEP-3 is the last one and the ones before it AEP-2 (as the backend). */
+export const pruebaDeDia = (n: number, i: number) => (i < 0 ? '' : n >= 2 && i === n - 1 ? 'aep3' : 'aep2');

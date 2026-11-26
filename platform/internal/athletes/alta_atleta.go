@@ -262,7 +262,7 @@ type PruebaAlta struct {
 	Ocupadas int    `json:"ocupadas"`
 }
 
-// pruebasAlta: AEP-2 the first day of the event, AEP-3 the second one.
+// pruebasAlta: AEP-2 the first date of the event, AEP-3 the last one (as schedule splits them).
 var pruebasAlta = []struct{ codigo, nombre string }{{"aep2", "AEP-2"}, {"aep3", "AEP-3"}}
 
 // cupos returns the own places of each competition: the ones set in the backoffice or, without a row,
@@ -335,11 +335,18 @@ func (s *Svc) pruebas(ctx context.Context, c compref.Comp) ([]PruebaAlta, string
 	ocup := ocupadas(ctx, s.a.DB, c.ID)
 	cupo := s.cupos(ctx, s.a.DB, c.ID, c.Inscripcion.Plazas)
 	ini, _ := time.Parse(time.DateOnly, c.FechaInicio)
+	fin, err := time.Parse(time.DateOnly, c.FechaFin)
+	if err != nil || fin.Before(ini) {
+		fin = ini
+	}
 	out := make([]PruebaAlta, 0, len(pruebasAlta))
-	for i, p := range pruebasAlta {
+	for _, p := range pruebasAlta {
 		f := ""
 		if !ini.IsZero() {
-			f = ini.AddDate(0, 0, i).Format(time.DateOnly)
+			f = ini.Format(time.DateOnly) // AEP-2: the first date
+			if p.codigo == "aep3" {
+				f = fin.Format(time.DateOnly) // AEP-3: the last one
+			}
 		}
 		out = append(out, PruebaAlta{Codigo: p.codigo, Nombre: p.nombre, Fecha: f, Nivel: "nivel regional", Plazas: cupo[p.codigo], Ocupadas: ocup[p.codigo]})
 	}
