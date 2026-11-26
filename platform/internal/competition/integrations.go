@@ -510,7 +510,7 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		sede := Sede{Nombre: "Pabellón Municipal de Almussafes", Direccion: "Avda. Laura Méndez, s/n", CP: "46440", Ciudad: "Almussafes", Provincia: "Valencia", Lat: &lat, Lng: &lng,
 			MapsURL: "https://www.google.com/maps?daddr=Avda+Laura+M%C3%A9ndez,+s/n,+46440+Almussafes,+Valencia"}
 		evento := Evento{Descripcion: "La competición de powerlifting más esperada del año", Nivel: "AEP-2 · AEP-3", Organizador: "GR Strength",
-			EmailContacto: "admin@grstrength.com", Puertas: "08:30", AforoPabellon: 1200, Instagram: "https://instagram.com/grstrength"}
+			EmailContacto: "admin@grstrength.com", Puertas: "08:30", AforoPabellon: 1200, Instagram: "https://www.instagram.com/grstrengthclub?avpt=ZGwzY2JrdWhteXZo"}
 		insc := Inscripcion{Modo: "externa", URL: "https://powerliftingspain.es/aep-2-gr-strength-cup-ii-almussafes-valencia-2026/", Estado: "abierta", Nota: "Plazo de la AEP: hasta el 11/11/2026 a las 12:00."}
 		llegar := comoLlegarEjemplo()
 		mods := defaultModulos()
@@ -570,7 +570,7 @@ func (s *Svc) seed2025(ctx context.Context, a *app.App) (uuid.UUID, error) {
 	id = newID()
 	sede := Sede{Ciudad: "Llíria", Provincia: "Valencia"} // the 2025 poster names only the town
 	evento := Evento{Descripcion: "La primera edición reunió a atletas de la Comunitat Valenciana, Murcia y Baleares en una competición regional de nivel AEP-2, con jueces y cargadores certificados.",
-		Nivel: "AEP-2 Regional Valencia, Murcia y Baleares", Organizador: "GR Strength", EmailContacto: "admin@grstrength.com", Instagram: "https://instagram.com/grstrengthclub"}
+		Nivel: "AEP-2 Regional Valencia, Murcia y Baleares", Organizador: "GR Strength", EmailContacto: "admin@grstrength.com", Instagram: "https://www.instagram.com/grstrengthclub?avpt=ZGwzY2JrdWhteXZo"}
 	insc := Inscripcion{Modo: "externa", Estado: "cerrada"}
 	err := db.Tx(ctx, a.DB, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `INSERT INTO competiciones (id, slug, nombre, nombre_corto, edicion, estado, fecha_inicio, fecha_fin, sede, evento, modulos, inscripcion, como_llegar)
