@@ -14,6 +14,7 @@ const T = {
     c3: 'GRS Cup 3', c3fecha: '17, 18 y 19 de diciembre de 2027', c3texto: 'Déjanos tu email y te avisamos cuando abran las inscripciones.',
     tuEmail: 'Tu email', placeholder: 'tu@email.com', avisame: 'Avísame', enviando: 'Enviando…', emailMal: 'Escribe un email válido.',
     ok: '¡Listo! Te avisaremos de la GRS Cup 3.',
+    yaEstabas: 'Ya estabas en la lista: te avisaremos de la GRS Cup 3.',
   },
   en: {
     eyebrow: "What's next", titulo: 'Competitions', fecha: 'April 2027', lugar: 'Almussafes (Valencia)', nombre: 'Name to be revealed',
@@ -22,6 +23,7 @@ const T = {
     c3: 'GRS Cup 3', c3fecha: '17, 18 and 19 December 2027', c3texto: 'Leave your email and we will let you know when registration opens.',
     tuEmail: 'Your email', placeholder: 'you@email.com', avisame: 'Notify me', enviando: 'Sending…', emailMal: 'Enter a valid email.',
     ok: 'Done! We will let you know about GRS Cup 3.',
+    yaEstabas: 'You were already on the list: we will let you know about GRS Cup 3.',
   },
 };
 
@@ -52,7 +54,8 @@ const T = {
         @if (url()) {
           <a grButton variant="primary" size="l" [href]="url()" target="_blank" rel="noopener">{{ t().reservar }}</a>
         } @else {
-          <button grButton variant="primary" size="l" type="button" [disabled]="true">{{ t().pronto }}</button>
+          <!-- At 390 px the long label would be wider than the card: it wraps on phones instead of overflowing. -->
+          <button grButton variant="primary" size="l" type="button" class="max-w-full max-sm:whitespace-normal max-sm:text-center max-sm:text-balance" [disabled]="true">{{ t().pronto }}</button>
         }
       </article>
       <!-- BIZ-165: GRS Cup 3 «Avísame» -->
@@ -64,7 +67,7 @@ const T = {
         </p>
         <p class="max-w-[560px] text-label-m text-text-secondary">{{ t().c3texto }}</p>
         @if (enviado()) {
-          <p class="text-label-m text-success" role="status">{{ t().ok }}</p>
+          <p class="text-label-m text-success" role="status">{{ enviado() === 'nuevo' ? t().ok : t().yaEstabas }}</p>
         } @else {
           <form class="flex w-full max-w-[480px] flex-col gap-2 sm:flex-row" method="post" (submit)="$event.preventDefault(); avisar()" novalidate>
             <label class="min-w-0 flex-1">
@@ -86,7 +89,8 @@ export class SecCompeticiones {
   private readonly api = inject(Novedades);
   protected readonly hidratado = signal(false);
   protected readonly enviando = signal(false);
-  protected readonly enviado = signal(false);
+  /** 'nuevo' | 'repetido' once the API answers; the card then says whether the email was already on the list. */
+  protected readonly enviado = signal<'' | 'nuevo' | 'repetido'>('');
   protected readonly error = signal('');
   protected email = '';
   constructor() { afterNextRender(() => this.hidratado.set(true)); }
@@ -98,8 +102,8 @@ export class SecCompeticiones {
     if (e.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return void this.error.set(this.t().emailMal);
     this.enviando.set(true);
     try {
-      await this.api.avisame('grscup-3', e);
-      this.enviado.set(true);
+      const nuevo = await this.api.avisame('grscup-3', e);
+      this.enviado.set(nuevo ? 'nuevo' : 'repetido');
     } catch (err) {
       this.error.set(mensajeError(err, undefined, this.lang()));
     } finally {
