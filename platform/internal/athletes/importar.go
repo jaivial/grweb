@@ -811,7 +811,10 @@ func (s *Svc) aplicar(ctx context.Context, tx pgx.Tx, cid uuid.UUID, p parsed, c
 		if err := createPerfil(ctx, tx, cid, id, p.Nombre+" "+p.Apellidos); err != nil {
 			return err
 		}
-		return hist(ctx, tx, id, "Alta desde el acta de la AEP", strings.Join(cambios, " · "))
+		if err := hist(ctx, tx, id, "Alta desde el acta de la AEP", strings.Join(cambios, " · ")); err != nil {
+			return err
+		}
+		return s.consentimientosOrganizador(ctx, tx, cid, id)
 	}
 	return hist(ctx, tx, id, "Actualizado desde el acta de la AEP", strings.Join(cambios, " · "))
 }
