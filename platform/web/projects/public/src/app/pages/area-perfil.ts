@@ -20,6 +20,7 @@ const T = {
     consAceptado: (v: string) => `Consentimiento de imagen aceptado (${v}).`,
     mostrar: 'Mostrar mi perfil público', mostrarTxt: 'Tu ficha en /atletas con foto, bio, Instagram y marcas. Tu nombre, club, categoría, horario y resultados son públicos siempre en participantes y resultados.',
     noSubir: 'No se pudo subir la foto.', noGuardarGen: 'No se pudo guardar. Inténtalo de nuevo.', caducada: 'Tu sesión ha caducado.',
+    fotoPendiente: 'Tu nueva foto está pendiente de revisión; mientras tanto se sigue viendo la anterior en tu perfil público.',
   },
   en: {
     volver: 'Back to the dashboard', tuPerfil: 'Your profile', loVeran: 'They will see it at /atletas/',
@@ -31,13 +32,14 @@ const T = {
     consAceptado: (v: string) => `Image consent accepted (${v}).`,
     mostrar: 'Show my public profile', mostrarTxt: 'Your page on /atletas with photo, bio, Instagram and lifts. Your name, club, weight class, schedule and results are always public in participants and results.',
     noSubir: "Couldn't upload the photo.", noGuardarGen: "Couldn't save. Please try again.", caducada: 'Your session has expired.',
+    fotoPendiente: 'Your new photo is pending review; until then your public profile keeps showing the previous one.',
   },
 };
 
 /**
  * `/area-atleta?vista=perfil`: «Editar mi perfil» (área de atleta). The photo, the visibility of the page and the image
- * consent are settings and are saved at once; the details of the record (name, contact, club, bio, lifts…) are a
- * change request reviewed by the team, so nothing is written until they approve it.
+ * consent are settings and are saved at once; in the details of the record, name, surnames, email, sex and
+ * competition (and the photo) are reviewed by the team and everything else is saved at once.
  */
 @Component({
   selector: 'gr-area-perfil',
@@ -60,6 +62,10 @@ const T = {
             <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" (change)="foto($event)" [disabled]="subiendo()" /></label>
         </div>
       </div>
+      <p class="sr-only" aria-live="polite">{{ fotoPendiente() ? t().fotoPendiente : '' }}</p>
+      @if (fotoPendiente()) {
+        <p class="mt-4 flex items-start gap-3 rounded-md border border-warning/40 bg-warning/8 p-4 text-body-s text-text-secondary"><gr-icon name="clock" [size]="18" class="mt-0.5 shrink-0 text-warning" />{{ t().fotoPendiente }}</p>
+      }
       @if (!panel().atleta.perfil.imagen) {
         @if (panel().atleta.perfil.fotoUrl) { <p class="mt-4 text-body-s text-warning" role="note">{{ t().noPublica }}</p> }
         <label class="mt-4 flex min-h-11 items-start gap-3 rounded-md border border-line-subtle bg-bg-card p-3 text-body-s text-text-secondary">
@@ -79,7 +85,7 @@ const T = {
         </button>
       </div>
       @if (error()) { <p class="mt-3 text-body-s text-accent-text" role="alert">{{ error() }}</p> }
-      <!-- Los datos de la ficha: propuesta de cambio que el equipo revisa antes de aplicar -->
+      <!-- Los datos de la ficha: unos se guardan al momento y otros los revisa el equipo -->
       <gr-area-perfil-editar class="mt-8" (sesionCaducada)="expirada.emit()" />
     </div>
   `,
@@ -102,6 +108,8 @@ export class AreaPerfilPage implements OnInit {
   protected readonly subiendo = signal(false);
   protected readonly guardando = signal(false);
   protected readonly error = signal('');
+  /** The last photo uploaded waits for the team's review (the public profile keeps the previous one). */
+  protected readonly fotoPendiente = signal(false);
 
   ngOnInit(): void {
     const a = this.panel().atleta;
@@ -129,7 +137,8 @@ export class AreaPerfilPage implements OnInit {
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const p = await firstValueFrom(this.http.post<Panel>(`${AREA_API}/foto`, fd));
+      const p = await firstValueFrom(this.http.post<Panel & { fotoPendiente?: boolean }>(`${AREA_API}/foto`, fd));
+      this.fotoPendiente.set(!!p.fotoPendiente);
       this.fx = p.atleta.perfil.focalX;
       this.fy = p.atleta.perfil.focalY;
       this.guardado.emit(p);
@@ -155,8 +164,8 @@ export class AreaPerfilPage implements OnInit {
   }
 
   /**
-   * Lo que se guarda al momento en la ficha: la visibilidad y el consentimiento de imagen. Los datos personales ya
-   * no se escriben aquí: van como solicitud de cambio y el equipo los revisa antes de aplicarlos.
+   * Lo que se guarda al momento en la ficha: la visibilidad y el consentimiento de imagen. Los datos personales van
+   * por «Editar mi perfil» (gr-area-perfil-editar), que decide qué se aplica ya y qué revisa el equipo.
    */
   private async inmediato(v: { visible?: boolean; aceptaUsoDeImagen?: boolean; retirarConsentimiento?: boolean }): Promise<Panel | null> {
     if (this.guardando()) return null;

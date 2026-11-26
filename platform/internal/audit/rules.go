@@ -49,6 +49,9 @@ var notifRules = map[string]notifRule{
 		if str(d["tipo"]) == "cambio_perfil" {
 			return "Cambio de perfil · " + str(d["nombre"]), "Revisa los cambios: nada se aplica hasta que los apruebes.", "/atletas/solicitudes", nivel, "atletas.editar", true
 		}
+		if str(d["tipo"]) == "autorizacion" {
+			return "Autorización de tutor · " + str(d["nombre"]), "Revisa la autorización firmada: al aprobarla su ficha pasa a ser pública.", "/atletas/solicitudes/" + str(d["id"]), "aviso", "atletas.editar", true
+		}
 		if d["esMenor"] == true {
 			nivel = "aviso"
 			cuerpo = "Es menor de edad: necesitarás la autorización de su tutor antes de publicarla."
@@ -420,11 +423,16 @@ func resumen(e events.Event) string {
 		return "envió a «" + str(d["alias"]) + "» un enlace para cambiar la contraseña"
 	case "fans.baneado":
 		return "baneó la cuenta de directo «" + str(d["alias"]) + "»"
+	case "athletes.autorizacion_pedida":
+		return "pidió la autorización del tutor de " + str(d["nombre"])
 	case "athletes.atleta_borrado":
 		return "borró a un atleta y sus datos"
 	case "athletes.solicitud_creada":
 		if str(d["tipo"]) == "cambio_perfil" {
 			return "envió un cambio de perfil de su ficha"
+		}
+		if str(d["tipo"]) == "autorizacion" {
+			return "subió la autorización firmada de su tutor"
 		}
 		return "envió una solicitud de alta de atleta"
 	case "athletes.solicitud_actualizada":
@@ -432,6 +440,9 @@ func resumen(e events.Event) string {
 	case "athletes.solicitud_aprobada":
 		if str(d["tipo"]) == "cambio_perfil" {
 			return "aprobó un cambio de perfil de " + str(d["nombre"])
+		}
+		if str(d["tipo"]) == "autorizacion" {
+			return "aprobó la autorización del tutor de " + str(d["nombre"])
 		}
 		return "aprobó el alta de atleta de " + str(d["nombre"])
 	case "athletes.solicitud_rechazada":
@@ -441,6 +452,9 @@ func resumen(e events.Event) string {
 				s += " (" + m + ")"
 			}
 			return s
+		}
+		if str(d["tipo"]) == "autorizacion" {
+			return "rechazó la autorización del tutor de " + str(d["nombre"]) + " (" + str(d["motivo"]) + ")"
 		}
 		return "rechazó el alta de atleta de " + str(d["nombre"])
 	case "athletes.importacion_confirmada":
@@ -503,6 +517,8 @@ func resumenSolicitudActualizada(d map[string]any) string {
 		return "borró una solicitud de atleta rechazada"
 	case "enlazada":
 		return "enlazó una solicitud de atleta con su ficha"
+	case "ampliada":
+		return "añadió cambios a su cambio de perfil pendiente"
 	}
 	switch str(d["estado"]) {
 	case "revision":

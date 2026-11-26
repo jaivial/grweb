@@ -270,6 +270,10 @@ func (s *Svc) emparejar(ctx context.Context, cid, id uuid.UUID) (string, error) 
 	if sol.Estado != "pendiente" && sol.Estado != "revision" {
 		return "", nil
 	}
+	// Only an alta is matched against the roll: the other types are already linked to their athlete.
+	if sol.Tipo != "alta" {
+		return "", nil
+	}
 	cons := sol.consentMap()
 	if !cons["privacidad"].Aceptado || !cons["terminos"].Aceptado {
 		s.a.Log.Info("emparejamiento.sin_consentimiento", "solicitud", id.String())

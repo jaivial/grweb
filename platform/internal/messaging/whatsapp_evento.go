@@ -12,8 +12,8 @@ import (
 )
 
 // handleWhatsapp queues the WhatsApp messages of a request: one to the athlete (only if he consented and the switch
-// «WhatsApp al atleta» is on) and one to each phone of the list of organisers (one message per phone, never a
-// group: the consent and the opt-out only work that way). The switches and the list live in «Avisos de solicitudes».
+// «WhatsApp al atleta» is on) and, for the organisers, one to their group when one is chosen or else one to each
+// phone of the list of organisers. The switches, the list and the group live in «Avisos de solicitudes».
 func (s *Svc) handleWhatsapp(ctx context.Context, e events.Event) error {
 	var d struct {
 		Para          string            `json:"para"`
@@ -46,10 +46,17 @@ func (s *Svc) handleWhatsapp(ctx context.Context, e events.Event) error {
 			destinos = append(destinos, num)
 		}
 	}
+	// «WhatsApp a organizadores» governs both. With a group chosen (a JID, never normalised as a phone) the
+	// organisers' messages go only to the group: one message instead of one per phone, so the rate limit is left for
+	// the athletes' messages.
 	if d.Organizadores && avisos.AOrganizadores {
-		for _, tel := range avisos.Telefonos {
-			if tel.Numero != "" {
-				destinos = append(destinos, tel.Numero)
+		if strings.HasSuffix(avisos.GrupoID, "@g.us") {
+			destinos = append(destinos, avisos.GrupoID)
+		} else {
+			for _, tel := range avisos.Telefonos {
+				if tel.Numero != "" {
+					destinos = append(destinos, tel.Numero)
+				}
 			}
 		}
 	}

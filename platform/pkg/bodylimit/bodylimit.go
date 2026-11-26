@@ -34,6 +34,7 @@ var Rules = []Rule{
 	{"athletes", http.MethodPost, "/api/area-atleta/foto", Foto},
 	{"athletes", http.MethodPost, "/api/competiciones/*/alta-atleta", Foto},
 	{"athletes", http.MethodPost, "/api/admin/competiciones/*/atletas/solicitudes/*/autorizacion", Foto},
+	{"athletes", http.MethodPost, "/api/competiciones/*/autorizacion/*", Upload},
 	{"athletes", http.MethodPut, "/internal/competiciones/*/horarios", Intern},
 	{"cms", http.MethodPost, "/api/admin/competiciones/*/medios", Upload},
 	{"cms", http.MethodPost, "/api/admin/competiciones/*/web/mapas/imagen", Upload},

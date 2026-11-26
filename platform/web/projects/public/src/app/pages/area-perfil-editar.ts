@@ -22,20 +22,31 @@ interface CambioPendiente {
   enviadaAt: string;
   cambios: CambioCampo[];
 }
-/** Lo que devuelve el servicio: los datos de hoy (para rellenar) y el cambio pendiente. */
+type DatosPerfil = Omit<CamposPerfil, 'marcaSQ' | 'marcaBP' | 'marcaDL'> & { marcaSQ?: number; marcaBP?: number; marcaDL?: number };
+/** Lo que devuelve el servicio: los datos de hoy, los que rellenan el formulario y el cambio pendiente. */
 interface PerfilEditar {
-  datos: Omit<CamposPerfil, 'marcaSQ' | 'marcaBP' | 'marcaDL'> & { marcaSQ?: number; marcaBP?: number; marcaDL?: number };
+  datos: DatosPerfil;
+  /** Los datos de hoy con los valores pendientes de revisión: dejarlos tal cual mantiene el cambio pendiente. */
+  propuesto?: DatosPerfil;
   opciones: PruebaOpcion[];
   esMenor: boolean;
   pendiente?: CambioPendiente;
+  /** La autorización firmada del tutor ya está: el aviso de menor sobra. */
+  autorizada?: boolean;
+}
+/** Respuesta del envío: lo aplicado al momento y lo que queda para revisión (null si nada). */
+interface EnvioOut {
+  pendiente?: CambioPendiente | null;
+  aplicados?: string[];
 }
 
 const api = '/api/area-atleta/perfil-editar';
 
 /**
- * «Editar mi perfil» del área de atleta: el atleta cambia los mismos datos que pidió en el alta y los envía a
- * revisión. Hasta que el equipo los aprueba, su ficha no cambia (y puede cancelar el cambio). Las reglas de
- * validación son las del formulario público (/alta-atleta).
+ * «Editar mi perfil» del área de atleta: el atleta cambia los mismos datos que pidió en el alta. Nombre, apellidos,
+ * email, sexo y competición (y la fecha si cambia la minoría de edad o la división) los revisa el equipo antes de aplicarlos y
+ * pueden cancelarse mientras esperan; el resto se guarda al momento. Las reglas de validación son las del
+ * formulario público (/alta-atleta).
  */
 @Component({
   selector: 'gr-area-perfil-editar',
@@ -63,11 +74,17 @@ const api = '/api/area-atleta/perfil-editar';
             <dl class="mt-4 flex flex-col gap-2">
               @for (c of p.cambios; track c.clave) {
                 <div class="flex flex-col gap-0.5 rounded-md bg-bg-raised px-3 py-2">
-                  <dt class="text-label-xs text-text-tertiary uppercase">{{ c.campo }}</dt>
+                  <dt class="text-label-xs text-text-tertiary uppercase">{{ t().campos[c.clave] ?? c.campo }}</dt>
                   <dd class="flex min-w-0 flex-wrap items-baseline gap-2 text-body-s">
-                    <span class="text-text-tertiary line-through">{{ valor(c, c.antes) }}</span>
-                    <gr-icon name="arrow-right" [size]="12" class="text-text-muted" />
-                    <span class="font-semibold text-text-primary">{{ valor(c, c.despues) }}</span>
+                    @if (c.clave === 'foto') {
+                      @if (c.antes) { <img [src]="c.antes" [alt]="t().fotoActual" class="h-20 w-15 rounded-sm object-cover opacity-60" /> } @else { <span class="text-text-tertiary">{{ t().vacio }}</span> }
+                      <gr-icon name="arrow-right" [size]="12" class="text-text-muted" />
+                      <img [src]="c.despues" [alt]="t().fotoNueva" class="h-20 w-15 rounded-sm object-cover" />
+                    } @else {
+                      <span class="text-text-tertiary line-through">{{ valor(c, c.antes) }}</span>
+                      <gr-icon name="arrow-right" [size]="12" class="text-text-muted" />
+                      <span class="font-semibold text-text-primary">{{ valor(c, c.despues) }}</span>
+                    }
                   </dd>
                 </div>
               }
@@ -80,7 +97,7 @@ const api = '/api/area-atleta/perfil-editar';
           <p class="text-body-s text-text-secondary">{{ t().intro }}</p>
 
           @if (resumen().length) {
-            <div class="rounded-md border border-accent bg-accent/8 p-4" role="alert">
+            <div id="pe-resumen" class="scroll-mt-24 rounded-md border border-accent bg-accent/8 p-4" role="alert">
               <p class="flex items-center gap-2 text-label-s"><gr-icon name="circle-alert" [size]="18" class="text-accent-text" />{{ t().revisa(resumen().length) }}</p>
               <ul class="mt-2 flex flex-col gap-1 text-body-s text-text-secondary">
                 @for (e of resumen(); track e.campo) { <li>• {{ e.label }}: {{ e.msg }}</li> }
@@ -120,7 +137,7 @@ const api = '/api/area-atleta/perfil-editar';
             <gr-field [label]="t().nacimiento" for="pe-nacimiento" [hint]="t().fechaAyuda" [error]="err()['fechaNacimiento'] ?? null">
               <input grInput id="pe-nacimiento" name="fechaNacimiento" inputmode="numeric" autocomplete="bday" [placeholder]="t().fechaPh" [value]="fechaTexto" (input)="fechaCambia($any($event.target))" />
             </gr-field>
-            @if (esMenor()) {
+            @if (esMenor() && !datos()?.autorizada) {
               <p class="flex items-start gap-3 rounded-md border border-warning/40 bg-warning/8 p-4 text-body-s text-text-secondary"><gr-icon name="clock" [size]="18" class="mt-0.5 shrink-0 text-warning" />{{ t().menor }}</p>
             }
           </fieldset>
@@ -207,7 +224,13 @@ const api = '/api/area-atleta/perfil-editar';
           @if (error()) {
             <gr-alert tone="danger" [title]="t().noEnviar">{{ error() }}</gr-alert>
           }
-          @if (ok()) { <p class="rounded-md border border-success/40 bg-bg-raised px-4 py-3 text-body-s text-success" role="status">{{ ok() }}</p> }
+          @if (ok()) {
+            <div class="rounded-md border border-success/40 bg-bg-raised px-4 py-3 text-body-s" role="status">
+              <p class="text-success">{{ ok() }}</p>
+              @if (aplicados().length) { <p class="mt-1 text-text-secondary">{{ t().guardados }} {{ etiquetas(aplicados()) }}</p> }
+              @if (revisados().length) { <p class="mt-1 text-text-secondary">{{ t().pendientesDe }} {{ revisados().join(', ') }}</p> }
+            </div>
+          }
 
           <p class="text-body-xs text-text-tertiary">{{ t().aviso }}</p>
           <div class="max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-5 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-5 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]">
@@ -237,6 +260,10 @@ export class AreaPerfilEditar {
   protected readonly err = signal<Record<string, string>>({});
   protected readonly error = signal('');
   protected readonly ok = signal('');
+  /** Claves aplicadas al momento en el último envío. */
+  protected readonly aplicados = signal<string[]>([]);
+  /** Etiquetas de los campos que el último envío dejó para revisión. */
+  protected readonly revisados = signal<string[]>([]);
   protected readonly enviando = signal(false);
   protected readonly cancelando = signal(false);
   /** dd/mm/aaaa en el campo; d.fechaNacimiento guarda la ISO solo si es una fecha real. */
@@ -272,6 +299,12 @@ export class AreaPerfilEditar {
   /** El valor de un cambio, listo para leer: el teléfono se agrupa («+34 600 000 002»), el resto va tal cual. */
   protected valor(c: CambioCampo, v: string): string {
     return (c.clave === 'telefono' ? telefonoTexto(v) : v) || this.t().vacio;
+  }
+
+  /** «Teléfono, Club» a partir de las claves de los campos. */
+  protected etiquetas(claves: string[]): string {
+    const c = this.t().campos;
+    return claves.map((k) => c[k] ?? k).join(', ');
   }
 
   /** Total de las marcas en vivo. */
@@ -320,9 +353,9 @@ export class AreaPerfilEditar {
     }
   }
 
-  /** Copia los datos del servicio al formulario (la fecha se ve dd/mm/aaaa). */
+  /** Copia los datos del servicio al formulario, con los cambios pendientes (la fecha se ve dd/mm/aaaa). */
   private rellena(p: PerfilEditar): void {
-    const x = p.datos;
+    const x = p.propuesto ?? p.datos;
     const num = (v?: number) => (v === null || v === undefined ? '' : String(v));
     this.d = {
       nombre: x.nombre, apellidos: x.apellidos, email: x.email, telefono: x.telefono, sexo: x.sexo,
@@ -347,41 +380,68 @@ export class AreaPerfilEditar {
   }
 
   private validar(): Record<string, string> {
-    return validarPerfil(this.d, this.t().v, { fechaTexto: this.fechaTexto, esMenor: this.esMenor() });
+    // Sin fecha guardada (subjúnior sin fecha) puede seguir sin ella; si la escribe, se valida igual.
+    const fechaOpcional = !this.datos()?.datos.fechaNacimiento;
+    return validarPerfil(this.d, this.t().v, { fechaTexto: this.fechaTexto, esMenor: this.esMenor(), fechaOpcional });
   }
 
-  /** Envía el cambio: queda pendiente de revisión (la ficha no cambia todavía). */
+  /** Envía el cambio: lo que no necesita revisión se aplica ya; el resto queda pendiente. */
   protected async enviar(): Promise<void> {
     if (this.enviando()) return;
     this.error.set('');
     this.ok.set('');
+    this.aplicados.set([]);
+    this.revisados.set([]);
     this.intentado = true;
     const e = this.validar();
     this.err.set(e);
-    if (Object.keys(e).length) return;
+    if (Object.keys(e).length) {
+      this.irAlError();
+      return;
+    }
     this.enviando.set(true);
     const numero = (v: string | number) => {
       const s = String(v ?? '').trim();
       return s === '' ? null : Number(s);
     };
     try {
-      const p = await firstValueFrom(this.http.post<CambioPendiente>(api, {
+      const r = await firstValueFrom(this.http.post<EnvioOut & Partial<CambioPendiente>>(api, {
         nombre: this.d.nombre.trim(), apellidos: this.d.apellidos.trim(), email: this.d.email.trim(), telefono: this.d.telefono,
         sexo: this.d.sexo, fechaNacimiento: this.d.fechaNacimiento, prueba: this.d.prueba, club: this.d.club.trim(), ciudad: this.d.ciudad.trim(),
         entrenador: this.d.entrenador.trim(), frase: this.d.frase.trim(), bio: this.d.bio.trim(),
         instagram: this.esMenor() ? '' : this.d.instagram.trim(),
         marcaSQ: numero(this.d.marcaSQ), marcaBP: numero(this.d.marcaBP), marcaDL: numero(this.d.marcaDL),
       }));
-      this.pendiente.set(p);
+      // Older answer: the pending change itself at the root.
+      const p = r.pendiente !== undefined ? r.pendiente : r.id ? (r as CambioPendiente) : null;
+      const aplicados = r.aplicados ?? [];
+      // Nothing new for the team: the pending change only lost entries (an undo) or stayed the same.
+      const antes = new Map((this.pendiente()?.cambios ?? []).map((c) => [c.clave, c.despues]));
+      const nada = !!p && p.cambios.every((c) => antes.get(c.clave) === c.despues);
+      this.aplicados.set(aplicados);
+      this.revisados.set(p ? p.cambios.map((c) => this.t().campos[c.clave] ?? c.campo) : []);
+      this.pendiente.set(p ?? null);
       this.intentado = false;
       this.err.set({});
-      this.ok.set(this.t().enviadoTxt);
-      setTimeout(() => document.getElementById('pe-pendiente')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 50);
+      this.ok.set(p ? (nada ? (aplicados.length ? this.t().guardadoTxt + ' ' + this.t().actualizadoTxt : this.t().actualizadoTxt) : aplicados.length ? this.t().guardadoYEnviado : this.t().enviadoTxt) : this.t().guardadoTxt);
+      if (p && !nada) setTimeout(() => document.getElementById('pe-pendiente')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 50);
     } catch (err) {
       this.error.set(this.msg(err));
     } finally {
       this.enviando.set(false);
     }
+  }
+
+  /** Validación fallida: lleva al resumen y pone el foco en el primer campo con error (si no, el botón parece no hacer nada). */
+  private irAlError(): void {
+    setTimeout(() => {
+      document.getElementById('pe-resumen')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      const campo = this.resumen()[0]?.campo;
+      const sel = campo === 'sexo' ? '[aria-labelledby="pe-l-sexo"] button' : `[name="${campo}"]`;
+      const host = campo ? document.querySelector<HTMLElement>(`gr-area-perfil-editar ${sel}`) : null;
+      const el = host?.matches('input, textarea, button') ? host : host?.querySelector<HTMLElement>('input, textarea, button');
+      el?.focus({ preventScroll: true });
+    }, 50);
   }
 
   /** Cancela el cambio pendiente: nada se había aplicado. */
@@ -393,7 +453,11 @@ export class AreaPerfilEditar {
     try {
       await firstValueFrom(this.http.delete<void>(`${api}/${p.id}`));
       this.pendiente.set(null);
+      this.aplicados.set([]);
+      this.revisados.set([]);
       this.ok.set(this.t().cancelado);
+      // The form showed the pending values: it goes back to the data of the record.
+      await this.cargar();
     } catch (e) {
       this.error.set(this.msg(e));
     } finally {
@@ -428,11 +492,12 @@ const T = {
     sinDatos: 'No hemos podido cargar tu ficha. Vuelve a intentarlo.',
     reintentar: 'Reintentar',
     pendienteTitulo: 'Cambios pendientes de revisión',
-    pendienteTxt: (f: string) => `Enviaste estos cambios el ${f}. El equipo los revisa a mano: hasta que los apruebe, tu ficha sigue como está.`,
+    pendienteTxt: (f: string) => `Enviaste estos cambios el ${f}. El equipo los revisa a mano: hasta que los apruebe, esos datos de tu ficha siguen como están.`,
     vacio: 'vacío',
+    fotoActual: 'Tu foto actual', fotoNueva: 'Tu nueva foto, pendiente de revisión',
     cancelar: 'Cancelar el cambio',
-    cancelado: 'Cambio cancelado: tu ficha sigue como estaba.',
-    intro: 'Cambia tus datos y envíalos al equipo. Nada se aplica hasta que los revisen y los aprueben.',
+    cancelado: 'Cambio cancelado: esos datos de tu ficha siguen como estaban.',
+    intro: 'Cambia tus datos y guárdalos. El equipo solo revisa el nombre, los apellidos, el email, el sexo, la competición, la foto y la fecha de nacimiento si cambia tu división o tu mayoría de edad; el resto se guarda al momento.',
     revisa: (n: number) => 'Revisa ' + (n === 1 ? 'un campo' : n + ' campos') + ' antes de enviar',
     tusDatos: 'Tus datos',
     nombre: 'Nombre', apellidos: 'Apellidos', email: 'Email', emailAyuda: 'Es el email con el que entras a tu área: si lo cambias, entrarás con el nuevo.',
@@ -452,9 +517,14 @@ const T = {
     sinCambios: 'No has cambiado nada: tu ficha ya tiene esos datos.',
     emailEnUso: 'Ese email ya es el de otra persona en la competición.',
     enviadoTxt: 'Cambios enviados: el equipo los revisa y te avisamos por email cuando estén aprobados.',
-    aviso: 'Al enviar, tu ficha no cambia: el equipo revisa los cambios y los aplica cuando los aprueba. Puedes cancelarlos mientras esperan.',
-    enviar: 'Enviar los cambios',
-    campos: { nombre: 'Nombre', apellidos: 'Apellidos', email: 'Email', telefono: 'Teléfono', sexo: 'Sexo', fechaNacimiento: 'Fecha de nacimiento', club: 'Club', ciudad: 'Ciudad', entrenador: 'Entrenador', frase: 'Frase', bio: 'Sobre ti', instagram: 'Instagram', marcaSQ: 'Sentadilla', marcaBP: 'Press de banca', marcaDL: 'Peso muerto' } as Record<string, string>,
+    guardadoTxt: 'Cambios guardados.',
+    actualizadoTxt: 'Hemos actualizado tus cambios pendientes de revisión.',
+    guardadoYEnviado: 'Cambios guardados. Algunos los tiene que revisar el equipo: te avisamos por email cuando estén aprobados.',
+    guardados: 'Cambios guardados:',
+    pendientesDe: 'Pendiente de revisión:',
+    aviso: 'El nombre, los apellidos, el email, el sexo, la competición, la foto y la fecha de nacimiento si cambia tu división o tu mayoría de edad los revisa el equipo antes de aplicarlos (puedes cancelarlos mientras esperan). El resto se guarda al momento.',
+    enviar: 'Guardar los cambios',
+    campos: { nombre: 'Nombre', apellidos: 'Apellidos', email: 'Email', telefono: 'Teléfono', sexo: 'Sexo', fechaNacimiento: 'Fecha de nacimiento', club: 'Club', ciudad: 'Ciudad', entrenador: 'Entrenador', frase: 'Frase', bio: 'Sobre ti', instagram: 'Instagram', marcaSQ: 'Sentadilla', marcaBP: 'Press de banca', marcaDL: 'Peso muerto', prueba: 'Competición', foto: 'Foto' } as Record<string, string>,
     v: {
       oblig: 'Es obligatorio.', nombreLetras: 'El nombre debe contener letras.', largo60: 'Es demasiado largo (60 caracteres como máximo).', obligPl: 'Son obligatorios.',
       apellidosLetras: 'Los apellidos deben contener letras.', largos60: 'Son demasiado largos (60 caracteres como máximo).', email: 'Introduce un email válido.',
@@ -469,11 +539,12 @@ const T = {
     sinDatos: "We couldn't load your profile. Try again.",
     reintentar: 'Try again',
     pendienteTitulo: 'Changes pending review',
-    pendienteTxt: (f: string) => `You sent these changes on ${f}. The team reviews them by hand: until they approve them, your profile stays as it is.`,
+    pendienteTxt: (f: string) => `You sent these changes on ${f}. The team reviews them by hand: until they approve them, those details of your profile stay as they are.`,
     vacio: 'empty',
+    fotoActual: 'Your current photo', fotoNueva: 'Your new photo, pending review',
     cancelar: 'Cancel the request',
-    cancelado: 'Request cancelled: your profile stays as it was.',
-    intro: 'Change your details and send them to the team. Nothing is applied until they review and approve them.',
+    cancelado: 'Request cancelled: those details of your profile stay as they were.',
+    intro: 'Change your details and save them. The team only reviews your first name, surname, email, sex, competition, photo, and your date of birth if it changes your division or whether you are under 18; everything else is saved at once.',
     revisa: (n: number) => (n === 1 ? 'Check one field' : 'Check ' + n + ' fields') + ' before sending',
     tusDatos: 'Your details',
     nombre: 'First name', apellidos: 'Surname', email: 'Email', emailAyuda: 'It is the email you use to enter your area: if you change it, you will use the new one.',
@@ -493,9 +564,14 @@ const T = {
     sinCambios: 'You have not changed anything: your profile already has those details.',
     emailEnUso: 'That email already belongs to someone else in the competition.',
     enviadoTxt: 'Changes sent: the team reviews them and we will email you when they are approved.',
-    aviso: 'When you send them, your profile does not change: the team reviews the changes and applies them on approval. You can cancel them while they wait.',
-    enviar: 'Send the changes',
-    campos: { nombre: 'First name', apellidos: 'Surname', email: 'Email', telefono: 'Phone', sexo: 'Sex', fechaNacimiento: 'Date of birth', club: 'Club', ciudad: 'City', entrenador: 'Coach', frase: 'Line', bio: 'About you', instagram: 'Instagram', marcaSQ: 'Squat', marcaBP: 'Bench press', marcaDL: 'Deadlift' } as Record<string, string>,
+    guardadoTxt: 'Changes saved.',
+    actualizadoTxt: 'We have updated your changes pending review.',
+    guardadoYEnviado: 'Changes saved. The team has to review some of them: we will email you when they are approved.',
+    guardados: 'Changes saved:',
+    pendientesDe: 'Pending review:',
+    aviso: 'Your first name, surname, email, sex, competition, photo, and your date of birth if it changes your division or whether you are under 18, are reviewed by the team before they are applied (you can cancel them while they wait). Everything else is saved at once.',
+    enviar: 'Save the changes',
+    campos: { nombre: 'First name', apellidos: 'Surname', email: 'Email', telefono: 'Phone', sexo: 'Sex', fechaNacimiento: 'Date of birth', club: 'Club', ciudad: 'City', entrenador: 'Coach', frase: 'Line', bio: 'About you', instagram: 'Instagram', marcaSQ: 'Squat', marcaBP: 'Bench press', marcaDL: 'Deadlift', prueba: 'Competition', foto: 'Photo' } as Record<string, string>,
     v: {
       oblig: 'This is required.', nombreLetras: 'Your first name must contain letters.', largo60: 'It is too long (60 characters max).', obligPl: 'This is required.',
       apellidosLetras: 'Your surname must contain letters.', largos60: 'It is too long (60 characters max).', email: 'Enter a valid email.',

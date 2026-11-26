@@ -69,8 +69,11 @@ func (s *Svc) registerAreaStory() {
 			problem.Write(w, err)
 			return
 		}
-		var foto string
-		_ = s.a.DB.QueryRow(req.Context(), `SELECT coalesce(foto_url, '') FROM perfiles WHERE atleta_id = $1`, r.ID).Scan(&foto)
+		// The photo waiting for the review first: the athlete composes the story with the new one.
+		foto := s.fotoPendiente(req.Context(), r.CompetitionID, r.ID)
+		if foto == "" {
+			_ = s.a.DB.QueryRow(req.Context(), `SELECT coalesce(foto_url, '') FROM perfiles WHERE atleta_id = $1`, r.ID).Scan(&foto)
+		}
 		if foto == "" {
 			problem.Write(w, problem.NotFound("Aún no tienes foto en tu ficha."))
 			return
