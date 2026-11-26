@@ -5,13 +5,13 @@ import { I18n } from './i18n';
 /** BIZ-160: registration was done through the AEP and is closed; 152 athletes registered (AEP-2: 68, AEP-3: 84; lists below). */
 export const INSCRITOS_AEP = 152;
 export const LISTAS_AEP = [
-  { nivel: 'AEP 2', url: 'https://jaimedigitalstudio.b-cdn.net/grcup/inscripciones/Inscripciones%20AEP%202%20-%20GR%20STRENGTH%20CUP%20II.xlsx' },
-  { nivel: 'AEP 3', url: 'https://jaimedigitalstudio.b-cdn.net/grcup/inscripciones/Inscripciones%20AEP%203%20-%20GR%20STRENGTH%20CUP%20II.xlsx' },
+  { nivel: 'AEP 2', url: 'https://powerliftingspain.es/aep-2-gr-strength-cup-ii-almussafes-valencia-2026/' },
+  { nivel: 'AEP 3', url: 'https://powerliftingspain.es/aep-3-gr-strength-cup-ii-almussafes-valencia-2026/' },
 ];
 
 const T = {
-  es: { cerradas: 'Inscripciones cerradas', txt: (n: number) => `Las inscripciones se hicieron a través de la AEP (Asociación Española de Powerlifting) y ya están cerradas: hay ${n} atletas inscritos.`, atletas: 'atletas inscritos', lista: (nivel: string) => `Lista de inscritos ${nivel} (Excel)` },
-  en: { cerradas: 'Registration closed', txt: (n: number) => `Registration was handled by the AEP (Spanish Powerlifting Association) and is now closed: ${n} athletes are registered.`, atletas: 'registered athletes', lista: (nivel: string) => `${nivel} registration list (Excel)` },
+  es: { cerradas: 'Inscripciones cerradas', txt: (n: number) => `Las inscripciones se hicieron a través de la AEP (Asociación Española de Powerlifting) y ya están cerradas: hay ${n} atletas inscritos.`, atletas: 'atletas inscritos', lista: (nivel: string) => `Inscripción ${nivel}` },
+  en: { cerradas: 'Registration closed', txt: (n: number) => `Registration was handled by the AEP (Spanish Powerlifting Association) and is now closed: ${n} athletes are registered.`, atletas: 'registered athletes', lista: (nivel: string) => `${nivel} registration` },
 };
 
 /** Clear «registration closed» notice with the AEP count and lists (home + /inscripcion). */

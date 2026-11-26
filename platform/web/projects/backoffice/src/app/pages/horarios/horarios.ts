@@ -597,7 +597,7 @@ export class HorariosPage {
     for (const s of b.sesiones) set.add(s.dia);
     return [...set].sort();
   });
-  /** Competition of the selected date (AEP-2 the first date, AEP-3 the second). */
+  /** Competition of the selected date (AEP-3 the last date, AEP-2 the ones before it). */
   protected readonly pruebaDia = computed(() => {
     const dias = this.raw()?.config.dias ?? [];
     return pruebaDeDia(dias.length, dias.findIndex((d) => d.fecha === this.dia()));
@@ -615,8 +615,7 @@ export class HorariosPage {
   protected readonly sesionesDia = computed(() => (this.raw()?.sesiones ?? []).filter((s) => s.dia === this.dia()));
   /** With filters on, only the sessions with some match (no empty cards in the way). */
   protected readonly sesionesVisibles = computed(() => (this.nFiltros() ? this.sesionesDia().filter((s) => this.filtrar(s.atletas).length) : this.sesionesDia()));
-  /** «Generar» rebuilds the date of one competition (AEP-2 / AEP-3) or a one-date event; an extra date without its own
-   *  competition would rebuild the whole event, so it only gets manual sessions. */
+  /** «Generar» rebuilds the competition of the date (AEP-3 the last date, AEP-2 the ones before it) or a one-date event. */
   protected readonly puedeGenerar = computed(() => !!this.pruebaDia() || (this.raw()?.config.dias.length ?? 0) < 2);
   protected readonly categorias = computed(() => {
     const b = this.raw();

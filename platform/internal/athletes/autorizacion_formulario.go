@@ -28,7 +28,7 @@ const (
 // eventoAutorizacion is the event the authorisation is for (the text of the form and of the public page).
 const (
 	eventoAutorizacion      = "GRS Cup 2"
-	eventoAutorizacionLinea = "GRS Cup 2 · Campeonato de powerlifting · 19 de diciembre de 2026 · Almussafes (Valencia)"
+	eventoAutorizacionLinea = "GRS Cup 2 · Campeonato de powerlifting · 18, 19 y 20 de diciembre de 2026 · Almussafes (Valencia)"
 )
 
 // DatosFormulario is what the form prints of the athlete.
@@ -153,7 +153,7 @@ func formularioPNG(d DatosFormulario) ([]byte, error) {
 	l.y += 8
 	l.texto(cuerpo, formMargen, "Como madre, padre o tutor legal del menor indicado arriba, AUTORIZO:", 36)
 	l.y += 10
-	l.texto(cuerpo, formMargen, "1. Su participación en la competición de powerlifting GRS Cup 2, que se celebra el 19 de diciembre de 2026 en Almussafes (Valencia).", 36)
+	l.texto(cuerpo, formMargen, "1. Su participación en la competición de powerlifting GRS Cup 2, que se celebra los días 18, 19 y 20 de diciembre de 2026 en Almussafes (Valencia).", 36)
 	l.y += 10
 	l.texto(cuerpo, formMargen, "2. Que la organización trate sus datos personales y utilice su imagen (fotografías y vídeos, su ficha pública de atleta, los resultados, la retransmisión en directo y los juegos de la competición, como la porra y el fantasy) para la gestión y la comunicación del evento.", 36)
 	l.y += 10

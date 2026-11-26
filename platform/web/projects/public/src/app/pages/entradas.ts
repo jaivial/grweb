@@ -910,11 +910,13 @@ export class EntradasPage {
     const c = this.comp.data();
     // UX8-R1-7: with sessions, only the days that have tickets (the hero must not promise a day without them)
     const dias = [...new Set((this.data()?.sesiones ?? []).map((s) => diaLargo(s.inicio, this.i18n.locale())))];
-    // «sábado 19 y domingo 20 de diciembre»: the month once when both days share it (Figma hero, one line on phones)
+    // «viernes 18, sábado 19 y domingo 20 de diciembre»: the month once when every day shares it (Figma hero, one line on phones)
     const mes = (d: string) => d.match(/ de .+$/)?.[0] ?? '';
-    if (dias.length === 2 && mes(dias[0]) && mes(dias[0]) === mes(dias[1])) dias[0] = dias[0].slice(0, -mes(dias[0]).length);
+    const m = mes(dias[0] ?? '');
+    if (dias.length > 1 && m && dias.every((d) => mes(d) === m)) dias.forEach((d, i) => { if (i < dias.length - 1) dias[i] = d.slice(0, -m.length); });
     const y = ' ' + this.t().pg.y + ' ', loc = this.i18n.locale();
-    const t = dias.length ? dias.join(y) : c?.fechaInicio ? diaLargo(c.fechaInicio + 'T12:00:00Z', loc) + (c.fechaFin && c.fechaFin !== c.fechaInicio ? y + diaLargo(c.fechaFin + 'T12:00:00Z', loc) : '') : this.t().pg.porConfirmar;
+    const lista = dias.length > 1 ? dias.slice(0, -1).join(', ') + y + dias[dias.length - 1] : (dias[0] ?? '');
+    const t = dias.length ? lista : c?.fechaInicio ? diaLargo(c.fechaInicio + 'T12:00:00Z', loc) + (c.fechaFin && c.fechaFin !== c.fechaInicio ? y + diaLargo(c.fechaFin + 'T12:00:00Z', loc) : '') : this.t().pg.porConfirmar;
     return t.charAt(0).toUpperCase() + t.slice(1);
   });
   /** «Puertas 8:30 · premios y sorteo dom 17:00» from the published schedule (BO → Horarios: doors and the trophy agenda item). */

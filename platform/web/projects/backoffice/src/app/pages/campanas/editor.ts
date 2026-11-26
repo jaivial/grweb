@@ -27,8 +27,8 @@ function nuevo(tipo: TipoBloque, id: string): Bloque {
     case 'portada': case 'imagen': return { ...b, imagen: 'https://jaimedigitalstudio.b-cdn.net/grcup/images/club/alfonso-fernandez/img-3363.webp', alt: '' };
     case 'lista': return { ...b, items: ['Primer punto', 'Segundo punto'] };
     case 'dos_columnas': return { ...b, texto: '**Sábado**\nSesiones de AEP-2', texto2: '**Domingo**\nSesiones de AEP-3' };
-    case 'cuenta_atras': return { ...b, fecha: '2026-12-19T08:30', texto: 'Faltan' };
-    case 'horario': return { ...b, fecha: '2026-12-19', canal: 'email' };
+    case 'cuenta_atras': return { ...b, fecha: '2026-12-18T08:30', texto: 'Faltan' };
+    case 'horario': return { ...b, fecha: '2026-12-18', canal: 'email' };
     case 'espacio': return { ...b, alto: 24 };
     default: return b;
   }
@@ -620,7 +620,7 @@ export class CampanaEditorPage {
         d.setUTCDate(d.getUTCDate() + 1);
       }
     }
-    return out.length ? out : ['2026-12-19'];
+    return out.length ? out : ['2026-12-18'];
   });
   protected readonly nodos = computed(() => {
     const f = this.f();
