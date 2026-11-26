@@ -22,7 +22,7 @@ export const BO_SK = 'block animate-pulse rounded-xs bg-bg-raised motion-reduce:
   },
   template: `
     <gr-icon [name]="icon()" [size]="20" [class]="'shrink-0 ' + (active() ? 'text-accent-text' : '')" />
-    @if (!collapsed()) { <span class="min-w-0 flex-1 truncate">{{ label() }}</span> }
+    @if (!collapsed()) { <span class="min-w-0 flex-1" [class]="multilinea() ? 'py-2.5' : 'truncate'">{{ label() }}</span> }
     @if (badge() === 'alert') {
       <span [class]="collapsed() ? 'absolute top-2 right-2 size-2 rounded-full bg-accent' : 'size-2 shrink-0 rounded-full bg-accent'" aria-label="Requiere atención"></span>
     } @else if (badge() && !collapsed()) {
@@ -39,11 +39,13 @@ export class BoNavItem {
   readonly active = input(false);
   readonly collapsed = input(false);
   readonly disabled = input(false);
+  /** Long label (sidebar accordion): wraps onto a second line instead of being cut with «…». */
+  readonly multilinea = input(false);
   /** Count chip, `'alert'` dot, or nothing. */
   readonly badge = input<number | 'alert' | null>(null);
   protected readonly num = computed(() => { const b = this.badge(); return typeof b === 'number' && b > 0 ? (b > 99 ? '99+' : String(b)) : ''; });
   protected readonly cls = computed(() =>
-    `relative flex h-10 items-center gap-3 rounded-sm text-[14px] leading-[17px] transition-colors motion-reduce:transition-none ${focus} ` +
+    `relative flex ${this.multilinea() ? 'min-h-10' : 'h-10'} items-center gap-3 rounded-sm text-[14px] leading-[17px] transition-colors motion-reduce:transition-none ${focus} ` +
     (this.collapsed() ? 'w-12 justify-center ' : 'px-3 ') +
     (this.disabled() ? 'pointer-events-none text-text-disabled' : this.active() ? 'bg-accent/14 font-semibold text-text-primary' : 'text-text-secondary hover:bg-bg-card hover:text-text-primary'));
 }

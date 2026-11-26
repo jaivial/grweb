@@ -51,7 +51,7 @@ type mapaIn struct {
 	Titulo      string `json:"titulo,omitempty" maxLength:"120"`
 	Subtitulo   string `json:"subtitulo,omitempty" maxLength:"160"`
 	Descripcion string `json:"descripcion,omitempty" maxLength:"1000"`
-	enField
+	EnField
 }
 
 type mapaPub struct {

@@ -38,7 +38,8 @@ const miniatura = { key: 'imagen', label: 'Imagen', kind: 'image' as const, valu
 export const HOTELES_RESTAURANTES: CollectionConfig = {
   title: 'Hoteles, apartamentos y restaurantes', subtitle: 'Se ven en /donde-dormir-y-comer (los hoteles también en /como-llegar), en este orden: arrastra para ordenar',
   path: '/web/hoteles-restaurantes', item: 'sitio', reorder: true, filterBy: 'tipo', en: ['detalle', 'precio', 'descripcion'],
-  columns: [miniatura, { key: 'nombre', label: 'Nombre' },
+  // no picture column: most hotels have neither photo nor logo and the empty cell pushed the name to the middle
+  columns: [{ key: 'nombre', label: 'Nombre' },
     { key: 'tipo', label: 'Tipo', kind: 'badge', value: (r) => TIPOS[String(r['tipo'])] ?? String(r['tipo']), tone: (r) => (r['tipo'] === 'restaurante' ? 'info' : r['tipo'] === 'apartamento' ? 'warning' : 'accent') },
     { key: 'detalle', label: 'Dirección', hideMobile: true }],
   fields: [{ clave: 'tipo', etiqueta: 'Tipo', tipo: 'select', ancho: 'mitad', opciones: Object.entries(TIPOS).map(([value, label]) => ({ value, label })) }, ...camposSitio('hoteles-restaurantes')],

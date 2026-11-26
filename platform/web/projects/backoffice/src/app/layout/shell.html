@@ -22,7 +22,7 @@
                 <!-- accordion: the item opens its overview page, the chevron shows or hides its sub-pages -->
                 <div class="flex items-center gap-0.5">
                   <a boNavItem class="min-w-0 flex-1" [routerLink]="['/', comp()?.slug].concat(it.path.split('/'))" routerLinkActive [routerLinkActiveOptions]="{ exact: true }" #rla="routerLinkActive"
-                    [icon]="it.icon" [label]="it.label" [active]="rla.isActive" [collapsed]="collapsed()" (click)="acordeonAbrir(it)"></a>
+                    [icon]="it.icon" [label]="it.label" [active]="rla.isActive" [collapsed]="collapsed()" [multilinea]="true" (click)="acordeonAbrir(it)"></a>
                   @if (!collapsed()) {
                     <button type="button" class="flex size-10 shrink-0 items-center justify-center rounded-sm text-text-tertiary hover:bg-bg-card hover:text-text-primary focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]"
                       [attr.aria-expanded]="abierto(it)" [attr.aria-controls]="'nav-' + it.path" [attr.aria-label]="(abierto(it) ? 'Ocultar ' : 'Mostrar ') + 'las páginas de ' + it.label" (click)="alternar(it)">
@@ -31,11 +31,11 @@
                   }
                 </div>
                 @if (abierto(it)) {
-                  <ul [id]="'nav-' + it.path" class="mt-0.5 flex flex-col gap-0.5" [class]="collapsed() ? '' : 'ml-5 border-l border-line-subtle pl-2'">
+                  <ul [id]="'nav-' + it.path" class="mt-0.5 flex flex-col gap-0.5" [class]="collapsed() ? '' : 'ml-4 border-l border-line-subtle pl-1.5'">
                     @for (h of it.hijos; track h.path) {
                       <li>
                         <a boNavItem [routerLink]="['/', comp()?.slug].concat(h.path.split('/'))" routerLinkActive #rlh="routerLinkActive" [icon]="h.icon" [label]="h.label"
-                          [active]="rlh.isActive" [collapsed]="collapsed()"></a>
+                          [active]="rlh.isActive" [collapsed]="collapsed()" [multilinea]="true"></a>
                       </li>
                     }
                   </ul>

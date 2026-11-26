@@ -25,10 +25,10 @@ const (
 	evGimnasios = "web.gimnasios"
 )
 
-// sitioCols are the columns shared by both tables, in the order of sitioRow/sitioIn.
+// sitioCols are the columns shared by both tables, in the order of SitioRow/SitioIn.
 const sitioCols = "nombre, detalle, distancia, precio, telefono, email, web, imagen_url, logo_url, logo_claro, logo_oscuro_url, maps_url, descripcion"
 
-type sitioRow struct {
+type SitioRow struct {
 	ID          uuid.UUID `json:"id" db:"id"`
 	Nombre      string    `json:"nombre" db:"nombre"`
 	Detalle     string    `json:"detalle" db:"detalle"`
@@ -50,10 +50,10 @@ type sitioRow struct {
 
 type hotelRow struct {
 	Tipo string `json:"tipo" db:"tipo"`
-	sitioRow
+	SitioRow
 }
 
-type sitioIn struct {
+type SitioIn struct {
 	Nombre      string `json:"nombre" minLength:"1" maxLength:"120"`
 	Detalle     string `json:"detalle,omitempty" maxLength:"200" doc:"Dirección y localidad, o «Tipo · localidad»"`
 	Distancia   string `json:"distancia,omitempty" maxLength:"80" doc:"«≈ 4 min en coche · 1,8 km»"`
@@ -67,15 +67,15 @@ type sitioIn struct {
 	LogoOscuro  string `json:"logoOscuro,omitempty" maxLength:"500" doc:"Versión del logo para fondos negros"`
 	Maps        string `json:"maps,omitempty" maxLength:"500" doc:"Enlace exacto de Google Maps"`
 	Descripcion string `json:"descripcion,omitempty" maxLength:"1500"`
-	enField
+	EnField
 }
 
 type hotelIn struct {
 	Tipo string `json:"tipo" enum:"hotel,apartamento,restaurante"`
-	sitioIn
+	SitioIn
 }
 
-type sitioPub struct {
+type SitioPub struct {
 	Nombre      string `json:"nombre" db:"nombre"`
 	Detalle     string `json:"detalle" db:"detalle"`
 	Distancia   string `json:"distancia" db:"distancia"`
@@ -93,10 +93,10 @@ type sitioPub struct {
 
 type hotelPub struct {
 	Tipo string `json:"tipo" db:"tipo"`
-	sitioPub
+	SitioPub
 }
 
-func (in *sitioIn) validar() error {
+func (in *SitioIn) validar() error {
 	trimAll(&in.Nombre, &in.Detalle, &in.Distancia, &in.Precio, &in.Telefono, &in.Email, &in.Web, &in.Imagen, &in.Logo, &in.LogoOscuro, &in.Maps, &in.Descripcion)
 	if in.Nombre == "" {
 		return problem.Unprocessable("NOMBRE_OBLIGATORIO", "Escribe el nombre.")
@@ -112,7 +112,7 @@ func (in *sitioIn) validar() error {
 	return nil
 }
 
-func (in *sitioIn) args() []any {
+func (in *SitioIn) args() []any {
 	return []any{in.Nombre, in.Detalle, in.Distancia, in.Precio, in.Telefono, in.Email, in.Web, in.Imagen, in.Logo, in.LogoClaro, in.LogoOscuro, in.Maps, in.Descripcion}
 }
 
@@ -128,7 +128,7 @@ func sitioSet(desde int) string {
 
 // borrarSitio removes the images a deleted place had uploaded: only keys of its own upload folder (a pasted URL
 // or a logo of another folder stays) and only when no other row of the table still shows that file.
-func (s *Svc) borrarSitio(ctx context.Context, cid uuid.UUID, tabla, carpeta string, r sitioRow) {
+func (s *Svc) borrarSitio(ctx context.Context, cid uuid.UUID, tabla, carpeta string, r SitioRow) {
 	st, base := s.almacenMapas(ctx, cid)
 	for _, u := range []string{r.Imagen, r.Logo, r.LogoOscuro} {
 		key, ok := storage.ClaveDeURL(base, u)
@@ -153,7 +153,7 @@ func (s *Svc) registerRefugio() {
 		name: "hoteles_restaurantes", path: "/web/hoteles-restaurantes", table: "hoteles_restaurantes", tag: "Colaboradores Refugio", perm: "web.editar",
 		order: "orden, created_at", cols: "tipo, " + selRow, public: evHoteles,
 		deleted: func(ctx context.Context, cid uuid.UUID, r hotelRow) {
-			s.borrarSitio(ctx, cid, "hoteles_restaurantes", "hoteles-restaurantes", r.sitioRow)
+			s.borrarSitio(ctx, cid, "hoteles_restaurantes", "hoteles-restaurantes", r.SitioRow)
 		},
 		validate: func(in *hotelIn) error { return in.validar() },
 		insert: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *hotelIn) error {
@@ -168,20 +168,20 @@ func (s *Svc) registerRefugio() {
 			return err
 		},
 	})
-	register(s, collection[sitioRow, sitioIn]{
+	register(s, collection[SitioRow, SitioIn]{
 		name: "gimnasios", path: "/web/gimnasios", table: "gimnasios", tag: "Colaboradores Refugio", perm: "web.editar",
 		order: "orden, created_at", cols: selRow, public: evGimnasios,
-		deleted: func(ctx context.Context, cid uuid.UUID, r sitioRow) {
+		deleted: func(ctx context.Context, cid uuid.UUID, r SitioRow) {
 			s.borrarSitio(ctx, cid, "gimnasios", "gimnasios", r)
 		},
-		validate: func(in *sitioIn) error { return in.validar() },
-		insert: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *sitioIn) error {
+		validate: func(in *SitioIn) error { return in.validar() },
+		insert: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *SitioIn) error {
 			_, err := tx.Exec(ctx, `INSERT INTO gimnasios (id, competition_id, `+sitioCols+`, orden)
 				VALUES ($1,$2,`+marcas+`,(SELECT COALESCE(max(orden),0)+1 FROM gimnasios WHERE competition_id = $2))`,
 				append([]any{id, cid}, in.args()...)...)
 			return err
 		},
-		update: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *sitioIn) error {
+		update: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *SitioIn) error {
 			_, err := tx.Exec(ctx, `UPDATE gimnasios SET `+sitioSet(3)+`, updated_at=now() WHERE competition_id=$1 AND id=$2`,
 				append([]any{cid, id}, in.args()...)...)
 			return err
@@ -209,19 +209,19 @@ func (s *Svc) registerRefugio() {
 			})
 			return &hotelesOut{Body: list}, err
 		})
-	type gimnasiosOut struct{ Body []sitioPub }
+	type gimnasiosOut struct{ Body []SitioPub }
 	huma.Register(api, huma.Operation{OperationID: "gimnasios-public", Method: http.MethodGet, Path: "/api/competiciones/{slug}/gimnasios", Summary: "Gimnasios de powerlifting, en orden", Tags: tagPub},
 		func(ctx context.Context, in *slugIn) (*gimnasiosOut, error) {
 			cid, err := s.cidFor(ctx, in.Slug)
 			if err != nil {
 				return nil, err
 			}
-			list, err := cached(ctx, s, cid, in.key("gimnasios"), ttlContent, func() ([]sitioPub, error) {
+			list, err := cached(ctx, s, cid, in.key("gimnasios"), ttlContent, func() ([]SitioPub, error) {
 				rows, err := s.a.DB.Query(ctx, `SELECT `+pubCols(in.en())+` FROM gimnasios WHERE competition_id = $1 ORDER BY orden, created_at`, cid)
 				if err != nil {
 					return nil, err
 				}
-				return collect[sitioPub](rows)
+				return collect[SitioPub](rows)
 			})
 			return &gimnasiosOut{Body: list}, err
 		})
