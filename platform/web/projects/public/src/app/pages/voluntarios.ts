@@ -229,7 +229,8 @@ export class VoluntariosPage {
     const seo = inject(Seo);
     // back from the access email: restore what was typed (D-MIEMBROS). After render so hydration can't reset the checkboxes.
     afterNextRender(() => {
-      void this.cms.miVoluntario().then((m) => { if (m?.estado) { this.mia.set(m); this.cdr.markForCheck(); } });
+      // Only with a session: anonymous visitors get 401 from `mi-solicitud` (nothing to look up on every visit)
+      void this.fan.cargar().then((f) => f && this.cms.miVoluntario().then((m) => { if (m?.estado) { this.mia.set(m); this.cdr.markForCheck(); } }));
       const b = sessionStorage.getItem(BORRADOR);
       if (!b) return;
       sessionStorage.removeItem(BORRADOR);

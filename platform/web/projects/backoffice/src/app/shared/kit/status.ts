@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, computed, inject, input, output } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, output, signal } from '@angular/core';
 import { GrIcon, type GrIconName } from '@grcup/ui';
 
 let seq = 0;
@@ -106,12 +106,28 @@ const LIVE: Record<BoLive, [GrIconName, string, string]> = {
   imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class]': 'cls()', role: 'status' },
-  template: `<gr-icon [name]="l()[0]" [size]="14" [spin]="status() === 'reconnecting'" />{{ l()[1] }}@if (status() === 'connected' && viewers() !== null) { · {{ viewers() }} }`,
+  template: `<gr-icon [name]="l()[0]" [size]="14" [spin]="visto() === 'reconnecting'" />{{ l()[1] }}@if (visto() === 'connected' && viewers() !== null) { · {{ viewers() }} }`,
 })
 export class BoLiveStatus {
   readonly status = input<BoLive>('connected');
   readonly viewers = input<number | null>(null);
-  protected readonly l = computed(() => LIVE[this.status()]);
+  /**
+   * State actually shown: «Reconectando…» waits 1.5 s, so a screen change (the stream reopens) does not flash the chip.
+   * A real drop keeps showing it.
+   */
+  protected readonly visto = signal<BoLive>('connected');
+  constructor() {
+    effect((onCleanup) => {
+      const s = this.status();
+      if (s !== 'reconnecting') {
+        this.visto.set(s);
+        return;
+      }
+      const t = setTimeout(() => this.visto.set('reconnecting'), 1500);
+      onCleanup(() => clearTimeout(t));
+    });
+  }
+  protected readonly l = computed(() => LIVE[this.visto()]);
   protected readonly cls = computed(() => `${PILL} ${soloTexto(this.l()[2])}`);
 }
 

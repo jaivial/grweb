@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injectable, PLATFORM_ID, PendingTasks, afterNextRender, computed, effect, inject, input, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { GrButton, GrIcon, GrLogo, LOGO, LOGO_SRCSET, srcsetLogo, CdnPipe } from '@grcup/ui';
+import { GrButton, GrIcon, GrLogo, LOGO, LOGO_SRCSET, srcsetLogo, CdnPipe, fmtDateRange } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import type { Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, Competition, type CompeticionPublica } from '../core/competition';
@@ -318,7 +318,8 @@ export class Navbar {
   protected readonly otraLang = computed(() => (this.lang() === 'en' ? 'es' : 'en'));
   protected readonly edicion = computed(() => {
     const c = this.comp.data();
-    const f = c?.fechaInicio ? new Intl.DateTimeFormat(this.i18n.locale(), { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(c.fechaInicio + 'T12:00:00Z')) : this.t().porConfirmar;
+    // «18–20 de diciembre de 2026»: the whole championship, not only its first day
+    const f = c?.fechaInicio ? fmtDateRange(c.fechaInicio, c.fechaFin, this.i18n.locale()) : this.t().porConfirmar;
     return this.t().edicion((c?.fechaInicio ?? '2026').slice(0, 4), f, c?.sede?.ciudad || 'Almussafes');
   });
   constructor() {

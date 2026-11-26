@@ -180,14 +180,14 @@ const TE = {
     reserva: 'Reserva tu entrada gratis', horarios: 'Ver horarios', personas: (n: string) => n + ' personas ya tienen entrada',
     gratis: 'Entrada gratuita', puerta: 'Enséñalo en la puerta desde el móvil (no hace falta imprimirlo)', aforo: 'Aforo',
     sesion: (x: string) => 'Sesión de ' + x, puertas: (a: string, b: string) => 'Puertas ' + a + ' · hasta las ' + b,
-    acomp: 'Tu nombre + 2 acompañantes', agotadas: 'Agotadas: apúntate a la lista de espera',
+    acomp: (n: number) => 'Tu nombre + ' + n + (n === 1 ? ' acompañante' : ' acompañantes'), agotadas: 'Agotadas: apúntate a la lista de espera',
     ultimas: (n: number) => '¡Últimas ' + n + ' entradas!', quedan: (n: string) => 'Quedan ' + n + ' entradas',
   },
   en: {
     reserva: 'Book your free ticket', horarios: 'See schedule', personas: (n: string) => n + ' people already have a ticket',
     gratis: 'Free ticket', puerta: 'Show it at the door on your phone (no need to print it)', aforo: 'Capacity',
     sesion: (x: string) => x + ' session', puertas: (a: string, b: string) => 'Doors ' + a + ' · until ' + b,
-    acomp: 'Your name + 2 guests', agotadas: 'Sold out: join the waiting list',
+    acomp: (n: number) => 'Your name + ' + n + (n === 1 ? ' guest' : ' guests'), agotadas: 'Sold out: join the waiting list',
     ultimas: (n: number) => 'Last ' + n + ' tickets!', quedan: (n: string) => n + ' tickets left',
   },
 };
@@ -331,13 +331,18 @@ export class SecEntradas {
     const out: { i: GrIconName; t: string }[] = [];
     if (s) {
       const d = new Intl.DateTimeFormat(this.i18n.locale(), { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(s.inicio)).replace(',', '').replace('.', '');
-      // «Sábado mañana» → «Sesión de mañana» (the day is already in the date)
-      const sesion = s.nombre.replace(/^(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\s+/i, '');
-      out.push({ i: 'calendar', t: `${d.charAt(0).toUpperCase() + d.slice(1)} · ${sesion === s.nombre ? s.nombre : this.te().sesion(sesion)}` });
+      // «Viernes 18 · jornada» → «Jornada» (the day is already in the date); «Sábado mañana» → «Sesión de mañana»
+      const partes = s.nombre.split('·').map((x) => x.trim()).filter(Boolean);
+      const resto = s.nombre.replace(/^(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\s+/i, '');
+      const sesion = partes.length > 1
+        ? partes[partes.length - 1].replace(/^\p{L}/u, (c) => c.toUpperCase())
+        : resto === s.nombre ? s.nombre : this.te().sesion(resto);
+      out.push({ i: 'calendar', t: `${d.charAt(0).toUpperCase() + d.slice(1)} · ${sesion}` });
       out.push({ i: 'clock', t: this.te().puertas(hora(s.puertas), hora(s.fin)) });
     }
     if (c?.sede?.nombre) out.push({ i: 'map-pin', t: c.sede.nombre });
-    out.push({ i: 'users', t: this.te().acomp });
+    // «Tu nombre + 3 acompañantes»: the guests of a full booking (maxPorReserva − 1), as the form allows
+    out.push({ i: 'users', t: this.te().acomp(Math.max(1, (this.primera()?.maxPorReserva ?? 4) - 1)) });
     return out;
   });
   /** The open session closest to selling out (Figma «Aforo meter / Últimas»). */

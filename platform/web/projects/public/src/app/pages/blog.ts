@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, effect, PLATFORM_ID, Pe
 import { toSignal } from '@angular/core/rxjs-interop';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { GrButton, GrIcon, GrSkeleton, cdn, CdnPipe } from '@grcup/ui';
+import { GrButton, GrIcon, GrSkeleton, cdn, CdnPipe, fmtDateRange } from '@grcup/ui';
 import { map } from 'rxjs';
 import { Cms, type BlogPagina, type Heading, type Pagina } from '../core/cms';
 import { renderMarkdown } from '../core/markdown';
@@ -63,9 +63,6 @@ const CHIPS = ['calendario', 'guia', 'normativa', 'cronica'];
 /** Cover of posts without one (cards and featured). */
 const PORTADA = cdn('/img/blog/trofeo-edicion.webp');
 const fechaCorta = (locale: string, iso?: string) => (iso ? new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Madrid' }).format(new Date(iso)).replace('.', '') : '');
-/** fmtLongDate of @grcup/ui in the given locale. */
-const fechaLarga = (locale: string, iso: string) =>
-  new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Madrid' }).format(new Date(iso.length === 10 ? iso + 'T12:00:00Z' : iso));
 
 /**
  * /blog (Figma page 34): category chips, the latest post as the featured card with the next three beside it, the rest
@@ -299,7 +296,7 @@ export class BlogPage {
                     @if (c.fechaInicio) { <span class="absolute bottom-4 left-5 text-display-l text-white">{{ c.fechaInicio.slice(0, 4) }}</span> }
                   </div>
                   <div class="flex flex-col items-start gap-3 p-5">
-                    <span class="inline-flex h-6 items-center rounded-full border border-info/40 bg-info/10 px-2.5 text-label-xs text-info uppercase">{{ c.fechaInicio ? fechaLarga(c.fechaInicio) : t().fechaPorConfirmar }}</span>
+                    <span class="inline-flex h-6 items-center rounded-full border border-info/40 bg-info/10 px-2.5 text-label-xs text-info uppercase">{{ c.fechaInicio ? rango(c.fechaInicio, c.fechaFin) : t().fechaPorConfirmar }}</span>
                     <p class="text-display-xs">{{ c.nombre }}</p>
                     <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="map-pin" [size]="14" class="text-accent-text" />{{ c.sede.ciudad }}@if (c.sede.provincia) { ({{ c.sede.provincia }}) }</p>
                     @if (c.evento.nivel) { <p class="flex items-center gap-2 text-body-s text-text-secondary"><gr-icon name="trophy" [size]="14" class="text-accent-text" />{{ t().nivel }} {{ c.evento.nivel }}</p> }
@@ -331,7 +328,8 @@ export class BlogPostPage {
   protected readonly t = this.i18n.dict(T);
   protected et = (c?: string) => (c ? this.t().categoria[c]?.[0] ?? '' : '');
   protected fecha = (iso?: string) => fechaCorta(this.i18n.locale(), iso);
-  protected fechaLarga = (iso: string) => fechaLarga(this.i18n.locale(), iso);
+  /** «18–20 de diciembre de 2026»: the championship lasts three days. */
+  protected rango = (ini: string, fin?: string) => fmtDateRange(ini, fin, this.i18n.locale());
   private url = '';
 
   constructor() {

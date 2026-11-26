@@ -85,6 +85,9 @@ type plan struct {
 	Version  int                   `json:"version"`
 	Sesiones []sesion              `json:"sesiones"`
 	Atletas  map[uuid.UUID]*atleta `json:"atletas"`
+	// HorariosPublicados is the «Publicar horarios» switch of the backoffice: while off the public live page must not
+	// name flights (it falls back to the start of the event), even though the desk keeps working with the plan.
+	HorariosPublicados bool `json:"horariosPublicados,omitempty"`
 	// Degradado marks a plan served from the stale fallback (planok:, up to 24 h): the consumers (the internal
 	// marcador, and through it the markets of juegos) must only add to it, never shrink (BIZ-200 R2-S1).
 	Degradado bool                  `json:"degradado,omitempty"`
@@ -127,6 +130,14 @@ func (s *Svc) cargarPlan(ctx context.Context, cid uuid.UUID) (*plan, error) {
 		// planok:) is served and retried after 5 s, so a schedule outage does not take live down (ST3-R2-2).
 		uctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
+		// «Publicar horarios» first: it is a one-row lookup, so the two heavy reads keep the whole budget. On error the
+		// switch is taken as off: showing an unpublished plan is worse than falling back to the event start.
+		var vis struct {
+			Visible bool `json:"visible"`
+		}
+		if err := s.schedule.Do(uctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/horarios/visibilidad", nil, &vis); err != nil {
+			s.a.Log.Warn("horarios visibilidad", "err", err)
+		}
 		var sn *snapshot
 		var ats []atleta
 		if err := s.schedule.Do(uctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/horarios/publicados", nil, &sn); err != nil {
@@ -145,7 +156,7 @@ func (s *Svc) cargarPlan(ctx context.Context, cid uuid.UUID) (*plan, error) {
 			}
 			return nil, problem.New(http.StatusServiceUnavailable, "ATLETAS_NO_DISPONIBLES", "No se pudieron leer los atletas. Reintenta en unos segundos.")
 		}
-		p = plan{Atletas: map[uuid.UUID]*atleta{}}
+		p = plan{Atletas: map[uuid.UUID]*atleta{}, HorariosPublicados: vis.Visible}
 		if sn != nil {
 			p.Version = sn.Numero
 			for _, d := range sn.Dias {
