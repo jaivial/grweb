@@ -2,7 +2,7 @@ import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { GrButton, GrIcon, GrInput, type GrIconName } from '@grcup/ui';
+import { GrButton, GrIcon, GrInput, GrTelefono, type GrIconName } from '@grcup/ui';
 import { FanSession, codigoError, detalleError, mensajeCampo } from '../../core/fan';
 import { I18n } from '../../core/i18n';
 
@@ -90,7 +90,7 @@ const T = {
  */
 @Component({
   selector: 'gr-acceso-modal',
-  imports: [FormsModule, A11yModule, GrButton, GrIcon, GrInput],
+  imports: [FormsModule, A11yModule, GrButton, GrIcon, GrInput, GrTelefono],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     @keyframes gr-velo { from { opacity: 0; } to { opacity: 1; } }
@@ -149,7 +149,7 @@ const T = {
               @if (modo() === 'crear') {
               <label class="mt-4 block">
                 <span class="text-label-s text-text-primary">{{ t().telefono }}</span>
-                <input grInput grSize="l" type="tel" autocomplete="tel" inputmode="tel" class="mt-1.5" placeholder="+34 600 123 456" [attr.aria-label]="t().telefono" [ngModel]="telefono()" (ngModelChange)="telefono.set($event)" />
+                <gr-telefono class="mt-1.5" [aria-label]="t().telefono" [ngModel]="telefono()" (ngModelChange)="telefono.set($event)" />
                 <span class="mt-1.5 block text-body-xs text-text-tertiary">{{ t().telefonoAyuda }}</span>
               </label>
               }

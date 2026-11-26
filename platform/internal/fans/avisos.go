@@ -292,29 +292,39 @@ func (s *Svc) handleAviso(ctx context.Context, e events.Event) error {
 	return nil
 }
 
-// normTelefono keeps the digits of an optional phone with its country prefix (Spain by default for 9 digits):
-// «+34 600 123 456» → «34600123456». Empty is valid (no phone).
+// normTelefono keeps an optional phone in E.164 («+34 600 123 456» → «+34600123456»; a Spanish number of 9 digits gets
+// +34). An empty phone is valid. The frontend sends E.164 and messaging/crm normalise with the same rule.
 func normTelefono(t string) (string, bool) {
 	t = strings.TrimSpace(t)
 	if t == "" {
 		return "", true
 	}
 	var b strings.Builder
+	mas := false
 	for _, r := range t {
-		if r >= '0' && r <= '9' {
+		switch {
+		case r >= '0' && r <= '9':
 			b.WriteRune(r)
-		} else if !strings.ContainsRune(" +-.()", r) {
+		case r == '+':
+			if b.Len() > 0 {
+				return "", false
+			}
+			mas = true
+		case strings.ContainsRune(" -.()", r):
+		default:
 			return "", false
 		}
 	}
-	d := strings.TrimPrefix(b.String(), "00")
-	if len(d) == 9 && (d[0] == '6' || d[0] == '7') {
+	d := b.String()
+	if !mas && strings.HasPrefix(d, "00") {
+		d = d[2:]
+	} else if !mas && len(d) == 9 && (d[0] == '6' || d[0] == '7') {
 		d = "34" + d
 	}
 	if len(d) < 10 || len(d) > 15 {
 		return "", false
 	}
-	return d, true
+	return "+" + d, true
 }
 
 // registerTelefono: PUT /fans/yo/telefono sets or removes (empty) the optional phone of the session.

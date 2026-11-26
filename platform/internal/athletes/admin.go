@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"net/http"
+	"net/mail"
 	"slices"
 	"sort"
 	"strconv"
@@ -321,6 +322,8 @@ func (s *Svc) registerAdmin() {
 						return err
 					}
 				}
+				// one account per email: the directo account of this athlete follows a new email
+				// one account per email: the directo account of this athlete follows a new email
 				if _, err := tx.Exec(ctx, `UPDATE atletas SET licencia=$3, nombre=$4, apellidos=$5, email=NULLIF($6,''), telefono=$7, sexo=$8, fecha_nacimiento=$9, categoria=$10,
 					division=$11, club=$12, ciudad=$13, estado=$14, prueba = COALESCE($15, prueba), prueba_org_at = CASE WHEN COALESCE($15, prueba) <> prueba THEN now() ELSE prueba_org_at END,
 					orden_reserva = CASE WHEN $14 = 'reserva' THEN orden_reserva ELSE NULL END,
@@ -336,7 +339,11 @@ func (s *Svc) registerAdmin() {
 						return err
 					}
 				}
-				return hist(ctx, tx, in.ID, "Datos de competición editados", cambios(prev, b))
+				nota, err := s.sigueLaCuentaFan(ctx, in.CID, in.ID, prev.Email, b.Email)
+				if err != nil {
+					return err
+				}
+				return hist(ctx, tx, in.ID, "Datos de competición editados", strings.TrimSpace(strings.Join([]string{cambios(prev, b), nota}, " · ")))
 			})
 			if err != nil {
 				return nil, err
@@ -740,8 +747,19 @@ func (d *DatosIn) validate() error {
 	if d.Licencia != "" && !licenciaValida.MatchString(d.Licencia) {
 		return errLicencia()
 	}
-	if d.Email != "" && !strings.Contains(d.Email, "@") {
-		return problem.Unprocessable("EMAIL_INVALIDO", "El email no es válido.")
+	if d.Email != "" {
+		if a, err := mail.ParseAddress(d.Email); err != nil || a.Address != d.Email {
+			return problem.Unprocessable("EMAIL_INVALIDO", "El email no es válido.")
+		}
+	}
+	// E.164, the same rule as the alta form: Spanish numbers without prefix get +34.
+	if tel := strings.NewReplacer(" ", "", "-", "", "(", "", ")", "", ".", "").Replace(strings.TrimSpace(d.Telefono)); tel != "" {
+		if !telValido.MatchString(tel) || !tel34Valido(tel) {
+			return problem.Unprocessable("TELEFONO_INVALIDO", "El teléfono no es válido. Escríbelo con prefijo, p. ej. +34 600 123 456, o déjalo vacío.")
+		}
+		d.Telefono = normTel(tel)
+	} else {
+		d.Telefono = ""
 	}
 	if d.FechaNacimiento != "" {
 		if _, ok := ParseFecha(d.FechaNacimiento); !ok {
@@ -779,6 +797,12 @@ func cambios(prev row, b DatosIn) string {
 	add("Club", prev.Club, b.Club)
 	add("Estado", prev.Estado, b.Estado)
 	add("Licencia", prev.Licencia, b.Licencia)
+	if prev.Email != nil {
+		add("Email", *prev.Email, b.Email)
+	} else if b.Email != "" {
+		add("Email", "", b.Email)
+	}
+	add("Teléfono", prev.Telefono, b.Telefono)
 	if b.Prueba != nil {
 		add("Competición", pruebaTexto(prev.Prueba), pruebaTexto(*b.Prueba))
 	}

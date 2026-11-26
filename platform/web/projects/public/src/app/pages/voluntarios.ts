@@ -2,7 +2,7 @@ import { textoError } from '../core/errores';
 import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, PendingTasks, afterNextRender, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { GrAlert, GrButton, GrIcon, GrInput, type GrIconName } from '@grcup/ui';
+import { GrAlert, GrButton, GrIcon, GrInput, GrTelefono, type GrIconName, telefonoValido } from '@grcup/ui';
 import { Cms } from '../core/cms';
 import { Competition } from '../core/competition';
 import { FanSession } from '../core/fan';
@@ -97,7 +97,7 @@ const T = {
  */
 @Component({
   selector: 'gr-voluntarios-page',
-  imports: [RouterLink, LocPipe, Page, FormsModule, GrIcon, GrInput, GrButton, GrAlert, GrCabecera, Related],
+  imports: [RouterLink, LocPipe, Page, FormsModule, GrIcon, GrInput, GrTelefono, GrButton, GrAlert, GrCabecera, Related],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page [title]="t().titulo" [accent]="t().acento" [eyebrow]="t().voluntariado" [section]="t().comunidad" [crumb]="t().crumb"
@@ -162,10 +162,7 @@ const T = {
                   <input grInput id="v-email" name="email" type="email" autocomplete="email" required [placeholder]="t().emailPh" [(ngModel)]="email" [attr.aria-invalid]="falta() && !emailOk()" /></label>
                 @if (falta() && !emailOk()) { <span class="flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />{{ t().errEmail }}</span> }
                 <label class="flex flex-col gap-1.5" for="v-tel"><span class="text-label-s">{{ t().telefono }}</span>
-                  <span class="flex h-11 items-center overflow-hidden rounded-md border border-line-strong bg-bg-field focus-within:border-accent-text">
-                    <span class="flex h-full items-center border-r border-line-subtle px-3 text-body-m text-text-secondary">+34</span>
-                    <input id="v-tel" name="telefono" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="600 000 000" class="h-full min-w-0 flex-1 bg-transparent px-3 text-body-m placeholder:text-text-muted focus:outline-none" [(ngModel)]="telefono" />
-                  </span></label>
+                  <gr-telefono id="v-tel" name="telefono" [aria-label]="t().telefono" [(ngModel)]="telefono" /></label>
                 <fieldset class="flex flex-col gap-2">
                   <legend class="mb-1.5 text-label-s">{{ t().disponibilidad }}</legend>
                   <div class="flex flex-wrap gap-2">
@@ -256,7 +253,7 @@ export class VoluntariosPage {
   protected async enviar(): Promise<void> {
     this.error.set('');
     this.falta.set(true);
-    if (this.nombre.trim().length < 2 || !this.emailOk() || !this.rolesElegidos().size || !this.acepta) {
+    if (this.nombre.trim().length < 2 || !this.emailOk() || (this.telefono.trim() && !telefonoValido(this.telefono)) || !this.rolesElegidos().size || !this.acepta) {
       this.error.set(this.t().revisa);
       // take the person to the first marked field (roles sit in the other column, far above on mobile)
       const behavior: ScrollBehavior = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
@@ -269,11 +266,10 @@ export class VoluntariosPage {
         roles: [...this.rolesElegidos()], dias: [...this.disponible()] }));
       return this.fan.abrirAcceso('formulario', this.i18n.path('/voluntarios'), this.email.trim());
     }
-    const tel = this.telefono.trim();
     this.enviando.set(true);
     try {
       await this.cms.voluntario({
-        nombre: this.nombre.trim(), email: this.email.trim(), telefono: tel && !tel.startsWith('+') ? '+34 ' + tel : tel,
+        nombre: this.nombre.trim(), email: this.email.trim(), telefono: this.telefono.trim(),
         disponibilidad: this.dias().filter((d) => this.disponible().has(d)).join(', '),
         roles: T.es.roles.map((r) => r.id).filter((id) => this.rolesElegidos().has(id)), experiencia: this.experiencia.trim(),
         esMenor: this.menor, aceptaPrivacidad: this.acepta,

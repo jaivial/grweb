@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
-import { GrButton, GrIcon } from '@grcup/ui';
+import { GrButton, GrIcon, GrTelefono, telefonoValido } from '@grcup/ui';
 import { COMPETITION_SLUG } from '../core/competition';
 import { textoError } from '../core/errores';
 import { I18n } from '../core/i18n';
@@ -16,6 +16,7 @@ const T = {
     idea: 'Cuéntanos qué idea de competición tienes', enviar: 'Pedir handler gratis',
     ok: '¡Recibido! Te escribimos en breve para organizar tu handler.', error: 'No se ha podido enviar. Inténtalo otra vez.',
     falta: 'Rellena todos los campos obligatorios.',
+    tel: 'Escribe el número de teléfono completo.',
   },
   en: {
     eyebrow: 'GRS Coaching', titulo: 'Need a handler?', tituloB: "We'll handle you, for free.",
@@ -25,6 +26,7 @@ const T = {
     idea: 'Tell us your competition plan', enviar: 'Get a free handler',
     ok: "Got it! We'll be in touch shortly to arrange your handler.", error: "It couldn't be sent. Please try again.",
     falta: 'Fill in all the required fields.',
+    tel: 'Enter the full phone number.',
   },
 };
 
@@ -33,7 +35,7 @@ const CAMPO = 'h-12 w-full rounded-[10px] border border-line-strong bg-bg-field 
 /** BIZ-161: «¿Necesitas handler? Podemos hacértelo, y gratis.» → email + WhatsApp (plantilla handler-solicitud). */
 @Component({
   selector: 'gr-handler-gratis',
-  imports: [FormsModule, GrButton, GrIcon],
+  imports: [FormsModule, GrButton, GrIcon, GrTelefono],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section id="handler-gratis" class="mt-18 rounded-lg border border-line-subtle bg-bg-card p-6 md:mt-24 md:p-10">
@@ -47,7 +49,7 @@ const CAMPO = 'h-12 w-full rounded-[10px] border border-line-strong bg-bg-field 
           <div class="flex flex-col gap-2 sm:col-span-2"><label class="text-label-s" for="hg-nombre">{{ t().nombre }}</label>
             <input id="hg-nombre" name="nombre" autocomplete="name" maxlength="140" required [class]="campo" [(ngModel)]="d.nombre" /></div>
           <div class="flex flex-col gap-2"><label class="text-label-s" for="hg-telefono">{{ t().telefono }}</label>
-            <input id="hg-telefono" name="telefono" type="tel" autocomplete="tel" maxlength="20" required [class]="campo" [(ngModel)]="d.telefono" /></div>
+            <gr-telefono id="hg-telefono" name="telefono" [aria-label]="t().telefono" [(ngModel)]="d.telefono" /></div>
           <div class="flex flex-col gap-2"><label class="text-label-s" for="hg-email">{{ t().email }}</label>
             <input id="hg-email" name="email" type="email" autocomplete="email" maxlength="254" required [class]="campo" [(ngModel)]="d.email" /></div>
           <div class="flex flex-col gap-2"><label class="text-label-s" for="hg-edad">{{ t().edad }}</label>
@@ -83,6 +85,10 @@ export class HandlerGratis {
     const [nombre, ...resto] = d.nombre.trim().split(/\s+/);
     if (!nombre || !resto.length || !d.telefono.trim() || !d.email.trim() || !d.edad || !d.categoria.trim() || !d.idea.trim()) {
       this.error.set(this.t().falta);
+      return;
+    }
+    if (!telefonoValido(d.telefono)) {
+      this.error.set(this.t().tel);
       return;
     }
     this.error.set('');

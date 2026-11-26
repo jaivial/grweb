@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { urlSort } from '../../shared/url-sort';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrTelefono, GrToasts, GrSelect, telefonoValido } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { BO_ROW, BoCheckbox, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoSortHeader, BoTableToolbar, BoDatePicker } from '../../shared/kit';
@@ -445,7 +445,7 @@ export class ContactosPage {
 /** Contact record (Figma 61 · «Contactos · ficha»): consents with their proof, activity, GDPR actions. */
 @Component({
   selector: 'bo-contacto-ficha',
-  imports: [FormsModule, RouterLink, BoPageHeader, BoDrawer, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [FormsModule, RouterLink, BoPageHeader, BoDrawer, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton, GrTelefono],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = ficha();
@@ -516,7 +516,7 @@ export class ContactosPage {
       <div class="flex flex-col gap-4">
         <gr-field label="Nombre" for="r-n"><input grInput id="r-n" maxlength="120" [(ngModel)]="rect.nombre" /></gr-field>
         <gr-field label="Email" for="r-e"><input grInput id="r-e" type="email" [(ngModel)]="rect.email" /></gr-field>
-        <gr-field label="Teléfono" for="r-t"><input grInput id="r-t" [(ngModel)]="rect.telefono" placeholder="+34 600 000 000" /></gr-field>
+        <gr-field label="Teléfono" for="r-t" [error]="rect.telefono && !valido(rect.telefono) ? 'El número no está completo.' : null"><gr-telefono id="r-t" tam="m" [aria-label]="'Teléfono'" [invalido]="!!rect.telefono && !valido(rect.telefono)" [(ngModel)]="rect.telefono" /></gr-field>
         <gr-field label="Etiquetas (separadas por comas)" for="r-g"><input grInput id="r-g" [(ngModel)]="rect.etiquetas" /></gr-field>
         <p class="text-body-xs text-text-tertiary">Queda registrado en su actividad y en la auditoría (derecho de rectificación).</p>
       </div>
@@ -537,6 +537,7 @@ export class ContactoFichaPage {
   protected readonly f = fecha;
   protected readonly fl = fechaLarga;
   protected readonly ficha = signal<Ficha | null | undefined>(undefined);
+  protected readonly valido = telefonoValido;
   protected readonly rectOpen = signal(false);
   protected readonly guardando = signal(false);
   protected rect = { nombre: '', email: '', telefono: '', etiquetas: '' };
@@ -576,6 +577,10 @@ export class ContactoFichaPage {
   protected async guardarRect(): Promise<void> {
     const c = this.ficha();
     if (!c) return;
+    if (this.rect.telefono && !telefonoValido(this.rect.telefono)) {
+      this.toasts.error('El teléfono no está completo', 'Elige el país y escribe el número entero.');
+      return;
+    }
     this.guardando.set(true);
     try {
       this.ficha.set(await this.api.rectificar(this.cid(), c, { ...this.rect, etiquetas: this.rect.etiquetas.split(',').map((x) => x.trim()).filter(Boolean) }));

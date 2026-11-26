@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/mail"
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -110,6 +111,63 @@ func (s *Svc) registerCuentaAtleta() {
 				return nil, problem.NotFound("Sin cuenta con ese email.")
 			}
 			return o, err
+		})
+}
+
+// registerMoverEmailCuentaAtleta: the email of an athlete changed. The account of the directo linked to it follows
+// (one account per email, the same rule as the conversion on approval); the new email must be free.
+func (s *Svc) registerMoverEmailCuentaAtleta() {
+	type in struct {
+		CID   uuid.UUID `path:"cid"`
+		FanID uuid.UUID `path:"fanId"`
+		Body  struct {
+			Email    string    `json:"email" maxLength:"254" doc:"Email nuevo del atleta"`
+			AtletaID uuid.UUID `json:"atletaId" doc:"Atleta que se edita: la cuenta tiene que ser la suya"`
+		}
+	}
+	huma.Register(s.a.API, huma.Operation{OperationID: "internal-fan-email-atleta", Method: http.MethodPut,
+		Path: "/internal/competiciones/{cid}/fans/{fanId}/email-atleta", Summary: "Mover el email de la cuenta de un atleta (solo athletes)", Tags: []string{"Interno"}, Hidden: true},
+		func(ctx context.Context, in *in) (*struct{}, error) {
+			p, err := auth.RequireService(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if p.Service != "athletes" {
+				return nil, problem.Forbidden("Solo athletes.")
+			}
+			email := strings.ToLower(strings.TrimSpace(in.Body.Email))
+			if a, err := mail.ParseAddress(email); err != nil || a.Address != email {
+				return nil, problem.Unprocessable("EMAIL_INVALIDO", "El email no es válido.")
+			}
+			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				// Only the account of that athlete: a público account keeps its own email.
+				var uno int
+				if err := tx.QueryRow(ctx, `SELECT 1 FROM fans WHERE id = $1 AND competition_id = $2 AND atleta_id = $3 FOR UPDATE`,
+					in.FanID, in.CID, in.Body.AtletaID).Scan(&uno); errors.Is(err, pgx.ErrNoRows) {
+					return problem.NotFound("Ese email no es de la cuenta de directo del atleta.")
+				} else if err != nil {
+					return err
+				}
+				var n int
+				if err := tx.QueryRow(ctx, `SELECT count(*) FROM fans WHERE competition_id = $1 AND email_hash = $2 AND id <> $3`,
+					in.CID, emailHash(email), in.FanID).Scan(&n); err != nil {
+					return err
+				}
+				if n > 0 {
+					return problem.Conflict("EMAIL_REGISTRADO", "Ya hay otra cuenta de directo con este email en la competición.")
+				}
+				_, err := tx.Exec(ctx, `UPDATE fans SET email = $3, email_hash = $4, updated_at = now() WHERE id = $1 AND competition_id = $2`,
+					in.FanID, in.CID, email, emailHash(email))
+				return err
+			})
+			if err != nil {
+				return nil, err
+			}
+			// The session carries the email: the old ones close and the athlete enters with the new one.
+			if _, err := s.bumpVersion(ctx, in.FanID); err != nil {
+				s.a.Log.Warn("fans: versión de la cuenta movida", "err", err)
+			}
+			return &struct{}{}, nil
 		})
 }
 

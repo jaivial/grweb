@@ -129,6 +129,8 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
   /** Filtro: accent background while it has a value (off for sort orders, which always have one). */
   readonly resaltar = input(true, { transform: booleanAttribute });
   readonly invalido = input(false, { transform: booleanAttribute });
+  /** Disabled from the outside when nobody binds the control with a form (e.g. inside another control). */
+  readonly disabled = input(false, { transform: booleanAttribute });
   readonly id = input('');
   readonly ariaLabel = input('', { alias: 'aria-label' });
   readonly describedby = input('', { alias: 'aria-describedby' });
@@ -163,7 +165,7 @@ export class GrSelect implements ControlValueAccessor, AfterContentChecked {
 
   protected readonly idControl = computed(() => this.id() || this.uid);
   protected readonly visibles = computed(() => this.lista().some((o) => !o.oculta));
-  protected readonly bloqueado = computed(() => this.deshabilitadoCva());
+  protected readonly bloqueado = computed(() => this.deshabilitadoCva() || this.disabled());
   protected readonly seleccion = computed(() => this.lista().find((o) => o.valor === this.valor()) ?? null);
   /** The empty-value option (if any) is the placeholder of a field and the «all» choice of a filter. */
   protected readonly activa = computed(() => this.resaltar() && !!this.valor() && !!this.seleccion());
