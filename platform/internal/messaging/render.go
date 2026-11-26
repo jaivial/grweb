@@ -182,7 +182,7 @@ func renderizar(c Contenido, vars map[string]string, permitidas []string, m Marc
 	btnTxt, _ := sustituir(c.BotonTexto, full, true)
 	if c.BotonTexto != "" && strings.HasPrefix(btnURL, "http") {
 		boton = `<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:8px auto 24px"><tr><td align="center" style="border-radius:6px;background:#c42b3e">` +
-			`<a href="` + html.EscapeString(btnURL) + `" style="display:inline-block;padding:14px 24px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none">` + btnTxt + `</a></td></tr></table>`
+			`<a href="` + html.EscapeString(btnURL) + `" style="display:inline-block;padding:14px 24px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none">` + gmailClaro(btnTxt) + `</a></td></tr></table>`
 		parrafosTxt = append(parrafosTxt, html.UnescapeString(btnTxt)+": "+btnURL)
 	}
 	// The image of the template (the photo of the request, by a signed URL that expires).
@@ -212,17 +212,18 @@ func renderizar(c Contenido, vars map[string]string, permitidas []string, m Marc
 		// attributes and inline, because clients ignore stylesheets.
 		logo = `<img src="` + html.EscapeString(m.Logo) + `" alt="` + html.EscapeString(m.Nombre) + `" width="116" height="72" style="display:block;margin:0 auto;width:116px;height:72px;border:0">`
 	}
-	h := `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light">` +
-		`<title>` + html.EscapeString(asunto) + `</title></head><body style="margin:0;padding:0;background:#f2eeee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">` +
+	h := `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
+		`<title>` + html.EscapeString(asunto) + `</title></head><body style="margin:0;padding:0;background:#f2eeee;color:#3d3436;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">` +
 		`<span style="display:none;max-height:0;overflow:hidden;opacity:0">` + pre + `</span>` +
-		`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2eeee"><tr><td align="center" style="padding:24px 12px">` +
-		`<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden">` +
+		`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2eeee;color:#3d3436"><tr><td align="center" style="padding:24px 12px">` +
+		`<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;color:#3d3436;border-radius:12px;overflow:hidden">` +
 		`<tr><td align="center" style="background:#141011;padding:20px 32px;text-align:center">` + logo + `</td></tr>` +
 		`<tr><td style="padding:32px 32px 16px"><h1 style="margin:0 0 20px;font-size:24px;line-height:30px;color:#141011">` + titulo + `</h1>` +
 		qr + imagen + strings.Join(parrafosHTML, "") + boton + pie + `</td></tr>` +
 		`<tr><td style="padding:16px 32px 28px;border-top:1px solid #eee6e7;font-size:12px;line-height:18px;color:#9a8f91">` + html.EscapeString(nota) +
 		` <a href="` + html.EscapeString(m.Web) + `" style="color:#9a8f91">` + html.EscapeString(strings.TrimPrefix(strings.TrimPrefix(m.Web, "https://"), "http://")) + `</a></td></tr>` +
 		`</table></td></tr></table></body></html>`
+	h = colorFijo(h)
 	texto := html.UnescapeString(titulo) + "\n\n" + strings.Join(parrafosTxt, "\n\n") + "\n\n— " + nota + " " + m.Web + "\n"
 	return Render{Asunto: asunto, HTML: h, Texto: texto}, nil
 }
