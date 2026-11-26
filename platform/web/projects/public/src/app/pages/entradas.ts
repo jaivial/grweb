@@ -698,7 +698,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                   </div>
                   <label class="flex flex-col gap-1.5 text-label-s">Email *<input type="email" [class]="campo(err('email'))" [(ngModel)]="f.email" name="email" autocomplete="email" [placeholder]="t().pg.emailPh2" [attr.aria-invalid]="err('email')" [attr.aria-describedby]="err('email') ? 'err-email' : null" />
                     @if (err('email')) { <span id="err-email" class="flex items-center gap-1.5 text-body-s font-normal text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ t().pg.emailErr }}</span> }</label>
-                  <div class="grid gap-4 sm:grid-cols-2">
+                  <div class="grid gap-4">
                     <div class="flex flex-col gap-1.5 text-label-s"><span>{{ t().pg.tel }}</span>
                       <gr-telefono tam="l" name="tel" [aria-label]="t().pg.tel" [(ngModel)]="f.telefono" /></div>
                     <div class="flex flex-col gap-1.5 text-label-s"><label for="e-origen">{{ t().pg.origen }}</label><gr-select id="e-origen" tam="l" class="font-normal" [(ngModel)]="f.origen" name="origen"><option value="">{{ t().pg.opcion }}</option>@for (o of origenes; track o; let i = $index) { <option [value]="o">{{ t().pg.origenes[i] }}</option> }</gr-select></div>

@@ -72,6 +72,12 @@ html {
   --font-display: var(--font-monster);
 }
 
+/* TEL-05: el H1 móvil grande no parte palabras («POWERLIFTING» mide 362 px a 48 px y no cabe en 390 px): el tamaño
+   baja con el ancho para que la palabra entera quepa en una línea. El resto del estilo sigue en text-display-l. */
+@media (width < 768px) {
+  .gr-h1-movil { font-size: clamp(2rem, 11vw, 2.75rem); }
+}
+
 /* Mobile menu open (layout.ts): the page behind the opaque menu is not painted (iOS stuttered over the hero video). */
 html.gr-menu-abierto main { visibility: hidden; }
 html.gr-menu-abierto #menu-movil { visibility: visible; } /* a navbar inside <main> (styleguide demo) */
