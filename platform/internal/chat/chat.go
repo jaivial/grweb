@@ -26,6 +26,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/fanauth"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 	"github.com/jaivial/grweb/platform/pkg/svcclient"
+	"github.com/jaivial/grweb/platform/pkg/visitas"
 )
 
 //go:embed migrations/*.sql
@@ -252,54 +253,45 @@ func (s *Svc) configRefrescar(ctx context.Context, cid uuid.UUID, cfg Config) {
 	cfgMu.Unlock()
 }
 
-// ---- presence (the realtime pattern: one counter per pod with expiry + the set of pods) ----
+// ---- presence: distinct visitors (pkg/visitas), not connections ----
 
-// presencia reports this pod's connections per competition every 10 s (25 s expiry: a dead pod stops counting
-// within 2 missed ticks, and its member is pruned from the set once its counter has expired)
-// and publishes the estado frame with the sum of pods to the local subscribers of each active room.
+// presencia reports the visitors connected to this pod per competition every visitas.Cada (they count for
+// visitas.Ventana: a browser that leaves or a dead pod stops counting) and publishes the estado frame with the
+// distinct visitors of every pod to the local subscribers of each active room. Several tabs of a browser, an
+// overlapping reconnection or a client served by two pods count once.
 func (s *Svc) presencia(ctx context.Context) {
-	t := time.NewTicker(10 * time.Second)
+	t := time.NewTicker(visitas.Cada)
 	defer t.Stop()
 	for {
-		for _, sl := range s.hub.salasVivas() {
-			n := int64(sl.nsubs())
-			cid := sl.id.cid
-			pods := s.a.Keys.Of("chat", "pods", cid)
-			p := s.a.Redis.TxPipeline()
-			p.Set(ctx, s.a.Keys.Of("chat", "conex", cid, s.pod), n, 25*time.Second)
-			p.SAdd(ctx, pods, s.pod)
-			p.Expire(ctx, pods, 10*time.Minute)
-			if _, err := p.Exec(ctx); err != nil {
+		salas := s.hub.salasVivas()
+		porCid := map[string]map[string]struct{}{}
+		for _, sl := range salas {
+			if porCid[sl.id.cid] == nil {
+				porCid[sl.id.cid] = map[string]struct{}{}
+			}
+			sl.visitantes(porCid[sl.id.cid])
+		}
+		totales := map[string]int64{}
+		for cid, set := range porCid {
+			ids := make([]string, 0, len(set))
+			for v := range set {
+				ids = append(ids, v)
+			}
+			key := s.a.Keys.Of("chat", "visitas", cid)
+			if err := visitas.Marcar(ctx, s.a.Redis, key, ids); err != nil {
 				s.a.Log.Warn("chat presencia", "err", err)
+				totales[cid] = int64(len(ids))
 				continue
 			}
-			// total = the sum of the pods' counters (SMEMBERS + MGET, never SCAN on the shared Redis)
-			members, err := s.a.Redis.SMembers(ctx, pods).Result()
-			total := n
-			if err == nil && len(members) > 0 {
-				claves := make([]string, 0, len(members))
-				for _, m := range members {
-					claves = append(claves, s.a.Keys.Of("chat", "conex", cid, m))
-				}
-				valores, err := s.a.Redis.MGet(ctx, claves...).Result()
-				if err == nil {
-					total = 0
-					for i, v := range valores {
-						if v == nil && members[i] != s.pod {
-							s.a.Redis.SRem(ctx, pods, members[i]) // dead pod: its counter expired
-							continue
-						}
-						if str, ok := v.(string); ok {
-							var x int64
-							if _, err := fmt.Sscanf(str, "%d", &x); err == nil {
-								total += x
-							}
-						}
-					}
-				}
+			n, err := visitas.Contar(ctx, s.a.Redis, key)
+			if err != nil {
+				n = int64(len(ids))
 			}
+			totales[cid] = n
+		}
+		for _, sl := range salas {
 			// local-only frame: every pod publishes the same total, the stream stays clean of noise
-			sl.publicar(item{T: "estado", Conectados: total, Dia: sl.id.dia, Ts: time.Now().UnixMilli()})
+			sl.publicar(item{T: "estado", Conectados: totales[sl.id.cid], Dia: sl.id.dia, Ts: time.Now().UnixMilli()})
 		}
 		select {
 		case <-ctx.Done():

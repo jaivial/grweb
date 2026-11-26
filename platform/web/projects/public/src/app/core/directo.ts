@@ -39,6 +39,8 @@ const nf1 = { es: new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1 }), 
 const nf2 = { es: new Intl.NumberFormat('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }), en: new Intl.NumberFormat('en-GB', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) };
 export const kg = (v?: number | null, lang: Lang = 'es') => (v === undefined || v === null ? '—' : nf1[lang].format(v));
 export const gl = (v?: number | null, lang: Lang = 'es') => (v === undefined || v === null ? '—' : nf2[lang].format(v));
+/** Weight of an attempt on the platform: OpenLifter keeps 0 until it is declared («0 kg» would be false). */
+export const pesoIntento = (v: number, lang: Lang = 'es', unidad = 'kg') => (v > 0 ? nf1[lang].format(v) + ' ' + unidad : lang === 'en' ? 'To be declared' : 'Por declarar');
 export const catCorta = (sexo: string, c: string) => `${sexo} ${c.replace('-', '−')}`;
 export const catLarga = (sexo: string, c: string, lang: Lang = 'es') => `${lang === 'en' ? (sexo === 'F' ? 'Women' : 'Men') : sexo === 'F' ? 'Femenino' : 'Masculino'} ${c.replace('-', '−')} kg`;
 

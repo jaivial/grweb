@@ -343,7 +343,7 @@ type Celda struct {
 }
 
 // Fila is a row of a category ranking. In public views athletes without a public profile (minors without the
-// guardian's authorisation, hidden profiles) appear as «Atleta» with no club, slug or body weight.
+// guardian's authorisation, hidden profiles) keep name and club (as /participantes) but no profile link or body weight.
 type Fila struct {
 	Puesto       int                 `json:"puesto,omitempty" doc:"0 = sin total o sin terminar"`
 	AtletaID     uuid.UUID           `json:"atletaId,omitzero"`
@@ -506,7 +506,7 @@ func clasificar(p *plan, t tabla, recs []record, k string, publico bool) Categor
 			c.Completos++
 		}
 		if publico && !a.Publico {
-			f.Nombre, f.Slug, f.Club, f.Iniciales, f.PesoCorporal = "Atleta", "", "", "·", nil
+			f.Slug, f.PesoCorporal = "", nil
 		}
 		c.Filas = append(c.Filas, f)
 	}

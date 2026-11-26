@@ -2,67 +2,23 @@ package athletes
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/subtle"
-	"encoding/base64"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
-	"golang.org/x/crypto/argon2"
 
+	"github.com/jaivial/grweb/platform/pkg/auth"
 	"github.com/jaivial/grweb/platform/pkg/httpx"
+	"github.com/jaivial/grweb/platform/pkg/passhash"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 	"github.com/jaivial/grweb/platform/pkg/ratelimit"
 )
 
 // Athlete area password (Jaime 15-nov): besides the email link, an athlete can set a password from the area and
-// then sign in with email + password. argon2id with the same parameters as the backoffice users.
-var b64pw = base64.RawStdEncoding
-
-// argonPwSlots bounds concurrent argon2id runs (19 MiB each).
-var argonPwSlots = make(chan struct{}, 4)
-
-func areaHash(pw string) string {
-	salt := make([]byte, 16)
-	_, _ = rand.Read(salt)
-	argonPwSlots <- struct{}{}
-	key := argon2.IDKey([]byte(pw), salt, 2, 19*1024, 1, 32)
-	<-argonPwSlots
-	return fmt.Sprintf("$argon2id$v=19$m=19456,t=2,p=1$%s$%s", b64pw.EncodeToString(salt), b64pw.EncodeToString(key))
-}
-
-func areaCheck(hash, pw string) bool {
-	parts := strings.Split(hash, "$")
-	if len(parts) != 6 || parts[1] != "argon2id" {
-		return false
-	}
-	var m, t uint32
-	var p uint8
-	if _, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &m, &t, &p); err != nil {
-		return false
-	}
-	salt, err1 := b64pw.DecodeString(parts[4])
-	want, err2 := b64pw.DecodeString(parts[5])
-	if err1 != nil || err2 != nil {
-		// A password taken from the fan account (pkg/passhash writes the URL-safe alphabet).
-		salt, err1 = base64.RawURLEncoding.DecodeString(parts[4])
-		want, err2 = base64.RawURLEncoding.DecodeString(parts[5])
-	}
-	if err1 != nil || err2 != nil {
-		return false
-	}
-	argonPwSlots <- struct{}{}
-	got := argon2.IDKey([]byte(pw), salt, t, m, p, uint32(len(want)))
-	<-argonPwSlots
-	return subtle.ConstantTimeCompare(got, want) == 1
-}
-
-// dummyAreaHash keeps the timing of unknown emails close to a real check.
-var dummyAreaHash = areaHash("contraseña-de-relleno")
+// then sign in with email + password. Same hash as the directo account (pkg/passhash): one account per email, one
+// password, kept in step through fans (see passwordAFan).
 
 func (s *Svc) tienePassword(ctx context.Context, atleta uuid.UUID) bool {
 	var ok bool
@@ -101,11 +57,11 @@ func (s *Svc) registerAreaPassword() {
 			var aid uuid.UUID
 			var hash *string
 			_ = s.a.DB.QueryRow(ctx, `SELECT id, password_hash FROM atletas WHERE competition_id = $1 AND email = $2 AND estado <> 'baja' ORDER BY created_at LIMIT 1`, cid, e).Scan(&aid, &hash)
-			h := dummyAreaHash
+			h := passhash.Dummy
 			if hash != nil {
 				h = *hash
 			}
-			if !areaCheck(h, in.Body.Password) || hash == nil {
+			if !passhash.Check(h, in.Body.Password) || hash == nil {
 				return nil, problem.Unauthorized("CREDENCIALES", "Email o contraseña incorrectos. Si aún no tienes contraseña, entra con el enlace por email y créala en tu área.")
 			}
 			t := randomToken()
@@ -139,10 +95,40 @@ func (s *Svc) registerAreaPassword() {
 			if len([]rune(in.Body.Password)) < 10 {
 				return nil, problem.Unprocessable("CONTRASENA_DEBIL", "La contraseña debe tener al menos 10 caracteres.")
 			}
-			if _, err := s.a.DB.Exec(ctx, `UPDATE atletas SET password_hash = $2, password_temporal = false, updated_at = now() WHERE id = $1`, r.ID, areaHash(in.Body.Password)); err != nil {
+			hash := passhash.Hash(in.Body.Password)
+			if _, err := s.a.DB.Exec(ctx, `UPDATE atletas SET password_hash = $2, password_temporal = false, updated_at = now() WHERE id = $1`, r.ID, hash); err != nil {
 				return nil, err
 			}
+			s.passwordAFan(ctx, r.CompetitionID, r.ID, hash)
 			p, err := s.panel(ctx, r)
 			return &panelOut{Body: p}, err
+		})
+
+	// fans → athletes: the directo account of an athlete got a new password (one account per email, one password).
+	type passwordAtletaIn struct {
+		CID      uuid.UUID `path:"cid"`
+		AtletaID uuid.UUID `path:"id"`
+		Body     struct {
+			PasswordHash string `json:"passwordHash" minLength:"1" maxLength:"200"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "internal-atleta-password", Method: http.MethodPut, Path: "/internal/competiciones/{cid}/atletas/{id}/password",
+		Summary: "Contraseña nueva de la cuenta del directo del atleta (solo fans)", Tags: []string{"Interno"}, Hidden: true, DefaultStatus: http.StatusNoContent},
+		func(ctx context.Context, in *passwordAtletaIn) (*struct{}, error) {
+			p, err := auth.RequireService(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if p.Service != "fans" {
+				return nil, problem.Forbidden("Solo fans.")
+			}
+			if !strings.HasPrefix(in.Body.PasswordHash, "$argon2id$") {
+				return nil, problem.Unprocessable("HASH_NO_VALIDO", "El hash no es argon2id.")
+			}
+			if _, err := s.a.DB.Exec(ctx, `UPDATE atletas SET password_hash = $3, password_temporal = false, updated_at = now() WHERE id = $2 AND competition_id = $1`,
+				in.CID, in.AtletaID, in.Body.PasswordHash); err != nil {
+				return nil, err
+			}
+			return &struct{}{}, nil
 		})
 }

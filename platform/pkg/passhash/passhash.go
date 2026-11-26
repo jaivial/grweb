@@ -45,6 +45,11 @@ func Check(hash, pw string) bool {
 	salt, err1 := b64.DecodeString(parts[4])
 	want, err2 := b64.DecodeString(parts[5])
 	if err1 != nil || err2 != nil {
+		// Older athlete-area hashes were written with the standard alphabet.
+		salt, err1 = base64.RawStdEncoding.DecodeString(parts[4])
+		want, err2 = base64.RawStdEncoding.DecodeString(parts[5])
+	}
+	if err1 != nil || err2 != nil {
 		return false
 	}
 	return subtle.ConstantTimeCompare(key([]byte(pw), salt, t, m, p, uint32(len(want))), want) == 1

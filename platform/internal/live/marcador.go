@@ -26,7 +26,7 @@ type MarcadorIntento struct {
 // MarcadorAtleta is one athlete of the scoreboard: identity, attempts, best lifts, total, GL and places.
 type MarcadorAtleta struct {
 	AtletaID         uuid.UUID                    `json:"atletaId"`
-	NombrePublico    string                       `json:"nombrePublico" doc:"Nombre si el perfil es público; si no «Atleta · −83 kg · lote 12»"`
+	NombrePublico    string                       `json:"nombrePublico" doc:"Nombre completo del atleta confirmado (como /participantes)"`
 	FotoURL          string                       `json:"fotoUrl,omitempty" doc:"Foto pública: solo con perfil público e imagen consentida"`
 	Sexo             string                       `json:"sexo"`
 	Categoria        string                       `json:"categoria"`
@@ -60,32 +60,13 @@ func fotoPublica(a *atleta) string {
 	return a.FotoURL
 }
 
-// nombrePublico applies the privacy rule of /en-directo: the name only with a public profile, otherwise
-// «Atleta · −83 kg · lote 12».
+// nombrePublico is the name of every confirmed athlete, as the public start list /participantes shows it (only the
+// profile link and the photo depend on a public profile); «Atleta» only if the name is missing.
 func nombrePublico(a *atleta) string {
-	if a.Publico {
+	if a.Nombre != "" {
 		return a.Nombre
 	}
-	if a.Lote == 0 { // not in a published sesion yet: no lot (and maybe no weight class either)
-		if a.Categoria == "" {
-			return "Atleta"
-		}
-		return "Atleta · " + sinMenos(a.Categoria) + " kg"
-	}
-	return "Atleta · " + sinMenos(a.Categoria) + " kg · lote " + itoa(a.Lote)
-}
-
-// sinMenos formats a weight class the way the public views do: −83 (typographic minus).
-func sinMenos(cat string) string {
-	s := ""
-	for i, c := range cat {
-		if i == 0 && c == '-' {
-			s += "−"
-			continue
-		}
-		s += string(c)
-	}
-	return s
+	return "Atleta"
 }
 
 // marcadorDelDia builds the scoreboard of one day. It computes the places on a sub-plan with only that day's

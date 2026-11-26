@@ -124,11 +124,11 @@ const diaSiguiente = (f: string) => {
         @if (dia()) {
           <div class="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
             <div class="flex min-w-0 flex-col gap-4" cdkDropListGroup>
-              @if (b.sinSesion.length) {
+              @if (sinSesionDia().length) {
                 <section class="rounded-lg border border-line-strong bg-bg-surface p-3">
-                  <header class="flex flex-wrap items-baseline justify-between gap-2"><h2 class="text-label-m">Sin sesión</h2><p class="text-body-xs text-text-tertiary">{{ b.sinSesion.length }} {{ b.sinSesion.length === 1 ? 'atleta' : 'atletas' }} · arrástralos o usa «Mover»</p></header>
+                  <header class="flex flex-wrap items-baseline justify-between gap-2"><h2 class="text-label-m">Sin sesión</h2><p class="text-body-xs text-text-tertiary">{{ sinSesionDia().length }} {{ sinSesionDia().length === 1 ? 'atleta' : 'atletas' }} · arrástralos o usa «Mover»</p></header>
                   <ul class="lista mt-3 flex max-h-72 min-h-14 flex-col gap-1.5 overflow-y-auto" cdkDropList [cdkDropListData]="sinLista()" (cdkDropListDropped)="drop($event)" [cdkDropListDisabled]="!canEdit() || !!nFiltros()" aria-label="Atletas sin sesión">
-                    @for (a of filtrar(b.sinSesion); track a.id) {
+                    @for (a of filtrar(sinSesionDia()); track a.id) {
                       <li cdkDrag [cdkDragData]="a" class="flex min-h-12 items-center gap-2 rounded-md border border-line-subtle bg-bg-card px-2 py-1">
                         <span cdkDragHandle class="hidden cursor-grab text-text-muted sm:block"><gr-icon name="grip" [size]="16" /></span>
                         <span class="min-w-0 flex-1"><span class="block truncate text-label-s">{{ a.nombre }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ a.sexo }} {{ cat(a.categoria) }}{{ a.prueba ? ' · ' + nombrePrueba(a.prueba) : '' }}{{ a.totalPrevisto ? ' · tot. prev. ' + kg(a.totalPrevisto) : '' }}</span></span>
@@ -630,8 +630,9 @@ export class HorariosPage {
     const b = this.raw();
     if (!b) return { label: '', tone: 'neutral' };
     if (!b.publicado) return { label: b.sesiones.length ? 'Sin publicar' : '', tone: 'neutral' };
-    if (!b.webVisible) return { label: `v${b.publicada?.numero} · oculto en la web`, tone: 'neutral' };
-    return b.cambiosSinPublicar ? { label: 'Cambios sin publicar', tone: 'warning' } : { label: `Publicado · v${b.publicada?.numero}`, tone: 'success' };
+    // the label describes the draft against the published version; the web switch only adds «oculto en la web»
+    if (b.cambiosSinPublicar) return { label: 'Cambios sin publicar' + (b.webVisible ? '' : ' · oculto en la web'), tone: 'warning' };
+    return b.webVisible ? { label: `Publicado · v${b.publicada?.numero}`, tone: 'success' } : { label: `v${b.publicada?.numero} · oculto en la web`, tone: 'neutral' };
   });
   protected readonly subtitulo = computed(() => {
     const b = this.raw();
@@ -658,7 +659,14 @@ export class HorariosPage {
     return rows.sort((x, y) => x.t.localeCompare(y.t));
   });
   private listas = new Map<string, Lista>();
-  protected readonly sinLista = computed<Lista>(() => ({ id: null, atletas: this.raw()?.sinSesion ?? [] }));
+  /** «Sin sesión» of the selected date: on a date of one AEP level, its athletes and those without level (the server
+   *  rejects moving another level's athlete into its sessions, PRUEBA_DISTINTA). */
+  protected readonly sinSesionDia = computed(() => {
+    const p = this.pruebaDia();
+    const l = this.raw()?.sinSesion ?? [];
+    return p ? l.filter((a) => !a.prueba || a.prueba === p) : l;
+  });
+  protected readonly sinLista = computed<Lista>(() => ({ id: null, atletas: this.sinSesionDia() }));
 
   constructor() {
     effect(() => {

@@ -18,6 +18,7 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/auth"
 	"github.com/jaivial/grweb/platform/pkg/crypto"
 	"github.com/jaivial/grweb/platform/pkg/db"
+	"github.com/jaivial/grweb/platform/pkg/passhash"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
@@ -99,7 +100,9 @@ func (s *Svc) registerPerfilExiste(base string) {
 				}
 				defer s.a.Redis.Del(context.WithoutCancel(ctx), lock)
 			}
+			nuevas := map[uuid.UUID]string{} // new initial passwords, copied to the directo accounts after the commit
 			run := func(tx pgx.Tx) error {
+				clear(nuevas)
 				list, err := listRows(ctx, tx, where, args...)
 				if err != nil {
 					return err
@@ -135,9 +138,10 @@ func (s *Svc) registerPerfilExiste(base string) {
 						continue
 					}
 					pw := passwordInicial(r.Nombre)
+					hash := passhash.Hash(pw)
 					// Guarded update: a concurrent batch that got here first wins (no second password, no second email).
 					tag, err := tx.Exec(ctx, `UPDATE atletas SET password_hash = $2, password_temporal = true, acceso_enviado_at = now(), updated_at = now()
-						WHERE id = $1 AND ($3 OR (acceso_enviado_at IS NULL AND COALESCE(password_hash, '') = ''))`, r.ID, areaHash(pw), b.Reenviar)
+						WHERE id = $1 AND ($3 OR (acceso_enviado_at IS NULL AND COALESCE(password_hash, '') = ''))`, r.ID, hash, b.Reenviar)
 					if err != nil {
 						return err
 					}
@@ -146,6 +150,7 @@ func (s *Svc) registerPerfilExiste(base string) {
 						o.YaEnviados++
 						continue
 					}
+					nuevas[r.ID] = hash
 					// Sessions opened with the old password close with it.
 					if _, err := tx.Exec(ctx, `DELETE FROM area_sesiones WHERE atleta_id = $1`, r.ID); err != nil {
 						return err
@@ -183,6 +188,13 @@ func (s *Svc) registerPerfilExiste(base string) {
 				ev["emails"], ev["whatsapps"], ev["sinEmail"], ev["yaEnviados"], ev["conContrasena"], ev["menores"] = o.Emails, o.WhatsApps, o.SinEmail, o.YaEnviados, o.ConContrasena, o.Menores
 				return nil
 			})
+			if err == nil {
+				for id, hash := range nuevas {
+					if !s.passwordAFan(ctx, i.CID, id, hash) {
+						break // fans is down: do not wait for it once per athlete
+					}
+				}
+			}
 			return &struct{ Body PerfilExisteOut }{o}, err
 		})
 }

@@ -3,6 +3,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { visitante } from './visitante';
 import { COMPETITION_SLUG } from './competition';
 import { FanSession } from './fan';
 import { I18n, type Lang } from './i18n';
@@ -406,7 +407,7 @@ export class ChatService {
     this.pararWs();
     this.pararSse();
     this.transporte.set('ws');
-    const url = wsUrl(`${this.base}/ws`, { dia: this.dia(), desde: this.ultimoId || undefined, lote: '1' });
+    const url = wsUrl(`${this.base}/ws`, { dia: this.dia(), desde: this.ultimoId || undefined, lote: '1', v: visitante() });
     let ws: WebSocket;
     try {
       ws = new WebSocket(url);
@@ -476,7 +477,7 @@ export class ChatService {
     if (!this.browser || !this.vivo) return;
     this.pararWs();
     this.transporte.set('sse');
-    const q = new URLSearchParams({ dia: this.dia() });
+    const q = new URLSearchParams({ dia: this.dia(), v: visitante() });
     if (this.ultimoId) q.set('desde', this.ultimoId);
     const es = new EventSource(`${this.base}/stream?${q.toString()}`);
     this.es = es;
