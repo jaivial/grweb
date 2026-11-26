@@ -4,7 +4,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { FanSession } from '../../core/fan';
 import { I18n, LocPipe } from '../../core/i18n';
-import { Juegos, monedas, type Apuesta, type Cartera, type Mercado, type Sexo } from '../../core/juegos';
+import { Juegos, aplicarCambioMercado, monedas, seguirMercadosEnVivo, type Apuesta, type Cartera, type Mercado, type Sexo } from '../../core/juegos';
 import { RankingPorra, misPorras, rankingAtletas } from '../porra/ranking';
 import { GrCoin } from './ui';
 
@@ -15,6 +15,7 @@ const T = {
     busca: 'Busca un atleta y haz tu porra', mas: 'Más apostados · en vivo', sexo: 'Sexo', masc: 'Masc.', fem: 'Fem.',
     vacio: 'Todavía nadie ha apostado en la porra de esta jornada.', ir: 'Ir a la porra',
     fantasy: 'Ficha 5 titulares con 1.000.000 de monedas', abrir: 'Abrir', error: 'No hemos podido cargar la porra.',
+    verLos: (n: number) => `Ver los ${n} atletas en vivo`,
   },
   en: {
     entra: 'Sign in to play with your coins', entrar: 'Sign in and play', saldo: 'Your matchday balance',
@@ -22,12 +23,13 @@ const T = {
     busca: 'Search an athlete and make your pick', mas: 'Most backed · live', sexo: 'Sex', masc: 'Men', fem: 'Women',
     vacio: 'Nobody has made a pick in this matchday’s pool yet.', ir: 'Go to the pool',
     fantasy: 'Sign 5 starters with 1,000,000 coins', abrir: 'Open', error: 'We could not load the pool.',
+    verLos: (n: number) => `See all ${n} athletes live`,
   },
 };
 
 /**
  * Pestaña «Porra» del panel del directo (Figma 171:70257): acceso para jugar (o mi saldo), una vista previa de la
- * porra (buscador y top 3 en vivo, refrescado cada 20 s) y las llamadas a /porra y /fantasy.
+ * porra (buscador y top 3 del mismo ranking en vivo que /porra?vista=en-vivo) y las llamadas a /porra y /fantasy.
  */
 @Component({
   selector: 'gr-porra-view',
@@ -63,7 +65,7 @@ const T = {
           <span class="bg-[linear-gradient(180deg,#ff5a6e,#c8102e)] bg-clip-text pr-1 font-display text-[1.25rem] leading-none text-transparent uppercase italic">{{ t().titulo }}</span>
           <span class="flex rounded-pill border border-line-subtle bg-bg-surface p-0.5 text-[11px]">
             <a [routerLink]="'/porra' | loc" class="flex h-7 items-center rounded-pill px-2.5 text-text-tertiary hover:text-text-primary">{{ t().hacer }}</a>
-            <a [routerLink]="'/porra' | loc" [queryParams]="{ vista: 'en-vivo' }" class="flex h-7 items-center rounded-pill border border-line-strong bg-bg-raised px-2.5 text-text-primary">{{ t().vivo }}</a>
+            <a [routerLink]="'/porra' | loc" [queryParams]="{ vista: 'en-vivo', sexo: sexo() }" class="flex h-7 items-center rounded-pill border border-line-strong bg-bg-raised px-2.5 text-text-primary">{{ t().vivo }}</a>
           </span>
         </p>
         <form class="relative block" role="search" (submit)="buscar($event, $any(campo).value)">
@@ -85,8 +87,11 @@ const T = {
           <div class="flex flex-col gap-2"><gr-skeleton class="h-12 rounded-md" /><gr-skeleton class="h-12 rounded-md" /><gr-skeleton class="h-12 rounded-md" /></div>
         } @else if (error()) {
           <p class="flex items-center gap-2 rounded-md border border-line-subtle bg-bg-raised p-3 text-body-s text-text-tertiary"><gr-icon name="circle-alert" [size]="16" class="shrink-0" />{{ error() }}</p>
-        } @else if (top3().length) {
-          <gr-ranking-porra [filas]="top3()" />
+        } @else if (ranking().length) {
+          <gr-ranking-porra [filas]="ranking().slice(0, 3)" />
+          @if (ranking().length > 3) {
+            <a [routerLink]="'/porra' | loc" [queryParams]="{ vista: 'en-vivo', sexo: sexo() }" class="mx-auto -mt-1 flex min-h-11 items-center px-3 text-label-s text-accent-text">{{ t().verLos(ranking().length) }}</a>
+          }
         } @else {
           <p class="py-4 text-center text-body-xs text-text-tertiary">{{ t().vacio }}</p>
         }
@@ -132,8 +137,9 @@ export class PorraView {
   /** La jornada que contesta la API (la activa si no se pide ninguna). */
   protected readonly jornadaApi = signal<{ nombre: string; dia: string } | null>(null);
   protected readonly jornada = computed(() => this.jornadaApi() ?? (this.jornadaNombre() ? { nombre: this.jornadaNombre(), dia: '' } : null));
-  /** Los 3 atletas más apostados del sexo elegido, con «Tu porra» si les he apostado. */
-  protected readonly top3 = computed(() => rankingAtletas(this.mercados(), this.sexo(), misPorras(this.apuestas())).slice(0, 3));
+  /** El mismo ranking que /porra?vista=en-vivo (atletas del sexo elegido por monedas apostadas, sin los de 0), con
+   *  «Tu porra» si les he apostado; el panel enseña los 3 primeros. */
+  protected readonly ranking = computed(() => rankingAtletas(this.mercados(), this.sexo(), misPorras(this.apuestas())));
 
   constructor() {
     effect(() => {
@@ -167,8 +173,20 @@ export class PorraView {
         .then((r) => this.apuestas.set(r.apuestas ?? []))
         .catch(() => this.apuestas.set([]));
     });
-    // top 3 en vivo: los botes cambian con cada porra, refresco ligero cada 20 s (como /porra)
+    // en vivo como /porra: los cambios `porra.mercado` se aplican al momento (el panel abre el SSE mientras se ve esta
+    // pestaña) y, como los botes cambian con cada porra, un refresco ligero cada 20 s
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
+      seguirMercadosEnVivo(
+        (c) => {
+          const l = aplicarCambioMercado(this.mercados(), c);
+          if (l) this.mercados.set(l);
+          return !!l;
+        },
+        () => {
+          const jid = this.jornadaId();
+          if (jid && this.cargada()) void this.cargarMercados(jid, true);
+        },
+      );
       const t = setInterval(() => {
         const jid = this.jornadaId();
         if (jid && this.cargada() && !document.hidden) void this.cargarMercados(jid, true);
