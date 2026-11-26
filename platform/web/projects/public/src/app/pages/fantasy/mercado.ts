@@ -150,7 +150,7 @@ const T = {
         <gr-coin-balance class="shrink-0 self-start lg:self-center" [valor]="saldo() ?? 0" moneda="fantasy" motivo="fantasy" />
       </gr-fantasy-cabecera>
 
-      <gr-juegos-nav juego="fantasy" activa="mercado" [pestanas]="!store.sala()" />
+      <gr-juegos-nav juego="fantasy" activa="mercado" [pestanas]="!store.cargando() && !store.sala()" />
       @if (store.sala(); as s) {
         <gr-barra-sala [salaId]="s.id" [nombre]="s.nombre" [estado]="s.estado" [miembros]="s.miembros ?? 0" [plazas]="s.plazas ?? 0" activa="mercado" />
       }

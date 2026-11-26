@@ -68,7 +68,7 @@ const T = {
         }
       </gr-fantasy-cabecera>
 
-      <gr-juegos-nav juego="fantasy" activa="clasificacion" [pestanas]="!store.sala()" />
+      <gr-juegos-nav juego="fantasy" activa="clasificacion" [pestanas]="!store.cargando() && !store.sala()" />
       @if (store.sala(); as s) {
         <gr-barra-sala [salaId]="s.id" [nombre]="s.nombre" [estado]="s.estado" [miembros]="s.miembros ?? 0" [plazas]="s.plazas ?? 0" activa="clasificacion" />
       }
