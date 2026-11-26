@@ -53,12 +53,17 @@ export class EmailsApi {
   prueba(cid: string, clave: string, destino: string): Promise<Mensaje> {
     return firstValueFrom(this.http.post<Mensaje>(`${this.b(cid)}/plantillas/${clave}/prueba`, { destino }));
   }
-  salida(cid: string, estado: string, q: string, pagina: number, canal = ''): Promise<Salida> {
-    const params: Record<string, string> = { pagina: String(pagina) };
+  salida(cid: string, estado: string, q: string, pagina: number, canal = '', destinos: string[] = []): Promise<Salida> {
+    const params: { [k: string]: string | string[] } = { pagina: String(pagina) };
     if (canal) params['canal'] = canal;
     if (estado) params['estado'] = estado;
     if (q) params['q'] = q;
+    if (destinos.length) params['destino'] = destinos;
     return firstValueFrom(this.http.get<Salida>(`${this.b(cid)}/salida`, { params }));
+  }
+  /** Lo que se ha enviado a esos destinos (el email y el teléfono de un atleta), de lo más nuevo a lo más viejo. */
+  salidaDe(cid: string, destinos: string[]): Promise<Salida> {
+    return this.salida(cid, '', '', 1, '', destinos);
   }
   mensaje(cid: string, id: string): Promise<Mensaje & { html: string; texto: string }> {
     return firstValueFrom(this.http.get<Mensaje & { html: string; texto: string }>(`${this.b(cid)}/salida/${id}`));

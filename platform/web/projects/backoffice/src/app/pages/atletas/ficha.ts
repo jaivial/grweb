@@ -13,6 +13,7 @@ import { AccionNecesariaDialogo } from './accion-necesaria';
 import { PerfilExisteDialogo } from './perfil-existe';
 import { BoDatePicker } from '../../shared/kit';
 import { ESTADO } from './list';
+import { ESTADO_MSG, EmailsApi, type Salida } from '../emails/api';
 import { tabEnUrl } from '../../shared/tab-url';
 
 type Tab = 'perfil' | 'competicion' | 'comunicaciones' | 'historial';
@@ -255,7 +256,34 @@ const PUBLIC_WEB = webPublica();
             </div>
           }
           @case ('comunicaciones') {
-            <gr-empty icon="mail" title="Aún no hay comunicaciones con este atleta" text="Los emails de su área, los avisos y las campañas que reciba aparecerán aquí." />
+            @if (!puedeVerComs()) {
+              <gr-empty icon="lock" title="Sin permiso para ver las comunicaciones" text="Necesitas el permiso «Enviar campañas (email y WhatsApp)» en esta competición." />
+            } @else if (msgs() === undefined) {
+              <gr-skeleton class="h-64 rounded-lg" />
+            } @else if (msgs() === null) {
+              <gr-empty icon="wifi-off" title="No hemos podido cargar las comunicaciones"><button grButton (click)="cargarMensajes()">Reintentar</button></gr-empty>
+            } @else if (msgs()!.items.length) {
+              @let s = msgs()!;
+              <section class="rounded-lg border border-line-subtle bg-bg-card">
+                <ul>
+                  @for (m of s.items; track m.id) {
+                    <li class="flex flex-wrap items-center gap-3 border-b border-line-subtle px-5 py-3 last:border-0">
+                      <gr-badge [tone]="m.canal === 'whatsapp' ? 'success' : 'info'">{{ m.canal === 'whatsapp' ? 'WhatsApp' : 'Email' }}</gr-badge>
+                      <span class="min-w-0 flex-1">
+                        <span class="block truncate text-label-s">{{ m.asunto || m.nombre || m.plantilla }}</span>
+                        <span class="block text-body-xs text-text-tertiary">{{ m.nombre || m.plantilla }} · {{ fecha(m.enviadoAt || m.createdAt) }}<span class="text-text-muted">{{ m.prueba ? ' · prueba' : '' }}</span></span>
+                      </span>
+                      <gr-badge [tone]="estadoMsg[m.estado].tone">{{ estadoMsg[m.estado].label }}</gr-badge>
+                    </li>
+                  }
+                </ul>
+                @if (s.total > s.items.length) {
+                  <p class="border-t border-line-subtle px-5 py-3 text-body-xs text-text-tertiary">{{ s.items.length }} de {{ s.total }} mensajes. <a [routerLink]="['/', comps.current()?.slug, 'emails', 'salida']" class="underline hover:text-text-primary">Ver la bandeja de salida</a></p>
+                }
+              </section>
+            } @else {
+              <gr-empty icon="mail" title="Aún no hay comunicaciones con este atleta" text="Los emails de su área, los avisos y las campañas que reciba aparecerán aquí." />
+            }
           }
           @case ('historial') {
             <section class="rounded-lg border border-line-subtle bg-bg-card">
@@ -288,6 +316,7 @@ export class AtletaFichaPage {
   readonly id = input.required<string>();
   protected readonly comps = inject(Competitions);
   private readonly api = inject(AtletasApi);
+  private readonly emailsApi = inject(EmailsApi);
   private readonly auth = inject(Auth);
   private readonly toasts = inject(GrToasts);
   private readonly confirmSvc = inject(Confirm);
@@ -308,6 +337,9 @@ export class AtletaFichaPage {
 
   protected readonly atleta = signal<Atleta | null>(null);
   protected readonly historial = signal<Historial[]>([]);
+  /** Comunicaciones: undefined = sin cargar, null = error. */
+  protected readonly msgs = signal<Salida | null | undefined>(undefined);
+  protected readonly estadoMsg = ESTADO_MSG;
   protected readonly noExiste = signal(false);
   protected readonly tab = signal<Tab>('perfil');
   private readonly tabUrl = tabEnUrl(this.tab, () => this.tabs.map((t) => t.key));
@@ -334,6 +366,8 @@ export class AtletaFichaPage {
 
   protected readonly canEdit = computed(() => this.auth.can(this.comps.current()?.id, 'atletas.editar'));
   protected readonly canWeigh = computed(() => this.auth.can(this.comps.current()?.id, 'checkin.escanear') || this.canEdit());
+  /** The outbox of messaging needs its own permission. */
+  protected readonly puedeVerComs = computed(() => this.auth.can(this.comps.current()?.id, 'campanas.enviar'));
   protected readonly subtitulo = computed(() => {
     const a = this.atleta();
     if (!a) return '';
@@ -358,6 +392,10 @@ export class AtletaFichaPage {
       const id = this.id();
       if (this.comps.current()?.id && id) untracked(() => void this.cargar());
     });
+    // «Comunicaciones»: the outbox rows of the athlete's email and phone, loaded when the tab opens.
+    effect(() => {
+      if (this.tab() === 'comunicaciones' && this.atleta() && this.puedeVerComs()) untracked(() => void this.cargarMensajes());
+    });
     const sub = inject(Realtime).events.subscribe((e) => {
       if (e.tipo.startsWith('athletes.') && e.datos?.['id'] === this.id() && !this.sucio()) void this.cargar(true);
     });
@@ -375,6 +413,23 @@ export class AtletaFichaPage {
     } catch (e) {
       if (e instanceof HttpErrorResponse && e.status === 404) this.noExiste.set(true);
       else if (!silencioso) this.toasts.error('No se pudo cargar la ficha', errText(e));
+    }
+  }
+
+  /** Emails and WhatsApps sent to this athlete: the outbox filtered by his email and phone. */
+  protected async cargarMensajes(): Promise<void> {
+    const cid = this.comps.current()?.id;
+    const a = this.atleta();
+    if (!cid || !a) return;
+    const destinos = [a.email, a.telefono].filter(Boolean);
+    if (!this.puedeVerComs() || !destinos.length) {
+      this.msgs.set({ items: [], total: 0, pagina: 1, por: 25, estados: {} });
+      return;
+    }
+    try {
+      this.msgs.set(await this.emailsApi.salidaDe(cid, destinos));
+    } catch {
+      this.msgs.set(null);
     }
   }
 
