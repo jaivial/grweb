@@ -1049,15 +1049,27 @@ func (s *Svc) consentimientosOrganizador(ctx context.Context, tx pgx.Tx, cid, id
 	const origen = "otorgado al organizador al darle de alta"
 	vi, hi := s.legalVigente(ctx, cid, "consentimiento")
 	vw, _ := s.legalVigente(ctx, cid, "whatsapp")
-	if _, err := tx.Exec(ctx, `UPDATE perfiles SET imagen_at = now(), imagen_version = $2, imagen_hash = $3, imagen_origen = $4, imagen_ip = ''
-		WHERE atleta_id = $1 AND imagen_at IS NULL`, id, vi, hi, origen); err != nil {
-		return err
+	// A consent always points to a published text: without one (cms down or not published) it is not recorded.
+	var hechos []string
+	if vi != "" {
+		if _, err := tx.Exec(ctx, `UPDATE perfiles SET imagen_at = now(), imagen_version = $2, imagen_hash = $3, imagen_origen = $4, imagen_ip = ''
+			WHERE atleta_id = $1 AND imagen_at IS NULL`, id, vi, hi, origen); err != nil {
+			return err
+		}
+		hechos = append(hechos, "uso de imagen "+vi)
 	}
-	if _, err := tx.Exec(ctx, `UPDATE atletas SET whatsapp_at = now(), whatsapp_version = $2, whatsapp_origen = $3
-		WHERE id = $1 AND whatsapp_at IS NULL AND whatsapp_origen <> 'retirado'`, id, vw, origen); err != nil {
-		return err
+	if vw != "" {
+		if _, err := tx.Exec(ctx, `UPDATE atletas SET whatsapp_at = now(), whatsapp_version = $2, whatsapp_origen = $3
+			WHERE id = $1 AND whatsapp_at IS NULL AND whatsapp_origen <> 'retirado'`, id, vw, origen); err != nil {
+			return err
+		}
+		hechos = append(hechos, "avisos por WhatsApp "+vw)
 	}
-	return hist(ctx, tx, id, "Consentimientos registrados", "Uso de imagen y avisos por WhatsApp · "+origen)
+	if len(hechos) == 0 {
+		s.a.Log.Warn("alta por el equipo sin textos legales publicados: consentimientos no registrados", "atleta", id.String())
+		return nil
+	}
+	return hist(ctx, tx, id, "Consentimientos registrados", strings.Join(hechos, " · ")+" · "+origen)
 }
 
 func createPerfil(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, name string) error {
