@@ -4,7 +4,7 @@ import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrAlert, GrButton, GrCheckbox, GrIcon, GrRaffleNotice, GrSkeleton, type GrIconName, GrSelect, CdnPipe, LOGO, LOGO_SRCSET } from '@grcup/ui';
+import { GrAlert, GrButton, GrCheckbox, GrIcon, GrRaffleNotice, GrSkeleton, type GrIconName, GrSelect, GrTelefono, telefonoValido, CdnPipe, LOGO, LOGO_SRCSET } from '@grcup/ui';
 import { Cms, type Faq } from '../core/cms';
 import { renderMarkdown } from '../core/markdown';
 import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
@@ -121,6 +121,7 @@ const T = {
       eNombre: 'Nombre: escribe tu nombre.',
       eApellidos: 'Apellidos: escribe tus apellidos.',
       eEmail: 'Email: introduce un email válido.',
+      eTel: 'Teléfono: escribe el número completo.',
       eSesion: 'Elige una sesión.',
       ePriv: 'Acepta la política de privacidad para reservar.',
       eEmail2: 'Escribe un email válido.',
@@ -307,6 +308,7 @@ const T = {
       eNombre: 'First name: enter your first name.',
       eApellidos: 'Surname: enter your surname.',
       eEmail: 'Email: enter a valid email.',
+      eTel: 'Phone: enter the complete number.',
       eSesion: 'Choose a session.',
       ePriv: 'Accept the privacy policy to book.',
       eEmail2: 'Enter a valid email.',
@@ -563,7 +565,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
  */
 @Component({
   selector: 'gr-entradas-page',
-  imports: [CdnPipe, LocPipe, GrSelect, RouterLink, NgTemplateOutlet, Navbar, Footer, FormsModule, GrAlert, GrButton, GrCheckbox, GrIcon, GrSkeleton, GrCabecera, TicketCard, Newsletter],
+  imports: [CdnPipe, LocPipe, GrSelect, GrTelefono, RouterLink, NgTemplateOutlet, Navbar, Footer, FormsModule, GrAlert, GrButton, GrCheckbox, GrIcon, GrSkeleton, GrCabecera, TicketCard, Newsletter],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let d = data();
@@ -695,9 +697,8 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
                   <label class="flex flex-col gap-1.5 text-label-s">Email *<input type="email" [class]="campo(err('email'))" [(ngModel)]="f.email" name="email" autocomplete="email" [placeholder]="t().pg.emailPh2" [attr.aria-invalid]="err('email')" [attr.aria-describedby]="err('email') ? 'err-email' : null" />
                     @if (err('email')) { <span id="err-email" class="flex items-center gap-1.5 text-body-s font-normal text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ t().pg.emailErr }}</span> }</label>
                   <div class="grid gap-4 sm:grid-cols-2">
-                    <label class="flex flex-col gap-1.5 text-label-s">{{ t().pg.tel }}
-                      <span class="flex h-12 items-center overflow-hidden rounded-sm border border-line-strong bg-bg-field focus-within:border-accent-text"><span class="flex h-full items-center border-r border-line-subtle px-3 text-body-m font-normal text-text-secondary">+34</span>
-                        <input type="tel" inputmode="tel" class="h-full min-w-0 flex-1 bg-transparent px-3 text-body-m font-normal placeholder:text-text-muted focus:outline-none" [(ngModel)]="f.telefono" name="tel" autocomplete="tel-national" placeholder="600 000 000" /></span></label>
+                    <div class="flex flex-col gap-1.5 text-label-s"><span>{{ t().pg.tel }}</span>
+                      <gr-telefono tam="l" name="tel" [aria-label]="t().pg.tel" [(ngModel)]="f.telefono" /></div>
                     <div class="flex flex-col gap-1.5 text-label-s"><label for="e-origen">{{ t().pg.origen }}</label><gr-select id="e-origen" tam="l" class="font-normal" [(ngModel)]="f.origen" name="origen"><option value="">{{ t().pg.opcion }}</option>@for (o of origenes; track o; let i = $index) { <option [value]="o">{{ t().pg.origenes[i] }}</option> }</gr-select></div>
                   </div>
                 </fieldset>
@@ -996,6 +997,7 @@ export class EntradasPage {
     if (!this.f.nombre.trim()) { e.push(this.t().pg.eNombre); c.push('nombre'); }
     if (!this.f.apellidos.trim()) { e.push(this.t().pg.eApellidos); c.push('apellidos'); }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.f.email.trim())) { e.push(this.t().pg.eEmail); c.push('email'); }
+    if (this.f.telefono && !telefonoValido(this.f.telefono)) { e.push(this.t().pg.eTel); c.push('tel'); }
     if (!this.sesion()) { e.push(this.t().pg.eSesion); c.push('sesion'); }
     if (!this.f.privacidad) { e.push(this.t().pg.ePriv); c.push('privacidad'); }
     this.errores.set(e);
@@ -1020,8 +1022,7 @@ export class EntradasPage {
     const qp = this.route.snapshot.queryParamMap;
     const utm: Record<string, string> = {};
     for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'ref']) { const v = qp.get(k); if (v) utm[k] = v.slice(0, 60); }
-    const tel = this.f.telefono.trim();
-    const telefono = tel ? (tel.startsWith('+') ? tel : '+34 ' + tel) : undefined;
+    const telefono = this.f.telefono.trim() || undefined;
     let token = '';
     try {
       const p = this.sesion() === this.AMBOS ? this.par() : null;

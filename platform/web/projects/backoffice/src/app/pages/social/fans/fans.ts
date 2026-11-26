@@ -2,7 +2,7 @@ import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, GrToasts } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, GrTelefono, GrToasts, telefonoValido } from '@grcup/ui';
 import { BoSheet } from '../../../shared/kit';
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
@@ -19,7 +19,7 @@ type Tipo = 'atleta' | 'publico';
  */
 @Component({
   selector: 'bo-fans',
-  imports: [RouterLink, A11yModule, FormsModule, BoPageHeader, BoSheet, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, SoIcon, SoSegmented, SoSkelFilas],
+  imports: [RouterLink, A11yModule, FormsModule, BoPageHeader, BoSheet, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrSelect, GrTelefono, SoIcon, SoSegmented, SoSkelFilas],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'banear.set(null)' },
   template: `
@@ -166,8 +166,8 @@ type Tipo = 'atleta' | 'publico';
         <gr-field label="Email" for="fan-email" hint="Con este email entra al directo">
           <input grInput id="fan-email" name="email" type="email" [(ngModel)]="form.email" maxlength="254" required />
         </gr-field>
-        <gr-field label="Teléfono" for="fan-tel" [optional]="true" hint="Con prefijo, p. ej. +34 600 123 456 · avisos por WhatsApp">
-          <input grInput id="fan-tel" name="telefono" type="tel" [(ngModel)]="form.telefono" maxlength="30" />
+        <gr-field label="Teléfono" for="fan-tel" [optional]="true" hint="Elige el país y escribe el número completo · avisos por WhatsApp" [error]="form.telefono && !valido(form.telefono) ? 'El número no está completo.' : null">
+          <gr-telefono id="fan-tel" name="telefono" tam="m" [aria-label]="'Teléfono'" [invalido]="!!form.telefono && !valido(form.telefono)" [(ngModel)]="form.telefono" />
         </gr-field>
         <gr-field [label]="editando() ? 'Nueva contraseña' : 'Contraseña'" for="fan-pass" [optional]="true"
           [error]="form.password && form.password.length < 10 ? 'Mínimo 10 caracteres.' : null"
@@ -389,9 +389,11 @@ export class FansPage {
   protected readonly enviandoReset = signal(false);
   protected form: Required<CuentaFan> = { email: '', alias: '', tipo: 'publico', telefono: '', password: '' };
 
+  protected readonly valido = telefonoValido;
+
   protected formValido(): boolean {
     const f = this.form;
-    return f.alias.trim().length >= 3 && f.email.includes('@') && (!f.password || f.password.length >= 10);
+    return f.alias.trim().length >= 3 && f.email.includes('@') && (!f.telefono || telefonoValido(f.telefono)) && (!f.password || f.password.length >= 10);
   }
 
   protected abrirNuevo(): void {

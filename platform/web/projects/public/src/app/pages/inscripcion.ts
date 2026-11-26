@@ -5,7 +5,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, P
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { GrAlert, GrButton, GrIcon, GrSkeleton, GrSelect } from '@grcup/ui';
+import { GrAlert, GrButton, GrIcon, GrSkeleton, GrSelect, GrTelefono, telefonoValido } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import { CATEGORIAS_IPF, cat } from '../core/atletas';
 import { COMPETITION_SLUG, Competition, type CompeticionPublica } from '../core/competition';
@@ -93,6 +93,7 @@ const T = {
     seoAep: "La inscripción en la GR Strength Cup la gestiona la AEP. Da de alta tu atleta para que tu ficha se publique.",
     noComprobar: "No se pudo comprobar el código.",
     msgLicencia: "Solo letras sin tilde y números: de 3 a 20, sin contar guiones, puntos ni espacios",
+    msgTel: "Escribe el número de teléfono completo",
     aceptaTerminos: "Acepta los términos, el reglamento y la política de privacidad",
     revisaCodigos: "Revisa los códigos de descuento (o quítalos) antes de continuar.",
     noCompletar: "No se pudo completar la inscripción. Inténtalo en unos minutos.",
@@ -231,6 +232,7 @@ const T = {
     seoAep: "Registration for the GR Strength Cup is handled by the AEP. Register your athlete so your profile is published.",
     noComprobar: "The code couldn't be checked.",
     msgLicencia: "Only unaccented letters and numbers: 3 to 20, not counting hyphens, dots or spaces",
+    msgTel: "Enter the full phone number",
     aceptaTerminos: "Accept the terms, the rulebook and the privacy policy",
     revisaCodigos: "Check the discount codes (or remove them) before continuing.",
     noCompletar: "The registration couldn't be completed. Please try again in a few minutes.",
@@ -328,7 +330,7 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
 /** /inscripcion (Figma pages 06 and 06b): AEP link (external mode) or own registration with payment, coupon and referral. */
 @Component({
   selector: 'gr-inscripcion-page',
-  imports: [RouterLink, LocPipe, GrSelect, Page, FormsModule, GrButton, GrIcon, GrSkeleton, GrInscripcionesCerradas],
+  imports: [RouterLink, LocPipe, GrSelect, GrTelefono, Page, FormsModule, GrButton, GrIcon, GrSkeleton, GrInscripcionesCerradas],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = cfg();
@@ -475,6 +477,9 @@ interface Campo { k: keyof InscripcionPage['d']; label: string; req?: boolean; t
                       [value]="fechaTexto" (input)="fechaCambia($any($event.target))"
                       [attr.aria-invalid]="!!err()[f.k]" [attr.aria-describedby]="err()[f.k] ? 'e-' + f.k + ' h-' + f.k : 'h-' + f.k" />
                     <p [id]="'h-' + f.k" class="text-body-s text-text-tertiary">{{ t().formato }}</p>
+                  }
+                  @case ('telefono') {
+                    <gr-telefono [id]="'i-' + f.k" tam="l" [name]="f.k" [aria-label]="f.label" [invalido]="!!err()[f.k]" [(ngModel)]="d.telefono" (ngModelChange)="revalidar()" />
                   }
                   @default {
                     <input [id]="'i-' + f.k" [class]="CAMPO + ' ' + (err()[f.k] ? 'border-accent-text' : 'border-line-strong')" [name]="f.k" [attr.name]="f.k" [type]="f.type || 'text'" [attr.autocomplete]="f.ac" [attr.placeholder]="f.ph" [(ngModel)]="d[f.k]" (ngModelChange)="revalidar()"
@@ -749,6 +754,7 @@ export class InscripcionPage {
     if (!d.nombre.trim()) e['nombre'] = msg('nombre');
     if (!d.apellidos.trim()) e['apellidos'] = msg('apellidos');
     if (!EMAIL.test(d.email.trim())) e['email'] = msg('email');
+    if (d.telefono.trim() && !telefonoValido(d.telefono)) e['telefono'] = this.t().msgTel;
     if (!d.sexo) e['sexo'] = msg('sexo');
     if (!d.categoria) e['categoria'] = msg('categoria');
     if (!d.fechaNacimiento) e['fechaNacimiento'] = msg('fechaNacimiento');

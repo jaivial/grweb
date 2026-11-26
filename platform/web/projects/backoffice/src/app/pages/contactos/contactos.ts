@@ -4,17 +4,17 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { urlSort } from '../../shared/url-sort';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSkeleton, GrTelefono, GrToasts, GrSelect, telefonoValido } from '@grcup/ui';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { BO_ROW, BoCheckbox, BoEmptyState, BoPagination, BoSearch, BoSkeleton, BoSortHeader, BoTableToolbar, BoDatePicker } from '../../shared/kit';
 import { BoDrawer, BoPageHeader, Confirm, errText, BoTabsMovil, BoTablaMovil } from '../../shared/ui';
 import {
   ContactosApi, ESTADO_EMAIL, ESTADO_WA, FINALIDAD, TIPO_SUP, fecha, fechaLarga, iniciales,
-  type Condicion, type ContactoItem, type Ficha, type Filtros, type Lista, type Recuento, type Segmento, type Supresion, type Supresiones,
+  type AvisoEvento, type AvisosEvento, type Condicion, type ContactoItem, type Ficha, type Filtros, type Lista, type Recuento, type Segmento, type Supresion, type Supresiones,
 } from './api';
 
-type Tab = 'contactos' | 'segmentos' | 'bajas';
+type Tab = 'contactos' | 'segmentos' | 'bajas' | 'grscup-3';
 
 const CAMPOS: { v: Condicion['campo']; label: string }[] = [
   { v: 'origen', label: 'Origen' }, { v: 'relacion', label: 'Relación' }, { v: 'etiqueta', label: 'Etiqueta' }, { v: 'creado', label: 'Alta' }, { v: 'actividad', label: 'Última actividad' },
@@ -44,6 +44,7 @@ function descargar(blob: Blob, nombre: string): void {
         }
         @if (tab() === 'segmentos' && canSeg()) { <button grButton variant="primary" icon="plus" (click)="nuevoSeg()">Nuevo segmento</button> }
         @if (tab() === 'bajas' && canExport()) { <button grButton icon="plus" (click)="bajaOpen.set(true)">Añadir baja</button> }
+        @if (tab() === 'grscup-3' && canExport()) { <button grButton variant="primary" icon="plus" (click)="abrirAviso()">Añadir contacto</button> }
       </ng-template>
       @if (embebido()) {
         <div class="flex flex-wrap items-center gap-3">
@@ -59,7 +60,7 @@ function descargar(blob: Blob, nombre: string): void {
       <nav class="flex gap-1 overflow-x-auto border-b border-line-subtle [scrollbar-width:none]" aria-label="Contactos">
         @for (t of tabs; track t.v) {
           <a [routerLink]="embebido() ? [] : rutaTab(t.ruta)" [queryParams]="embebido() ? { vista: t.v === 'contactos' ? null : t.v } : {}" queryParamsHandling="merge" (click)="embebido() && irVista(t.v)" class="relative flex h-11 shrink-0 items-center gap-2 px-3 text-label-s" [class]="tab() === t.v ? 'text-text-primary' : 'text-text-tertiary hover:text-text-primary'" [attr.aria-current]="tab() === t.v ? 'page' : null">
-            {{ t.label }}@if (l?.pestanas; as p) { <span class="rounded-2xs px-1.5 text-mono-xs" [class]="t.v === 'contactos' ? 'bg-accent-deep/50 text-accent-text' : 'bg-bg-raised'">{{ p[t.v === 'bajas' ? 'supresiones' : t.v] }}</span> }
+            {{ t.label }}@if (l?.pestanas?.[t.v === 'bajas' ? 'supresiones' : t.v]; as cuenta) { <span class="rounded-2xs px-1.5 text-mono-xs" [class]="t.v === 'contactos' ? 'bg-accent-deep/50 text-accent-text' : 'bg-bg-raised'">{{ cuenta }}</span> }
             @if (tab() === t.v) { <span class="absolute inset-x-2 bottom-0 h-0.5 rounded-t-2xs bg-accent"></span> }
           </a>
         }
@@ -207,6 +208,52 @@ function descargar(blob: Blob, nombre: string): void {
           </section>
           <p class="text-body-xs text-text-tertiary">{{ sp?.total ?? 0 }} contactos excluidos de las campañas · los destinos se guardan cifrados (hash) aunque se suprima el contacto.</p>
         }
+
+        @case ('grscup-3') {
+          @let av = avisos();
+          <div class="flex flex-wrap items-center gap-3">
+            <bo-search class="w-full md:w-[320px]" placeholder="Buscar por email o nombre" [shortcut]="false" [value]="qAviso()" (valueChange)="filtrarAviso($event)" />
+            <span class="flex-1"></span>
+            @if (av) { <p class="text-body-xs text-text-tertiary">{{ av.total }} {{ av.total === 1 ? 'persona avisada' : 'personas avisadas' }}</p> }
+          </div>
+          <gr-alert tone="info" title="«Avísame» de la próxima competición: GRS Cup 3">Personas que han dejado su email en la home para que les avisemos cuando abra GRS Cup 3. Aquí puedes corregir un email, añadir un contacto a mano o quitar uno; el alta desde la home sigue funcionando igual.</gr-alert>
+          @if (av === null) {
+            <gr-empty icon="wifi-off" title="No hemos podido cargar los contactos avisados"><button grButton (click)="reintentarAvisos()">Reintentar</button></gr-empty>
+          } @else if (av === undefined) {
+            <bo-skeleton />
+          } @else {
+            <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
+              <table boTablaMovil class="w-full min-w-[640px] text-left text-body-s">
+                <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="px-4 py-3">Nombre</th><th class="px-3 py-3">Email</th><th class="px-3 py-3">Alta</th><th class="w-28 px-3 py-3"></th></tr></thead>
+                <tbody>
+                  @for (a of av.items; track a.id) {
+                    <tr class="border-b border-line-subtle last:border-0">
+                      <td class="px-4 py-3 text-label-s">{{ a.nombre || '—' }}</td>
+                      <td class="px-3 py-3 font-mono text-mono-xs text-text-secondary">{{ a.email }}</td>
+                      <td class="px-3 py-3 font-mono text-mono-xs text-text-tertiary">{{ fecha(a.creadoAt) }}</td>
+                      <td class="px-3 py-3 text-right">
+                        @if (canExport()) {
+                          <span class="flex justify-end gap-1">
+                            <button grButton size="s" variant="ghost" (click)="abrirAviso(a)">Editar</button>
+                            <button type="button" class="flex size-9 items-center justify-center rounded-sm text-text-tertiary hover:text-danger" [attr.aria-label]="'Quitar a ' + a.email" (click)="borrarAviso(a)"><gr-icon name="trash" [size]="16" /></button>
+                          </span>
+                        }
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="4" class="p-4"><bo-empty-state class="border-0" [kind]="qAviso() ? 'no-results' : 'no-data'" [title]="qAviso() ? 'Nadie coincide con la búsqueda' : 'Todavía no hay contactos avisados'" [text]="qAviso() ? 'Prueba con otro email o nombre, o limpia la búsqueda.' : 'Se apuntan desde el formulario «Avísame» de la home.'" /></td></tr>
+                  }
+                </tbody>
+              </table>
+            </section>
+            @if (av.total > av.por) {
+              <div class="flex items-center justify-between text-body-xs text-text-tertiary">
+                <span>Mostrando {{ (av.pagina - 1) * av.por + 1 }}–{{ (av.pagina - 1) * av.por + av.items.length }} de {{ av.total }}</span>
+                <bo-pagination [page]="av.pagina" [pages]="pages(av)" (change)="paginaAviso($event)" />
+              </div>
+            }
+          }
+        }
       }
     </div>
 
@@ -218,6 +265,15 @@ function descargar(blob: Blob, nombre: string): void {
         <p class="text-body-xs text-text-tertiary">Dejará de recibir campañas por ese canal. Si tenía novedades por email confirmadas, se revocan.</p>
       </div>
       <ng-container drawerActions><button grButton variant="ghost" (click)="bajaOpen.set(false)">Cancelar</button><button grButton variant="primary" [loading]="guardando()" (click)="anadirBaja()">Añadir baja</button></ng-container>
+    </bo-drawer>
+
+    <bo-drawer [(open)]="avisoOpen" [title]="aviso.id ? 'Editar contacto avisado' : 'Añadir contacto avisado'">
+      <div class="flex flex-col gap-4">
+        <gr-field label="Email" for="av-e"><input grInput id="av-e" type="email" maxlength="254" [(ngModel)]="aviso.email" placeholder="nombre@dominio.com" /></gr-field>
+        <gr-field label="Nombre (opcional)" for="av-n"><input grInput id="av-n" maxlength="120" [(ngModel)]="aviso.nombre" /></gr-field>
+        <p class="text-body-xs text-text-tertiary">Aviso de próxima competición · GRS Cup 3. Un email solo puede apuntarse una vez.</p>
+      </div>
+      <ng-container drawerActions><button grButton variant="ghost" (click)="avisoOpen.set(false)">Cancelar</button><button grButton variant="primary" [loading]="guardando()" (click)="guardarAviso()">Guardar</button></ng-container>
     </bo-drawer>
   `,
 })
@@ -238,7 +294,8 @@ export class ContactosPage {
   protected readonly fecha = fecha;
   protected readonly ini = iniciales;
   protected readonly tabs: { v: Tab; label: string; ruta: string }[] = [
-    { v: 'contactos', label: 'Contactos', ruta: '' }, { v: 'segmentos', label: 'Segmentos', ruta: 'segmentos' }, { v: 'bajas', label: 'Bajas y supresiones', ruta: 'bajas' },
+    { v: 'contactos', label: 'Contactos', ruta: '' }, { v: 'grscup-3', label: 'GRS Cup 3', ruta: 'grscup-3' },
+    { v: 'segmentos', label: 'Segmentos', ruta: 'segmentos' }, { v: 'bajas', label: 'Bajas y supresiones', ruta: 'bajas' },
   ];
   protected rutaTab(r: string): string[] {
     return ['/', this.comps.current()?.slug ?? '', 'contactos', ...(r ? [r] : [])];
@@ -246,10 +303,11 @@ export class ContactosPage {
   /** Inside «Emails y avisos» (?tab=contactos): no page header and the sub-tabs live in ?vista=. */
   readonly embebido = input(false);
   protected readonly tab = signal<Tab>(
-    ((v) => (['contactos', 'segmentos', 'bajas'].includes(v) ? (v as Tab) : 'contactos'))(this.route.snapshot.queryParamMap.get('vista') ?? this.route.snapshot.data['tab'] ?? ''),
+    ((v) => (['contactos', 'grscup-3', 'segmentos', 'bajas'].includes(v) ? (v as Tab) : 'contactos'))(this.route.snapshot.queryParamMap.get('vista') ?? this.route.snapshot.data['tab'] ?? ''),
   );
   protected irVista(v: Tab): void {
     this.tab.set(v);
+    if (v === 'grscup-3') void this.cargarAvisos();
     if (v === 'segmentos') void this.cargarSeg();
     if (v === 'bajas') void this.cargarSup();
   }
@@ -267,6 +325,12 @@ export class ContactosPage {
   protected readonly exportando = signal(false);
   protected readonly bajaOpen = signal(false);
   protected baja = { canal: 'email', destino: '', motivo: '' };
+  protected readonly avisos = signal<AvisosEvento | null | undefined>(undefined);
+  protected readonly avisoOpen = signal(false);
+  protected readonly qAviso = signal('');
+  protected aviso = { id: '', email: '', nombre: '' };
+  protected avisoPagina = 1;
+  private ta?: ReturnType<typeof setTimeout>;
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
   protected readonly canExport = computed(() => this.auth.can(this.cid(), 'contactos.exportar'));
   protected readonly canSeg = computed(() => this.auth.can(this.cid(), 'campanas.enviar'));
@@ -278,6 +342,7 @@ export class ContactosPage {
       if (!this.cid()) return;
       untracked(() => {
         void this.cargar();
+        if (this.tab() === 'grscup-3') void this.cargarAvisos();
         if (this.tab() === 'segmentos') void this.cargarSeg();
         if (this.tab() === 'bajas') void this.cargarSup();
       });
@@ -440,12 +505,71 @@ export class ContactosPage {
       this.toasts.error('No se pudo quitar', errText(e));
     }
   }
+
+  // ---- GRS Cup 3 («Avísame» contacts) ----
+  protected async cargarAvisos(): Promise<void> {
+    try {
+      const r = await this.api.avisos(this.cid(), { evento: 'grscup-3', q: this.qAviso() || undefined, pagina: this.avisoPagina });
+      // Deleting the last row of a page > 1 would leave an empty page: go back to the last one with data.
+      if (!r.items.length && this.avisoPagina > 1) {
+        this.avisoPagina = Math.max(1, Math.ceil(r.total / r.por));
+        return this.cargarAvisos();
+      }
+      this.avisos.set(r);
+    } catch {
+      this.avisos.set(null);
+    }
+  }
+  protected reintentarAvisos(): void {
+    this.avisos.set(undefined);
+    void this.cargarAvisos();
+  }
+  protected filtrarAviso(q: string): void {
+    this.qAviso.set(q);
+    this.avisoPagina = 1;
+    clearTimeout(this.ta);
+    this.ta = setTimeout(() => void this.cargarAvisos(), 250);
+  }
+  protected paginaAviso(p: number): void {
+    this.avisoPagina = p;
+    void this.cargarAvisos();
+  }
+  protected abrirAviso(a?: AvisoEvento): void {
+    this.aviso = a ? { id: a.id, email: a.email, nombre: a.nombre } : { id: '', email: '', nombre: '' };
+    this.avisoOpen.set(true);
+  }
+  protected async guardarAviso(): Promise<void> {
+    const a = this.aviso;
+    if (!a.email.trim()) return this.toasts.error('Escribe un email');
+    this.guardando.set(true);
+    try {
+      if (a.id) await this.api.editarAviso(this.cid(), a.id, { email: a.email.trim(), nombre: a.nombre.trim() });
+      else await this.api.crearAviso(this.cid(), { evento: 'grscup-3', email: a.email.trim(), nombre: a.nombre.trim() });
+      this.avisoOpen.set(false);
+      this.toasts.success(a.id ? 'Contacto actualizado' : 'Contacto añadido');
+      await this.cargarAvisos();
+    } catch (e) {
+      this.toasts.error(a.id ? 'No se pudo guardar' : 'No se pudo añadir', errText(e));
+    } finally {
+      this.guardando.set(false);
+    }
+  }
+  protected async borrarAviso(a: AvisoEvento): Promise<void> {
+    if (!(await this.confirm.ask({ title: `¿Quitar a ${a.nombre || a.email}?`, text: 'Dejará de estar en la lista de avisos de GRS Cup 3 y no le escribiremos cuando abra la competición por este aviso. No afecta a sus novedades ni a sus inscripciones.', confirm: 'Quitar', danger: true }))) return;
+    try {
+      await this.api.borrarAviso(this.cid(), a.id);
+      this.toasts.success('Contacto quitado');
+      await this.cargarAvisos();
+    } catch (e) {
+      this.toasts.error('No se pudo quitar', errText(e));
+    }
+  }
 }
 
 /** Contact record (Figma 61 · «Contactos · ficha»): consents with their proof, activity, GDPR actions. */
 @Component({
   selector: 'bo-contacto-ficha',
-  imports: [FormsModule, RouterLink, BoPageHeader, BoDrawer, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [FormsModule, RouterLink, BoPageHeader, BoDrawer, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton, GrTelefono],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = ficha();
@@ -516,7 +640,7 @@ export class ContactosPage {
       <div class="flex flex-col gap-4">
         <gr-field label="Nombre" for="r-n"><input grInput id="r-n" maxlength="120" [(ngModel)]="rect.nombre" /></gr-field>
         <gr-field label="Email" for="r-e"><input grInput id="r-e" type="email" [(ngModel)]="rect.email" /></gr-field>
-        <gr-field label="Teléfono" for="r-t"><input grInput id="r-t" [(ngModel)]="rect.telefono" placeholder="+34 600 000 000" /></gr-field>
+        <gr-field label="Teléfono" for="r-t" [error]="rect.telefono && !valido(rect.telefono) ? 'El número no está completo.' : null"><gr-telefono id="r-t" tam="m" [aria-label]="'Teléfono'" [invalido]="!!rect.telefono && !valido(rect.telefono)" [(ngModel)]="rect.telefono" /></gr-field>
         <gr-field label="Etiquetas (separadas por comas)" for="r-g"><input grInput id="r-g" [(ngModel)]="rect.etiquetas" /></gr-field>
         <p class="text-body-xs text-text-tertiary">Queda registrado en su actividad y en la auditoría (derecho de rectificación).</p>
       </div>
@@ -537,6 +661,7 @@ export class ContactoFichaPage {
   protected readonly f = fecha;
   protected readonly fl = fechaLarga;
   protected readonly ficha = signal<Ficha | null | undefined>(undefined);
+  protected readonly valido = telefonoValido;
   protected readonly rectOpen = signal(false);
   protected readonly guardando = signal(false);
   protected rect = { nombre: '', email: '', telefono: '', etiquetas: '' };
@@ -576,6 +701,10 @@ export class ContactoFichaPage {
   protected async guardarRect(): Promise<void> {
     const c = this.ficha();
     if (!c) return;
+    if (this.rect.telefono && !telefonoValido(this.rect.telefono)) {
+      this.toasts.error('El teléfono no está completo', 'Elige el país y escribe el número entero.');
+      return;
+    }
     this.guardando.set(true);
     try {
       this.ficha.set(await this.api.rectificar(this.cid(), c, { ...this.rect, etiquetas: this.rect.etiquetas.split(',').map((x) => x.trim()).filter(Boolean) }));

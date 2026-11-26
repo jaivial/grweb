@@ -1,10 +1,10 @@
 import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import { GrButton, GrIcon, GrInput, type GrIconName } from '@grcup/ui';
+import { Router, RouterLink } from '@angular/router';
+import { GrButton, GrIcon, GrInput, GrTelefono, type GrIconName } from '@grcup/ui';
 import { FanSession, codigoError, detalleError, mensajeCampo } from '../../core/fan';
-import { I18n } from '../../core/i18n';
+import { I18n, LocPipe } from '../../core/i18n';
 
 type Estado = 'formulario' | 'enviado' | 'atleta';
 type Modo = 'entrar' | 'crear' | 'recuperar';
@@ -44,6 +44,7 @@ const T = {
     subFormulario: 'La solicitud va asociada a tu cuenta de GRS Cup 2. Vuelves al formulario para enviarla.',
     subSeguir: 'Sigue a tus atletas con tu cuenta de GRS Cup 2: te avisamos por email antes de que compitan.', subDef: 'Chatea, dona y juega con tu cuenta de directo.',
     errAlias: 'El alias debe tener entre 3 y 20 caracteres.', entrarConEmail: 'Entrar con este email', errEmail: 'Escribe un email válido.', errClave: 'Escribe tu contraseña.',
+    crearAtleta: 'Crea tu cuenta de atleta aquí', crearAtletaAyuda: 'La cuenta de atleta se crea en el alta: rellenas tus datos, tu foto y tus mejores marcas.',
   },
   en: {
     cerrar: 'Close', enviadoA: 'Sent to ', otroDispositivo: 'You can open it on another device: it still takes you to the room.',
@@ -79,6 +80,7 @@ const T = {
     subFormulario: 'The request is linked to your GRS Cup 2 account. You return to the form to send it.',
     subSeguir: 'Follow your athletes with your GRS Cup 2 account: we will email you before they compete.', subDef: 'Chat, donate and play with your live account.',
     errAlias: 'The alias must be between 3 and 20 characters.', entrarConEmail: 'Sign in with this email', errEmail: 'Enter a valid email.', errClave: 'Enter your password.',
+    crearAtleta: 'Create your athlete account here', crearAtletaAyuda: 'Athlete accounts are created in the sign-up: you fill in your details, photo and best lifts.',
   },
 };
 
@@ -90,7 +92,7 @@ const T = {
  */
 @Component({
   selector: 'gr-acceso-modal',
-  imports: [FormsModule, A11yModule, GrButton, GrIcon, GrInput],
+  imports: [FormsModule, A11yModule, GrButton, GrIcon, GrInput, GrTelefono, RouterLink, LocPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     @keyframes gr-velo { from { opacity: 0; } to { opacity: 1; } }
@@ -149,7 +151,7 @@ const T = {
               @if (modo() === 'crear') {
               <label class="mt-4 block">
                 <span class="text-label-s text-text-primary">{{ t().telefono }}</span>
-                <input grInput grSize="l" type="tel" autocomplete="tel" inputmode="tel" class="mt-1.5" placeholder="+34 600 123 456" [attr.aria-label]="t().telefono" [ngModel]="telefono()" (ngModelChange)="telefono.set($event)" />
+                <gr-telefono class="mt-1.5" [aria-label]="t().telefono" [ngModel]="telefono()" (ngModelChange)="telefono.set($event)" />
                 <span class="mt-1.5 block text-body-xs text-text-tertiary">{{ t().telefonoAyuda }}</span>
               </label>
               }
@@ -192,7 +194,9 @@ const T = {
                 }
               </div>
               }
+              }
 
+              @if (modo() === 'crear' && !crearAtleta()) {
               <label class="mt-4 block">
                 <span class="text-label-s text-text-primary">{{ t().alias }}</span>
                 <input grInput grSize="l" type="text" autocomplete="nickname" class="mt-1.5" [placeholder]="t().aliasPh" aria-label="Alias" [invalid]="!!errorAlias()" [ngModel]="alias()" (ngModelChange)="alias.set($event); errorAlias.set(null)" (blur)="comprobar()" />
@@ -201,13 +205,15 @@ const T = {
               </label>
               }
 
+              @if (!crearAtleta()) {
               <label class="mt-4 block">
-                <span class="text-label-s text-text-primary">{{ modo() === 'crear' && tipo() === 'atleta' ? t().emailAep : t().email }}</span>
+                <span class="text-label-s text-text-primary">{{ t().email }}</span>
                 <input grInput grSize="l" type="email" autocomplete="email" class="mt-1.5" [placeholder]="t().emailPh" aria-label="Email" [invalid]="!!error()" [ngModel]="email()" (ngModelChange)="email.set($event); limpiarEmailRegistrado()" (blur)="comprobar()" />
                 @if (error(); as e) { <span class="mt-1.5 flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />{{ e }}</span> }
                 @if (emailRegistrado()) { <button type="button" class="mt-1 min-h-11 text-body-s text-accent-text underline-offset-4 hover:underline" (click)="cambiarModo('entrar')">{{ t().entrarConEmail }}</button> }
                 @else if (modo() !== 'entrar') { <span class="mt-1.5 block text-body-xs text-text-tertiary">{{ t().enlaceAyuda }}</span> }
               </label>
+              }
 
               @if (modo() === 'entrar') {
               <label class="mt-4 block">
@@ -221,7 +227,7 @@ const T = {
                 <button type="button" class="mt-2 min-h-11 text-body-s text-accent-text underline-offset-4 hover:underline" (click)="cambiarModo('recuperar')">{{ t().olvido }}</button>
               }
 
-              @if (modo() === 'crear') {
+              @if (modo() === 'crear' && !crearAtleta()) {
               <label class="mt-3 flex min-h-11 cursor-pointer items-center gap-3">
                 <input type="checkbox" class="size-5 shrink-0 accent-[#c42b3e]" [ngModel]="normas()" (ngModelChange)="normas.set($event)" />
                 <span class="text-body-s text-text-secondary">{{ inscripcion() || entradas() || seguir() || formulario() ? t().normasPart : t().normasChat }}</span>
@@ -229,11 +235,17 @@ const T = {
               @if (errorNormas()) { <span class="mt-1 flex items-center gap-1.5 text-body-xs text-accent-text" role="alert"><gr-icon name="circle-alert" [size]="13" />{{ t().marca }}</span> }
               }
 
+              @if (crearAtleta()) {
+              <!-- La cuenta de atleta se crea en el alta: aquí solo se ofrece el enlace (no hay alias ni email) -->
+              <p class="mt-5 text-body-s text-text-secondary">{{ t().crearAtletaAyuda }}</p>
+              <a grButton variant="primary" size="l" [block]="true" class="mt-3" [routerLink]="'/alta-atleta' | loc" (click)="cerrar()">{{ t().crearAtleta }}</a>
+              } @else {
               <button type="button" grButton variant="primary" size="l" [block]="true" class="mt-4" [loading]="enviando()" (click)="enviar()">{{ modo() === 'entrar' ? t().entrar : modo() === 'crear' ? t().crear : t().enviarEnlace }}</button>
               @if (modo() === 'recuperar') {
                 <button type="button" grButton variant="outline" [block]="true" class="mt-2" (click)="cambiarModo('entrar')">{{ t().volverEntrar }}</button>
               }
               <p class="mt-3 flex items-center justify-center gap-1.5 text-center text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="12" />{{ modo() === 'entrar' ? t().pieEntrar : t().pieEnlace }}</p>
+              }
             }
           }
         </div>
@@ -279,6 +291,8 @@ export class AccesoModal {
   /** Title and subtitle of each place that opens the modal (motivo of `abrirAcceso`). */
   private readonly textos = computed(() => this.t().textos);
   protected readonly inscripcion = computed(() => this.fan.motivoAcceso() === 'inscripcion');
+  /** Creating an account as athlete: the account is made in /alta-atleta, so the alias and email fields are not shown. */
+  protected readonly crearAtleta = computed(() => this.modo() === 'crear' && this.tipo() === 'atleta');
   protected readonly entradas = computed(() => this.fan.motivoAcceso() === 'entradas');
   protected readonly seguir = computed(() => this.fan.motivoAcceso() === 'seguir');
   protected readonly formulario = computed(() => this.fan.motivoAcceso() === 'formulario');

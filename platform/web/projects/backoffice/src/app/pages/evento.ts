@@ -7,7 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer as DomSanitizerRef } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSegmented, GrSkeleton, GrToasts, GrSelect } from '@grcup/ui';
+import { GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSegmented, GrSkeleton, GrTelefono, GrToasts, GrSelect, telefonoValido } from '@grcup/ui';
 import { problemOf } from '../core/api';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
@@ -40,7 +40,7 @@ const NIVELES = ['AEP 1 · Nacional', 'AEP 2 · Interregional', 'AEP 3 · Region
 /** «Evento y módulos» (Figma page 53): event data with a live preview, web state (with scheduled changes), modules, AEP registration and how to get there. */
 @Component({
   selector: 'bo-evento',
-  imports: [BoDatePicker, BoTabsMovil, A11yModule, RouterLink, GrSelect, GrSegmented, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [BoDatePicker, BoTabsMovil, A11yModule, RouterLink, GrSelect, GrSegmented, GrTelefono, FormsModule, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = comp();
@@ -112,7 +112,7 @@ const NIVELES = ['AEP 1 · Nacional', 'AEP 2 · Interregional', 'AEP 3 · Region
                 <section class="rounded-lg border border-line-subtle bg-bg-card p-5"><h2 class="text-ui-h5">Contacto</h2>
                   <div class="mt-4 grid gap-3 sm:grid-cols-2">
                     <gr-field label="Email público"><input grInput type="email" [(ngModel)]="d.evento.emailContacto" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
-                    <gr-field label="Teléfono"><input grInput [(ngModel)]="d.evento.telefono" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
+                    <gr-field label="Teléfono" [error]="err('telefono') || null"><gr-telefono tam="m" [aria-label]="'Teléfono'" [invalido]="!!err('telefono')" [(ngModel)]="d.evento.telefono" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
                     <gr-field label="Instagram"><input grInput [(ngModel)]="d.evento.instagram" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
                     <gr-field label="Web de la AEP"><input grInput [(ngModel)]="d.evento.web" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
                     <gr-field label="Organiza"><input grInput [(ngModel)]="d.evento.organizador" (ngModelChange)="tocar()" [disabled]="!puede()" /></gr-field>
@@ -344,6 +344,7 @@ export class EventoPage {
     if (campo === 'aforo' && this.d.evento.aforoPabellon < 0) return 'No puede ser negativo';
     if ((campo === 'puertas' || campo === 'fin') && this.d.evento[campo] && !/^([01]\d|2[0-3]):[0-5]\d$/.test(this.d.evento[campo]!)) return 'Formato HH:MM (24 h)';
     if (campo === 'url' && this.d.inscripcion.url && !/^https:\/\//.test(this.d.inscripcion.url)) return 'Debe empezar por https://';
+    if (campo === 'telefono' && this.d.evento.telefono && !telefonoValido(this.d.evento.telefono)) return 'Escribe el número completo';
     return '';
   }
   protected nombreEstado(v: string): string { return ESTADOS.find((e) => e.v === v)?.l ?? v; }
@@ -371,7 +372,7 @@ export class EventoPage {
   protected async guardar(): Promise<void> {
     // sync every field from the DOM first: a value set without an input event (autofill, scripted clears) must still be saved
     this.host.nativeElement.querySelectorAll('input:not([type=file]):not([type=date]):not([readonly]), textarea').forEach((i) => { i.dispatchEvent(new Event('input')); i.dispatchEvent(new Event('change')); });
-    const errs = ['fechaFin', 'aforo', 'url', 'puertas', 'fin'].map((x) => this.err(x)).filter(Boolean);
+    const errs = ['fechaFin', 'aforo', 'url', 'puertas', 'fin', 'telefono'].map((x) => this.err(x)).filter(Boolean);
     this.errores.set(errs);
     if (errs.length) return;
     const c = this.comp()!;

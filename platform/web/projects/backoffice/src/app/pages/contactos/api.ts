@@ -10,7 +10,7 @@ export interface ContactoItem {
 export interface Kpis {
   contactos: number; nuevos7d: number; email: number; emailNuevos7d: number; pctEmail: number; whatsapp: number; whatsappNuevos7d: number; pctWhatsapp: number; bajas: number; pctBajas: number; serie: number[];
 }
-export interface Lista { items: ContactoItem[]; total: number; pagina: number; por: number; kpis: Kpis; origenes: string[]; pestanas: Record<'contactos' | 'segmentos' | 'supresiones', number> }
+export interface Lista { items: ContactoItem[]; total: number; pagina: number; por: number; kpis: Kpis; origenes: string[]; pestanas: { contactos: number; segmentos: number; supresiones: number; 'grscup-3'?: number } }
 export interface Consentimiento { finalidad: string; canal: string; estado: 'pendiente' | 'confirmado' | 'revocado'; version: string; hash: string; origen: string; ip: string; aceptadoAt: string; doiAt?: string; revocadoAt?: string; motivo?: string }
 export interface Actividad { tipo: string; titulo: string; detalle: string; at: string }
 export interface Supresion { id: string; canal: 'email' | 'whatsapp'; destino: string; tipo: 'baja' | 'email_invalido' | 'whatsapp_invalido' | 'rebote'; motivo: string; origen: string; at: string; contactoId?: string; nombre: string }
@@ -19,6 +19,8 @@ export interface Condicion { campo: 'origen' | 'relacion' | 'etiqueta' | 'creado
 export interface Recuento { total: number; email: number; whatsapp: number }
 export interface Segmento { id: string; nombre: string; condiciones: Condicion[]; ultimoUso: string; recuento: Recuento; version: number; updatedAt: string }
 export interface Supresiones { items: Supresion[]; tipos: Record<Supresion['tipo'], number>; total: number }
+export interface AvisoEvento { id: string; email: string; nombre: string; creadoAt: string; updatedAt: string }
+export interface AvisosEvento { items: AvisoEvento[]; total: number; pagina: number; por: number; evento: string }
 export interface Filtros { q?: string; origen?: string; canal?: string; estado?: string; relacion?: string; orden?: 'nombre' | 'actividad'; dir?: 'asc' | 'desc'; ids?: string; pagina?: number }
 
 /** Contacts API (crm service, Figma page 61). */
@@ -28,7 +30,7 @@ export class ContactosApi {
   private b(cid: string): string {
     return `/api/admin/competiciones/${cid}`;
   }
-  private params(f: Filtros): HttpParams {
+  private params(f: object): HttpParams {
     let p = new HttpParams();
     for (const [k, v] of Object.entries(f)) if (v !== undefined && v !== '' && v !== null) p = p.set(k, String(v));
     return p;
@@ -77,6 +79,19 @@ export class ContactosApi {
   }
   delSupresion(cid: string, id: string): Promise<void> {
     return firstValueFrom(this.http.delete<void>(`${this.b(cid)}/supresiones/${id}`));
+  }
+  /** «Avísame» contacts of an event (GRS Cup 3): the same rows the home form fills in. */
+  avisos(cid: string, f: { evento: string; q?: string; pagina?: number; por?: number }): Promise<AvisosEvento> {
+    return firstValueFrom(this.http.get<AvisosEvento>(`${this.b(cid)}/avisos-evento`, { params: this.params(f) }));
+  }
+  crearAviso(cid: string, a: { evento: string; email: string; nombre: string }): Promise<AvisoEvento> {
+    return firstValueFrom(this.http.post<AvisoEvento>(`${this.b(cid)}/avisos-evento`, a));
+  }
+  editarAviso(cid: string, id: string, a: { email?: string; nombre?: string }): Promise<AvisoEvento> {
+    return firstValueFrom(this.http.patch<AvisoEvento>(`${this.b(cid)}/avisos-evento/${id}`, a));
+  }
+  borrarAviso(cid: string, id: string): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`${this.b(cid)}/avisos-evento/${id}`));
   }
 }
 

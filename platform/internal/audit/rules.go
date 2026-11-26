@@ -214,6 +214,12 @@ func resumen(e events.Event) string {
 		return "guardó el segmento «" + str(d["nombre"]) + "»"
 	case "crm.baja_manual":
 		return "añadió una baja a mano"
+	case "crm.aviso_evento_creado":
+		return "añadió un contacto avisado de GRS Cup 3"
+	case "crm.aviso_evento_editado":
+		return "corrigió un contacto avisado de GRS Cup 3"
+	case "crm.aviso_evento_borrado":
+		return "quitó un contacto avisado de GRS Cup 3"
 	case "horarios.borrador":
 		if a := str(d["accion"]); a != "" {
 			return a

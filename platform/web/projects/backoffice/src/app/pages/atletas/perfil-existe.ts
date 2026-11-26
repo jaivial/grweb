@@ -25,7 +25,7 @@ import { AtletasApi, type PerfilExisteIn, type PerfilExisteOut } from './api';
           <h2 id="pe-titulo" class="text-[20px] leading-[26px] font-semibold">Enviar acceso al perfil {{ destino() }}</h2>
           <button type="button" class="-mt-2 -mr-2 flex size-11 items-center justify-center text-text-tertiary hover:text-text-primary" aria-label="Cerrar" (click)="cerrar.emit()"><gr-icon name="x" [size]="18" /></button>
         </div>
-        <p class="mt-3 text-body-s text-text-secondary">Cada atleta recibe el email «Tu perfil de atleta en la GRS Cup 2 ya existe» con su email y una contraseña inicial nueva (nombre + 4 cifras, p. ej. jaime4589). Es temporal: al entrar por primera vez su área le pide una nueva de al menos 10 caracteres.</p>
+        <p class="mt-3 text-body-s text-text-secondary">Cada atleta recibe el email «&#123;nombre&#125;, bienvenido a la GRS Cup 2» con su email y una contraseña inicial nueva (nombre + 4 cifras, p. ej. jaime4589). Es temporal: al entrar por primera vez su área le pide una nueva de al menos 10 caracteres.</p>
 
         <div class="mt-4 flex flex-col gap-2 rounded-md border border-line-subtle bg-bg-surface p-4" aria-live="polite">
           @if (cuenta(); as c) {
