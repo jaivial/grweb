@@ -88,11 +88,10 @@ func (s *Svc) jornadaPublica(ctx context.Context, cid, jid uuid.UUID) (*jornada,
 	if err != nil || j != nil {
 		return j, err
 	}
-	// No jornada today: the open one (the next day to come first), else the last non-draft one.
-	// ST3-R1-6: among the open ones, a jornada with fantasy athletes wins over an empty one.
+	// No jornada today: the open one (the next day to come first), else the last non-draft one. (The fantasy has
+	// its own jornada for the whole event: jornadaFantasy.)
 	jj, err := scanJornada(s.a.DB.QueryRow(ctx, selJornada+` FROM jornadas WHERE competition_id = $1 AND estado <> 'borrador'
-		ORDER BY estado IN ('abierta','en_juego') DESC, EXISTS (SELECT 1 FROM fantasy_atletas fa WHERE fa.jornada_id = jornadas.id) DESC,
-		estado = 'en_juego' DESC, (dia >= (now() AT TIME ZONE 'Europe/Madrid')::date) DESC,
+		ORDER BY estado IN ('abierta','en_juego') DESC, estado = 'en_juego' DESC, (dia >= (now() AT TIME ZONE 'Europe/Madrid')::date) DESC,
 		CASE WHEN dia >= (now() AT TIME ZONE 'Europe/Madrid')::date THEN dia END ASC, dia DESC LIMIT 1`, cid))
 	if db.IsNoRows(err) {
 		return nil, problem.NotFound("No hay jornada.")
@@ -492,7 +491,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			j, err := s.jornadaPublica(ctx, c.ID, in.JornadaID)
+			j, err := s.jornadaFantasyCache(ctx, c.ID) // one fantasy for the whole event
 			if err != nil {
 				return nil, err
 			}
@@ -541,7 +540,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			j, err := s.jornadaPublica(ctx, c.ID, in.JornadaID)
+			j, err := s.jornadaFantasyCache(ctx, c.ID) // one fantasy for the whole event
 			if err != nil {
 				return nil, err
 			}
@@ -609,7 +608,7 @@ func (s *Svc) registerPublic() {
 			}
 			// ST3-R6-1: cached jornada (bloquearAtletaTx re-checks its state under the room lock); config and room
 			// load in parallel, so the request makes one round trip before the transaction instead of three.
-			j, err := s.jornadaPublicaCache(ctx, c.ID, in.Body.Jornada)
+			j, err := s.jornadaFantasyCache(ctx, c.ID) // one fantasy for the whole event
 			if err != nil {
 				return nil, err
 			}
@@ -688,7 +687,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			j, err := s.jornadaPublica(ctx, c.ID, in.JornadaID)
+			j, err := s.jornadaFantasyCache(ctx, c.ID) // one fantasy for the whole event
 			if err != nil {
 				return nil, err
 			}
@@ -748,7 +747,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
-			j, err := s.jornadaPublica(ctx, c.ID, in.JornadaID)
+			j, err := s.jornadaFantasyCache(ctx, c.ID) // one fantasy for the whole event
 			if err != nil {
 				return nil, err
 			}
@@ -767,7 +766,7 @@ func (s *Svc) registerPublic() {
 				return nil, problem.NotFound("Ese atleta no está en la jornada.")
 			}
 			o.Body.Intentos, o.Body.Eventos = map[string][]MarcadorIntento{}, []eventoNota{}
-			if m, _, err := s.marcador(ctx, c.ID, j.Dia); err == nil {
+			if m, _, err := s.marcadorFantasy(ctx, c.ID, *j); err == nil {
 				for i := range m.Atletas {
 					if m.Atletas[i].AtletaID == in.AID && m.Atletas[i].Intentos != nil {
 						o.Body.Intentos = m.Atletas[i].Intentos
@@ -816,24 +815,30 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
+			// porra coins are per day; the fantasy wallet is one for the whole event (fantasy_evento.go)
+			jf, err := s.jornadaFantasyCache(ctx, c.ID)
+			if err != nil {
+				return nil, err
+			}
 			o := &carteraOut{}
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 				if o.Body.Porra, err = abrirCarteraTx(ctx, tx, *j, f.ID, Porra, f.Alias); err != nil {
 					return err
 				}
-				if o.Body.Fantasy, err = abrirCarteraTx(ctx, tx, *j, f.ID, Fantasy, f.Alias); err != nil {
+				if o.Body.Fantasy, err = abrirCarteraTx(ctx, tx, *jf, f.ID, Fantasy, f.Alias); err != nil {
 					return err
 				}
 				// The pending debt of the refunds that could not take the fantasy reward back: it stays noted
 				// (contract §5) and the fan can see it in his wallet.
 				return tx.QueryRow(ctx, `SELECT COALESCE(sum(pendiente), 0) FROM movimientos
-					WHERE jornada_id = $1 AND fan_id = $2 AND moneda = 'fantasy'`, j.ID, f.ID).Scan(&o.Body.PendienteFantasy)
+					WHERE jornada_id = $1 AND fan_id = $2 AND moneda = 'fantasy'`, jf.ID, f.ID).Scan(&o.Body.PendienteFantasy)
 			})
 			if err != nil {
 				return nil, err
 			}
 			rows, err := s.a.DB.Query(ctx, `SELECT importe, motivo, moneda, created_at::text FROM movimientos
-				WHERE jornada_id = $1 AND fan_id = $2 ORDER BY created_at DESC LIMIT 50`, j.ID, f.ID)
+				WHERE fan_id = $2 AND ((jornada_id = $1 AND moneda = 'porra') OR (jornada_id = $3 AND moneda = 'fantasy'))
+				ORDER BY created_at DESC LIMIT 50`, j.ID, f.ID, jf.ID)
 			if err != nil {
 				return nil, err
 			}

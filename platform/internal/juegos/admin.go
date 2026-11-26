@@ -292,7 +292,10 @@ func (s *Svc) registerAdmin() {
 			if err != nil {
 				return nil, err
 			}
-			return nil, s.sincronizar(ctx, in.CID, *j)
+			if err := s.sincronizar(ctx, in.CID, *j); err != nil {
+				return nil, err
+			}
+			return nil, s.sincronizarFantasy(ctx, in.CID)
 		})
 
 	// ---- config ----

@@ -9,7 +9,7 @@ import { GrButton, GrIcon, type GrIconName } from '@grcup/ui';
 import { GrSelector, iniciales, type OpcionSelector } from '../porra/componentes';
 import {
   type AtletaAlineado, type AtletaDetalle, type AtletaMercado, type ConceptoNota, type EstadoSala, type EventoNota, type Mov, type MovimientoFeed, type Nota,
-  type TramoNota, deltaNota, nota1, nota2, pctClausula, tramoNota,
+  type TramoNota, deltaNota, diaCorto, nota1, nota2, pctClausula, tramoNota,
 } from '../../core/juegos';
 import { monedas } from '../porra/formato';
 import { I18n, LocPipe, type Lang } from '../../core/i18n';
@@ -82,7 +82,7 @@ const T = {
     usados: 'Clausulazos usados:',
     deMax: (a: number, b: number) => `${a} de ${b}`,
     estaJornada: 'esta jornada · sin deuda.',
-    cerradosDesde: (h: string) => `Clausulazos cerrados desde las ${h}. La última sesión del día ya empezó; se reabren el próximo día de competición.`,
+    cerradosDesde: (h: string) => `Clausulazos cerrados desde las ${h}. La última sesión de la competición ya empezó.`,
     faltan: (n: string) => `Te faltan ${n} monedas para pagar la cláusula.`,
     yaUsados: (n: number) => `Ya has usado tus ${n} clausulazos de esta jornada.`,
     noDisponible: 'Clausulazo no disponible',
@@ -175,7 +175,7 @@ const T = {
     usados: 'Buy-outs used:',
     deMax: (a: number, b: number) => `${a} of ${b}`,
     estaJornada: 'this day · no debt.',
-    cerradosDesde: (h: string) => `Buy-outs closed since ${h}. The day's last session has already begun; they reopen on the next competition day.`,
+    cerradosDesde: (h: string) => `Buy-outs closed since ${h}. The last session of the competition has already begun.`,
     faltan: (n: string) => `You are ${n} coins short of paying the release clause.`,
     yaUsados: (n: number) => `You have already used your ${n} buy-outs for this day.`,
     noDisponible: 'Buy-out not available',
@@ -588,7 +588,8 @@ export class MarketRow {
   protected readonly ini = computed(() => iniciales(this.atleta().nombre));
   protected readonly subtitulo = computed(() => {
     const a = this.atleta();
-    return `${a.sexo === 'F' ? this.t().femenino : this.t().masculino}${a.categoria ? ' · ' + a.categoria.replace('-', '−') + ' kg' : ''}`;
+    const dia = diaCorto(a.dia, this.i18n.locale()); // the fantasy mixes every day: say when he competes
+    return `${a.sexo === 'F' ? this.t().femenino : this.t().masculino}${a.categoria ? ' · ' + a.categoria.replace('-', '−') + ' kg' : ''}${dia ? ' · ' + dia : ''}`;
   });
   protected readonly dueno = computed(() => {
     const a = this.atleta();

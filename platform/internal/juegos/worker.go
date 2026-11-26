@@ -203,6 +203,10 @@ func (s *Svc) sincronizarActiva(ctx context.Context, cid uuid.UUID) error {
 	if err := s.sincronizarMercadosAbiertas(ctx, cid, j); err != nil && ctx.Err() == nil {
 		s.a.Log.Warn("mercados de las jornadas abiertas", "cid", cid, "err", err)
 	}
+	// GRS Fantasy (one game for the whole event): athletes and grades of every day
+	if err := s.sincronizarFantasy(ctx, cid); err != nil && ctx.Err() == nil {
+		s.a.Log.Warn("fantasy del evento", "cid", cid, "err", err)
+	}
 	return nil
 }
 
@@ -311,15 +315,10 @@ func (s *Svc) reconciler(ctx context.Context) {
 					s.a.Log.Warn("mercados de las jornadas abiertas", "cid", j.CompetitionID, "err", err)
 				}
 			}
-			// BIZ-143: the first session of the day starts the rooms (at most 30 s late; the endpoints already
-			// refuse room changes from the exact minute). The jornada itself goes «en juego» on its own too.
+			// The jornada goes «en juego» on its own when its day starts. The fantasy rooms take members until
+			// the event ends: they start and write the palmarés when the last jornada closes (estadosAutomaticos).
 			if err := s.enJuegoAutomatico(ctx, j.CompetitionID, j); err != nil && ctx.Err() == nil {
 				s.a.Log.Warn("jornada en juego", "cid", j.CompetitionID, "err", err)
-			}
-			if s.horario(ctx, j.CompetitionID, j.Dia).empezado(j, time.Now()) {
-				if err := s.iniciarSalas(ctx, j.CompetitionID, j); err != nil && ctx.Err() == nil {
-					s.a.Log.Warn("inicio de las salas", "cid", j.CompetitionID, "err", err)
-				}
 			}
 		}
 		// BIZ-200 R2-3: competitions without a jornada today but with an open one of another day (a future day

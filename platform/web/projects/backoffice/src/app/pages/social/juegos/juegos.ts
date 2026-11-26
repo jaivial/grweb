@@ -110,7 +110,7 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
 
           <!-- ===== Mercados y clasificaciones ===== -->
           <div class="flex min-w-0 flex-col gap-6">
-            <so-card [titulo]="'Mercados de porra · ' + (sel()?.nombre || '—')" ayuda="El cierre es automático con el primer intento juzgado (§6.2) · cerrar, liquidar y anular a mano quedan auditados">
+            <so-card [titulo]="'Mercados de porra · ' + (sel()?.nombre || '—')" ayuda="El cierre es automático al juzgarse el 2.º intento · cerrar, liquidar y anular a mano quedan auditados">
               @if (!mercados().length) {
                 <gr-empty icon="zap" title="No hay mercados" text="Los mercados se crean y se actualizan solos con los atletas aprobados." />
               } @else {
@@ -124,7 +124,7 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
                           <div class="min-w-0 flex-1">
                             <p class="font-mono text-mono-xs" [class]="m.estado === 'abierto' ? 'text-success' : 'text-text-tertiary'">{{ tipo(m) }}</p>
                             <p class="truncate text-label-s" [class.text-text-secondary]="m.estado === 'liquidado'">{{ m.titulo }}</p>
-                            <p class="truncate text-body-xs text-text-tertiary">{{ m.apuestas }} {{ m.apuestas === 1 ? 'apuesta' : 'apuestas' }} · {{ m.opciones.length }} {{ m.opciones.length === 1 ? 'atleta' : 'atletas' }}{{ m.estado === 'abierto' ? ' · cierra con el 1.er intento juzgado' : '' }}</p>
+                            <p class="truncate text-body-xs text-text-tertiary">{{ m.apuestas }} {{ m.apuestas === 1 ? 'apuesta' : 'apuestas' }} · {{ m.opciones.length }} {{ m.opciones.length === 1 ? 'atleta' : 'atletas' }}{{ m.estado === 'abierto' ? ' · cierra al juzgarse el 2.º intento' : '' }}</p>
                           </div>
                           <div class="flex items-center gap-4">
                             <div class="text-right">
