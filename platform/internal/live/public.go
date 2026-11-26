@@ -189,6 +189,23 @@ func (s *Svc) registerPublic() {
 			return &dirOut{CacheControl: "no-cache", Body: d}, nil
 		})
 
+	type espOut struct {
+		CacheControl string `header:"Cache-Control"`
+		Body         struct {
+			Espectadores int `json:"espectadores"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "directo-espectadores", Method: http.MethodGet, Path: "/api/competiciones/{slug}/directo/espectadores", Summary: "Directo: personas con /en-directo abierto (sondeo ligero del contador)", Tags: tagPub},
+		func(ctx context.Context, in *slugIn) (*espOut, error) {
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			o := &espOut{CacheControl: "no-cache"}
+			o.Body.Espectadores = s.espectadores(ctx, c.ID)
+			return o, nil
+		})
+
 	type resOut struct {
 		CacheControl string `header:"Cache-Control"`
 		Body         *ResultadosPublicos
