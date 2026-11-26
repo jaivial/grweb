@@ -76,6 +76,8 @@ type Svc struct {
 	altchaKey string
 	tiempoKey []byte
 	firmaKey  []byte
+	// autKey derives the links of the guardian's authorisation (only their sha256 is stored).
+	autKey []byte
 	// Volume of the service where the private files of the requests are kept.
 	fotoDir string
 	// altaCfg caches the stable part of the public config of the alta (2 s, singleflight).
@@ -122,6 +124,9 @@ func (s *Svc) init(a *app.App) {
 	mf := hmac.New(sha256.New, []byte(a.Cfg.InternalToken))
 	mf.Write([]byte("grcup/athletes/foto/v1"))
 	s.firmaKey = mf.Sum(nil)
+	mz := hmac.New(sha256.New, []byte(a.Cfg.InternalToken))
+	mz.Write([]byte("grcup/athletes/autorizacion/v1"))
+	s.autKey = mz.Sum(nil)
 	s.webURL = strings.TrimRight(config.Str("PUBLIC_WEB_URL", "http://localhost:4200"), "/")
 	s.boURL = strings.TrimRight(config.Str("BACKOFFICE_URL", "http://localhost:4201"), "/")
 	s.fotoDir = config.Str("ATLETAS_DIR", "/data/atletas")
@@ -150,6 +155,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerAltaAtleta()
 	s.registerHandlerGratis()
 	s.registerAltaAtletaAdmin()
+	s.registerAutorizacion()
 	s.registerEmparejamiento()
 	s.registerAltaCupos()
 	a.Go(s.expirador)

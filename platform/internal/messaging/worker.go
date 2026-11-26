@@ -48,8 +48,9 @@ func (s *Svc) worker(ctx context.Context) {
 }
 
 func (s *Svc) tick(ctx context.Context) error {
+	// Messages to the organisers' group go after the ones to people (the rate limit is shared).
 	rows, err := s.a.DB.Query(ctx, `UPDATE mensajes SET estado = 'enviando', intentos = intentos + 1, updated_at = now() WHERE id IN (
-		SELECT id FROM mensajes WHERE estado IN ('en_cola', 'reintentando') AND proximo_at <= now() ORDER BY proximo_at LIMIT 20 FOR UPDATE SKIP LOCKED)
+		SELECT id FROM mensajes WHERE estado IN ('en_cola', 'reintentando') AND proximo_at <= now() ORDER BY (destino::text LIKE '%@g.us'), proximo_at LIMIT 20 FOR UPDATE SKIP LOCKED)
 		RETURNING id, competition_id, canal, plantilla, destino::text, vars, prueba, intentos`)
 	if err != nil {
 		return err
@@ -183,6 +184,7 @@ func (s *Svc) procesar(ctx context.Context, p pendiente) {
 	} else if b := p.vars["baja"]; strings.HasPrefix(b, "https://") {
 		cab["List-Unsubscribe"] = "<" + b + ">"
 	}
+	r.Adjunto = s.adjuntoDe(ctx, p.cid, p.vars)
 	id, err := enviarSMTP(ctx, cfg, p.destino, r, cab)
 	if err == nil {
 		s.estadoSMTP(ctx, p.cid, cfg, true, "")

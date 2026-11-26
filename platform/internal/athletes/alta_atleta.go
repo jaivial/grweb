@@ -556,7 +556,8 @@ func (s *Svc) registerAltaAtleta() {
 			if err != nil {
 				return nil, problem.NotFound("Esta foto no existe.")
 			}
-			return &publicaOut{ContentType: "image/jpeg", CacheControl: "public, max-age=3600", Nosniff: "nosniff", Body: b}, nil
+			// The volume also keeps the guardian's authorisation forms (PNG) and the signed files (images or PDF).
+			return &publicaOut{ContentType: http.DetectContentType(b), CacheControl: "public, max-age=3600", Nosniff: "nosniff", Body: b}, nil
 		})
 }
 
@@ -631,7 +632,7 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 	consJSON, _ := json.Marshal(cons)
 	// One live request per email (before the photo: a duplicate must not leave a file on disk).
 	var existentes int
-	if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FROM solicitudes_atleta WHERE competition_id = $1 AND email = $2 AND estado IN ('pendiente','revision')`,
+	if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FROM solicitudes_atleta WHERE competition_id = $1 AND email = $2 AND tipo = 'alta' AND estado IN ('pendiente','revision')`,
 		c.ID, d.Email).Scan(&existentes); err != nil {
 		return nil, err
 	}
@@ -639,7 +640,7 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 		return nil, problem.Conflict("SOLICITUD_EN_CURSO", "Ya tienes una solicitud en revisión. Te avisaremos por email.")
 	}
 	// An email already approved has its profile: a new request would only re-notify the whole team.
-	if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FROM solicitudes_atleta WHERE competition_id = $1 AND email = $2 AND estado = 'aprobada'`,
+	if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FROM solicitudes_atleta WHERE competition_id = $1 AND email = $2 AND tipo = 'alta' AND estado = 'aprobada'`,
 		c.ID, d.Email).Scan(&existentes); err != nil {
 		return nil, err
 	}
@@ -730,7 +731,7 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 			fotoURL = s.urlFotoFirmada(c.ID, id, c.Slug)
 		}
 		for _, m := range equipo {
-			if err := email(ctx, tx, c.ID, m.Email, "atleta-solicitud-nueva", s.varsNueva(d, matchTipo, coincidencia, menor, fotoURL, c.Slug)); err != nil {
+			if err := email(ctx, tx, c.ID, m.Email, "atleta-solicitud-nueva", s.varsNueva(d, matchTipo, coincidencia, menor, fotoURL, c.Slug, id)); err != nil {
 				return err
 			}
 		}
@@ -741,7 +742,7 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 				return err
 			}
 		}
-		if err := whatsapp(ctx, tx, c.ID, "", true, "atleta-solicitud-nueva", s.varsWANueva(d, matchTipo, menor, c.Slug), fotoURL); err != nil {
+		if err := whatsapp(ctx, tx, c.ID, "", true, "atleta-solicitud-nueva", s.varsWANueva(d, matchTipo, menor, c.Slug, id), fotoURL); err != nil {
 			return err
 		}
 		// «Asignadme un handler»: the same email and WhatsApp as a handler request, so it is all in one place.
@@ -1440,21 +1441,40 @@ type Miembro struct {
 	Nombre string `json:"nombre"`
 }
 
-// equipoAdmins asks identity for the active members of the competition with «atletas.editar».
+// equipoAdmins asks identity for the active members of the competition with «atletas.editar», plus the Gmail
+// address connected in Sistema › Integraciones (the shared inbox of the organisers), without duplicates.
 func (s *Svc) equipoAdmins(ctx context.Context, cid uuid.UUID) []Miembro {
 	var out []Miembro
 	if err := s.identity.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/equipo?permiso=atletas.editar", nil, &out); err != nil {
 		s.a.Log.Warn("no se ha podido obtener el equipo de la competición", "err", err, "competicion", cid.String())
-		return nil
+		out = nil
 	}
-	equipo := make([]Miembro, 0, len(out))
+	equipo := make([]Miembro, 0, len(out)+1)
+	visto := map[string]bool{}
 	for _, m := range out {
-		if e := strings.ToLower(strings.TrimSpace(m.Email)); e != "" {
+		if e := strings.ToLower(strings.TrimSpace(m.Email)); e != "" && !visto[e] {
 			m.Email = e
+			visto[e] = true
 			equipo = append(equipo, m)
 		}
 	}
+	if g := s.gmailConectado(ctx, cid); g != "" && !visto[g] {
+		equipo = append(equipo, Miembro{Email: g, Nombre: "Equipo"})
+	}
 	return equipo
+}
+
+// gmailConectado is the address of the Gmail integration when it is connected (only «config.remitente» is read;
+// the secret never leaves this function).
+func (s *Svc) gmailConectado(ctx context.Context, cid uuid.UUID) string {
+	var out struct {
+		Config  map[string]string `json:"config"`
+		Secreto string            `json:"secreto"`
+	}
+	if err := s.comp.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/integraciones/gmail", nil, &out); err != nil || out.Secreto == "" {
+		return ""
+	}
+	return strings.ToLower(strings.TrimSpace(out.Config["remitente"]))
 }
 
 // ---- match ----
@@ -1555,14 +1575,19 @@ func pasosRecibida(foto, menor bool) string {
 }
 
 // varsNueva are the variables of the email to the team (with the photo: a signed URL, not public).
-func (s *Svc) varsNueva(d DatosAlta, match, coincidencia string, menor bool, fotoURL, slug string) map[string]string {
+func (s *Svc) varsNueva(d DatosAlta, match, coincidencia string, menor bool, fotoURL, slug string, id uuid.UUID) map[string]string {
 	return map[string]string{
 		"nombre": d.Nombre, "apellidos": d.Apellidos, "email": d.Email, "telefono": telTexto(d.Telefono), "licencia": d.Licencia,
 		"club": d.Club, "ciudad": d.Ciudad, "sexo": d.Sexo, "edad": edadAnios(d.FechaNacimiento, menor),
 		"fechaNacimiento": fechaCorta(d.FechaNacimiento), "marcas": marcas(d.MarcaSQ, d.MarcaBP, d.MarcaDL),
 		"frase": d.Frase, "match": matchTexto(match), "menor": textoMenor(menor, edadTexto(d.FechaNacimiento)), "coincidencia": coincidencia,
-		"prueba": pruebaTexto(d.Prueba), "foto": fotoURL, "urlRevisar": s.boURL + "/" + slug + "/atletas/solicitudes",
+		"prueba": pruebaTexto(d.Prueba), "foto": fotoURL, "urlRevisar": s.urlRevisar(slug, id),
 	}
+}
+
+// urlRevisar is the deep link of a request in the backoffice (the team opens it straight from the email or WhatsApp).
+func (s *Svc) urlRevisar(slug string, id uuid.UUID) string {
+	return s.boURL + "/" + slug + "/atletas/solicitudes/" + id.String()
 }
 
 // varsWARecibida are the variables of the WhatsApp message to the athlete.
@@ -1593,13 +1618,13 @@ func varsHandler(d DatosAlta, menor bool) map[string]string {
 	}
 }
 
-func (s *Svc) varsWANueva(d DatosAlta, match string, menor bool, slug string) map[string]string {
+func (s *Svc) varsWANueva(d DatosAlta, match string, menor bool, slug string, id uuid.UUID) map[string]string {
 	return map[string]string{
 		"nombre": d.Nombre, "apellidos": d.Apellidos, "email": d.Email, "telefono": telTexto(d.Telefono), "licencia": d.Licencia,
 		"club": d.Club, "ciudad": d.Ciudad, "sexo": d.Sexo, "edad": edadAnios(d.FechaNacimiento, menor),
 		"fechaNacimiento": fechaCorta(d.FechaNacimiento), "marcas": marcas(d.MarcaSQ, d.MarcaBP, d.MarcaDL),
 		"frase": d.Frase, "match": matchTexto(match), "menor": textoMenor(menor, edadTexto(d.FechaNacimiento)),
-		"foto": "", "urlRevisar": s.boURL + "/" + slug + "/atletas/solicitudes",
+		"foto": "", "urlRevisar": s.urlRevisar(slug, id),
 	}
 }
 

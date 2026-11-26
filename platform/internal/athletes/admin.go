@@ -597,13 +597,38 @@ func (s *Svc) registerAdmin() {
 			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {
 				return nil, err
 			}
-			return nil, s.change(ctx, in.CID, "athletes.atleta_borrado", map[string]any{"id": in.ID}, func(tx pgx.Tx) error {
+			// Their files on the CDN go too (after the commit, best effort): the guardian's authorisations and forms,
+			// and a photo that was only pending review.
+			var autorizaciones, fotos []string
+			err := s.change(ctx, in.CID, "athletes.atleta_borrado", map[string]any{"id": in.ID}, func(tx pgx.Tx) error {
+				if err := tx.QueryRow(ctx, `SELECT
+					ARRAY(SELECT u FROM (SELECT cambios->>'autorizacionUrl' AS u FROM solicitudes_atleta
+							WHERE competition_id = $1 AND match_atleta_id = $2 AND tipo = 'autorizacion'
+						UNION SELECT autorizacion_url FROM perfiles WHERE atleta_id = $2
+						UNION SELECT formulario_url FROM autorizacion_tokens WHERE atleta_id = $2) x WHERE COALESCE(u, '') <> ''),
+					ARRAY(SELECT u FROM (SELECT cambios->'despues'->>'foto' AS u FROM solicitudes_atleta
+							WHERE competition_id = $1 AND match_atleta_id = $2 AND tipo = 'cambio_perfil' AND estado IN ('pendiente','revision')) x
+						WHERE COALESCE(u, '') <> '' AND u <> COALESCE((SELECT foto_url FROM perfiles WHERE atleta_id = $2), ''))`,
+					in.CID, in.ID).Scan(&autorizaciones, &fotos); err != nil {
+					return err
+				}
 				tag, err := tx.Exec(ctx, `DELETE FROM atletas WHERE competition_id = $1 AND id = $2`, in.CID, in.ID)
 				if err == nil && tag.RowsAffected() == 0 {
 					return problem.NotFound("Atleta no encontrado.")
 				}
 				return err
 			})
+			if err != nil {
+				return nil, err
+			}
+			bg := context.WithoutCancel(ctx)
+			for _, u := range autorizaciones {
+				s.borraDelCDN(bg, in.CID, u, "autorizaciones/", "autorizaciones-")
+			}
+			for _, u := range fotos {
+				s.borraFotoPublicada(bg, in.CID, u)
+			}
+			return nil, nil
 		})
 
 	// CSV export. Emails and phones only with contactos.exportar (personal data).
@@ -924,6 +949,8 @@ type HistorialItem struct {
 type Ficha struct {
 	Atleta
 	Area AreaEstado `json:"area"`
+	// Autorizacion is the state of the guardian's authorisation (minors): sin_pedir · enviada · revision · rechazada · aprobada.
+	Autorizacion AutorizacionEstado `json:"autorizacion"`
 }
 
 // AreaEstado summarises the athlete's use of their area (Figma «Área del atleta»).
@@ -943,6 +970,7 @@ func (s *Svc) ficha(ctx context.Context, cid, id uuid.UUID) (Ficha, error) {
 	var used *time.Time
 	_ = s.a.DB.QueryRow(ctx, `SELECT created_at, used_at FROM area_tokens WHERE atleta_id = $1 ORDER BY created_at DESC LIMIT 1`, id).Scan(&f.Area.EnlaceEnvio, &used)
 	f.Area.EnlaceUsado = used != nil
+	f.Autorizacion = s.estadoAutorizacion(ctx, r)
 	return f, nil
 }
 

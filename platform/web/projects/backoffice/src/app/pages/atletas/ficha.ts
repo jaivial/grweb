@@ -149,11 +149,33 @@ const PUBLIC_WEB = webPublica();
                   </ul>
                   @if (a.menor) {
                     <div class="mt-3 rounded-md border border-info/30 bg-info/5 p-4">
-                      <p class="text-label-s text-info">Autorización del tutor ({{ a.edad }} años)</p>
-                      <p class="mt-1 text-body-xs text-text-secondary">Sin ella, su perfil público y su foto no se muestran. Sube el documento firmado (foto o PDF).</p>
+                      <p class="text-label-s text-info">Autorización del tutor ({{ a.edad != null ? a.edad + ' años' : 'sin fecha de nacimiento' }})</p>
+                      @if (!p.autorizacionUrl) { <p class="mt-1 text-body-xs text-text-secondary">Sin ella, su perfil público y su foto no se muestran. Sube el documento firmado (foto o PDF).</p> }
+                      @if (canEdit()) {
+                        @let au = a.autorizacion;
+                        @let estado = p.autorizacionUrl ? 'aprobada' : (au?.estado ?? 'sin_pedir');
+                        <div class="mt-3 flex flex-col gap-2 border-t border-info/20 pt-3 sm:flex-row sm:items-center sm:justify-between" aria-live="polite">
+                          <p class="text-body-xs text-text-secondary">
+                            @switch (estado) {
+                              @case ('enviada') { Petición enviada al tutor{{ au?.enviadaAt ? ' el ' + fecha(au!.enviadaAt!) : '' }}. Aún no ha subido la autorización. }
+                              @case ('revision') { Autorización recibida, en revisión.
+                                @if (au?.solicitudId) { <a [routerLink]="['/', comps.current()?.slug, 'atletas', 'solicitudes', au!.solicitudId]" class="text-accent-text underline">Revisar la solicitud</a> }
+                              }
+                              @case ('rechazada') { Autorización rechazada{{ au?.motivo ? ': «' + au!.motivo + '»' : '' }}. Puede subir otra con el mismo enlace. }
+                              @case ('aprobada') { <span class="text-success">Autorización aprobada{{ au?.aprobadaAt ? ' · ' + fecha(au!.aprobadaAt!) : '' }}</span> }
+                              @default { Aún no se ha pedido la autorización al tutor. }
+                            }
+                          </p>
+                          @if (estado !== 'revision' && estado !== 'aprobada') {
+                            <button grButton size="s" icon="send" class="shrink-0" [loading]="pidiendo()" (click)="pedirAutorizacion(estado === 'enviada' || estado === 'rechazada')">{{ estado === 'enviada' || estado === 'rechazada' ? 'Reenviar petición' : 'Pedir autorización al tutor' }}</button>
+                          }
+                        </div>
+                      } @else if (p.autorizacionUrl) {
+                        <p class="mt-1 text-body-xs text-success">Autorización aprobada{{ a.autorizacion?.aprobadaAt ? ' · ' + fecha(a.autorizacion!.aprobadaAt!) : '' }}</p>
+                      }
                       @if (p.autorizacionUrl) { <a [href]="p.autorizacionUrl" target="_blank" rel="noopener" class="mt-2 inline-flex h-9 items-center gap-1 text-label-s text-accent-text">Ver autorización <gr-icon name="external-link" [size]="12" /></a> }
                       @if (canEdit()) {
-                        <label class="mt-2 ml-3 inline-flex h-9 cursor-pointer items-center gap-1 text-label-s text-text-secondary underline">{{ p.autorizacionUrl ? 'Sustituir' : 'Subir autorización' }}
+                        <label class="mt-2 inline-flex h-9 cursor-pointer items-center gap-1 text-label-s text-text-secondary underline" [class.ml-3]="!!p.autorizacionUrl">{{ p.autorizacionUrl ? 'Sustituir' : 'Subir autorización' }}
                           <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" class="sr-only" (change)="subirAutorizacion($event)" /></label>
                       }
                     </div>
@@ -343,6 +365,7 @@ export class AtletaFichaPage {
   private readonly tabUrl = tabEnUrl(this.tab, () => this.tabs.map((t) => t.key));
   protected readonly guardando = signal(false);
   protected readonly enviando = signal(false);
+  protected readonly pidiendo = signal(false);
   protected readonly accion = signal(false);
   protected readonly perfil = signal(false);
   protected readonly subiendo = signal(false);
@@ -558,6 +581,27 @@ export class AtletaFichaPage {
       this.toasts.error('No se pudo enviar', errText(e));
     } finally {
       this.enviando.set(false);
+    }
+  }
+
+  protected async pedirAutorizacion(reenviar = false): Promise<void> {
+    const cid = this.comps.current()?.id;
+    const a = this.atleta();
+    if (!cid || !a) return;
+    if (reenviar) {
+      const ok = await this.confirmSvc.ask({ title: 'Reenviar la petición', text: 'Le enviaremos otro email y WhatsApp con un enlace nuevo. El enlace anterior dejará de funcionar.', confirm: 'Reenviar' });
+      if (!ok) return;
+    }
+    this.pidiendo.set(true);
+    try {
+      const r = await this.api.pedirAutorizacion(cid, a.id);
+      const canales = [r.email ? 'email' : '', r.whatsapp ? 'WhatsApp' : ''].filter(Boolean).join(' y ');
+      this.toasts.success(canales ? `Petición enviada por ${canales}` : 'Petición creada', canales ? undefined : 'No se ha podido enviar ni por email ni por WhatsApp.');
+      await this.cargar(true);
+    } catch (e) {
+      this.toasts.error('No se pudo enviar la petición', errText(e));
+    } finally {
+      this.pidiendo.set(false);
     }
   }
 

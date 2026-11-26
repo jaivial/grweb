@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -62,6 +63,70 @@ var camposPerfil = []struct{ clave, campo string }{
 	{"marcaSQ", "Sentadilla"},
 	{"marcaBP", "Press de banca"},
 	{"marcaDL", "Peso muerto"},
+	// The photo uploaded from the area: its value is the URL of the new photo (it waits for the review).
+	{"foto", "Foto"},
+}
+
+// camposRevisados need the team's review; every other field of «Editar mi perfil» is applied at once (the birth date
+// too, when it changes whether the athlete is a minor on competition day or their division).
+var camposRevisados = map[string]bool{"nombre": true, "apellidos": true, "email": true, "sexo": true, "prueba": true, "foto": true}
+
+// partirCambios splits the changes in the ones applied at once and the ones the team reviews.
+func partirCambios(c cambiosPerfil, revisa func(clave string) bool) (auto, revision cambiosPerfil) {
+	auto = cambiosPerfil{Claves: []string{}, Antes: map[string]any{}, Despues: map[string]any{}}
+	revision = cambiosPerfil{Claves: []string{}, Antes: map[string]any{}, Despues: map[string]any{}}
+	for _, k := range c.Claves {
+		dst := &auto
+		if revisa(k) {
+			dst = &revision
+		}
+		dst.Claves = append(dst.Claves, k)
+		dst.Antes[k], dst.Despues[k] = c.Antes[k], c.Despues[k]
+	}
+	return auto, revision
+}
+
+// fusionaCambios is the new snapshot of the open request. The fields the caller does not own stay as they were. For
+// an owned field: a value equal to the pending one keeps the pending entry, another changed value replaces it, and a
+// field sent back with the value it has now (actual) drops the pending entry only when that differs from the pending
+// one (an explicit revert: a pending entry that already equals actual is kept).
+func fusionaCambios(abierta *cambiosPerfil, nuevos cambiosPerfil, actual DatoPerfil, propia func(clave string) bool) cambiosPerfil {
+	out := cambiosPerfil{Claves: []string{}, Antes: map[string]any{}, Despues: map[string]any{}}
+	for _, f := range camposPerfil {
+		var pend any
+		tienePend := false
+		if abierta != nil {
+			pend, tienePend = abierta.Despues[f.clave]
+		}
+		src := &nuevos
+		if !propia(f.clave) {
+			if abierta == nil {
+				continue
+			}
+			src = abierta
+		} else if d, ok := nuevos.Despues[f.clave]; tienePend && ((ok && textoPerfil(f.clave, d) == textoPerfil(f.clave, pend)) ||
+			(!ok && textoPerfil(f.clave, pend) == textoPerfil(f.clave, actual.valor(f.clave)))) {
+			src = abierta
+		}
+		if d, ok := src.Despues[f.clave]; ok {
+			out.Claves = append(out.Claves, f.clave)
+			out.Antes[f.clave], out.Despues[f.clave] = src.Antes[f.clave], d
+		}
+	}
+	return out
+}
+
+// mismosCambios: two snapshots ask for the same (the team does not need a new notice).
+func mismosCambios(a, b cambiosPerfil) bool {
+	x, _ := json.Marshal(map[string]any{"c": a.Claves, "d": a.Despues})
+	y, _ := json.Marshal(map[string]any{"c": b.Claves, "d": b.Despues})
+	return string(x) == string(y)
+}
+
+// fotoCambio is the URL of the new photo of a snapshot (empty when it does not change the photo).
+func fotoCambio(c cambiosPerfil) string {
+	u, _ := c.Despues["foto"].(string)
+	return u
 }
 
 // cambiosPerfil is the before/after snapshot stored in «solicitudes_atleta.cambios»: only the fields that change.
@@ -79,11 +144,22 @@ type CambioPerfilCampo struct {
 	Despues string `json:"despues"`
 }
 
+// CambioPerfilEnviado is the answer of «Editar mi perfil»: the fields applied at once and the request left for the
+// team (null when nothing needs a review). id, enviadaAt and cambios repeat the pending request, as before.
+type CambioPerfilEnviado struct {
+	ID        *uuid.UUID             `json:"id,omitempty"`
+	EnviadaAt *time.Time             `json:"enviadaAt,omitempty"`
+	Cambios   []CambioPerfilCampo    `json:"cambios"`
+	Aplicados []string               `json:"aplicados" doc:"Campos aplicados al momento (sin revisión)"`
+	Pendiente *CambioPerfilPendiente `json:"pendiente" doc:"Cambios que esperan la revisión del equipo (null si no hay)"`
+}
+
 // CambioPerfilPendiente is the change request the athlete is waiting for, as the area shows it.
 type CambioPerfilPendiente struct {
 	ID        uuid.UUID           `json:"id"`
 	EnviadaAt time.Time           `json:"enviadaAt"`
 	Cambios   []CambioPerfilCampo `json:"cambios"`
+	valores   map[string]any      // the raw «despues» of the snapshot (prefills the form)
 }
 
 // PerfilEditar is what «Editar mi perfil» needs: the current data (prefilled), the competitions the athlete can
@@ -92,6 +168,11 @@ type PerfilEditar struct {
 	Datos     DatoPerfil             `json:"datos"`
 	Opciones  []PruebaAlta           `json:"opciones" doc:"AEP-2 y AEP-3, con su fecha y sus plazas"`
 	Pendiente *CambioPerfilPendiente `json:"pendiente,omitempty"`
+	// Propuesto: the current data with the pending reviewed values, to prefill the form (a field left as it is keeps
+	// its pending change; one set back to the current value withdraws it).
+	Propuesto *DatoPerfil `json:"propuesto,omitempty"`
+	// Autorizada: the signed authorisation of the guardian is on file (the minor notice is not needed).
+	Autorizada bool `json:"autorizada"`
 }
 
 // datoDeRow is the current data of the athlete.
@@ -312,6 +393,11 @@ func cambiosDeSolicitud(sol solicitud) []CambioPerfilCampo {
 func textoCambios(c cambiosPerfil) (email, wa string) {
 	var e, w []string
 	for _, f := range camposCambio(c) {
+		if f.Clave == "foto" {
+			e = append(e, "**Foto:** foto nueva (revísala en el panel)")
+			w = append(w, "• Foto: *foto nueva*")
+			continue
+		}
 		antes := f.Antes
 		if antes == "" {
 			antes = "vacío"
@@ -333,6 +419,10 @@ func oVacio(s string) string {
 func detalleCambios(c cambiosPerfil) string {
 	var out []string
 	for _, f := range camposCambio(c) {
+		if f.Clave == "foto" {
+			out = append(out, "Foto nueva")
+			continue
+		}
 		out = append(out, f.Campo+": "+oVacio(f.Antes)+" → "+oVacio(f.Despues))
 	}
 	return strings.Join(out, " · ")
@@ -350,7 +440,8 @@ func cambioPendiente(ctx context.Context, q querier, cid, atleta uuid.UUID) (*Ca
 		return nil, err
 	}
 	sol := list[0]
-	return &CambioPerfilPendiente{ID: sol.ID, EnviadaAt: sol.CreatedAt, Cambios: camposCambio(leeCambios(sol))}, nil
+	c := leeCambios(sol)
+	return &CambioPerfilPendiente{ID: sol.ID, EnviadaAt: sol.CreatedAt, Cambios: camposCambio(c), valores: c.Despues}, nil
 }
 
 func (s *Svc) registerPerfilCambio() {
@@ -370,13 +461,22 @@ func (s *Svc) registerPerfilCambio() {
 			if err != nil {
 				return nil, err
 			}
-			p := PerfilEditar{Datos: datoDeRow(r)}
+			p := PerfilEditar{Datos: datoDeRow(r), Autorizada: r.AutorizacionURL != ""}
 			// The same options (and places) the public form offers: the athlete moves from one competition to the other.
 			if c, err := s.comps.ByID(ctx, r.CompetitionID); err == nil {
 				p.Opciones, _ = s.pruebas(ctx, c)
 			}
 			if p.Pendiente, err = cambioPendiente(ctx, s.a.DB, r.CompetitionID, r.ID); err != nil {
 				return nil, err
+			}
+			if p.Pendiente != nil {
+				pr := p.Datos
+				for k, v := range p.Pendiente.valores {
+					if camposRevisados[k] || k == "fechaNacimiento" {
+						_ = pr.pon(k, v)
+					}
+				}
+				p.Propuesto = &pr
 			}
 			return &datosOut{Body: p}, nil
 		})
@@ -385,9 +485,9 @@ func (s *Svc) registerPerfilCambio() {
 		Session string `cookie:"gr_area"`
 		Body    DatoPerfil
 	}
-	type pedirOut struct{ Body CambioPerfilPendiente }
+	type pedirOut struct{ Body CambioPerfilEnviado }
 	huma.Register(api, huma.Operation{OperationID: "area-perfil-editar-pedir", Method: http.MethodPost, Path: base,
-		Summary: "Pedir un cambio de mi ficha (queda pendiente de revisión)", Tags: tagArea, DefaultStatus: http.StatusCreated},
+		Summary: "Cambiar mi ficha (contacto, club, marcas y textos al momento; nombre, email, sexo, competición y foto quedan pendientes de revisión)", Tags: tagArea, DefaultStatus: http.StatusCreated},
 		func(ctx context.Context, in *pedirIn) (*pedirOut, error) {
 			r, err := s.session(ctx, in.Session)
 			if err != nil {
@@ -418,102 +518,256 @@ func (s *Svc) registerPerfilCambio() {
 		})
 }
 
-// creaCambioPerfil stores the athlete's proposal: nothing is written to «atletas» or «perfiles» until the team
-// approves it. A new submission replaces the pending one (one open request per athlete).
-func (s *Svc) creaCambioPerfil(ctx context.Context, r row, b DatoPerfil) (*CambioPerfilPendiente, error) {
+// creaCambioPerfil saves the athlete's proposal: the contact, club, marks and texts (and the birth date when it keeps
+// their minor status and division) are applied at once; the name, email, sex, competition and photo wait for the
+// team in a «cambio_perfil» request (one open request per athlete: a new submission is merged into it).
+func (s *Svc) creaCambioPerfil(ctx context.Context, r row, b DatoPerfil) (*CambioPerfilEnviado, error) {
 	// The same validation as the public form (it also normalises the phone, the email and the Instagram).
 	d := s.normalizaDatos(DatosAlta{
 		Nombre: b.Nombre, Apellidos: b.Apellidos, Email: b.Email, Telefono: b.Telefono, Sexo: b.Sexo,
 		FechaNacimiento: b.FechaNacimiento, Prueba: b.Prueba, Club: b.Club, Ciudad: b.Ciudad, Entrenador: b.Entrenador,
 		Frase: b.Frase, Bio: b.Bio, Instagram: b.Instagram, MarcaSQ: b.MarcaSQ, MarcaBP: b.MarcaBP, MarcaDL: b.MarcaDL,
 	})
-	if errs := s.validaDatos(d); len(errs) > 0 {
+	errs := s.validaDatos(d)
+	if r.FechaNacimiento == nil && d.FechaNacimiento == "" {
+		// The birth date stays optional for an athlete who never gave one (the rest of the profile can still change).
+		errs = slices.DeleteFunc(errs, func(e *huma.ErrorDetail) bool { return e.Location == "body.fechaNacimiento" })
+	}
+	if len(errs) > 0 {
 		return nil, validacion("Revisa los campos marcados.", errs...)
 	}
-	c := comparaPerfil(datoDeRow(r), datoDeAlta(d))
+	propuesto := datoDeAlta(d)
+	c := comparaPerfil(datoDeRow(r), propuesto)
+	cid := r.CompetitionID
+	// Nothing changed is an error only without an open request (with one, the same data can withdraw its changes).
 	if len(c.Claves) == 0 {
-		return nil, problem.Conflict("SIN_CAMBIOS", "No has cambiado nada: tu ficha ya tiene esos datos.")
+		if p, err := cambioPendiente(ctx, s.a.DB, cid, r.ID); err != nil || p == nil {
+			return nil, problem.Conflict("SIN_CAMBIOS", "No has cambiado nada: tu ficha ya tiene esos datos.")
+		}
 	}
+	dia := s.compDate(ctx, cid)
+	slug, anio := "", time.Now().Year()
+	if comp, err := s.comps.ByID(ctx, cid); err == nil {
+		slug, anio = comp.Slug, comp.Year()
+	}
+	auto, revision := partirCambios(c, func(k string) bool {
+		if k == "fechaNacimiento" {
+			// A birth date that makes the athlete a minor (or an adult), or moves their division, changes what may be
+			// published and where they compete: reviewed. Only one that keeps both is applied at once.
+			r2 := r
+			r2.FechaNacimiento = fecha(d.FechaNacimiento)
+			return r2.FechaNacimiento == nil || r2.menor(dia) != r.menor(dia) || DivisionPorEdad(*r2.FechaNacimiento, anio) != r.Division
+		}
+		return camposRevisados[k]
+	})
 	// One account per email: the new email cannot be the one of another athlete of the competition (the athlete
 	// area logs in by email, two athletes with the same one is an ambiguity nobody can resolve).
-	if nuevo := normEmail(d.Email); nuevo != "" && (r.Email == nil || normEmail(*r.Email) != nuevo) {
+	if nuevo := normEmail(d.Email); cambiaClave(revision, "email") && nuevo != "" {
 		var n int
 		if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FROM atletas WHERE competition_id = $1 AND email = $2 AND estado <> 'baja' AND id <> $3`,
-			r.CompetitionID, nuevo, r.ID).Scan(&n); err != nil {
+			cid, nuevo, r.ID).Scan(&n); err != nil {
 			return nil, err
 		}
 		if n > 0 {
 			return nil, problem.Conflict("EMAIL_EN_USO", "Ese email ya es el de otro atleta: elige otro o escríbenos.")
 		}
 	}
-	snap, _ := json.Marshal(c)
-	cid := r.CompetitionID
-	id := newID()
-	// The boxes were signed in the alta: its proof travels with the request (with its own timestamp) so the notices
-	// can use the WhatsApp consent without asking for it again.
-	var cons string
-	var consAt *time.Time
-	if err := s.a.DB.QueryRow(ctx, `SELECT consentimientos::text, consentimiento_at FROM solicitudes_atleta
-		WHERE competition_id = $1 AND match_atleta_id = $2 AND tipo = 'alta' AND estado = 'aprobada'
-		ORDER BY revisado_at DESC NULLS LAST LIMIT 1`, cid, r.ID).Scan(&cons, &consAt); err != nil && err != pgx.ErrNoRows {
-		return nil, err
-	}
-	if strings.TrimSpace(cons) == "" {
-		cons = "{}"
-	}
 	equipo := s.equipoAdmins(ctx, cid)
-	slug := ""
-	if comp, err := s.comps.ByID(ctx, cid); err == nil {
-		slug = comp.Slug
+	out := &CambioPerfilEnviado{Cambios: []CambioPerfilCampo{}, Aplicados: auto.Claves}
+	ev := ""
+	if len(auto.Claves) > 0 {
+		ev = "athletes.perfil_actualizado"
 	}
-	err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-		// One open request: the pending one is replaced (never two).
-		if _, err := tx.Exec(ctx, `DELETE FROM solicitudes_atleta WHERE competition_id = $1 AND tipo = 'cambio_perfil'
-			AND match_atleta_id = $2 AND estado IN ('pendiente','revision')`, cid, r.ID); err != nil {
-			return err
-		}
-		// prueba stays empty on purpose: the change request does not hold a place of the event (the destination
-		// competition travels in the snapshot and the place moves when it is approved).
-		_, err := tx.Exec(ctx, `INSERT INTO solicitudes_atleta (id, competition_id, tipo, cambios, match_atleta_id, match_tipo, nombre, apellidos,
-			email, telefono, sexo, fecha_nacimiento, club, ciudad, frase, bio, instagram, entrenador, historial, marca_sq, marca_bp, marca_dl,
-			focal_x, focal_y, es_menor, estado, consentimientos, consentimiento_at, ip, user_agent, prueba)
-			VALUES ($1,$2,'cambio_perfil',$3,$4,'manual',$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'',$17,$18,$19,$20,$21,false,'pendiente',$22,$23,$24,$25,'')`,
-			id, cid, string(snap), r.ID, d.Nombre, d.Apellidos, d.Email, d.Telefono, d.Sexo, fecha(d.FechaNacimiento), d.Club, d.Ciudad,
-			d.Frase, d.Bio, d.Instagram, d.Entrenador, d.MarcaSQ, d.MarcaBP, d.MarcaDL, r.FocalX, r.FocalY, cons, consAt,
-			anonIP(httpx.ClientIPFrom(ctx)), userAgentDe(ctx))
+	var borrar string
+	err := s.change(ctx, cid, ev, map[string]any{"id": r.ID, "origen": "area", "campos": auto.Claves}, func(tx pgx.Tx) error {
+		prev, err := s.lock(ctx, tx, cid, r.ID, "")
 		if err != nil {
-			if db.IsUniqueViolation(err, "") {
-				return problem.Conflict("SOLICITUD_EN_CURSO", "Ya tienes un cambio en revisión. Espera a que lo revisemos.")
+			return err
+		}
+		if len(auto.Claves) > 0 {
+			if _, err := s.aplicaCambios(ctx, tx, cid, prev, auto, anio); err != nil {
+				return err
 			}
-			return err
-		}
-		if err := events.Enqueue(ctx, tx, events.New(ctx, "athletes.solicitud_creada",
-			map[string]any{"id": id, "nombre": d.Nombre, "esMenor": false, "match": "manual", "tipo": "cambio_perfil"},
-			events.Competition(cid.String()), events.ForPermission("atletas.editar"))); err != nil {
-			return err
-		}
-		// The team: the same channels and permissions as the rest of the requests.
-		v := s.varsCambioNueva(d, c, slug)
-		for _, m := range equipo {
-			if err := email(ctx, tx, cid, m.Email, "atleta-cambio-perfil-nueva", v); err != nil {
+			if err := hist(ctx, tx, r.ID, "Perfil actualizado por el atleta", detalleCambios(auto)); err != nil {
 				return err
 			}
 		}
-		return whatsapp(ctx, tx, cid, "", true, "atleta-cambio-perfil-nueva", v, "")
+		// The form owns every reviewed field but the photo (that one comes from its own upload), and the fields it has
+		// just applied (a pending value of an older request is superseded); the rest of an older request is kept.
+		out.Pendiente, borrar, err = s.guardaCambioPerfil(ctx, tx, prev, &propuesto, revision, func(k string) bool {
+			return k != "foto" && (camposRevisados[k] || k == "fechaNacimiento" || cambiaClave(auto, k))
+		}, equipo, slug)
+		return err
 	})
 	if err != nil {
 		return nil, err
 	}
-	s.a.Log.Info("cambio de perfil pedido", "id", id.String(), "atleta", r.ID.String(), "campos", len(c.Claves))
-	return &CambioPerfilPendiente{ID: id, EnviadaAt: time.Now(), Cambios: camposCambio(c)}, nil
+	if borrar != "" {
+		s.borraFotoPublicada(ctx, cid, borrar)
+	}
+	if p := out.Pendiente; p != nil {
+		out.ID, out.EnviadaAt, out.Cambios = &p.ID, &p.EnviadaAt, p.Cambios
+	}
+	s.a.Log.Info("perfil editado desde el área", "atleta", r.ID.String(), "aplicados", len(auto.Claves), "revision", len(revision.Claves))
+	return out, nil
+}
+
+// abiertaCambioPerfil is the open «cambio_perfil» request of the athlete, locked (nil when there is none).
+func abiertaCambioPerfil(ctx context.Context, tx pgx.Tx, cid, atleta uuid.UUID) (*solicitud, error) {
+	rows, err := tx.Query(ctx, selSolicitud+` WHERE competition_id = $1 AND tipo = 'cambio_perfil' AND match_atleta_id = $2
+		AND estado IN ('pendiente','revision') ORDER BY created_at DESC LIMIT 1 FOR UPDATE`, cid, atleta)
+	if err != nil {
+		return nil, err
+	}
+	list, err := pgx.CollectRows(rows, pgx.RowToStructByName[solicitud])
+	if err != nil || len(list) == 0 {
+		return nil, err
+	}
+	return &list[0], nil
+}
+
+// datoDeSolicitud is the data an open request was saved with.
+func datoDeSolicitud(sol solicitud) DatoPerfil {
+	d := DatoPerfil{Nombre: sol.Nombre, Apellidos: sol.Apellidos, Email: sol.Email, Telefono: sol.Telefono, Sexo: sol.Sexo, Club: sol.Club,
+		Ciudad: sol.Ciudad, Entrenador: sol.Entrenador, Frase: sol.Frase, Bio: sol.Bio, Instagram: sol.Instagram,
+		MarcaSQ: sol.MarcaSQ, MarcaBP: sol.MarcaBP, MarcaDL: sol.MarcaDL}
+	if sol.FechaNacimiento != nil {
+		d.FechaNacimiento = sol.FechaNacimiento.Format(time.DateOnly)
+	}
+	return d
+}
+
+// guardaCambioPerfil merges the reviewed changes into the open request of the athlete (the fields the caller owns are
+// replaced, the rest kept, in place) and notifies the team only when the request is created. datos are the values
+// stored in the request (nil keeps those of the open request). It returns the pending request (nil when nothing is
+// left to review) and the URL of a pending photo that is no longer wanted (to remove from the CDN after the commit).
+func (s *Svc) guardaCambioPerfil(ctx context.Context, tx pgx.Tx, r row, datos *DatoPerfil, nuevos cambiosPerfil, propia func(string) bool,
+	equipo []Miembro, slug string) (*CambioPerfilPendiente, string, error) {
+	cid := r.CompetitionID
+	abierta, err := abiertaCambioPerfil(ctx, tx, cid, r.ID)
+	if err != nil {
+		return nil, "", err
+	}
+	var antes *cambiosPerfil
+	if abierta != nil {
+		c := leeCambios(*abierta)
+		antes = &c
+	}
+	// What the submission leaves in each field: the proposed data, or the current one (photo upload).
+	actual := datoDeRow(r)
+	if datos != nil {
+		actual = *datos
+	}
+	c := fusionaCambios(antes, nuevos, actual, propia)
+	borrar := ""
+	if antes != nil {
+		if u := fotoCambio(*antes); u != "" && u != fotoCambio(c) && u != r.FotoURL {
+			borrar = u
+		}
+		if mismosCambios(*antes, c) {
+			return &CambioPerfilPendiente{ID: abierta.ID, EnviadaAt: abierta.CreatedAt, Cambios: camposCambio(c)}, "", nil
+		}
+	}
+	if len(c.Claves) == 0 {
+		if abierta != nil {
+			if _, err := tx.Exec(ctx, `DELETE FROM solicitudes_atleta WHERE competition_id = $1 AND id = $2`, cid, abierta.ID); err != nil {
+				return nil, "", err
+			}
+			if err := events.Enqueue(ctx, tx, events.New(ctx, "athletes.solicitud_actualizada",
+				map[string]any{"id": abierta.ID, "accion": "cancelada", "estado": "cancelada", "tipo": "cambio_perfil"},
+				events.Competition(cid.String()), events.ForPermission("atletas.editar"))); err != nil {
+				return nil, "", err
+			}
+		}
+		return nil, borrar, nil
+	}
+	v := datoDeRow(r)
+	switch {
+	case datos != nil:
+		v = *datos
+	case abierta != nil:
+		v = datoDeSolicitud(*abierta)
+	}
+	snap, _ := json.Marshal(c)
+	// One open request: a new submission updates the pending one in place (same id, so the links the team already
+	// got keep working) and the team is not notified again.
+	if abierta != nil {
+		if _, err := tx.Exec(ctx, `UPDATE solicitudes_atleta SET cambios = $3, nombre = $4, apellidos = $5, email = $6, telefono = $7, sexo = $8,
+			fecha_nacimiento = $9, club = $10, ciudad = $11, frase = $12, bio = $13, instagram = $14, entrenador = $15, marca_sq = $16,
+			marca_bp = $17, marca_dl = $18, version = version + 1, updated_at = now() WHERE competition_id = $1 AND id = $2`,
+			cid, abierta.ID, string(snap), v.Nombre, v.Apellidos, v.Email, v.Telefono, v.Sexo, fecha(v.FechaNacimiento), v.Club, v.Ciudad,
+			v.Frase, v.Bio, v.Instagram, v.Entrenador, v.MarcaSQ, v.MarcaBP, v.MarcaDL); err != nil {
+			return nil, "", err
+		}
+		if err := events.Enqueue(ctx, tx, events.New(ctx, "athletes.solicitud_actualizada",
+			map[string]any{"id": abierta.ID, "accion": "ampliada", "estado": abierta.Estado, "tipo": "cambio_perfil"},
+			events.Competition(cid.String()), events.ForPermission("atletas.editar"))); err != nil {
+			return nil, "", err
+		}
+		return &CambioPerfilPendiente{ID: abierta.ID, EnviadaAt: abierta.CreatedAt, Cambios: camposCambio(c)}, borrar, nil
+	}
+	// The boxes were signed in the alta: its proof travels with the request (with its own timestamp) so the notices
+	// can use the WhatsApp consent without asking for it again.
+	var cons string
+	var consAt *time.Time
+	if err := tx.QueryRow(ctx, `SELECT consentimientos::text, consentimiento_at FROM solicitudes_atleta
+		WHERE competition_id = $1 AND match_atleta_id = $2 AND tipo = 'alta' AND estado = 'aprobada'
+		ORDER BY revisado_at DESC NULLS LAST LIMIT 1`, cid, r.ID).Scan(&cons, &consAt); err != nil && err != pgx.ErrNoRows {
+		return nil, "", err
+	}
+	if strings.TrimSpace(cons) == "" {
+		cons = "{}"
+	}
+	id := newID()
+	// prueba stays empty on purpose: the change request does not hold a place of the event (the destination
+	// competition travels in the snapshot and the place moves when it is approved).
+	_, err = tx.Exec(ctx, `INSERT INTO solicitudes_atleta (id, competition_id, tipo, cambios, match_atleta_id, match_tipo, nombre, apellidos,
+		email, telefono, sexo, fecha_nacimiento, club, ciudad, frase, bio, instagram, entrenador, historial, marca_sq, marca_bp, marca_dl,
+		focal_x, focal_y, es_menor, estado, consentimientos, consentimiento_at, ip, user_agent, prueba)
+		VALUES ($1,$2,'cambio_perfil',$3,$4,'manual',$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'',$17,$18,$19,$20,$21,false,'pendiente',$22,$23,$24,$25,'')`,
+		id, cid, string(snap), r.ID, v.Nombre, v.Apellidos, v.Email, v.Telefono, v.Sexo, fecha(v.FechaNacimiento), v.Club, v.Ciudad,
+		v.Frase, v.Bio, v.Instagram, v.Entrenador, v.MarcaSQ, v.MarcaBP, v.MarcaDL, r.FocalX, r.FocalY, cons, consAt,
+		anonIP(httpx.ClientIPFrom(ctx)), userAgentDe(ctx))
+	if err != nil {
+		if db.IsUniqueViolation(err, "") {
+			return nil, "", problem.Conflict("SOLICITUD_EN_CURSO", "Ya tienes un cambio en revisión. Espera a que lo revisemos.")
+		}
+		return nil, "", err
+	}
+	if err := events.Enqueue(ctx, tx, events.New(ctx, "athletes.solicitud_creada",
+		map[string]any{"id": id, "nombre": v.Nombre, "esMenor": false, "match": "manual", "tipo": "cambio_perfil"},
+		events.Competition(cid.String()), events.ForPermission("atletas.editar"))); err != nil {
+		return nil, "", err
+	}
+	// The team: the same channels and permissions as the rest of the requests, with only the reviewed fields.
+	vars := s.varsCambioNueva(v, c, slug, id)
+	for _, m := range equipo {
+		if err := email(ctx, tx, cid, m.Email, "atleta-cambio-perfil-nueva", vars); err != nil {
+			return nil, "", err
+		}
+	}
+	if err := whatsapp(ctx, tx, cid, "", true, "atleta-cambio-perfil-nueva", vars, ""); err != nil {
+		return nil, "", err
+	}
+	return &CambioPerfilPendiente{ID: id, EnviadaAt: time.Now(), Cambios: camposCambio(c)}, borrar, nil
+}
+
+// fotoPendiente is the photo the athlete uploaded that waits for the review (empty when there is none): the area
+// works with it while the public pages keep the approved one.
+func (s *Svc) fotoPendiente(ctx context.Context, cid, atleta uuid.UUID) string {
+	var u string
+	_ = s.a.DB.QueryRow(ctx, `SELECT COALESCE(cambios->'despues'->>'foto', '') FROM solicitudes_atleta WHERE competition_id = $1
+		AND tipo = 'cambio_perfil' AND match_atleta_id = $2 AND estado IN ('pendiente','revision') ORDER BY created_at DESC LIMIT 1`, cid, atleta).Scan(&u)
+	return u
 }
 
 // cancelaCambioPerfil removes the athlete's own pending request: nothing was applied, so nothing has to be undone.
 func (s *Svc) cancelaCambioPerfil(ctx context.Context, r row, id uuid.UUID) error {
-	return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+	var foto string
+	err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 		var estado string
-		err := tx.QueryRow(ctx, `SELECT estado FROM solicitudes_atleta WHERE competition_id = $1 AND id = $2 AND tipo = 'cambio_perfil'
-			AND match_atleta_id = $3 FOR UPDATE`, r.CompetitionID, id, r.ID).Scan(&estado)
+		err := tx.QueryRow(ctx, `SELECT estado, COALESCE(cambios->'despues'->>'foto', '') FROM solicitudes_atleta WHERE competition_id = $1 AND id = $2 AND tipo = 'cambio_perfil'
+			AND match_atleta_id = $3 FOR UPDATE`, r.CompetitionID, id, r.ID).Scan(&estado, &foto)
 		if err == pgx.ErrNoRows {
 			return problem.NotFound("Ese cambio no existe.")
 		}
@@ -533,6 +787,11 @@ func (s *Svc) cancelaCambioPerfil(ctx context.Context, r row, id uuid.UUID) erro
 			map[string]any{"id": id, "accion": "cancelada", "estado": "cancelada", "tipo": "cambio_perfil"},
 			events.Competition(r.CompetitionID.String()), events.ForPermission("atletas.editar")))
 	})
+	// A photo that was only pending review is not kept.
+	if err == nil && foto != "" && foto != r.FotoURL {
+		s.borraFotoPublicada(ctx, r.CompetitionID, foto)
+	}
+	return err
 }
 
 // contactoActual returns the email and phone the athlete has today. The notices of a change request never go to the
@@ -559,8 +818,22 @@ func (s *Svc) apruebaCambioPerfil(ctx context.Context, cid, id uuid.UUID, ifm st
 	if c, err := s.comps.ByID(ctx, cid); err == nil {
 		anio = c.Year()
 	}
-	var destino uuid.UUID
-	err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+	// The athlete is locked before the request, as «Editar mi perfil» and the photo upload do (the same lock order
+	// everywhere: no deadlock when the athlete saves while the team approves).
+	pre, err := getSolicitud(ctx, s.a.DB, cid, id)
+	if err != nil {
+		return nil, err
+	}
+	if pre.Tipo != "cambio_perfil" || pre.MatchAtletaID == nil {
+		return nil, problem.Conflict("TIPO_INVALIDO", "Esta solicitud no es un cambio de perfil enlazado a un atleta.")
+	}
+	destino := *pre.MatchAtletaID
+	var fotoAnterior string
+	err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+		prev, err := s.lock(ctx, tx, cid, destino, "")
+		if err != nil {
+			return err
+		}
 		sol, err := s.lockSolicitud(ctx, tx, cid, id, ifm)
 		if err != nil {
 			return err
@@ -568,98 +841,19 @@ func (s *Svc) apruebaCambioPerfil(ctx context.Context, cid, id uuid.UUID, ifm st
 		if err := yaRevisada(sol); err != nil {
 			return err
 		}
-		if sol.Tipo != "cambio_perfil" || sol.MatchAtletaID == nil {
+		if sol.Tipo != "cambio_perfil" || sol.MatchAtletaID == nil || *sol.MatchAtletaID != destino {
 			return problem.Conflict("TIPO_INVALIDO", "Esta solicitud no es un cambio de perfil enlazado a un atleta.")
-		}
-		destino = *sol.MatchAtletaID
-		if _, err := tx.Exec(ctx, `SELECT 1 FROM atletas WHERE competition_id = $1 AND id = $2 FOR UPDATE`, cid, destino); err != nil {
-			return err
-		}
-		prev, err := getRow(ctx, tx, cid, destino)
-		if err != nil {
-			return err
 		}
 		if prev.Estado == "baja" {
 			return problem.Conflict("ATLETA_DE_BAJA", "Ese atleta está de baja: el cambio ya no se puede aplicar. Recházalo.")
 		}
 		c := leeCambios(sol)
-		next := datoDeRow(prev)
-		for _, k := range c.Claves {
-			if err := next.pon(k, c.Despues[k]); err != nil {
-				return err
-			}
-		}
-		// One account per email: the new email must not be another athlete's and, if it already has a directo
-		// account of another person, the reviewer has to fix that first.
-		viejo := ""
-		if prev.Email != nil {
-			viejo = normEmail(*prev.Email)
-		}
-		nuevo := normEmail(next.Email)
-		var nota string
-		if nuevo != "" && nuevo != viejo {
-			var n int
-			if err := tx.QueryRow(ctx, `SELECT count(*) FROM atletas WHERE competition_id = $1 AND email = $2 AND estado <> 'baja' AND id <> $3`,
-				cid, nuevo, destino).Scan(&n); err != nil {
-				return err
-			}
-			if n > 0 {
-				return problem.Conflict("EMAIL_EN_USO", "Ese email ya es el de otro atleta de la competición.")
-			}
-			cuenta, err := cuentaFanDe(ctx, s.fansSvc, cid, nuevo)
-			if err != nil {
-				s.a.Log.Warn("fans por-email no disponible al aprobar un cambio de perfil", "solicitud", id.String(), "err", err)
-			} else if cuenta != nil && cuenta.AtletaID != uuid.Nil && cuenta.AtletaID != destino {
-				return problem.Conflict("EMAIL_EN_USO", "Ese email ya tiene la cuenta del directo de otra persona.")
-			}
-			if nota, err = s.sigueLaCuentaFan(ctx, cid, destino, prev.Email, nuevo); err != nil {
-				return err
-			}
-			if cuenta != nil && cuenta.Tipo == "publico" && cuenta.AtletaID != destino {
-				if err := unirCuentaFan(ctx, tx, cid, destino, nuevo, next.Telefono, cuenta); err != nil {
-					return err
-				}
-			}
-		}
-		fechaNac := fecha(next.FechaNacimiento)
-		if fechaNac == nil {
-			fechaNac = prev.FechaNacimiento // the birth date is required by the form: never wipe it
-		}
-		// The division only follows the birth date, and only when the athlete changed it: a bio change must not
-		// overwrite a division the team set by hand.
-		division := prev.Division
-		if fechaNac != nil && cambiaClave(c, "fechaNacimiento") {
-			division = DivisionPorEdad(*fechaNac, anio)
-		}
-		// The competition: her place moves exactly as when the team changes it in the fiche (the same cupo rules,
-		// 409 CUPO_COMPLETO when the destination is full), and the team's own choice is not kept over the
-		// athlete's. Nothing else derives from prueba: the day and the session come from the published schedule and
-		// are moved by the schedule service, not by an edit (the admin path does the same).
-		if cambiaClave(c, "prueba") {
-			if err := s.muevePlaza(ctx, tx, cid, destino, next.Prueba, false); err != nil {
-				var pe *problem.Error
-				if errors.As(err, &pe) && pe.Status == http.StatusConflict {
-					return problem.Conflict("CUPO_COMPLETO", "La competición que pide no tiene plazas libres. Rechaza el cambio o cámbiasela desde su ficha.")
-				}
-				return err
-			}
-		}
-		if _, err := tx.Exec(ctx, `UPDATE atletas SET nombre = $2, apellidos = $3, email = NULLIF($4,''), telefono = $5, sexo = $6,
-			fecha_nacimiento = $7, division = $8, club = $9, ciudad = $10, prueba = $12,
-			prueba_org_at = CASE WHEN prueba <> $12 THEN NULL ELSE prueba_org_at END,
-			version = version + 1, updated_at = now()
-			WHERE competition_id = $1 AND id = $11`,
-			cid, next.Nombre, next.Apellidos, nuevo, next.Telefono, next.Sexo, fechaNac, division, next.Club, next.Ciudad, destino, next.Prueba); err != nil {
-			if db.IsUniqueViolation(err, "") {
-				return problem.Conflict("DATOS_DUPLICADOS", "Esos datos ya son los de otro atleta.")
-			}
+		ap, err := s.aplicaCambios(ctx, tx, cid, prev, c, anio)
+		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE perfiles SET frase = $2, bio = $3, instagram = $4, entrenador = $5,
-			marca_sq = $6, marca_bp = $7, marca_dl = $8, updated_at = now() WHERE atleta_id = $1`,
-			destino, next.Frase, next.Bio, next.Instagram, next.Entrenador, next.MarcaSQ, next.MarcaBP, next.MarcaDL); err != nil {
-			return err
-		}
+		next, viejo, nota := ap.next, ap.viejo, ap.nota
+		fotoAnterior = ap.fotoAnterior
 		// The account of the directo follows the athlete when the email changed (it is the same person).
 		if _, err := tx.Exec(ctx, `UPDATE solicitudes_atleta SET estado = 'aprobada', revisado_at = now(), revisado_por = $3,
 			version = version + 1, updated_at = now() WHERE competition_id = $1 AND id = $2`, cid, id, por); err != nil {
@@ -700,17 +894,120 @@ func (s *Svc) apruebaCambioPerfil(ctx context.Context, cid, id uuid.UUID, ifm st
 	if err != nil {
 		return nil, err
 	}
-	// The public list and the athlete pages changed.
+	// The public list and the athlete pages changed (the replaced photo of this flow is removed from the CDN).
 	s.bump(ctx, cid)
+	if fotoAnterior != "" {
+		s.borraFotoPublicada(ctx, cid, fotoAnterior)
+	}
 	s.a.Log.Info("cambio de perfil aprobado", "id", id.String(), "atleta", destino.String(), "revisor", por)
 	return out, nil
 }
 
+// aplicado is what aplicaCambios wrote.
+type aplicado struct {
+	next         DatoPerfil
+	viejo        string // the email before the change (normalised)
+	nota         string // the note of the directo account that followed a new email
+	fotoAnterior string // the photo replaced by an approved «foto» (removed from the CDN after the commit)
+}
+
+// aplicaCambios writes a before/after snapshot (any subset of the fields) to the athlete and their profile: the write
+// path of an approved change request and of the fields «Editar mi perfil» applies at once. prev is the athlete locked
+// by the caller. Only the changed fields are written; an email change keeps the one account per email rule (the
+// directo account follows the athlete, another person's email is a conflict).
+func (s *Svc) aplicaCambios(ctx context.Context, tx pgx.Tx, cid uuid.UUID, prev row, c cambiosPerfil, anio int) (aplicado, error) {
+	destino := prev.ID
+	a := aplicado{next: datoDeRow(prev)}
+	for _, k := range c.Claves {
+		if err := a.next.pon(k, c.Despues[k]); err != nil {
+			return a, err
+		}
+	}
+	next := &a.next
+	// One account per email: the new email must not be another athlete's and, if it already has a directo
+	// account of another person, the reviewer has to fix that first.
+	if prev.Email != nil {
+		a.viejo = normEmail(*prev.Email)
+	}
+	nuevo := normEmail(next.Email)
+	if nuevo != "" && nuevo != a.viejo {
+		var n int
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM atletas WHERE competition_id = $1 AND email = $2 AND estado <> 'baja' AND id <> $3`,
+			cid, nuevo, destino).Scan(&n); err != nil {
+			return a, err
+		}
+		if n > 0 {
+			return a, problem.Conflict("EMAIL_EN_USO", "Ese email ya es el de otro atleta de la competición.")
+		}
+		cuenta, err := cuentaFanDe(ctx, s.fansSvc, cid, nuevo)
+		if err != nil {
+			s.a.Log.Warn("fans por-email no disponible al cambiar el email de un atleta", "atleta", destino.String(), "err", err)
+		} else if cuenta != nil && cuenta.AtletaID != uuid.Nil && cuenta.AtletaID != destino {
+			return a, problem.Conflict("EMAIL_EN_USO", "Ese email ya tiene la cuenta del directo de otra persona.")
+		}
+		if a.nota, err = s.sigueLaCuentaFan(ctx, cid, destino, prev.Email, nuevo); err != nil {
+			return a, err
+		}
+		if cuenta != nil && cuenta.Tipo == "publico" && cuenta.AtletaID != destino {
+			if err := unirCuentaFan(ctx, tx, cid, destino, nuevo, next.Telefono, cuenta); err != nil {
+				return a, err
+			}
+		}
+	}
+	fechaNac := fecha(next.FechaNacimiento)
+	if fechaNac == nil {
+		fechaNac = prev.FechaNacimiento // the birth date is required by the form: never wipe it
+	}
+	// The division only follows the birth date, and only when the athlete changed it: a bio change must not
+	// overwrite a division the team set by hand.
+	division := prev.Division
+	if fechaNac != nil && cambiaClave(c, "fechaNacimiento") {
+		division = DivisionPorEdad(*fechaNac, anio)
+	}
+	// The competition: her place moves exactly as when the team changes it in the fiche (the same cupo rules,
+	// 409 CUPO_COMPLETO when the destination is full), and the team's own choice is not kept over the
+	// athlete's. Nothing else derives from prueba: the day and the session come from the published schedule and
+	// are moved by the schedule service, not by an edit (the admin path does the same).
+	if cambiaClave(c, "prueba") {
+		if err := s.muevePlaza(ctx, tx, cid, destino, next.Prueba, false); err != nil {
+			var pe *problem.Error
+			if errors.As(err, &pe) && pe.Status == http.StatusConflict {
+				return a, problem.Conflict("CUPO_COMPLETO", "La competición que pide no tiene plazas libres. Rechaza el cambio o cámbiasela desde su ficha.")
+			}
+			return a, err
+		}
+	}
+	if _, err := tx.Exec(ctx, `UPDATE atletas SET nombre = $2, apellidos = $3, email = NULLIF($4,''), telefono = $5, sexo = $6,
+		fecha_nacimiento = $7, division = $8, club = $9, ciudad = $10, prueba = $12,
+		prueba_org_at = CASE WHEN prueba <> $12 THEN NULL ELSE prueba_org_at END,
+		version = version + 1, updated_at = now()
+		WHERE competition_id = $1 AND id = $11`,
+		cid, next.Nombre, next.Apellidos, nuevo, next.Telefono, next.Sexo, fechaNac, division, next.Club, next.Ciudad, destino, next.Prueba); err != nil {
+		if db.IsUniqueViolation(err, "") {
+			return a, problem.Conflict("DATOS_DUPLICADOS", "Esos datos ya son los de otro atleta.")
+		}
+		return a, err
+	}
+	if _, err := tx.Exec(ctx, `UPDATE perfiles SET frase = $2, bio = $3, instagram = $4, entrenador = $5,
+		marca_sq = $6, marca_bp = $7, marca_dl = $8, updated_at = now() WHERE atleta_id = $1`,
+		destino, next.Frase, next.Bio, next.Instagram, next.Entrenador, next.MarcaSQ, next.MarcaBP, next.MarcaDL); err != nil {
+		return a, err
+	}
+	// The photo uploaded from the area becomes the public one (the same write as the area upload did before).
+	if u := fotoCambio(c); u != "" && u != prev.FotoURL {
+		if _, err := tx.Exec(ctx, `UPDATE perfiles SET foto_url = $2, focal_x = 50, focal_y = 35, updated_at = now() WHERE atleta_id = $1`, destino, u); err != nil {
+			return a, err
+		}
+		a.fotoAnterior = prev.FotoURL
+	}
+	return a, nil
+}
+
 // varsCambioNueva are the variables of the email/WhatsApp to the team.
-func (s *Svc) varsCambioNueva(d DatosAlta, c cambiosPerfil, slug string) map[string]string {
+func (s *Svc) varsCambioNueva(d DatoPerfil, c cambiosPerfil, slug string, id uuid.UUID) map[string]string {
 	textoEmail, textoWA := textoCambios(c)
 	return map[string]string{
 		"nombre": d.Nombre, "apellidos": d.Apellidos, "email": d.Email, "telefono": telTexto(d.Telefono), "club": d.Club,
-		"cambios": textoEmail, "cambiosWA": textoWA, "urlRevisar": s.boURL + "/" + slug + "/atletas/solicitudes",
+		"cambios": textoEmail, "cambiosWA": textoWA, "urlRevisar": s.urlRevisar(slug, id),
 	}
 }

@@ -160,7 +160,7 @@ export function totalMarcas(d: Pick<CamposPerfil, 'marcaSQ' | 'marcaBP' | 'marca
 export function validarPerfil(
   d: CamposPerfil,
   v: TextosPerfil,
-  opciones: { fechaTexto?: string; esMenor?: boolean; whatsapp?: boolean } = {},
+  opciones: { fechaTexto?: string; esMenor?: boolean; whatsapp?: boolean; fechaOpcional?: boolean } = {},
 ): Record<string, string> {
   const e: Record<string, string> = {};
   if (!d.nombre.trim()) e['nombre'] = v.oblig;
@@ -176,7 +176,8 @@ export function validarPerfil(
   else if (d.telefono.trim() && !telefonoValido(d.telefono)) e['telefono'] = v.telCorto;
   if (!d.sexo) e['sexo'] = v.opcion;
   if (!d.fechaNacimiento) {
-    e['fechaNacimiento'] = /^\d{2}\/\d{2}\/\d{1,3}$/.test(opciones.fechaTexto ?? '') ? v.anio : v.fecha;
+    const aMedias = /^\d{2}\/\d{2}\/\d{1,3}$/.test(opciones.fechaTexto ?? '');
+    if (!opciones.fechaOpcional || (opciones.fechaTexto ?? '').trim()) e['fechaNacimiento'] = aMedias ? v.anio : v.fecha;
   } else {
     const edad = edadDe(d.fechaNacimiento);
     if (edad === null) e['fechaNacimiento'] = v.fecha;

@@ -17,7 +17,7 @@ const T = {
     jugar: 'Jugar a la Porra', comoSeJuega: 'Cómo se juega', porraCuenta: 'Para jugar necesitas cuenta de fan o de atleta · consultar es libre',
     bote: 'Bote de la jornada', monedas: 'monedas', participantes: (n: string, cerrada: boolean) => n + ' participantes' + (cerrada ? ' · apuestas cerradas' : ''),
     cierranEn: (h: string, m: string) => 'Las apuestas cierran en ' + h + ' horas y ' + m + ' minutos', cierre: 'Cierre de apuestas', jornada: 'Jornada', pronto: 'Próximamente',
-    enVivo: 'en vivo', sinApuestas: 'Aún no hay apuestas en esta jornada. ¡Sé el primero en la clasificación!',
+    enVivo: 'en vivo', topAtletas: 'Atletas con más monedas apostadas', sinApuestas: 'Aún no hay apuestas en esta jornada. ¡Apuesta por tu favorito!',
     cerradas: 'Apuestas cerradas · mira la clasificación', abren: 'Las apuestas abren el día de la competición',
     estados: { en_juego: 'En juego ahora', abierta: 'Abierta · apuesta antes de cada flight', cerrada: 'Cerrada · mira la clasificación' } as Record<string, string>,
     fantasySr: 'J2 · Juegos · Fantasy',
@@ -31,7 +31,7 @@ const T = {
     jugar: 'Play the Pool', comoSeJuega: 'How to play', porraCuenta: 'To play you need a fan or athlete account · browsing is free',
     bote: "Day's pot", monedas: 'coins', participantes: (n: string, cerrada: boolean) => n + ' players' + (cerrada ? ' · bets closed' : ''),
     cierranEn: (h: string, m: string) => 'Bets close in ' + h + ' hours and ' + m + ' minutes', cierre: 'Bets close', jornada: 'Day', pronto: 'Coming soon',
-    enVivo: 'live', sinApuestas: 'No bets on this day yet. Be the first in the standings!',
+    enVivo: 'live', topAtletas: 'Athletes with the most coins bet on them', sinApuestas: 'No bets on this day yet. Back your favourite!',
     cerradas: 'Bets closed · see the standings', abren: 'Bets open on competition day',
     estados: { en_juego: 'In play now', abierta: 'Open · bet before each flight', cerrada: 'Closed · see the standings' },
     fantasySr: 'J2 · Games · Fantasy',
@@ -49,7 +49,8 @@ export interface ResumenPorra {
   /** Close of the bets of the jornada (backoffice «hora de cierre»); null without it. */
   cierreAt: string | null;
   destacado: { mercadoId: string; titulo: string; sexo: 'F' | 'M'; categoria?: string; bote: number; opciones: { atletaId: string; nombre: string; cuota?: number }[] } | null;
-  top3: { puesto: number; alias: string; saldo: number }[];
+  /** The 3 athletes with the most coins bet on them in the jornada. */
+  top3: { puesto: number; atletaId: string; nombre: string; apostado: number }[];
 }
 
 /** GET /api/competiciones/{slug}/juegos/fantasy/resumen. */
@@ -135,12 +136,13 @@ const MEDALLA = [
           </div>
         }
         <div [class]="card + ' flex min-w-0 flex-col items-center gap-2 p-5 text-center'">
-          <span class="flex items-center gap-2 pb-1 font-display text-[24px] leading-[1.25] tracking-[0.04em]"><span class="size-2 rounded-full bg-accent shadow-[0_0_8px_#c42b3e]" aria-hidden="true"></span>Top 3 <span class="bg-accent-grain bg-clip-text text-transparent">{{ t().enVivo }}</span></span>
-          @for (f of r?.top3 ?? []; track f.puesto; let i = $index) {
+          <span class="flex items-center gap-2 font-display text-[24px] leading-[1.25] tracking-[0.04em]"><span class="size-2 rounded-full bg-accent shadow-[0_0_8px_#c42b3e]" aria-hidden="true"></span>Top 3 <span class="bg-accent-grain bg-clip-text text-transparent">{{ t().enVivo }}</span></span>
+          <span class="pb-1 text-[13px] text-text-tertiary">{{ t().topAtletas }}</span>
+          @for (f of r?.top3 ?? []; track f.atletaId; let i = $index) {
             <span class="flex w-full max-w-[240px] min-w-0 items-center gap-3 rounded-xl px-3 py-2.5" [class]="medalla[i].fila">
               <span class="flex size-7 shrink-0 items-center justify-center rounded-full font-mono text-[13px] font-medium text-bg-base" [class]="medalla[i].disco">{{ f.puesto }}</span>
-              <span class="min-w-0 flex-1 truncate text-left text-[15px] font-semibold" [title]="'@' + f.alias">&#64;{{ f.alias }}</span>
-              <span class="shrink-0 font-mono text-[15px] font-medium" [class]="medalla[i].saldo">{{ monedas(f.saldo) }}</span>
+              <span class="min-w-0 flex-1 truncate text-left text-[15px] font-semibold" [title]="f.nombre">{{ f.nombre }}</span>
+              <span class="shrink-0 font-mono text-[15px] font-medium" [class]="medalla[i].saldo">{{ monedas(f.apostado) }}</span>
             </span>
           } @empty {
             <span class="py-3 text-body-s text-text-tertiary">{{ t().sinApuestas }}</span>

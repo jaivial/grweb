@@ -55,7 +55,21 @@ export class App {
         void Promise.race([app.whenStable(), new Promise((r) => setTimeout(r, 10_000))]).then(() => fin(n));
       } else if (e instanceof NavigationError) {
         fin(e.id);
-        // e.g. a stale lazy chunk after a deploy: tell the user and offer a full load of the target page
+        if (typeof window === 'undefined') return;
+        // A deploy deletes the lazy chunks the open tab still points at: load the target page in full once by itself.
+        // Only if that full load fails again (same URL within 30 s) tell the user and offer it by hand.
+        const clave = 'gr-nav-recarga';
+        let previa: { url?: string; t?: number } | null = null;
+        try {
+          previa = JSON.parse(sessionStorage.getItem(clave) ?? 'null');
+        } catch {}
+        if (previa?.url !== e.url || Date.now() - (previa.t ?? 0) > 30_000) {
+          try {
+            sessionStorage.setItem(clave, JSON.stringify({ url: e.url, t: Date.now() }));
+          } catch {}
+          location.assign(e.url);
+          return;
+        }
         toasts.error(tx().error, tx().conexion, { label: tx().reintentar, run: () => location.assign(e.url) });
       } else if (e instanceof NavigationCancel || e instanceof NavigationSkipped) fin(e.id);
       else if (e instanceof Scroll && e.anchor && !e.position && typeof window !== 'undefined') {

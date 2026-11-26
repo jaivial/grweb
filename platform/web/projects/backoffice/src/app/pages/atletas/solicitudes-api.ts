@@ -5,7 +5,7 @@ import { firstValueFrom } from 'rxjs';
 /** Estado of an «alta de atleta» request (athletes service). */
 export type EstadoSolicitud = 'pendiente' | 'revision' | 'aprobada' | 'rechazada';
 /** Type of request: the public sign-up form or the profile changes asked from the athlete area. */
-export type TipoSolicitud = 'alta' | 'cambio_perfil';
+export type TipoSolicitud = 'alta' | 'cambio_perfil' | 'autorizacion';
 /** How the request was matched against the athletes' list: licence, e-mail, name suggestion, by hand or nothing. */
 export type TipoMatch = '' | 'licencia' | 'email' | 'nombre' | 'manual';
 export type TipoDiferencia = 'igual' | 'distinto' | 'nuevo';
@@ -118,6 +118,10 @@ export interface SolicitudDetalle extends SolicitudItem {
   cuentaPublico?: boolean;
   /** Name of the athlete that already has this email: approving links the request to them (no duplicate, no notices). */
   atletaEmail?: string;
+  /** tipo autorizacion: the guardian's signed form uploaded from the public link (Bunny URL). */
+  autorizacionUrl?: string;
+  /** tipo autorizacion: earlier rejected attempts of the same athlete (newest first). */
+  anteriores?: { fecha: string; motivo: string }[];
   motivoRechazo: string;
   revisadoAt: string;
   revisadoPor: string;

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -95,6 +96,9 @@ type Panel struct {
 	TienePassword   bool          `json:"tienePassword" doc:"Ya puede entrar con email y contraseña"`
 	// PasswordTemporal: the password is the initial one the organisers sent; the area asks for a new one.
 	PasswordTemporal bool `json:"passwordTemporal,omitempty" doc:"Entró con la contraseña inicial: debe cambiarla"`
+	// FotoPendiente: atleta.perfil.fotoUrl is the photo the athlete uploaded, waiting for the team's review (the
+	// public pages keep the approved one until then).
+	FotoPendiente bool `json:"fotoPendiente,omitempty" doc:"La foto nueva espera la revisión del equipo"`
 }
 
 // ReferidoArea is the «Invita y ahorra» card of the athlete area.
@@ -127,6 +131,10 @@ func (s *Svc) panel(ctx context.Context, r row) (Panel, error) {
 	p := Panel{Atleta: r.admin(d), Acreditacion: s.qr(r.CompetitionID, r.ID), PesajeAbierto: r.PesadoAt == nil, Avisos: []string{}}
 	p.Competicion.Slug, p.Competicion.Nombre = c.Slug, c.Nombre
 	p.Atleta.Email = "" // the area never needs to show it back
+	// The area (and the story builder) works with the new photo while the team reviews it.
+	if f := s.fotoPendiente(ctx, r.CompetitionID, r.ID); f != "" {
+		p.Atleta.Perfil.FotoURL, p.Atleta.Perfil.FocalX, p.Atleta.Perfil.FocalY, p.FotoPendiente = f, 50, 35, true
+	}
 	p.Checklist = []Check{
 		{Clave: "licencia", Texto: "Licencia AEP en vigor", Hecho: r.Licencia != ""},
 		{Clave: "dni", Texto: "DNI o pasaporte", Hecho: true},
@@ -436,7 +444,8 @@ func (s *Svc) registerArea() {
 			return &salirOut{SetCookie: []http.Cookie{s.cookie("", -1)}}, nil
 		})
 
-	// Photo upload from the area: published in the CDN (Bunny), linked to the profile; the previous photo of this flow is removed.
+	// Photo upload from the area: uploaded to the CDN (Bunny) and left for the team's review in the athlete's
+	// «cambio_perfil» request (merged with the open one): the public photo changes only when it is approved.
 	s.a.Mux.HandleFunc("POST "+base+"/foto", func(w http.ResponseWriter, req *http.Request) {
 		ck, _ := req.Cookie(areaCookie)
 		v := ""
@@ -453,19 +462,38 @@ func (s *Svc) registerArea() {
 			problem.Write(w, perr)
 			return
 		}
-		var anterior string
-		_ = s.a.DB.QueryRow(req.Context(), `SELECT COALESCE(foto_url, '') FROM perfiles WHERE atleta_id = $1`, r.ID).Scan(&anterior)
-		if err := s.change(req.Context(), r.CompetitionID, "athletes.foto_subida", map[string]any{"id": r.ID, "origen": "area"}, func(tx pgx.Tx) error {
-			if _, err := tx.Exec(req.Context(), `UPDATE perfiles SET foto_url = $2, focal_x = 50, focal_y = 35, updated_at = now() WHERE atleta_id = $1`, r.ID, url); err != nil {
+		ctx := req.Context()
+		equipo := s.equipoAdmins(ctx, r.CompetitionID)
+		slug := ""
+		if comp, err := s.comps.ByID(ctx, r.CompetitionID); err == nil {
+			slug = comp.Slug
+		}
+		var borrar string
+		if err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+			prev, err := s.lock(ctx, tx, r.CompetitionID, r.ID, "")
+			if err != nil {
 				return err
 			}
-			return hist(req.Context(), tx, r.ID, "Foto subida por el atleta", "")
+			// The same photo as the approved one asks for nothing (and drops a pending one).
+			nuevos := cambiosPerfil{Claves: []string{}, Antes: map[string]any{}, Despues: map[string]any{}}
+			if url != prev.FotoURL {
+				nuevos = cambiosPerfil{Claves: []string{"foto"}, Antes: map[string]any{"foto": prev.FotoURL}, Despues: map[string]any{"foto": url}}
+			}
+			if _, borrar, err = s.guardaCambioPerfil(ctx, tx, prev, nil, nuevos, func(k string) bool { return k == "foto" }, equipo, slug); err != nil {
+				return err
+			}
+			return hist(ctx, tx, r.ID, "Foto subida por el atleta", "Pendiente de revisión")
 		}); err != nil {
+			var pe *problem.Error
+			if errors.As(err, &pe) {
+				problem.Write(w, pe)
+				return
+			}
 			problem.Write(w, problem.Internal())
 			return
 		}
-		if anterior != "" && anterior != url {
-			s.borraFotoPublicada(req.Context(), r.CompetitionID, anterior)
+		if borrar != "" && borrar != url {
+			s.borraFotoPublicada(ctx, r.CompetitionID, borrar)
 		}
 		r, _ = s.session(req.Context(), v)
 		p, err := s.panel(req.Context(), r)

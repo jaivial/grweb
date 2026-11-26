@@ -100,6 +100,22 @@ export interface Atleta {
   version: number;
   updatedAt: string;
   area: { ultimoAcceso?: string; enlaceEnvio?: string; enlaceUsado: boolean };
+  /** Menores: estado de la petición de autorización al tutor. */
+  autorizacion?: EstadoAutorizacion;
+}
+export interface EstadoAutorizacion {
+  estado: 'sin_pedir' | 'enviada' | 'revision' | 'rechazada' | 'aprobada';
+  enviadaAt?: string;
+  solicitudId?: string;
+  motivo?: string;
+  aprobadaAt?: string;
+}
+export interface AutorizacionPedida {
+  enviadaAt: string;
+  enlace: string;
+  formularioUrl: string;
+  email: boolean;
+  whatsapp: boolean;
 }
 export interface Historial {
   actor: string;
@@ -189,6 +205,10 @@ export class AtletasApi {
   }
   decidir(cid: string, id: string, accion: 'cambiar_categoria' | 'no_compite'): Promise<Atleta> { return firstValueFrom(this.http.post<Atleta>(`${this.base(cid)}/${id}/pesaje/decision`, { accion })); }
   enlace(cid: string, id: string): Promise<{ enviado: boolean; caduca: string }> { return firstValueFrom(this.http.post<{ enviado: boolean; caduca: string }>(`${this.base(cid)}/${id}/enlace-area`, {})); }
+  /** Email + WhatsApp al menor con el formulario y el enlace para subir la autorización firmada. */
+  pedirAutorizacion(cid: string, id: string): Promise<AutorizacionPedida> {
+    return firstValueFrom(this.http.post<AutorizacionPedida>(`${this.base(cid)}/${id}/autorizacion/solicitar`, {}));
+  }
   accionNecesaria(cid: string, body: { ids: string[]; accion: string; detalle: string; fecha: string; enlace: string }): Promise<{ emails: number; whatsapps: number; sinEmail: number }> {
     return firstValueFrom(this.http.post<{ emails: number; whatsapps: number; sinEmail: number }>(`${this.base(cid)}/accion-necesaria`, body));
   }
