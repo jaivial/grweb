@@ -7,7 +7,7 @@
  */
 import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
-import { Injectable, PLATFORM_ID, computed, effect, inject, signal, untracked } from '@angular/core';
+import { DestroyRef, Injectable, PLATFORM_ID, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { COMPETITION_SLUG } from './competition';
@@ -739,6 +739,12 @@ export class Juegos {
 // Estado compartido (jornada elegida, cartera) y tiempo real
 // ---------------------------------------------------------------------------------------------
 
+/** La jornada que se abre sin elegir ninguna: la que marca el API, si no la abierta o en juego, si no la primera. La
+ *  usan /porra, /fantasy y el panel del directo, para que todos enseñen la misma jornada. */
+export function jornadaPorDefecto(lista: Jornada[]): Jornada | null {
+  return lista.find((j) => j.actual) ?? lista.find((j) => j.estado === 'abierta' || j.estado === 'en_juego') ?? lista[0] ?? null;
+}
+
 /** Estado compartido de los juegos: la lista de jornadas, la jornada elegida y la cartera del fan. */
 @Injectable({ providedIn: 'root' })
 export class JuegosEstado {
@@ -780,7 +786,7 @@ export class JuegosEstado {
     const id = this.jornadaId();
     const lista = this.jornadas();
     if (id) return lista.find((j) => j.id === id) ?? null;
-    return lista.find((j) => j.actual) ?? lista.find((j) => j.estado === 'abierta' || j.estado === 'en_juego') ?? lista[0] ?? null;
+    return jornadaPorDefecto(lista);
   });
   /** «Activar juegos» apagado en el backoffice: /porra, /fantasy y la pestaña porra enseñan que aún no están abiertos. */
   readonly cerrados = computed(() => (this.vivo.activo() ?? this.config()?.activo) === false);
@@ -1227,6 +1233,66 @@ export class JuegosEnVivo {
 // Estado de las pantallas
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * Aplica un cambio en vivo (`porra.mercado`) a una lista de mercados: la lista nueva, o null si hace falta recargar
+ * (mercado desconocido o liquidado: el ganador no viaja en el evento).
+ */
+export function aplicarCambioMercado(lista: Mercado[], c: CambioMercado): Mercado[] | null {
+  const i = lista.findIndex((m) => m.id === c.id);
+  if (i < 0 || c.estado === 'liquidado') return null;
+  const m = lista[i];
+  const opciones = c.opciones
+    ? m.opciones.map((o) => {
+        const n = c.opciones!.find((x) => x.atletaId === o.atletaId);
+        return n ? { ...o, apostado: n.apostado, cuota: n.cuota } : o;
+      })
+    : m.opciones;
+  const copia = [...lista];
+  copia[i] = { ...m, estado: c.estado, bote: c.bote ?? m.bote, opciones, apuestas: c.bote !== undefined && c.bote !== m.bote ? m.apuestas + 1 : m.apuestas };
+  return copia;
+}
+
+/**
+ * Sigue en vivo los mercados de porra (ranking «En vivo» de /porra y pestaña Porra del directo): aplica cada cambio
+ * `porra.mercado` con `aplicar` y llama a `recargar` si alguno no se puede aplicar (como mucho 1 vez cada 5 s) o si
+ * cambian los atletas (`fantasy.atletas`, recarga agrupada). Solo en el navegador y en un contexto de inyección; la
+ * conexión al SSE (`JuegosEnVivo.conectar`) la abre quien llama.
+ */
+export function seguirMercadosEnVivo(aplicar: (c: CambioMercado) => boolean, recargar: () => void): void {
+  const vivo = inject(JuegosEnVivo);
+  let visto = 0;
+  let recarga: ReturnType<typeof setTimeout> | null = null;
+  effect(() => {
+    const cambios = [...vivo.mercados().values()].filter((c) => c.seq > visto);
+    untracked(() => {
+      let falta = false;
+      for (const c of cambios.sort((a, b) => a.seq - b.seq)) {
+        visto = c.seq;
+        if (!aplicar(c)) falta = true;
+      }
+      if (falta && !recarga) {
+        recarga = setTimeout(() => {
+          recarga = null;
+          recargar();
+        }, 5000);
+      }
+    });
+  });
+  const porAtletas = recargaAgrupada(recargar);
+  let version = vivo.version();
+  effect(() => {
+    const v = vivo.version();
+    if (v !== version) {
+      version = v;
+      untracked(() => porAtletas.pedir());
+    }
+  });
+  inject(DestroyRef).onDestroy(() => {
+    if (recarga) clearTimeout(recarga);
+    porAtletas.cancelar();
+  });
+}
+
 /** Datos de la porra compartidos por /porra, /porra/mis-apuestas y /porra/clasificacion. */
 @Injectable({ providedIn: 'root' })
 export class PorraStore {
@@ -1280,20 +1346,9 @@ export class PorraStore {
    * mercado desconocido o liquidado (el ganador no viaja en el evento).
    */
   aplicarCambio(c: CambioMercado): boolean {
-    const lista = this.mercados();
-    const i = lista.findIndex((m) => m.id === c.id);
-    if (i < 0 || c.estado === 'liquidado') return false;
-    const m = lista[i];
-    const opciones = c.opciones
-      ? m.opciones.map((o) => {
-          const n = c.opciones!.find((x) => x.atletaId === o.atletaId);
-          return n ? { ...o, apostado: n.apostado, cuota: n.cuota } : o;
-        })
-      : m.opciones;
-    const copia = [...lista];
-    copia[i] = { ...m, estado: c.estado, bote: c.bote ?? m.bote, opciones, apuestas: c.bote !== undefined && c.bote !== m.bote ? m.apuestas + 1 : m.apuestas };
-    this.mercados.set(copia);
-    return true;
+    const copia = aplicarCambioMercado(this.mercados(), c);
+    if (copia) this.mercados.set(copia);
+    return !!copia;
   }
 
   /** Mis apuestas (solo con sesión). */

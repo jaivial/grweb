@@ -12,19 +12,16 @@ import { GrAlert, GrIcon, GrSkeleton } from '@grcup/ui';
 import { map } from 'rxjs';
 import { Cms } from '../../core/cms';
 import { FanSession, codigoError } from '../../core/fan';
-import { Juegos, JuegosEnVivo, JuegosEstado, PorraStore, type Jornada, type Mercado, type Sexo, mensajeError, nombreJornadaLoc, recargaAgrupada } from '../../core/juegos';
+import { Juegos, JuegosEnVivo, JuegosEstado, PorraStore, type Jornada, type Mercado, type Sexo, mensajeError, nombreJornadaLoc, seguirMercadosEnVivo } from '../../core/juegos';
 import { I18n, LocPipe } from '../../core/i18n';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
 import { CoinBalance } from './componentes';
-import { monedas } from './formato';
+import { monedas, norm } from './formato';
 import { RankingPorra, kg, mercadosCategoria, misPorras, rankingAtletas, sexoTxt } from './ranking';
 
 type Vista = 'hacer' | 'en-vivo';
-
-/** Sin tildes ni mayúsculas, para los buscadores. */
-const norm = (s: string): string => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 /** El peso de la categoría como número para ordenar («-63» → 63, «84+» → 84.5). */
 const peso = (c: string | undefined): number => (c ? parseFloat(c.replace('-', '')) + (c.endsWith('+') ? 0.5 : 0) : 999);
 /** «Sáb 19» a partir de la fecha ISO del día. */
@@ -408,37 +405,9 @@ export class PorraPage {
 
     if (browser) {
       this.vivo.conectar();
-      // los cambios en vivo se aplican en el cliente; solo se recarga (como mucho 1 vez cada 5 s) si llega un
-      // mercado desconocido o liquidado
-      let visto = 0;
-      let recarga: ReturnType<typeof setTimeout> | null = null;
-      effect(() => {
-        const cambios = [...this.vivo.mercados().values()].filter((c) => c.seq > visto);
-        untracked(() => {
-          let falta = false;
-          for (const c of cambios.sort((a, b) => a.seq - b.seq)) {
-            visto = c.seq;
-            if (!this.store.aplicarCambio(c)) falta = true;
-          }
-          if (falta && !recarga) {
-            recarga = setTimeout(() => {
-              recarga = null;
-              void this.store.recargarMercados();
-            }, 5000);
-          }
-        });
-      });
+      // los cambios en vivo se aplican en el cliente (como en la pestaña Porra del directo)
+      seguirMercadosEnVivo((c) => this.store.aplicarCambio(c), () => void this.store.recargarMercados());
       // los botes cambian con cada porra: un refresco ligero cada 20 s
-      // altas, cambios y bajas de atletas (fantasy.atletas) cambian las opciones: recarga agrupada al momento
-      const porAtletas = recargaAgrupada(() => void this.store.recargarMercados());
-      let version = this.vivo.version();
-      effect(() => {
-        const v = this.vivo.version();
-        if (v !== version) {
-          version = v;
-          untracked(() => porAtletas.pedir());
-        }
-      });
       const t = setInterval(() => {
         if (!document.hidden) void this.store.recargarMercados();
       }, 20000);
@@ -450,8 +419,6 @@ export class PorraPage {
       inject(DestroyRef).onDestroy(() => {
         clearInterval(t);
         clearInterval(reloj);
-        if (recarga) clearTimeout(recarga);
-        porAtletas.cancelar();
         this.vivo.desconectar();
       });
     }

@@ -12,7 +12,7 @@ import { GrButton, GrIcon, GrSelect, GrSkeleton } from '@grcup/ui';
 import { Cms } from '../../core/cms';
 import { FanSession, codigoError } from '../../core/fan';
 import { FantasyStore, Juegos, JuegosEnVivo, JuegosEstado, fusionaFichajes, horaTxt, recargaAgrupada, type AtletaDetalle, type AtletaMercado, mensajeError } from '../../core/juegos';
-import { monedas } from '../porra/formato';
+import { monedas, norm } from '../porra/formato';
 import { I18n, LocPipe } from '../../core/i18n';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
@@ -48,6 +48,9 @@ const T = {
     cambiaFiltros: 'Cambia los filtros para ver más atletas.',
     seCargan: 'Los atletas se cargan cuando se genera la jornada. Vuelve en unos minutos.',
     quitarFiltros: 'Quitar filtros',
+    busca: 'Busca un atleta por nombre',
+    sinResultados: (q: string) => `Ningún atleta coincide con «${q}»`,
+    revisa: 'Revisa el nombre, busca por apellido o cambia los filtros.',
     atleta: 'Atleta',
     tendencia: 'Tendencia',
     clausula: 'Cláusula',
@@ -102,6 +105,9 @@ const T = {
     cambiaFiltros: 'Change the filters to see more athletes.',
     seCargan: 'Athletes are loaded when the day is generated. Come back in a few minutes.',
     quitarFiltros: 'Clear filters',
+    busca: 'Search for an athlete by name',
+    sinResultados: (q: string) => `No athlete matches “${q}”`,
+    revisa: 'Check the name, search by surname or change the filters.',
     atleta: 'Athlete',
     tendencia: 'Trend',
     clausula: 'Release clause',
@@ -179,6 +185,12 @@ const T = {
             </gr-select>
           </div>
         </div>
+        <label class="relative mt-3 block">
+          <span class="sr-only">{{ t().busca }}</span>
+          <gr-icon name="search" [size]="18" class="pointer-events-none absolute top-3.5 left-3.5 text-text-tertiary" />
+          <input type="search" class="h-12 w-full rounded-md border border-line-subtle bg-bg-field pr-4 pl-11 text-body-s text-text-primary outline-none placeholder:text-text-muted focus-visible:border-accent-text"
+            [placeholder]="t().busca" autocomplete="off" [value]="q()" (input)="q.set($any($event.target).value); limite.set(PAGINA)" />
+        </label>
         <p class="mt-3 font-mono text-[12px] font-medium text-text-tertiary">{{ t().enJuego(atletas().length) }}</p>
 
         @if (error()) {
@@ -203,8 +215,13 @@ const T = {
             @if (!visibles().length) {
               <div class="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line-strong bg-bg-card/40 px-6 py-14 text-center">
                 <span class="flex size-14 items-center justify-center rounded-full border border-info/50 bg-info/12 text-info"><gr-icon name="users" [size]="24" /></span>
-                <p class="text-display-xs">{{ atletas().length ? t().nadieFiltros : t().abreJornada }}</p>
-                <p class="max-w-md text-body-s text-text-tertiary">{{ atletas().length ? t().cambiaFiltros : t().seCargan }}</p>
+                @if (atletas().length && q().trim()) {
+                  <p class="text-display-xs">{{ t().sinResultados(q().trim()) }}</p>
+                  <p class="max-w-md text-body-s text-text-tertiary">{{ t().revisa }}</p>
+                } @else {
+                  <p class="text-display-xs">{{ atletas().length ? t().nadieFiltros : t().abreJornada }}</p>
+                  <p class="max-w-md text-body-s text-text-tertiary">{{ atletas().length ? t().cambiaFiltros : t().seCargan }}</p>
+                }
                 @if (atletas().length) { <button grButton variant="secondary" (click)="quitarFiltros()">{{ t().quitarFiltros }}</button> }
               </div>
             } @else {
@@ -298,6 +315,8 @@ export class MercadoFantasyPage {
   protected readonly filtro = signal<FiltroDueno>('todos');
   protected readonly filtroSexo = signal<FiltroSexo>('todos');
   protected readonly filtroCategoria = signal('');
+  /** El buscador por nombre (sin tildes ni mayúsculas, como el de /porra). */
+  protected readonly q = signal('');
   protected readonly error = signal<string | null>(null);
   protected readonly errorClausulazo = signal<string | null>(null);
   protected readonly enviando = signal(false);
@@ -344,11 +363,13 @@ export class MercadoFantasyPage {
     const f = this.filtro();
     const s = this.filtroSexo();
     const c = this.filtroCategoria();
+    const q = norm(this.q());
     return this.atletas().filter(
       (a) =>
         (f === 'todos' || (f === 'libres' && a.libre) || (f === 'conDueno' && !a.libre) || (f === 'mios' && a.esMio)) &&
         (s === 'todos' || a.sexo === s) &&
-        (!c || a.categoria === c),
+        (!c || a.categoria === c) &&
+        (!q || norm(a.nombre).includes(q)),
     );
   });
   protected readonly pagina = computed(() => this.visibles().slice(0, this.limite()));
@@ -424,6 +445,7 @@ export class MercadoFantasyPage {
     this.filtro.set('todos');
     this.filtroSexo.set('todos');
     this.filtroCategoria.set('');
+    this.q.set('');
     this.limite.set(this.PAGINA);
   }
   protected serie(a: AtletaMercado): number[] {

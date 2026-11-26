@@ -4,6 +4,9 @@
  * («3000»), así que se fuerza `useGrouping: 'always'` («3.000»).
  */
 
+/** Sin tildes ni mayúsculas, para los buscadores de atletas (/porra, /fantasy/mercado). */
+export const norm = (s: string): string => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
 // `useGrouping: 'always'` es de Intl.NumberFormat v3 (ES2023); el lib de TS del proyecto (ES2022) solo admite boolean.
 const opciones = { maximumFractionDigits: 0, useGrouping: 'always' } as unknown as Intl.NumberFormatOptions;
 /** One formatter per locale (es-ES · en-GB) and whether it already groups 4-digit numbers. */

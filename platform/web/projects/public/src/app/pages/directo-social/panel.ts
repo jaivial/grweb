@@ -8,7 +8,7 @@ import { ChatService, diaDeHoy } from '../../core/chat';
 import { type Directo } from '../../core/directo';
 import { FanSession } from '../../core/fan';
 import { I18n } from '../../core/i18n';
-import { Juegos, JuegosEnVivo, JuegosEstado, type Jornada } from '../../core/juegos';
+import { Juegos, JuegosEnVivo, JuegosEstado, jornadaPorDefecto, type Jornada } from '../../core/juegos';
 import { JuegosCerrados } from '../juegos-cerrados';
 import { ChatView } from './chat-view';
 import { DonantesView } from './donantes-view';
@@ -145,11 +145,8 @@ export class PanelSocial {
 
   /** Today (Madrid): the day of the chat room and of the games. */
   protected readonly hoy = diaDeHoy();
-  /** The porra of today; without a jornada today it falls back to the open one (never a 404 «no jornada today»). */
-  protected readonly jornadaPorra = computed<Jornada | undefined>(() => {
-    const l = this.jornadas();
-    return l.find((j) => j.dia === this.hoy) ?? l.find((j) => j.estado === 'abierta' || j.estado === 'en_juego');
-  });
+  /** The porra shown: the same jornada /porra opens by default (`jornadaPorDefecto`), so both show the same data. */
+  protected readonly jornadaPorra = computed<Jornada | undefined>(() => jornadaPorDefecto(this.jornadas()) ?? undefined);
 
   /** Connected and live: the audience shows (no red dot, Figma 393:120125). */
   protected readonly vivo = computed(() => this.chat.estado() === 'conectado' && !this.chat.cerrado() && this.chat.conectados() > 0);
