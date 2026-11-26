@@ -784,7 +784,9 @@ export class AreaAtletaPage {
   private async set(p: Panel): Promise<void> {
     this.area.poner(p);
     this.eleccion.set(p.prueba?.elegida ?? '');
-    if (this.vistaRuta() !== 'pesaje') this.prepararPesaje(p);
+    // La previa del pesaje se rellena siempre salvo que el atleta esté editándola (no se le borra lo escrito); en un
+    // enlace directo a ?vista=pesaje pz aún viene vacío y hay que prepararlo.
+    if (!this.pzListo || this.vistaRuta() !== 'pesaje') this.prepararPesaje(p);
     if (this.estado() === 'cargando' || this.estado() === 'acceso') this.estado.set('listo');
     // The QR comes from the CDN once it is published there; until then it is drawn here from its payload.
     if (p.acreditacionUrl) return this.qr.set(p.acreditacionUrl);
@@ -867,10 +869,13 @@ export class AreaAtletaPage {
     this.estado.set('acceso');
   }
 
+  /** Ya hay valores del pesaje en pantalla (para no pisar los que el atleta está escribiendo al recargar). */
+  private pzListo = false;
   private prepararPesaje(p: Panel): void {
     const a = p.atleta;
     const [bp, seg] = (a.pesaje.rackBp || '').split('/').map((x) => Number(x) || undefined);
     this.pz = { rackSq: a.pesaje.rackSq ?? 12, rackBp: bp ?? 6, segurosBp: a.pesaje.segurosBp ?? seg ?? 4, intentos: { ...a.pesaje.intentos } };
+    this.pzListo = true;
   }
 
   protected paso(k: 'rackSq' | 'rackBp' | 'segurosBp', d: number): void {
