@@ -564,4 +564,4 @@ export function instagramOf(c: CompeticionPublica | null): string {
 }
 
 /** Official Instagram of the organiser (legacy site footer). */
-export const INSTAGRAM = 'https://www.instagram.com/grstrengthclub/';
+export const INSTAGRAM = 'https://www.instagram.com/grstrengthclub?avpt=ZGwzY2JrdWhteXZo';
