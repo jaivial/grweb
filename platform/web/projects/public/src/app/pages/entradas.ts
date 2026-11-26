@@ -776,7 +776,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
     }
 
     <ng-template #sesiones>
-      @if (avisoSesion()) { <p class="flex items-start gap-2 rounded-md border border-warning/60 bg-warning/8 p-3 text-body-s text-text-secondary" role="status"><gr-icon name="circle-alert" [size]="16" class="mt-0.5 shrink-0 text-warning" />{{ t().pg.sesionPerdida }}</p> }
+      @if (hidratado() && avisoSesion()) { <p class="flex items-start gap-2 rounded-md border border-warning/60 bg-warning/8 p-3 text-body-s text-text-secondary" role="status"><gr-icon name="circle-alert" [size]="16" class="mt-0.5 shrink-0 text-warning" />{{ t().pg.sesionPerdida }}</p> }
       <div class="flex flex-col gap-3" role="radiogroup" [attr.aria-label]="t().pg.sesionAria">
         @for (s of d!.sesiones; track s.id) {
           <button type="button" role="radio" [attr.aria-checked]="sesion() === s.id" [disabled]="s.estado === 'cerrada' || s.estado === 'proximamente'" (click)="elegir(s)"
