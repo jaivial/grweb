@@ -60,7 +60,7 @@ const T = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page [title]="t().titulo" [juego]="true">
-      <gr-fantasy-cabecera [titulo]="t().titulo + ' ' + jornadaTxt()" [migas]="[t().titulo]" [descripcion]="t().desc">
+      <gr-fantasy-cabecera [titulo]="t().titulo" [migas]="[t().titulo]" [descripcion]="t().desc">
         @if (premios()[0]; as p) {
           <gr-premio-card class="w-full shrink-0 lg:w-[340px]" [premio]="p" />
         } @else {
@@ -146,10 +146,6 @@ export class FantasyClasificacionPage {
   protected readonly premios = computed(() => this.estado.premios().filter((p) => p.ranking === 'fantasy'));
   /** El feed: los fichajes de la sala cargados del API más los que llegan por SSE. */
   protected readonly feed = computed(() => fusionaFichajes(this.store.fichajes(), this.vivo.feed(), this.store.sala()?.id));
-  protected readonly jornadaTxt = computed(() => {
-    const j = this.store.jornada() ?? this.estado.jornada();
-    return j ? '· Fantasy ' + j.nombre.replace(/\s*\(.*\)$/, '') : '· Fantasy';
-  });
 
   constructor() {
     const seo = inject(Seo);

@@ -32,7 +32,7 @@ const T = {
     seCierran: (h: string) => 'Los clausulazos se cierran a las ' + h,
     quedan: (f: string) => `Quedan ${f}. Después podrás seguir fichando atletas libres.`,
     cerrados: 'Clausulazos cerrados',
-    sinHorario: 'Todavía no hay horario publicado para hoy: los clausulazos se abren cuando se publique.',
+    sinHorario: 'Todavía no hay horario publicado: los clausulazos se abren cuando se publique.',
     errorCarga: 'No hemos podido cargar el mercado',
     dueno: 'Dueño',
     sexo: 'Sexo',
@@ -86,7 +86,7 @@ const T = {
     seCierran: (h: string) => 'Buy-outs close at ' + h,
     quedan: (f: string) => `${f} left. After that you can keep signing free athletes.`,
     cerrados: 'Buy-outs closed',
-    sinHorario: 'No schedule has been published for today yet: buy-outs open once it is.',
+    sinHorario: 'No schedule has been published yet: buy-outs open once it is.',
     errorCarga: "We couldn't load the market",
     dueno: 'Owner',
     sexo: 'Sex',
@@ -140,7 +140,7 @@ const T = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page [title]="t().titulo" [juego]="true">
-      <gr-fantasy-cabecera [titulo]="t().titulo + ' ' + jornadaTxt()" [migas]="[t().titulo]" [descripcion]="t().desc">
+      <gr-fantasy-cabecera [titulo]="t().titulo" [migas]="[t().titulo]" [descripcion]="t().desc">
         <gr-coin-balance class="shrink-0 self-start lg:self-center" [valor]="saldo() ?? 0" moneda="fantasy" motivo="fantasy" />
       </gr-fantasy-cabecera>
 
@@ -378,10 +378,6 @@ export class MercadoFantasyPage {
     const min = Math.ceil((new Date(c).getTime() - this.ahora()) / 60000);
     if (min <= 0 || min > 90) return '';
     return min >= 60 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${min} min`;
-  });
-  protected readonly jornadaTxt = computed(() => {
-    const j = this.store.jornada() ?? this.estado.jornada();
-    return j ? '· ' + j.nombre.replace(/\s*\(.*\)$/, '') : '';
   });
 
   constructor() {
