@@ -58,10 +58,18 @@ type resumenPorra struct {
 	Participantes    int         `json:"participantes"`
 	MercadosAbiertos int         `json:"mercadosAbiertos"`
 	// CierreAt is the close of the bets of the jornada (its «hora de cierre», backoffice juegos/config); null if unset.
-	CierreAt   *time.Time        `json:"cierreAt"`
-	Destacado  *destacadoPorra   `json:"destacado"`
-	Top3       []filaPorraPublic `json:"top3"`
-	ServerTime time.Time         `json:"serverTime"`
+	CierreAt   *time.Time       `json:"cierreAt"`
+	Destacado  *destacadoPorra  `json:"destacado"`
+	Top3       []atletaApostado `json:"top3" doc:"Los 3 atletas con más monedas apostadas en la jornada"`
+	ServerTime time.Time        `json:"serverTime"`
+}
+
+// atletaApostado is one athlete of the home top 3 and the coins bet on them in the jornada.
+type atletaApostado struct {
+	Puesto   int       `json:"puesto"`
+	AtletaID uuid.UUID `json:"atletaId"`
+	Nombre   string    `json:"nombre"`
+	Apostado int64     `json:"apostado"`
 }
 
 type atletaAlineacion struct {
@@ -185,7 +193,7 @@ func (s *Svc) jornadaHome(ctx context.Context, cid uuid.UUID) (*jornada, error) 
 }
 
 func (s *Svc) cargarResumenPorra(ctx context.Context, cid uuid.UUID) (resumenPorra, error) {
-	o := resumenPorra{Top3: []filaPorraPublic{}, ServerTime: time.Now()}
+	o := resumenPorra{Top3: []atletaApostado{}, ServerTime: time.Now()}
 	j, err := s.jornadaHome(ctx, cid)
 	if err != nil || j == nil {
 		return o, err
@@ -222,12 +230,47 @@ func (s *Svc) cargarResumenPorra(ctx context.Context, cid uuid.UUID) (resumenPor
 	if err := s.a.DB.QueryRow(ctx, `SELECT count(DISTINCT fan_id) FROM apuestas WHERE jornada_id = $1 AND devuelta_at IS NULL`, j.ID).Scan(&o.Participantes); err != nil {
 		return o, err
 	}
-	top, _, _ := s.rankingPorra(ctx, *j, uuid.Nil)
+	o.Top3 = topAtletasPorra(ms)
+	return o, nil
+}
+
+// topAtletasPorra is the top 3 of the home: the athletes with the most coins bet on them across the markets of the
+// jornada (a market whose pot went back to the bettors does not count).
+func topAtletasPorra(ms []mercadoVista) []atletaApostado {
+	suma := map[uuid.UUID]*atletaApostado{}
+	for _, m := range ms {
+		if m.Devuelto {
+			continue
+		}
+		for _, op := range m.Opciones {
+			if op.Apostado <= 0 {
+				continue
+			}
+			a := suma[op.AtletaID]
+			if a == nil {
+				a = &atletaApostado{AtletaID: op.AtletaID, Nombre: op.Nombre}
+				suma[op.AtletaID] = a
+			}
+			a.Apostado += op.Apostado
+		}
+	}
+	top := make([]atletaApostado, 0, len(suma))
+	for _, a := range suma {
+		top = append(top, *a)
+	}
+	sort.Slice(top, func(x, y int) bool {
+		if top[x].Apostado != top[y].Apostado {
+			return top[x].Apostado > top[y].Apostado
+		}
+		return top[x].Nombre < top[y].Nombre
+	})
 	if len(top) > 3 {
 		top = top[:3]
 	}
-	o.Top3 = publicaPorra(top)
-	return o, nil
+	for i := range top {
+		top[i].Puesto = i + 1
+	}
+	return top
 }
 
 func (s *Svc) cargarResumenFantasy(ctx context.Context, cid uuid.UUID) (resumenFantasy, error) {
