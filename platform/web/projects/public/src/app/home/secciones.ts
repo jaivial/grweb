@@ -158,13 +158,8 @@ export class SecAlta {
       const { componer, cargarImagen, diasHasta } = await import('../pages/compartir-story');
       const ini = this.comp.data()?.fechaInicio ?? '2026-12-19';
       const foto = await cargarImagen('/img/home/atletas-2-l.webp');
-      const c = await componer({ modo: 'cuenta_atras', formato: 'story', alin: 'izq', dias: Math.max(0, diasHasta(ini)), fecha: '', detalleFecha: '', nombre: 'Laura Gómez', prueba: 'AEP-2', peso: '−63 KG', sexo: 'FEMENINO', foto, focalX: 50, focalY: 30, zoom: 1 });
-      // Jaime 15-nov 11:37: the whole post in black and white, logos included (canvas `filter` is not in Safari)
-      const g = c.getContext('2d')!;
-      const img = g.getImageData(0, 0, c.width, c.height);
-      const px = img.data;
-      for (let i = 0; i < px.length; i += 4) px[i] = px[i + 1] = px[i + 2] = Math.round(px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114);
-      g.putImageData(img, 0, 0);
+      // Jaime 15-nov 11:37: the whole post in black and white, logos included
+      const c = await componer({ modo: 'cuenta_atras', formato: 'story', alin: 'izq', color: 'bn', dias: Math.max(0, diasHasta(ini)), fecha: '', detalleFecha: '', nombre: 'Laura Gómez', prueba: 'AEP-2', peso: '−63 KG', sexo: 'FEMENINO', foto, focalX: 50, focalY: 30, zoom: 1 });
       const blob = await new Promise<Blob | null>((ok) => c.toBlob(ok, 'image/webp', 0.9));
       if (!blob) return;
       const url = URL.createObjectURL(blob);
