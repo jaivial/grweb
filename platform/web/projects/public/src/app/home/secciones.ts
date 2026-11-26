@@ -153,7 +153,7 @@ export class SecAlta {
   private async componerStory(destroy: DestroyRef): Promise<void> {
     try {
       const { componer, cargarImagen, diasHasta } = await import('../pages/compartir-story');
-      const ini = this.comp.data()?.fechaInicio ?? '2026-12-19';
+      const ini = this.comp.data()?.fechaInicio ?? '2026-12-18';
       const foto = await cargarImagen('/img/home/atletas-2-l.webp');
       // Jaime 15-nov 11:37: the whole post in black and white, logos included
       const c = await componer({ modo: 'cuenta_atras', formato: 'story', alin: 'izq', color: 'bn', dias: Math.max(0, diasHasta(ini)), fecha: '', detalleFecha: '', nombre: 'Laura Gómez', prueba: 'AEP-2', peso: '−63 KG', sexo: 'FEMENINO', foto, focalX: 50, focalY: 30, zoom: 1 });

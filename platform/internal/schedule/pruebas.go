@@ -12,9 +12,18 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
-// Competitions of the event (Figma 56 «por competición»): AEP-2 runs the first day, AEP-3 the second one, the
-// same split the athletes service uses for the alta. Each one is planned and generated on its own.
+// Competitions of the event (Figma 56 «por competición»): AEP-3 runs the last day and the days before it are AEP-2,
+// the same split the athletes service uses for the alta. Each one is planned and generated on its own.
 var ordenPruebas = []string{"aep2", "aep3"}
+
+// pruebaDeDia is the competition of the i-th date of an event with n dates: the last one is AEP-3 and the ones
+// before it AEP-2 (with a single date, AEP-2). With two dates it is the AEP-2 / AEP-3 split of every year.
+func pruebaDeDia(n, i int) string {
+	if n >= 2 && i == n-1 {
+		return "aep3"
+	}
+	return "aep2"
+}
 
 func nombrePrueba(p string) string { return strings.ToUpper(strings.Replace(p, "aep", "AEP-", 1)) }
 
@@ -43,15 +52,14 @@ func dePrueba(ats []atleta, p string) []atleta {
 }
 
 // diasPrueba: from the day of the competition on when the event has one day per competition; otherwise every day
-// (the generator then places it after the sesiones of the other competition, see colocar's ocupado).
+// (the generator then places it after the sesiones of the other competition, see colocar's ocupado). AEP-2 is the
+// first date (what does not fit moves on to the next days, BIZ-168) and AEP-3 the last one (pruebaDeDia).
 func diasPrueba(ds []Dia, p string) []Dia {
-	if len(ds) < len(ordenPruebas) {
+	if len(ds) < 2 {
 		return ds
 	}
-	for i, x := range ordenPruebas {
-		if x == p {
-			return ds[i:] // its day first; what does not fit moves on to the next days (BIZ-168)
-		}
+	if p == "aep3" {
+		return ds[len(ds)-1:]
 	}
 	return ds
 }
