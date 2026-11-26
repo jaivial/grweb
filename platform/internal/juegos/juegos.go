@@ -8,6 +8,7 @@ import (
 	"context"
 	"embed"
 	"io/fs"
+	"strings"
 	"sync"
 	"time"
 
@@ -50,6 +51,8 @@ type Svc struct {
 	comps  *compref.Resolver
 	live   *svcclient.Client
 	sched  *svcclient.Client
+	fansSv *svcclient.Client // fans: the host's contact for the room notices (internal call, never public)
+	webURL string            // public web (links of the notices)
 	fans   *fanauth.Verifier
 	cache  *cache.Cache
 	marcMu sync.Mutex
@@ -89,6 +92,8 @@ func (s *Svc) init(a *app.App) {
 	s.comps = compref.New(comp, a.Log)
 	s.live = svcclient.New(config.Str("UPSTREAM_LIVE", "http://live:8080"), "juegos", "live", a.Cfg.InternalToken)
 	s.sched = svcclient.New(config.Str("UPSTREAM_SCHEDULE", "http://schedule:8080"), "juegos", "schedule", a.Cfg.InternalToken)
+	s.fansSv = svcclient.New(config.Str("UPSTREAM_FANS", "http://fans:8080"), "juegos", "fans", a.Cfg.InternalToken)
+	s.webURL = strings.TrimRight(config.Str("PUBLIC_WEB_URL", "http://localhost:4200"), "/")
 	s.fans = &fanauth.Verifier{Key: fanauth.Key(a.Cfg.InternalToken), Redis: a.Redis, Keys: a.Keys}
 	s.cache = &cache.Cache{R: a.Redis, Prefix: a.Keys.Of("cache", "juegos", "")}
 }

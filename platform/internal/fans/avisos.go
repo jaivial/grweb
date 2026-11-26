@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/jaivial/grweb/platform/pkg/auth"
 	"github.com/jaivial/grweb/platform/pkg/compref"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/events"
@@ -252,6 +254,47 @@ func (s *Svc) registerAvisos() {
 				}
 			}
 			return &bajaOut{Location: s.webURL + "/en-directo?avisos=baja"}, nil
+		})
+
+	// The contact of a fan for a notice of juegos (a request to join his GRS Fantasy room): never public. «avisos»
+	// is false when the account unsubscribed from the notices or is banned.
+	type contactoIn struct {
+		CID uuid.UUID `path:"cid"`
+		ID  uuid.UUID `path:"id"`
+	}
+	type contactoOut struct {
+		Body struct {
+			Email    string `json:"email"`
+			Telefono string `json:"telefono"`
+			Avisos   bool   `json:"avisos"`
+			Baja     string `json:"baja"`
+		}
+	}
+	huma.Register(s.a.API, huma.Operation{OperationID: "internal-fan-contacto-avisos", Method: http.MethodGet, Path: "/internal/competiciones/{cid}/fans/{id}/contacto-avisos",
+		Summary: "Email, teléfono y baja de avisos de un fan (solo juegos)", Tags: []string{"Interno"}, Hidden: true},
+		func(ctx context.Context, in *contactoIn) (*contactoOut, error) {
+			p, err := auth.RequireService(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if p.Service != "juegos" {
+				return nil, problem.Forbidden("Solo juegos.")
+			}
+			c, err := s.comps.ByID(ctx, in.CID)
+			if err != nil {
+				return nil, err
+			}
+			o := &contactoOut{}
+			err = s.a.DB.QueryRow(ctx, `SELECT lower(email::text), telefono, avisos_baja_at IS NULL AND (baneado_hasta IS NULL OR baneado_hasta < now())
+				FROM fans WHERE id = $1 AND competition_id = $2`, in.ID, in.CID).Scan(&o.Body.Email, &o.Body.Telefono, &o.Body.Avisos)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, problem.NotFound("Fan no encontrado.")
+			}
+			if err != nil {
+				return nil, err
+			}
+			o.Body.Baja = s.varsDe(c, in.ID, "")["baja"]
+			return o, nil
 		})
 }
 

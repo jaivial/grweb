@@ -75,6 +75,7 @@ var automatizaciones = []Automatizacion{
 	{Clave: "publico", Nombre: "Avisos al público", Cuando: "al publicar horarios · al empezar el directo · el día antes", Publico: "Cuentas de público del directo", Canales: []string{"email", "whatsapp"}},
 	{Clave: "anuncios", Nombre: "Anuncios de juegos y chat", Cuando: "40 min después de crear la cuenta (una vez)", Publico: "Cuentas de público del directo", Canales: []string{"email", "whatsapp"}},
 	{Clave: "solicitudes-atleta", Nombre: "Solicitudes de atleta", Cuando: "al enviar el alta y al aprobar o rechazarla", Publico: "Atletas que se dan de alta y el equipo", Canales: []string{"email", "whatsapp"}},
+	{Clave: "fantasy-salas", Nombre: "Solicitudes de sala (GRS Fantasy)", Cuando: "al pedir alguien unirse a una sala (una vez por jugador y sala)", Publico: "Anfitriones de salas de GRS Fantasy", Canales: []string{"email", "whatsapp"}},
 }
 
 func p(clave, nombre, disparador, servicio, auto string, esencial bool, vars []string, ej map[string]string, c Contenido) Plantilla {
@@ -383,6 +384,16 @@ var catalogo = []Plantilla{
 		Contenido{Asunto: "Entra al chat del directo y gana monedas", Preheader: "Monedas para GRS Fantasy y la GRS Porra", Titulo: "El chat te da monedas",
 			Cuerpo:     "Durante el directo, comentar y participar en el chat te da **monedas** para **GRS Fantasy** y la **GRS Porra**.\n\nCuanto más participes, más monedas.",
 			BotonTexto: "Ir al directo", BotonURL: "{{enlace}}", Pie: "¿No quieres más avisos del directo? Date de baja aquí: {{baja}}"}, ContenidoWA{Texto: "*El chat del directo te da monedas* 💬\n\nComenta y participa durante el directo y gana monedas para GRS Fantasy y la GRS Porra.", Botones: []BotonWA{{Texto: "Ir al directo", URL: "{{enlace}}"}}}),
+	// ---- GRS Fantasy: solicitud para unirse a una sala (al anfitrión; una vez por jugador y sala; esencial: el día
+	// empieza con la primera sesión, no puede esperar al final del evento) ----
+	pwa("fantasy-sala-solicitud", "GRS Fantasy: solicitud para tu sala", "Cuando alguien pide unirse a tu sala de GRS Fantasy (una vez por jugador y sala)", "juegos", "fantasy-salas", true,
+		[]string{"alias", "sala", "enlace", "baja"},
+		map[string]string{"alias": "laurafit", "sala": "LOS DEL BANCO", "enlace": "https://grcup.example/fantasy/salas/…#solicitudes", "baja": "https://grcup.example/api/competiciones/grcup/fans/avisos/baja?t=…"},
+		Contenido{Asunto: "{{alias}} quiere unirse a tu sala {{sala}}", Preheader: "Acepta o rechaza su solicitud en GRS Fantasy", Titulo: "Nueva solicitud para tu sala",
+			Cuerpo:     "**{{alias}}** quiere unirse a tu sala **{{sala}}** de GRS Fantasy.\n\nEntra en la sala para aceptarla o rechazarla antes de que empiece el día.",
+			BotonTexto: "Ver la solicitud", BotonURL: "{{enlace}}", Pie: "¿No quieres más avisos del directo? Date de baja aquí: {{baja}}",
+			Nota: "Recibes este email porque eres el anfitrión de la sala {{sala}} de GRS Fantasy."},
+		ContenidoWA{Texto: "*{{alias}} quiere unirse a tu sala {{sala}} de GRS Fantasy* 🏋️\n\nAcepta o rechaza su solicitud desde la sala.\n\n_Responde BAJA si no quieres más avisos._", Botones: []BotonWA{{Texto: "Ver la solicitud", URL: "{{enlace}}"}}}),
 }
 
 var ejPublico = map[string]string{"alias": "laurafit", "competicion": "GRS Cup 2", "enlace": "https://grcup.example/en-directo", "area": "https://grcup.example/area-atleta",
