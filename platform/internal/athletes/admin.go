@@ -402,6 +402,33 @@ func (s *Svc) registerAdmin() {
 						return err
 					}
 				}
+				// WhatsApp consent recorded (or withdrawn) by the team: the athlete gave it to the organiser.
+				if b.Whatsapp != nil {
+					v, _ := s.legalVigente(ctx, in.CID, "whatsapp")
+					if *b.Whatsapp {
+						tag, err := tx.Exec(ctx, `UPDATE atletas SET whatsapp_at = now(), whatsapp_version = $2, whatsapp_origen = 'backoffice · otorgado al organizador'
+							WHERE id = $1 AND whatsapp_at IS NULL`, in.ID, v)
+						if err != nil {
+							return err
+						}
+						if tag.RowsAffected() > 0 {
+							if err := hist(ctx, tx, in.ID, "Consentimiento de WhatsApp registrado", "desde el backoffice · "+v); err != nil {
+								return err
+							}
+						}
+					} else {
+						// «retirado» also overrides the box of the alta (waAceptado reads it first).
+						tag, err := tx.Exec(ctx, `UPDATE atletas SET whatsapp_at = NULL, whatsapp_version = '', whatsapp_origen = 'retirado' WHERE id = $1 AND whatsapp_origen <> 'retirado'`, in.ID)
+						if err != nil {
+							return err
+						}
+						if tag.RowsAffected() > 0 {
+							if err := hist(ctx, tx, in.ID, "Consentimiento de WhatsApp retirado", "desde el backoffice"); err != nil {
+								return err
+							}
+						}
+					}
+				}
 				if _, err := tx.Exec(ctx, `UPDATE atletas SET version = version + 1, updated_at = now() WHERE id = $1`, in.ID); err != nil {
 					return err
 				}
@@ -894,6 +921,7 @@ type PerfilIn struct {
 	PermiteSeguir           bool   `json:"permiteSeguir,omitempty"`
 	AutorizacionURL         string `json:"autorizacionUrl,omitempty" maxLength:"500" doc:"Autorización firmada del tutor (menores)"`
 	RegistrarConsentimiento bool   `json:"registrarConsentimiento,omitempty" doc:"Registrar el consentimiento de imagen firmado en papel"`
+	Whatsapp                *bool  `json:"whatsapp,omitempty" doc:"Avisos por WhatsApp: true registra el consentimiento dado al organizador, false lo retira; sin enviar no cambia"`
 }
 
 func (p *PerfilIn) validate() error {
@@ -951,6 +979,42 @@ type Ficha struct {
 	Area AreaEstado `json:"area"`
 	// Autorizacion is the state of the guardian's authorisation (minors): sin_pedir · enviada · revision · rechazada · aprobada.
 	Autorizacion AutorizacionEstado `json:"autorizacion"`
+	// Whatsapp is the consent to the WhatsApp notices (on the record or from the box of the alta); nil without it.
+	Whatsapp *ConsentimientoWA `json:"whatsapp,omitempty"`
+}
+
+// ConsentimientoWA is the recorded consent to the WhatsApp notices.
+type ConsentimientoWA struct {
+	At      time.Time `json:"at"`
+	Version string    `json:"version"`
+	Origen  string    `json:"origen"`
+}
+
+// consentimientoWA reads the WhatsApp consent of the athlete: the one on the record, else the box of the approved alta.
+func consentimientoWA(ctx context.Context, q interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}, cid, id uuid.UUID) *ConsentimientoWA {
+	var at *time.Time
+	var c ConsentimientoWA
+	if err := q.QueryRow(ctx, `SELECT whatsapp_at, whatsapp_version, whatsapp_origen FROM atletas WHERE competition_id = $1 AND id = $2`, cid, id).
+		Scan(&at, &c.Version, &c.Origen); err == nil {
+		if at != nil {
+			c.At = *at
+			return &c
+		}
+		if c.Origen == "retirado" {
+			return nil
+		}
+	}
+	var sol solicitud
+	if err := q.QueryRow(ctx, `SELECT consentimientos::text FROM solicitudes_atleta WHERE competition_id = $1 AND match_atleta_id = $2
+		AND tipo = 'alta' AND estado = 'aprobada' ORDER BY revisado_at DESC NULLS LAST LIMIT 1`, cid, id).Scan(&sol.Consentimientos); err != nil {
+		return nil
+	}
+	if k := sol.consent("whatsapp"); k.Aceptado {
+		return &ConsentimientoWA{At: k.At, Version: k.Version, Origen: "casilla del alta"}
+	}
+	return nil
 }
 
 // AreaEstado summarises the athlete's use of their area (Figma «Área del atleta»).
@@ -971,6 +1035,7 @@ func (s *Svc) ficha(ctx context.Context, cid, id uuid.UUID) (Ficha, error) {
 	_ = s.a.DB.QueryRow(ctx, `SELECT created_at, used_at FROM area_tokens WHERE atleta_id = $1 ORDER BY created_at DESC LIMIT 1`, id).Scan(&f.Area.EnlaceEnvio, &used)
 	f.Area.EnlaceUsado = used != nil
 	f.Autorizacion = s.estadoAutorizacion(ctx, r)
+	f.Whatsapp = consentimientoWA(ctx, s.a.DB, cid, id)
 	return f, nil
 }
 
