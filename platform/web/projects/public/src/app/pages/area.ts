@@ -582,7 +582,7 @@ export class AreaAtletaPage {
     { id: 'acreditacion', texto: this.t().miAcreditacion, icono: 'qr', vista: 'acreditacion' },
     { id: 'horarios', texto: this.t().verHorarios, icono: 'calendar', vista: 'horarios' },
     { id: 'post', texto: this.t().postBuilder, icono: 'instagram', vista: 'post' },
-    // the results of this edition filtered by the athlete's name (no per-athlete results page)
+    // los resultados de esta edición filtrados por el nombre del atleta (no hay página de resultados por atleta)
     { id: 'resultados', texto: this.t().verResultados, icono: 'trophy', ruta: '/resultados' + (this.anioComp() ? '/' + this.anioComp() : ''), query: this.anioComp() && this.panel()?.atleta.nombreCompleto ? { q: this.panel()!.atleta.nombreCompleto } : undefined, ancho: true },
   ]);
 
