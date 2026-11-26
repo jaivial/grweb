@@ -29,6 +29,7 @@ const T = {
     mercado: 'Mercado',
     clasificacion: 'Clasificación',
     cambiarSala: 'Cambiar de sala',
+    volver: 'Volver a GRS Fantasy',
     sinSala: 'Aún no estás en ninguna sala hoy',
     sinSalaTxt: 'El mercado, tu alineación y la clasificación van por sala. Solicita unirte a una o crea la tuya: necesitas al menos 2 jugadores para empezar.',
     verSalas: 'Ver salas',
@@ -122,6 +123,7 @@ const T = {
     mercado: 'Market',
     clasificacion: 'Leaderboard',
     cambiarSala: 'Change league',
+    volver: 'Back to GRS Fantasy',
     sinSala: "You aren't in any league today yet",
     sinSalaTxt: 'The market, your line-up and the leaderboard are per league. Ask to join one or create your own: you need at least 2 players to start.',
     verSalas: 'See leagues',
@@ -337,7 +339,7 @@ export class FantasyCabecera {
 
 /**
  * La barra de sala (Figma «Barra de sala»): la sala en la que se juega, sus pestañas (Resumen · Mi equipo · Mercado ·
- * Clasificación) y «Cambiar de sala». En móvil las pestañas son un selector con desplegable.
+ * Clasificación), «Volver a GRS Fantasy» (sale de la vista de sala, no de la sala) y «Cambiar de sala». En móvil las pestañas son un selector con desplegable.
  */
 @Component({
   selector: 'gr-barra-sala',
@@ -362,9 +364,14 @@ export class FantasyCabecera {
           [attr.aria-current]="o.v === activa() ? 'page' : null">{{ o.l }}</a>
       }
     </nav>
-    <a [href]="'/fantasy/salas' | loc" class="inline-flex min-h-11 shrink-0 items-center gap-2 self-start rounded-pill lg:min-h-[30px] border border-line-strong px-3 text-label-s text-text-secondary hover:text-text-primary lg:self-auto">
-      {{ t().cambiarSala }}<gr-icon name="chevron-down" [size]="16" />
-    </a>
+    <div class="flex shrink-0 flex-wrap items-center gap-2 self-start lg:self-auto">
+      <a [href]="'/fantasy/salas' | loc" class="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-pill lg:min-h-[30px] px-3 text-label-s text-text-secondary hover:text-text-primary">
+        <gr-icon name="arrow-left" [size]="16" />{{ t().volver }}
+      </a>
+      <a [href]="'/fantasy/salas' | loc" class="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-pill lg:min-h-[30px] border border-line-strong px-3 text-label-s text-text-secondary hover:text-text-primary">
+        {{ t().cambiarSala }}<gr-icon name="chevron-down" [size]="16" />
+      </a>
+    </div>
   `,
 })
 export class BarraSala {

@@ -283,6 +283,7 @@ export class GrSelector {
   host: { class: 'flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4' },
   template: `
     <!-- UX6-R1-11: fantasy (6 pestañas) usa el selector hasta lg; el aviso va en su fila hasta lg -->
+    @if (pestanas()) {
     @if (juego() === 'fantasy') { <gr-selector class="lg:hidden" etiqueta="GRS Fantasy" [opciones]="opciones()" [valor]="activa()" /> }
     <nav class="w-full rounded-pill border border-line-subtle bg-bg-surface p-1 md:w-auto" [class]="juego() === 'fantasy' ? 'hidden gap-1 lg:flex' : 'flex'" [attr.aria-label]="juego() === 'porra' ? t().porra : 'GRS Fantasy'">
       @for (p of tabs(); track p.href) {
@@ -293,6 +294,7 @@ export class GrSelector {
         </a>
       }
     </nav>
+    }
     <gr-aviso-juegos class="md:hidden" [corto]="true" />
     <gr-aviso-juegos class="hidden md:flex" />
   `,
@@ -301,6 +303,8 @@ export class JuegosNav {
   readonly juego = input<'porra' | 'fantasy'>('porra');
   /** La pestaña activa: mercados · apuestas · clasificacion (porra) o salas · equipo · mercado · clasificacion · palmares · reglas (fantasy). */
   readonly activa = input('');
+  /** false: solo el aviso legal (dentro de una sala, las pestañas las pone la barra de sala). */
+  readonly pestanas = input(true);
   protected readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(T);
   protected readonly tabs = computed(() => {
