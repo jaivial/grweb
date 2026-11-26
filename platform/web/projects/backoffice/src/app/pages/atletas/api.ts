@@ -102,6 +102,8 @@ export interface Atleta {
   area: { ultimoAcceso?: string; enlaceEnvio?: string; enlaceUsado: boolean };
   /** Menores: estado de la petición de autorización al tutor. */
   autorizacion?: EstadoAutorizacion;
+  /** Consentimiento de los avisos por WhatsApp (en la ficha o por la casilla del alta); sin él no se envían. */
+  whatsapp?: { at: string; version: string; origen: string };
 }
 export interface EstadoAutorizacion {
   estado: 'sin_pedir' | 'enviada' | 'revision' | 'rechazada' | 'aprobada';
