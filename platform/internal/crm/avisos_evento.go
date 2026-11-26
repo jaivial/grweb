@@ -15,7 +15,7 @@ import (
 )
 
 // registerAvisosEvento: BIZ-165 «Avísame» (GRS Cup 3). Stores the email once per event (idempotent, always 202).
-// Read them with: SELECT email, creado_at FROM avisos_evento WHERE evento = 'grscup-3';
+// The backoffice reads and manages these rows through registerAvisosEventoAdmin (see avisos_evento_admin.go).
 func (s *Svc) registerAvisosEvento() {
 	type in struct {
 		Body struct {

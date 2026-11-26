@@ -86,7 +86,7 @@ func (s *Svc) registerAvisosEventoAdmin() {
 	type crearIn struct {
 		CID  uuid.UUID `path:"cid"`
 		Body struct {
-			Evento string `json:"evento,omitempty" maxLength:"40"`
+			Evento string `json:"evento,omitempty" pattern:"^([a-z0-9-]{2,40})?$"`
 			Email  string `json:"email" maxLength:"254"`
 			Nombre string `json:"nombre,omitempty" maxLength:"120"`
 		}
@@ -140,6 +140,9 @@ func (s *Svc) registerAvisosEventoAdmin() {
 		func(ctx context.Context, in *editarIn) (*avisoOut, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "contactos.exportar"); err != nil {
 				return nil, err
+			}
+			if in.Body.Email == nil && in.Body.Nombre == nil {
+				return nil, problem.Unprocessable("SIN_CAMBIOS", "Indica el email o el nombre que quieres cambiar.")
 			}
 			var em *string
 			if in.Body.Email != nil {

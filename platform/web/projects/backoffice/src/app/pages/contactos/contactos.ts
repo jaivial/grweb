@@ -214,38 +214,44 @@ function descargar(blob: Blob, nombre: string): void {
           <div class="flex flex-wrap items-center gap-3">
             <bo-search class="w-full md:w-[320px]" placeholder="Buscar por email o nombre" [shortcut]="false" [value]="qAviso()" (valueChange)="filtrarAviso($event)" />
             <span class="flex-1"></span>
-            <p class="text-body-xs text-text-tertiary">{{ av?.total ?? 0 }} {{ av?.total === 1 ? 'persona avisada' : 'personas avisadas' }}</p>
+            @if (av) { <p class="text-body-xs text-text-tertiary">{{ av.total }} {{ av.total === 1 ? 'persona avisada' : 'personas avisadas' }}</p> }
           </div>
           <gr-alert tone="info" title="«Avísame» de la próxima competición: GRS Cup 3">Personas que han dejado su email en la home para que les avisemos cuando abra GRS Cup 3. Aquí puedes corregir un email, añadir un contacto a mano o quitar uno; el alta desde la home sigue funcionando igual.</gr-alert>
-          <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
-            <table boTablaMovil class="w-full min-w-[640px] text-left text-body-s">
-              <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="px-4 py-3">Nombre</th><th class="px-3 py-3">Email</th><th class="px-3 py-3">Alta</th><th class="w-28 px-3 py-3"></th></tr></thead>
-              <tbody>
-                @for (a of av?.items ?? []; track a.id) {
-                  <tr class="border-b border-line-subtle last:border-0">
-                    <td class="px-4 py-3 text-label-s">{{ a.nombre || '—' }}</td>
-                    <td class="px-3 py-3 font-mono text-mono-xs text-text-secondary">{{ a.email }}</td>
-                    <td class="px-3 py-3 font-mono text-mono-xs text-text-tertiary">{{ fecha(a.creadoAt) }}</td>
-                    <td class="px-3 py-3 text-right">
-                      @if (canExport()) {
-                        <span class="flex justify-end gap-1">
-                          <button grButton size="s" variant="ghost" (click)="abrirAviso(a)">Editar</button>
-                          <button type="button" class="flex size-9 items-center justify-center rounded-sm text-text-tertiary hover:text-danger" [attr.aria-label]="'Quitar a ' + a.email" (click)="borrarAviso(a)"><gr-icon name="trash" [size]="16" /></button>
-                        </span>
-                      }
-                    </td>
-                  </tr>
-                } @empty {
-                  <tr><td colspan="4" class="p-4"><bo-empty-state class="border-0" [kind]="qAviso() ? 'no-results' : 'no-data'" [title]="qAviso() ? 'Nadie coincide con la búsqueda' : 'Todavía no hay contactos avisados'" [text]="qAviso() ? 'Prueba con otro email o nombre, o limpia la búsqueda.' : 'Se apuntan desde el formulario «Avísame» de la home.'" /></td></tr>
-                }
-              </tbody>
-            </table>
-          </section>
-          @if (av && av.total > av.por) {
-            <div class="flex items-center justify-between text-body-xs text-text-tertiary">
-              <span>Mostrando {{ (av.pagina - 1) * av.por + 1 }}–{{ (av.pagina - 1) * av.por + av.items.length }} de {{ av.total }}</span>
-              <bo-pagination [page]="av.pagina" [pages]="pages(av)" (change)="paginaAviso($event)" />
-            </div>
+          @if (av === null) {
+            <gr-empty icon="wifi-off" title="No hemos podido cargar los contactos avisados"><button grButton (click)="reintentarAvisos()">Reintentar</button></gr-empty>
+          } @else if (av === undefined) {
+            <bo-skeleton />
+          } @else {
+            <section class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
+              <table boTablaMovil class="w-full min-w-[640px] text-left text-body-s">
+                <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary"><tr><th class="px-4 py-3">Nombre</th><th class="px-3 py-3">Email</th><th class="px-3 py-3">Alta</th><th class="w-28 px-3 py-3"></th></tr></thead>
+                <tbody>
+                  @for (a of av.items; track a.id) {
+                    <tr class="border-b border-line-subtle last:border-0">
+                      <td class="px-4 py-3 text-label-s">{{ a.nombre || '—' }}</td>
+                      <td class="px-3 py-3 font-mono text-mono-xs text-text-secondary">{{ a.email }}</td>
+                      <td class="px-3 py-3 font-mono text-mono-xs text-text-tertiary">{{ fecha(a.creadoAt) }}</td>
+                      <td class="px-3 py-3 text-right">
+                        @if (canExport()) {
+                          <span class="flex justify-end gap-1">
+                            <button grButton size="s" variant="ghost" (click)="abrirAviso(a)">Editar</button>
+                            <button type="button" class="flex size-9 items-center justify-center rounded-sm text-text-tertiary hover:text-danger" [attr.aria-label]="'Quitar a ' + a.email" (click)="borrarAviso(a)"><gr-icon name="trash" [size]="16" /></button>
+                          </span>
+                        }
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="4" class="p-4"><bo-empty-state class="border-0" [kind]="qAviso() ? 'no-results' : 'no-data'" [title]="qAviso() ? 'Nadie coincide con la búsqueda' : 'Todavía no hay contactos avisados'" [text]="qAviso() ? 'Prueba con otro email o nombre, o limpia la búsqueda.' : 'Se apuntan desde el formulario «Avísame» de la home.'" /></td></tr>
+                  }
+                </tbody>
+              </table>
+            </section>
+            @if (av.total > av.por) {
+              <div class="flex items-center justify-between text-body-xs text-text-tertiary">
+                <span>Mostrando {{ (av.pagina - 1) * av.por + 1 }}–{{ (av.pagina - 1) * av.por + av.items.length }} de {{ av.total }}</span>
+                <bo-pagination [page]="av.pagina" [pages]="pages(av)" (change)="paginaAviso($event)" />
+              </div>
+            }
           }
         }
       }
@@ -503,10 +509,20 @@ export class ContactosPage {
   // ---- GRS Cup 3 («Avísame» contacts) ----
   protected async cargarAvisos(): Promise<void> {
     try {
-      this.avisos.set(await this.api.avisos(this.cid(), { evento: 'grscup-3', q: this.qAviso() || undefined, pagina: this.avisoPagina }));
+      const r = await this.api.avisos(this.cid(), { evento: 'grscup-3', q: this.qAviso() || undefined, pagina: this.avisoPagina });
+      // Deleting the last row of a page > 1 would leave an empty page: go back to the last one with data.
+      if (!r.items.length && this.avisoPagina > 1) {
+        this.avisoPagina = Math.max(1, Math.ceil(r.total / r.por));
+        return this.cargarAvisos();
+      }
+      this.avisos.set(r);
     } catch {
       this.avisos.set(null);
     }
+  }
+  protected reintentarAvisos(): void {
+    this.avisos.set(undefined);
+    void this.cargarAvisos();
   }
   protected filtrarAviso(q: string): void {
     this.qAviso.set(q);
