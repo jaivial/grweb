@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/jaivial/grweb/platform/pkg/problem"
+	"github.com/jaivial/grweb/platform/pkg/storage"
 )
 
 // Colaboradores Refugio: hotels, apartments and restaurants (/donde-dormir-y-comer) and powerlifting gyms
@@ -125,6 +126,25 @@ func sitioSet(desde int) string {
 	return strings.Join(out, ", ")
 }
 
+// borrarSitio removes the images a deleted place had uploaded: only keys of its own upload folder (a pasted URL
+// or a logo of another folder stays) and only when no other row of the table still shows that file.
+func (s *Svc) borrarSitio(ctx context.Context, cid uuid.UUID, tabla, carpeta string, r sitioRow) {
+	st, base := s.almacenMapas(ctx, cid)
+	for _, u := range []string{r.Imagen, r.Logo, r.LogoOscuro} {
+		key, ok := storage.ClaveDeURL(base, u)
+		if !ok || !(strings.HasPrefix(key, carpeta+"/") || strings.HasPrefix(key, carpeta+"-")) {
+			continue
+		}
+		var enUso bool
+		if err := s.a.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM `+tabla+` WHERE $1 IN (imagen_url, logo_url, logo_oscuro_url))`, u).Scan(&enUso); err != nil || enUso {
+			continue
+		}
+		if err := st.Delete(ctx, key); err != nil {
+			s.a.Log.Warn("no se ha podido borrar la imagen del almacén", "err", err, "key", key)
+		}
+	}
+}
+
 func (s *Svc) registerRefugio() {
 	selRow := "id, " + sitioCols + ", orden, updated_at, en"
 	marcas := "$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15"
@@ -132,6 +152,9 @@ func (s *Svc) registerRefugio() {
 	register(s, collection[hotelRow, hotelIn]{
 		name: "hoteles_restaurantes", path: "/web/hoteles-restaurantes", table: "hoteles_restaurantes", tag: "Colaboradores Refugio", perm: "web.editar",
 		order: "orden, created_at", cols: "tipo, " + selRow, public: evHoteles,
+		deleted: func(ctx context.Context, cid uuid.UUID, r hotelRow) {
+			s.borrarSitio(ctx, cid, "hoteles_restaurantes", "hoteles-restaurantes", r.sitioRow)
+		},
 		validate: func(in *hotelIn) error { return in.validar() },
 		insert: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *hotelIn) error {
 			_, err := tx.Exec(ctx, `INSERT INTO hoteles_restaurantes (id, competition_id, `+sitioCols+`, tipo, orden)
@@ -148,6 +171,9 @@ func (s *Svc) registerRefugio() {
 	register(s, collection[sitioRow, sitioIn]{
 		name: "gimnasios", path: "/web/gimnasios", table: "gimnasios", tag: "Colaboradores Refugio", perm: "web.editar",
 		order: "orden, created_at", cols: selRow, public: evGimnasios,
+		deleted: func(ctx context.Context, cid uuid.UUID, r sitioRow) {
+			s.borrarSitio(ctx, cid, "gimnasios", "gimnasios", r)
+		},
 		validate: func(in *sitioIn) error { return in.validar() },
 		insert: func(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, in *sitioIn) error {
 			_, err := tx.Exec(ctx, `INSERT INTO gimnasios (id, competition_id, `+sitioCols+`, orden)
