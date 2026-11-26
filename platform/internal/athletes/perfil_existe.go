@@ -56,7 +56,7 @@ type PerfilExisteOut struct {
 	MenoresIncl   int      `json:"menoresIncluidos"`
 }
 
-// registerPerfilExiste: «Tu perfil de atleta en la GRS Cup 2 ya existe». For each chosen athlete it sets a new
+// registerPerfilExiste: «{{nombre}}, bienvenido a la GRS Cup 2». For each chosen athlete it sets a new
 // initial password (the athlete's login of the área de atleta), links the fan account of the same email (one account
 // per email) and queues the email (and the WhatsApp when asked and there is a phone). Idempotent: an athlete already
 // notified, or with a password of their own, is skipped unless «reenviar». Minors (and possible minors: sub-júnior
