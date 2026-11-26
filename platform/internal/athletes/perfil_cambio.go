@@ -882,7 +882,7 @@ func (s *Svc) apruebaCambioPerfil(ctx context.Context, cid, id uuid.UUID, ifm st
 				return err
 			}
 		}
-		if avisarWhatsApp && prev.Telefono != "" && sol.consent("whatsapp").Aceptado {
+		if avisarWhatsApp && prev.Telefono != "" && (sol.consent("whatsapp").Aceptado || waAceptado(ctx, tx, cid, destino)) {
 			if err := whatsapp(ctx, tx, cid, prev.Telefono, false, "atleta-cambio-perfil-aprobado", map[string]string{
 				"nombre": next.Nombre, "cambios": textoWA, "urlArea": urlArea}, ""); err != nil {
 				return err
