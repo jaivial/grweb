@@ -15,6 +15,7 @@ import (
 
 	"github.com/jaivial/grweb/platform/pkg/auth"
 	"github.com/jaivial/grweb/platform/pkg/db"
+	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
@@ -354,6 +355,46 @@ func (s *Svc) registerAdmin() {
 					b.ClausulaInicial, b.ClausulaMin, b.ClausulaMax, b.PctValido, b.PctNulo, b.PctBlanqueo, b.PctDemanda, b.PctPuesto,
 					pt, p.Name)
 				return err
+			})
+			if err != nil {
+				return nil, err
+			}
+			cfg, err := configJuegos(ctx, s.a.DB, in.CID)
+			return &configOut{Body: cfg}, err
+		})
+
+	// «Activar juegos» (cabecera de Directo social › Juegos): con false, /porra, /fantasy y la pestaña porra de
+	// /en-directo enseñan que los juegos aún no están abiertos y no se puede apostar ni fichar. No toca la versión
+	// de la configuración (quien la esté editando no choca con el interruptor).
+	type activoIn struct {
+		CID  uuid.UUID `path:"cid"`
+		Body struct {
+			Activo bool `json:"activo" doc:"true: los juegos se ven y se juegan en la web"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "juegos-admin-activo", Method: http.MethodPut, Path: base + "/activo",
+		Summary: "Activar o desactivar los juegos en la web", Tags: tagJuegos, Security: bearer},
+		func(ctx context.Context, in *activoIn) (*configOut, error) {
+			p, err := requireAny(ctx, in.CID, "Tu rol no puede gestionar los juegos (permiso «directo.operar»).", "directo.operar")
+			if err != nil {
+				return nil, err
+			}
+			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				if _, err := tx.Exec(ctx, `INSERT INTO config_juegos (competition_id) VALUES ($1) ON CONFLICT DO NOTHING`, in.CID); err != nil {
+					return err
+				}
+				tag, err := tx.Exec(ctx, `UPDATE config_juegos SET activo = $2, updated_por = $3, updated_at = now() WHERE competition_id = $1 AND activo <> $2`,
+					in.CID, in.Body.Activo, p.Name)
+				if err != nil || tag.RowsAffected() == 0 {
+					return err
+				}
+				// the public pages switch at once (public SSE); the activity log keeps who did it
+				if err := events.Enqueue(ctx, tx, events.New(ctx, "juegos.estado", map[string]any{"activo": in.Body.Activo},
+					events.Competition(in.CID.String()), events.Audience(events.Public))); err != nil {
+					return err
+				}
+				return events.Enqueue(ctx, tx, events.New(ctx, "juegos.activo", map[string]any{"activo": in.Body.Activo, "por": p.Name},
+					events.Competition(in.CID.String()), events.ForPermission("directo.operar"), events.Subject("juegos")))
 			})
 			if err != nil {
 				return nil, err

@@ -32,24 +32,31 @@ const paginas: Routes = [
   { path: 'en-directo', loadComponent: () => import('./pages/directo').then((m) => m.EnDirectoPage) },
   { path: 'acceso', loadComponent: () => import('./pages/acceso').then((m) => m.AccesoPage) },
   { path: 'directo', pathMatch: 'full', redirectTo: 'en-directo' },
-  // Juegos: porra y GRS Fantasy (Figma 71 y 72).
-  { path: 'porra', loadComponent: () => import('./pages/porra/porra').then((m) => m.PorraPage) },
-  { path: 'porra/mis-apuestas', loadComponent: () => import('./pages/porra/mis-apuestas').then((m) => m.MisApuestasPage) },
-  { path: 'porra/clasificacion', loadComponent: () => import('./pages/porra/clasificacion').then((m) => m.PorraClasificacionPage) },
-  { path: 'fantasy', loadComponent: () => import('./pages/fantasy/mi-equipo').then((m) => m.MiEquipoPage) },
-  { path: 'fantasy/mercado', loadComponent: () => import('./pages/fantasy/mercado').then((m) => m.MercadoFantasyPage) },
-  { path: 'fantasy/clasificacion', loadComponent: () => import('./pages/fantasy/clasificacion').then((m) => m.FantasyClasificacionPage) },
+  // Juegos: porra y GRS Fantasy (Figma 71 y 72). «Cómo se juega» se ve siempre; el resto pasa por la puerta de
+  // «Activar juegos» (backoffice): apagado, enseña que los juegos aún no están abiertos.
   { path: 'fantasy/como-se-juega', loadComponent: () => import('./pages/fantasy/como-se-juega').then((m) => m.ComoSeJuegaPage) },
-  // Salas de GRS Fantasy (Figma 81): lobby, sala, unirse con el enlace del anfitrión y palmarés. Mi equipo, el
-  // mercado y la clasificación van por sala (sin :id, la mía del día). Las pantallas nuevas se cargan bajo demanda
-  // para no engordar el bundle inicial.
-  { path: 'fantasy/salas', loadComponent: () => import('./pages/fantasy/salas').then((m) => m.SalasPage) },
-  { path: 'fantasy/salas/:id', loadComponent: () => import('./pages/fantasy/sala').then((m) => m.SalaPage) },
-  { path: 'fantasy/salas/:id/equipo', loadComponent: () => import('./pages/fantasy/mi-equipo').then((m) => m.MiEquipoPage) },
-  { path: 'fantasy/salas/:id/mercado', loadComponent: () => import('./pages/fantasy/mercado').then((m) => m.MercadoFantasyPage) },
-  { path: 'fantasy/salas/:id/clasificacion', loadComponent: () => import('./pages/fantasy/clasificacion').then((m) => m.FantasyClasificacionPage) },
-  { path: 'fantasy/unirse/:codigo', loadComponent: () => import('./pages/fantasy/unirse').then((m) => m.UnirsePage) },
-  { path: 'fantasy/palmares', loadComponent: () => import('./pages/fantasy/palmares').then((m) => m.PalmaresPage) },
+  {
+    path: '',
+    loadComponent: () => import('./pages/juegos-cerrados').then((m) => m.JuegosPuerta),
+    children: [
+      { path: 'porra', loadComponent: () => import('./pages/porra/porra').then((m) => m.PorraPage) },
+      { path: 'porra/mis-apuestas', loadComponent: () => import('./pages/porra/mis-apuestas').then((m) => m.MisApuestasPage) },
+      { path: 'porra/clasificacion', loadComponent: () => import('./pages/porra/clasificacion').then((m) => m.PorraClasificacionPage) },
+      { path: 'fantasy', loadComponent: () => import('./pages/fantasy/mi-equipo').then((m) => m.MiEquipoPage) },
+      { path: 'fantasy/mercado', loadComponent: () => import('./pages/fantasy/mercado').then((m) => m.MercadoFantasyPage) },
+      { path: 'fantasy/clasificacion', loadComponent: () => import('./pages/fantasy/clasificacion').then((m) => m.FantasyClasificacionPage) },
+      // Salas de GRS Fantasy (Figma 81): lobby, sala, unirse con el enlace del anfitrión y palmarés. Mi equipo, el
+      // mercado y la clasificación van por sala (sin :id, la mía del día). Las pantallas nuevas se cargan bajo demanda
+      // para no engordar el bundle inicial.
+      { path: 'fantasy/salas', loadComponent: () => import('./pages/fantasy/salas').then((m) => m.SalasPage) },
+      { path: 'fantasy/salas/:id', loadComponent: () => import('./pages/fantasy/sala').then((m) => m.SalaPage) },
+      { path: 'fantasy/salas/:id/equipo', loadComponent: () => import('./pages/fantasy/mi-equipo').then((m) => m.MiEquipoPage) },
+      { path: 'fantasy/salas/:id/mercado', loadComponent: () => import('./pages/fantasy/mercado').then((m) => m.MercadoFantasyPage) },
+      { path: 'fantasy/salas/:id/clasificacion', loadComponent: () => import('./pages/fantasy/clasificacion').then((m) => m.FantasyClasificacionPage) },
+      { path: 'fantasy/unirse/:codigo', loadComponent: () => import('./pages/fantasy/unirse').then((m) => m.UnirsePage) },
+      { path: 'fantasy/palmares', loadComponent: () => import('./pages/fantasy/palmares').then((m) => m.PalmaresPage) },
+    ],
+  },
   { path: 'resultados', loadComponent: () => import('./pages/directo').then((m) => m.ResultadosIndexPage) },
   { path: 'resultados/:anio', loadComponent: () => import('./pages/directo').then((m) => m.ResultadosEdicionPage) },
   { path: 'ediciones/:anio', loadComponent: () => import('./pages/directo').then((m) => m.EdicionPage) },

@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/jaivial/grweb/platform/pkg/db"
+	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
 // querier is satisfied by *pgxpool.Pool and pgx.Tx, so the same helpers serve HTTP and worker paths.
@@ -99,6 +100,14 @@ func scanConfig(r pgx.Row) (*Config, error) {
 		_ = json.Unmarshal(pt, &c.Puntos)
 	}
 	return &c, nil
+}
+
+// abiertos refuses a play while «Activar juegos» is off in the backoffice (the web shows its fallback then).
+func (c *Config) abiertos() error {
+	if c != nil && !c.Activo {
+		return problem.Conflict("JUEGOS_INACTIVOS", "Los juegos todavía no están abiertos.")
+	}
+	return nil
 }
 
 // configJuegos reads (creating with defaults if needed) the configuration of a competition.

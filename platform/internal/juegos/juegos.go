@@ -60,6 +60,9 @@ type Svc struct {
 	lobbyMemo memo
 	hor       map[string]horEntrada
 	horSF     singleflight.Group // one schedule call per key at a time
+	// dias: the schedule dates per competition (pruebaDelDia, 30 s)
+	diasMu sync.Mutex
+	dias   map[uuid.UUID]diasEntrada
 	// horarioFijo replaces the published schedule in the tests.
 	horarioFijo *horarioDia
 }

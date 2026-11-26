@@ -88,11 +88,12 @@ func (s *Svc) jornadaPublica(ctx context.Context, cid, jid uuid.UUID) (*jornada,
 	if err != nil || j != nil {
 		return j, err
 	}
-	// No jornada today: the open one (latest first), else the last non-draft one.
+	// No jornada today: the open one (the next day to come first), else the last non-draft one.
 	// ST3-R1-6: among the open ones, a jornada with fantasy athletes wins over an empty one.
 	jj, err := scanJornada(s.a.DB.QueryRow(ctx, selJornada+` FROM jornadas WHERE competition_id = $1 AND estado <> 'borrador'
 		ORDER BY estado IN ('abierta','en_juego') DESC, EXISTS (SELECT 1 FROM fantasy_atletas fa WHERE fa.jornada_id = jornadas.id) DESC,
-		estado = 'en_juego' DESC, dia DESC LIMIT 1`, cid))
+		estado = 'en_juego' DESC, (dia >= (now() AT TIME ZONE 'Europe/Madrid')::date) DESC,
+		CASE WHEN dia >= (now() AT TIME ZONE 'Europe/Madrid')::date THEN dia END ASC, dia DESC LIMIT 1`, cid))
 	if db.IsNoRows(err) {
 		return nil, problem.NotFound("No hay jornada.")
 	}
@@ -623,6 +624,9 @@ func (s *Svc) registerPublic() {
 			<-hecho
 			if errCfg != nil {
 				return nil, errCfg
+			}
+			if err := cfg.abiertos(); err != nil {
+				return nil, err
 			}
 			if err != nil {
 				return nil, err

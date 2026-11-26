@@ -49,7 +49,7 @@ func (s *Svc) sincronizar(ctx context.Context, cid uuid.UUID, j jornada) error {
 		if err != nil {
 			return err
 		}
-		if err := subirAtletasTx(ctx, tx, cid, j, m, cfg); err != nil {
+		if err := sincronizarAtletasTx(ctx, tx, cid, j, m, cfg, degradado); err != nil {
 			return err
 		}
 		if err := aplicarNotasTx(ctx, tx, cid, j, cfg, m); err != nil {
@@ -69,15 +69,72 @@ func (s *Svc) sincronizar(ctx context.Context, cid uuid.UUID, j jornada) error {
 // subirAtletasTx loads the athletes of the jornada into fantasy_atletas from the scoreboard: new ones start at
 // the initial clause; known ones refresh the public name (the privacy rule can change during the day).
 func subirAtletasTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, m *Marcador, cfg *Config) error {
+	_, err := subirAtletasCambiosTx(ctx, tx, cid, j, m, cfg)
+	return err
+}
+
+// subirAtletasCambiosTx is subirAtletasTx returning how many rows were created or changed. Known athletes follow
+// their edits (name, sex, weight class); the clause is never touched here.
+func subirAtletasCambiosTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, m *Marcador, cfg *Config) (int64, error) {
+	var n int64
 	for _, a := range m.Atletas {
-		if _, err := tx.Exec(ctx, `INSERT INTO fantasy_atletas (jornada_id, competition_id, atleta_id, nombre_publico, sexo, categoria, clausula)
+		tag, err := tx.Exec(ctx, `INSERT INTO fantasy_atletas (jornada_id, competition_id, atleta_id, nombre_publico, sexo, categoria, clausula)
 			VALUES ($1,$2,$3,$4,$5,$6,$7)
-			ON CONFLICT (jornada_id, atleta_id) DO UPDATE SET nombre_publico = EXCLUDED.nombre_publico, updated_at = now()`,
-			j.ID, cid, a.AtletaID, a.NombrePublico, a.Sexo, a.Categoria, cfg.ClausulaInicial); err != nil {
-			return err
+			ON CONFLICT (jornada_id, atleta_id) DO UPDATE SET nombre_publico = EXCLUDED.nombre_publico, sexo = EXCLUDED.sexo,
+				categoria = EXCLUDED.categoria, updated_at = now()
+			WHERE (fantasy_atletas.nombre_publico, fantasy_atletas.sexo, fantasy_atletas.categoria) IS DISTINCT FROM (EXCLUDED.nombre_publico, EXCLUDED.sexo, EXCLUDED.categoria)`,
+			j.ID, cid, a.AtletaID, a.NombrePublico, a.Sexo, a.Categoria, cfg.ClausulaInicial)
+		if err != nil {
+			return n, err
+		}
+		n += tag.RowsAffected()
+	}
+	return n, nil
+}
+
+// quitarAtletasTx takes out of the fantasy market of the jornada the athletes that left the scoreboard (deleted,
+// withdrawn, or no longer confirmed). Never from a degraded or empty scoreboard (stale data must not shrink the
+// market), and never an athlete some player owns in a room: that one stays until the jornada ends.
+func quitarAtletasTx(ctx context.Context, tx pgx.Tx, j jornada, m *Marcador, degradado bool) (int64, error) {
+	if degradado || m == nil || len(m.Atletas) == 0 {
+		return 0, nil
+	}
+	ids := make([]uuid.UUID, 0, len(m.Atletas))
+	for _, a := range m.Atletas {
+		ids = append(ids, a.AtletaID)
+	}
+	tag, err := tx.Exec(ctx, `DELETE FROM fantasy_atletas fa WHERE fa.jornada_id = $1 AND NOT (fa.atleta_id = ANY($2::uuid[]))
+		AND NOT EXISTS (SELECT 1 FROM sala_atletas sa WHERE sa.jornada_id = fa.jornada_id AND sa.atleta_id = fa.atleta_id AND sa.dueno_fan_id IS NOT NULL)`, j.ID, ids)
+	if err != nil {
+		return 0, err
+	}
+	if tag.RowsAffected() > 0 {
+		// the per-room prices of the athletes that left (nobody owns them)
+		if _, err := tx.Exec(ctx, `DELETE FROM sala_atletas sa WHERE sa.jornada_id = $1 AND sa.dueno_fan_id IS NULL
+			AND NOT EXISTS (SELECT 1 FROM fantasy_atletas fa WHERE fa.jornada_id = sa.jornada_id AND fa.atleta_id = sa.atleta_id)`, j.ID); err != nil {
+			return 0, err
 		}
 	}
-	return nil
+	return tag.RowsAffected(), nil
+}
+
+// sincronizarAtletasTx brings the fantasy market of a jornada in step with its scoreboard and, when anything
+// changed, tells the public pages (fantasy.atletas) so the market and the porra reload at once.
+func sincronizarAtletasTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, m *Marcador, cfg *Config, degradado bool) error {
+	subidos, err := subirAtletasCambiosTx(ctx, tx, cid, j, m, cfg)
+	if err != nil {
+		return err
+	}
+	quitados, err := quitarAtletasTx(ctx, tx, j, m, degradado)
+	if err != nil {
+		return err
+	}
+	if subidos+quitados == 0 {
+		return nil
+	}
+	return events.Enqueue(ctx, tx, events.New(ctx, "fantasy.atletas",
+		map[string]any{"jornadaId": j.ID.String(), "cambios": subidos, "quitados": quitados},
+		events.Competition(cid.String()), events.Audience(events.Public)))
 }
 
 func cargarMercadosTx(ctx context.Context, tx pgx.Tx, jid uuid.UUID) ([]mercadoRow, error) {

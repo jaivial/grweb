@@ -588,7 +588,7 @@ export class MarketRow {
   protected readonly ini = computed(() => iniciales(this.atleta().nombre));
   protected readonly subtitulo = computed(() => {
     const a = this.atleta();
-    return `${a.sexo === 'F' ? this.t().femenino : this.t().masculino} · ${(a.categoria ?? '').replace('-', '−')} kg`;
+    return `${a.sexo === 'F' ? this.t().femenino : this.t().masculino}${a.categoria ? ' · ' + a.categoria.replace('-', '−') + ' kg' : ''}`;
   });
   protected readonly dueno = computed(() => {
     const a = this.atleta();
@@ -755,7 +755,7 @@ export class ClausulazoModal {
   protected readonly ini = computed(() => iniciales(this.atleta().nombre));
   protected readonly subtitulo = computed(() => {
     const a = this.atleta();
-    return `${a.sexo === 'F' ? this.t().femenino : this.t().masculino} · ${(a.categoria ?? '').replace('-', '−')} kg`;
+    return `${a.sexo === 'F' ? this.t().femenino : this.t().masculino}${a.categoria ? ' · ' + a.categoria.replace('-', '−') + ' kg' : ''}`;
   });
   protected readonly dueno = computed(() => {
     const a = this.atleta();
@@ -889,7 +889,7 @@ export class AthleteSheet {
   protected readonly subtitulo = computed(() => {
     const a = this.atleta();
     if (!a) return '';
-    return `${a.sexo === 'F' ? this.t().femenino : this.t().masculino} · ${(a.categoria ?? '').replace('-', '−')} kg`;
+    return `${a.sexo === 'F' ? this.t().femenino : this.t().masculino}${a.categoria ? ' · ' + a.categoria.replace('-', '−') + ' kg' : ''}`;
   });
   protected readonly notaAtleta = computed<Nota | null>(() => this.atleta()?.nota ?? null);
   protected readonly blanqueo = computed(() => this.notaAtleta()?.blanqueo === true);

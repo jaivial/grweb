@@ -304,6 +304,9 @@ func cerrarMercado(m *Marcador, mc mercadoRow) bool {
 // The market row is read FOR SHARE: the bet and the close/liquidation of the market are serialized (a bet can
 // never slip into a market that is being closed or settled, contract §6.2).
 func (s *Svc) apostarTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, fanID uuid.UUID, alias string, mercadoID, atletaID uuid.UUID, importe int64, nombre string) (uuid.UUID, error) {
+	if err := cfg.abiertos(); err != nil {
+		return uuid.Nil, err
+	}
 	// ST2-R1-5: the jornada is re-read FOR SHARE inside the transaction (it was read before it): its close
 	// (PATCH, FOR UPDATE) waits for the bets in flight and no bet gets in after it.
 	j, err := scanJornada(tx.QueryRow(ctx, selJornada+` FROM jornadas WHERE id = $1 FOR SHARE`, j.ID))

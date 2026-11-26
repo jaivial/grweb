@@ -5,10 +5,59 @@ package juegos
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+// ordenPruebas: AEP-2 runs the first day of the event and AEP-3 the second one (the split of schedule and athletes).
+var ordenPruebas = []string{"aep2", "aep3"}
+
+// pruebaDelDia tells live which confirmed athletes without a published sesion belong to the jornada of dia: every
+// approved athlete plays from the moment the request is approved, schedule or not. The dates are the ones of the
+// schedule (not every jornada: an old jornada that was played stays in the table): with one date per competition
+// (AEP-2 the first date, AEP-3 the second, as schedule splits them) each one goes to its own day; any other date,
+// or a schedule that cannot be read, gets "*" (all of them). Athletes without a competition go to every day.
+func (s *Svc) pruebaDelDia(ctx context.Context, cid uuid.UUID, dia string) string {
+	dias := s.diasDelHorario(ctx, cid)
+	if len(dias) < len(ordenPruebas) {
+		return "*"
+	}
+	for i, d := range dias {
+		if d == dia && i < len(ordenPruebas) {
+			return ordenPruebas[i]
+		}
+	}
+	return "*"
+}
+
+type diasEntrada struct {
+	dias []string
+	exp  time.Time
+}
+
+// diasDelHorario are the dates of the schedule, cached 30 s per pod (the marcador asks for them every second); on a
+// schedule error the last known dates are kept for another 30 s.
+func (s *Svc) diasDelHorario(ctx context.Context, cid uuid.UUID) []string {
+	s.diasMu.Lock()
+	e, ok := s.dias[cid]
+	s.diasMu.Unlock()
+	if ok && time.Now().Before(e.exp) {
+		return e.dias
+	}
+	fechas, okSched := s.fechasSchedule(ctx, cid)
+	if !okSched {
+		fechas = e.dias
+	}
+	s.diasMu.Lock()
+	if s.dias == nil || len(s.dias) > 64 {
+		s.dias = map[uuid.UUID]diasEntrada{}
+	}
+	s.dias[cid] = diasEntrada{dias: fechas, exp: time.Now().Add(30 * time.Second)}
+	s.diasMu.Unlock()
+	return fechas
+}
 
 // MarcadorIntento mirrors one attempt of the live scoreboard.
 type MarcadorIntento struct {
@@ -91,11 +140,12 @@ func degradada(m *Marcador, caido bool, err error) bool {
 }
 
 func (s *Svc) cargarMarcador(cid uuid.UUID, dia, k string, prev marcEntrada, hayPrev bool) marcEntrada {
+	prueba := s.pruebaDelDia(context.Background(), cid, dia) // cached; outside the 2 s budget of the live call
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	var m Marcador
 	n := marcEntrada{m: &m, ok: time.Now(), exp: time.Now().Add(time.Second)}
-	if err := s.live.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/marcador?dia="+dia, nil, &m); err != nil {
+	if err := s.live.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/marcador?dia="+dia+"&prueba="+url.QueryEscape(prueba), nil, &m); err != nil {
 		s.a.Log.Warn("marcador no disponible", "cid", cid, "dia", dia, "err", err)
 		n = marcEntrada{err: err, caido: true, exp: time.Now().Add(2 * time.Second)}
 		if hayPrev && prev.m != nil && time.Since(prev.ok) < marcadorStale {

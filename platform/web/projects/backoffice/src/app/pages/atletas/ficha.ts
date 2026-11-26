@@ -122,7 +122,7 @@ const PUBLIC_WEB = webPublica();
                   <h2 class="text-ui-h5">Contacto</h2>
                   <p class="mt-0.5 text-body-xs text-text-tertiary">Email y teléfono del atleta: con ellos entran a su área y reciben los avisos. Si la cuenta del directo usa el mismo email, sigue siendo la misma persona.</p>
                   <div class="mt-4 grid gap-4 md:grid-cols-2">
-                    <gr-field label="Email" for="d-mail-p" [hint]="a.email ? 'Con este email entra al área' : null" [error]="errEmail() || null"><input grInput id="d-mail-p" type="email" autocomplete="email" [(ngModel)]="d.email" (ngModelChange)="errEmail.set('')" [invalid]="!!errEmail()" [attr.aria-invalid]="!!errEmail() || null" [disabled]="!canEdit()" /></gr-field>
+                    <gr-field label="Email" for="d-mail-p" [error]="errEmail()" [hint]="a.email ? 'Con este email entra al área' : null"><input grInput id="d-mail-p" type="email" autocomplete="email" [(ngModel)]="d.email" (ngModelChange)="errEmail.set('')" [invalid]="!!errEmail()" [attr.aria-describedby]="errEmail() ? 'd-mail-p-error' : null" [disabled]="!canEdit()" /></gr-field>
                     <gr-field label="Teléfono" for="d-tel-p" [hint]="a.menor ? 'Menor de edad: el teléfono del tutor, para avisos por WhatsApp si lo consiente' : 'Se usa para avisos por WhatsApp si lo consiente'" [error]="d.telefono && !valido(d.telefono) ? 'El número no está completo.' : null">
                       <gr-telefono id="d-tel-p" tam="m" [aria-label]="'Teléfono'" [invalido]="!!d.telefono && !valido(d.telefono)" [(ngModel)]="d.telefono" [disabled]="!canEdit()" />
                     </gr-field>
@@ -319,7 +319,7 @@ export class AtletaFichaPage {
   protected readonly conflicto = signal(false);
   /** 422 of the licence from the server, shown on its field (U06-R6-1). */
   protected readonly errLicencia = signal('');
-  /** TELBO-05: 422 of the email (EMAIL_INVALIDO), shown on its field like the licence, not only in the toast. */
+  /** Email rechazado por el servidor (409 EMAIL_EN_USO, 422 EMAIL_INVALIDO), en su campo como la licencia. */
   protected readonly errEmail = signal('');
   private readonly rev = signal(0); // bumped when the form model is replaced or changed outside a template event
   protected p: Atleta['perfil'] = this.blankPerfil();
@@ -434,8 +434,8 @@ export class AtletaFichaPage {
         if (e instanceof HttpErrorResponse && (e.error?.code === 'LICENCIA_INVALIDA' || e.error?.errors?.some?.((x: { location?: string }) => x.location === 'body.licencia'))) {
           this.errLicencia.set(e.error?.detail ?? 'Licencia no válida');
           document.getElementById('d-l')?.focus();
-        } else if (e instanceof HttpErrorResponse && (e.error?.code === 'EMAIL_INVALIDO' || e.error?.errors?.some?.((x: { location?: string }) => x.location === 'body.email'))) {
-          // TELBO-05: el campo se marca en rojo con su mensaje (el aviso flotante se va solo)
+        } else if (e instanceof HttpErrorResponse && (e.error?.code === 'EMAIL_INVALIDO' || e.error?.code === 'EMAIL_EN_USO' || e.error?.errors?.some?.((x: { location?: string }) => x.location === 'body.email'))) {
+          // TELBO-05 (422 EMAIL_INVALIDO) y email de otro atleta (409 EMAIL_EN_USO): el campo se marca, no solo el aviso
           this.errEmail.set(e.error?.detail ?? errText(e));
           document.getElementById('d-mail-p')?.focus();
         }
