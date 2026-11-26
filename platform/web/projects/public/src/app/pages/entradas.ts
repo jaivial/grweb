@@ -546,6 +546,13 @@ const lineaPuertas = (pg: { puertas: string; hasta: string; ambosDias: string },
   return pg.puertas + ' ' + wd(s.inicio) + ' ' + hora(s.puertas) + ' · ' + wd(s2.inicio) + ' ' + hora(s2.puertas);
 };
 
+/**
+ * El detalle de la sesión es texto libre y algunas sesiones repiten ahí la hora de puertas: la tarjeta ya la pinta en
+ * su propia línea, así que se quitan esos tramos («AEP-2 · puertas 08:30» → «AEP-2»).
+ */
+const sinPuertas = (detalle: string) =>
+  detalle.split('·').map((x) => x.trim()).filter((x) => x && !/^puertas\b/i.test(x)).join(' · ');
+
 const titular = (m: { nombre: string; apellidos: string; personas: number }, lang = 'es') =>
   `${m.nombre} ${m.apellidos}`.trim() + (m.personas > 1 ? (lang === 'en' ? ` + ${m.personas - 1} guest${m.personas > 2 ? 's' : ''}` : ` + ${m.personas - 1} acompañante${m.personas > 2 ? 's' : ''}`) : '');
 
@@ -783,7 +790,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
             class="flex items-center gap-3 rounded-lg border p-4 text-left transition-colors disabled:opacity-50"
             [class]="sesion() === s.id ? 'border-accent bg-accent/10' : err('sesion') ? 'border-accent-text/60' : 'border-line-subtle hover:border-line-strong'">
             <span class="flex size-5 shrink-0 items-center justify-center rounded-full border-2" [class]="sesion() === s.id ? 'border-accent' : 'border-line-strong'">@if (sesion() === s.id) { <span class="size-2.5 rounded-full bg-accent"></span> }</span>
-            <span class="min-w-0 flex-1" [class.text-text-tertiary]="s.estado === 'agotada' && sesion() !== s.id"><span class="block text-label-m first-letter:uppercase">{{ s.nombre }}</span><span class="block text-body-xs text-text-tertiary">{{ t().pg.puertas }} {{ hora(s.puertas) }}{{ s.detalle ? ' · ' + s.detalle : '' }}</span></span>
+            <span class="min-w-0 flex-1" [class.text-text-tertiary]="s.estado === 'agotada' && sesion() !== s.id"><span class="block text-label-m first-letter:uppercase">{{ s.nombre }}</span><span class="block text-body-xs text-text-tertiary">{{ t().pg.puertas }} {{ hora(s.puertas) }}{{ detalle(s) }}</span></span>
             <span class="inline-flex h-6 shrink-0 items-center rounded-full border px-2.5 text-label-xs uppercase" [class]="estado[s.estado].cls">{{ s.estado === 'ultimas' ? t().pg.ultimasN + ' ' + s.libres : t().est[s.estado] }}</span>
           </button>
         }
@@ -1013,6 +1020,11 @@ export class EntradasPage {
     this.avisoSesion.set(false);
     this.error.set('');
     this.f.personas = Math.min(this.f.personas, s.maxPorReserva);
+  }
+  /** « · AEP-2» del detalle de la sesión, sin la hora de puertas que ya lleva la línea. */
+  protected detalle(s: Pick<SesionPub, 'detalle'>): string {
+    const d = sinPuertas(s.detalle ?? '');
+    return d ? ' · ' + d : '';
   }
   /** Session of the draft that can still be booked: an open one, or «both days» while its two open days are there. */
   private sesionVigente(id: string, ses: SesionPub[]): SesionPub | null {

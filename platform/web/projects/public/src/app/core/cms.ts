@@ -83,6 +83,35 @@ export interface MapaAcceso {
   descripcion: string;
 }
 
+/**
+ * A place of the guide (backoffice › Colaboradores Refugio): hotels, apartments and restaurants of /donde-dormir-y-comer
+ * and the gyms of /como-llegar. Texts come in the page language (?lang=en); empty fields are not painted.
+ */
+export interface Sitio {
+  /** Only hotels/restaurants: the section of /donde-dormir-y-comer. */
+  tipo?: 'hotel' | 'apartamento' | 'restaurante';
+  nombre: string;
+  /** «Dirección, localidad» or «Tipo · localidad». */
+  detalle: string;
+  /** «≈ 4 min en coche · 1,8 km». */
+  distancia?: string;
+  /** «Desde 65 €/noche», «Pase de día ~10 €». */
+  precio?: string;
+  telefono?: string;
+  email?: string;
+  web?: string;
+  imagen?: string;
+  /** Brand logo (shown contained on a light panel). */
+  logo?: string;
+  /** Logo is light (white/grey): paint its panel dark (#141112) instead of white. */
+  logoClaro?: boolean;
+  /** Version of a dark logo for black panels (/como-llegar paints every logo on black). */
+  logoOscuro?: string;
+  /** Exact Google Maps link (overrides the search built by mapaDe). */
+  maps?: string;
+  descripcion?: string;
+}
+
 export interface SeoMap {
   paginas: { ruta: string; title: string; description: string; imagenUrl: string; indexable: boolean }[];
   redirecciones: { desde: string; hacia: string; codigo: number }[];
@@ -149,6 +178,8 @@ export class Cms {
 
   landing(pagina: 'publico' | 'en'): Promise<Landing | null> { return this.get<Landing>(`/web/${pagina}`); }
   mapas(): Promise<MapaAcceso[] | null> { return this.get<MapaAcceso[]>('/mapas'); }
+  hotelesRestaurantes(): Promise<Sitio[] | null> { return this.get<Sitio[]>('/hoteles-restaurantes'); }
+  gimnasios(): Promise<Sitio[] | null> { return this.get<Sitio[]>('/gimnasios'); }
 
   async voluntario(body: unknown): Promise<void> {
     await firstValueFrom(this.http.post(`${base}/voluntarios`, body));

@@ -71,7 +71,7 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 	// email there, and both must read like the rest of the text (white, no underline).
 	enlace := linkify
 	if clave == "atleta-perfil-existe" {
-		enlace = func(h string) string { return enlaceTexto(h, "#ebe5e5") }
+		enlace = func(h string) string { return enlaceTexto(h, "#ffffff") }
 	}
 
 	// Paragraphs after substitution (a variable may carry several paragraphs, e.g. {{pasos}}).
@@ -233,6 +233,12 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 	pre, _ := sustituir(c.Preheader, full, true)
 	tit, _ := sustituir(c.Titulo, full, true)
 	nota, _ := sustituir(c.Nota, full, false)
+	// «Tu perfil de atleta ya existe» keeps the title in the sentence case the owner wrote; the rest of the group
+	// shows it in the brand's uppercase.
+	tituloMayus := `text-transform:uppercase;`
+	if clave == "atleta-perfil-existe" {
+		tituloMayus = ""
+	}
 	web := strings.TrimRight(m.Web, "/")
 	link := func(u, t string) string {
 		return `<a href="` + esc(u) + `" style="color:#d1d5db;text-decoration:none">` + t + `</a>`
@@ -267,7 +273,7 @@ func altaHTML(clave string, c Contenido, vars map[string]string, permitidas []st
 		`<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#0e0c0d;` + aFont + `">` +
 		`<tr><td class="hd" align="center" style="padding:24px 32px;border-bottom:1px solid #2e2729;text-align:center">` + logo + `</td></tr>` +
 		`<tr><td class="pad" style="padding:36px 40px 32px">` +
-		`<h1 class="h1" style="margin:0 0 24px;font-family:'Contrail One',Impact,'Arial Narrow',sans-serif;font-weight:400;font-size:36px;line-height:44px;letter-spacing:2px;text-transform:uppercase;color:#ffffff">` + tit + `</h1>` +
+		`<h1 class="h1" style="margin:0 0 24px;font-family:'Contrail One',Impact,'Arial Narrow',sans-serif;font-weight:400;font-size:36px;line-height:44px;letter-spacing:2px;` + tituloMayus + `color:#ffffff">` + tit + `</h1>` +
 		cuerpo.String() + `</td></tr>` +
 		`<tr><td class="pad" style="padding:28px 40px 32px;border-top:1px solid #2e2729;text-align:center;font-size:12px;line-height:18px;color:#6b7280">` +
 		`<p style="margin:0 0 8px">GRStrength · Almussafes (Valencia) · <a href="mailto:admin@grstrength.com" style="color:#6b7280;text-decoration:none">admin@grstrength.com</a></p>` +

@@ -82,6 +82,24 @@ export function telefonoValido(v: string): boolean {
   return !!p && digitos.length === p.digitos;
 }
 
+/**
+ * A phone to read it («+34 600 000 002»): dial code and the national digits in blocks of three, the last block taking
+ * the remainder (a 10-digit number ends with four: «+1 555 123 4567»). Presentation only: the stored value stays
+ * E.164. Empty in, empty out.
+ */
+export function telefonoTexto(v: string, isoActual = 'ES'): string {
+  const { iso, digitos } = partirTelefono(v, isoActual);
+  const p = PAISES_TELEFONO.find((x) => x.iso === iso);
+  if (!digitos || !p) return '';
+  const bloques: string[] = digitos.match(/\d{3}/g) ?? [];
+  const cola = digitos.slice(bloques.length * 3);
+  if (cola) {
+    if (bloques.length && cola.length === 1) bloques[bloques.length - 1] += cola;
+    else bloques.push(cola);
+  }
+  return '+' + p.dial + ' ' + bloques.join(' ');
+}
+
 let seq = 0;
 
 /**

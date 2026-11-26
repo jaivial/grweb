@@ -37,6 +37,8 @@ var Rules = []Rule{
 	{"athletes", http.MethodPut, "/internal/competiciones/*/horarios", Intern},
 	{"cms", http.MethodPost, "/api/admin/competiciones/*/medios", Upload},
 	{"cms", http.MethodPost, "/api/admin/competiciones/*/web/mapas/imagen", Upload},
+	{"cms", http.MethodPost, "/api/admin/competiciones/*/web/hoteles-restaurantes/imagen", Upload},
+	{"cms", http.MethodPost, "/api/admin/competiciones/*/web/gimnasios/imagen", Upload},
 	{"cms", http.MethodPost, "/api/admin/competiciones/*/voluntarios/*/autorizacion", Upload},
 	{"cms", http.MethodPost, "/internal/medios", Upload},
 	{"live", http.MethodPut, "/internal/competiciones/*/directo/openlifter", Intern},

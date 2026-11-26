@@ -48,7 +48,7 @@ func (s *Svc) registerSitemap() {
 		}
 		origen := q.Get("origen")
 		if !origenRe.MatchString(origen) {
-			origen = "https://grcup.es"
+			origen = "https://grscup.com"
 		}
 		rows, err := s.a.DB.Query(ctx, `SELECT CASE WHEN tipo = 'blog' THEN '/blog/' ELSE '/' END || slug, updated_at, false FROM paginas WHERE competition_id = $1 AND `+visible+`
 			UNION ALL SELECT '/' || pagina, max(updated_at), false FROM secciones WHERE competition_id = $1 AND pagina <> 'home' AND publicado IS NOT NULL GROUP BY pagina
