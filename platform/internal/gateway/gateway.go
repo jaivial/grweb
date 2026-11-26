@@ -70,7 +70,7 @@ var routeTable = func() []route {
 		{`^/api/mi-entrada(/|$)`, "ticketing"},
 		{c + `rifa(/|$)`, "raffle"},
 		{p + `rifa(/|$)`, "raffle"},
-		{c + `(contactos|segmentos|supresiones)(/|$)`, "crm"},
+		{c + `(contactos|segmentos|supresiones|avisos-evento)(/|$)`, "crm"},
 		{`^/api/(baja|suscripciones|consentimientos|avisos-evento)(/|$)`, "crm"},
 		{c + `(campanas|emails|whatsapp|mensajes|automatizaciones)(/|$)`, "messaging"},
 		{`^/api/webhooks/whatsapp$`, "messaging"},
