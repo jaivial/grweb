@@ -94,6 +94,8 @@ let seq = 0;
  *   del campo (una sola línea: si la página ya lo marca con `invalido`, la línea es la suya).
  * - El campo se contiene siempre en su contenedor y adapta la maquetación a su propio ancho (container query): con
  *   sitio, país y casillas en la misma fila; estrecho, el país pasa arriba y las casillas (28–44 px) reparten el ancho.
+ *   La container query mide al propio host (`container-type: inline-size`), así que va en un contenedor que le dé ancho
+ *   (bloque, flex o rejilla): en un padre de ancho ajustable (`inline-block`, `w-fit`, celda de tabla) mediría 0.
  */
 @Component({
   selector: 'gr-telefono',
@@ -133,7 +135,8 @@ export class GrTelefono implements ControlValueAccessor {
   });
   /** «l» en la web (48 px) · «m» en el backoffice (44 px · 40 px en escritorio). */
   readonly tam = input<'m' | 'l'>('l');
-  /** Red border from the outside (the form's own error), like `gr-field`. */
+  /** Red border from the outside (the form's own error), like `gr-field`. The page is then the one showing the message:
+   *  the component hides its own line, so one problem is one line (TELBO-04). */
   readonly invalido = input(false);
   /** Accessible name of the group: the field label. */
   readonly etiqueta = input('', { alias: 'aria-label' });
