@@ -408,6 +408,11 @@ func resumen(e events.Event) string {
 		return "editó la cuenta de directo «" + str(d["alias"]) + "» (" + strings.Join(strs(d["campos"]), ", ") + ")"
 	case "fans.borrado":
 		return "borró la cuenta de directo «" + str(d["alias"]) + "»"
+	case "juegos.activo":
+		if b, _ := d["activo"].(bool); b {
+			return "activó los juegos (GRS Porra y GRS Fantasy) en la web"
+		}
+		return "desactivó los juegos (GRS Porra y GRS Fantasy) en la web"
 	case "fans.reset_enviado":
 		return "envió a «" + str(d["alias"]) + "» un enlace para cambiar la contraseña"
 	case "fans.baneado":

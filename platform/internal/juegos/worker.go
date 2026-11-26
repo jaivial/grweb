@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -131,10 +132,25 @@ func (s *Svc) manejarEvento(sucias *sucias) events.Handler {
 			sucias.marcarTardia(cid) // BIZ-200 R2-4: second pass once the plan cache of live has expired
 			return nil
 		default: // directo.intento | directo.veredicto | directo.correccion | resultados.publicados | athletes.*
+			if strings.HasPrefix(e.Type, "athletes.") {
+				s.refrescarPlan(ctx, cid) // live re-reads the athletes now instead of after its 15 s plan cache
+			}
 			sucias.marcar(cid)       // BIZ-200: any change of an athlete (alta, edición, retirada, borrado) resyncs
 			sucias.marcarTardia(cid) // BIZ-200 R2-4: the plan of live may still be 15 s old right after the event
 			return nil
 		}
+	}
+}
+
+// refrescarPlan drops the plan cache of live (2 s budget; on failure the 16 s second pass still catches up).
+func (s *Svc) refrescarPlan(ctx context.Context, cid uuid.UUID) {
+	if s.live == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	if err := s.live.Do(ctx, http.MethodPost, "/internal/competiciones/"+cid.String()+"/plan/refrescar", nil, nil); err != nil {
+		s.a.Log.Warn("plan de live sin refrescar", "cid", cid, "err", err)
 	}
 }
 
@@ -296,7 +312,10 @@ func (s *Svc) reconciler(ctx context.Context) {
 				}
 			}
 			// BIZ-143: the first session of the day starts the rooms (at most 30 s late; the endpoints already
-			// refuse room changes from the exact minute).
+			// refuse room changes from the exact minute). The jornada itself goes «en juego» on its own too.
+			if err := s.enJuegoAutomatico(ctx, j.CompetitionID, j); err != nil && ctx.Err() == nil {
+				s.a.Log.Warn("jornada en juego", "cid", j.CompetitionID, "err", err)
+			}
 			if s.horario(ctx, j.CompetitionID, j.Dia).empezado(j, time.Now()) {
 				if err := s.iniciarSalas(ctx, j.CompetitionID, j); err != nil && ctx.Err() == nil {
 					s.a.Log.Warn("inicio de las salas", "cid", j.CompetitionID, "err", err)

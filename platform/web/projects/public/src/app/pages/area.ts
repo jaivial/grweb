@@ -1,48 +1,27 @@
 import { textoError } from '../core/errores';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, Injector, PLATFORM_ID, PendingTasks, type Signal, afterNextRender, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, Injector, PLATFORM_ID, PendingTasks, type Signal, afterNextRender, computed, effect, inject, signal } from '@angular/core';
 import { NgTemplateOutlet, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
-import { cat, hora, kg } from '../core/atletas';
+import { map } from 'rxjs/operators';
+import { AreaSesion, esVista, type AreaVista, type Marcas, type Panel, type PruebaArea } from '../core/area';
+import { cat, hora } from '../core/atletas';
 import { COMPETITION_SLUG, Competition } from '../core/competition';
 import { I18n, LocPipe, divisionEn } from '../core/i18n';
 import { Seo } from '../core/seo';
 import { Footer, Navbar } from '../layout/layout';
+import { AreaAcreditacionPage } from './area-acreditacion';
+import { AreaHorariosPage } from './area-horarios';
+import { AreaPerfilPage } from './area-perfil';
 
-interface Marcas {
-  sq?: number;
-  bp?: number;
-  dl?: number;
-}
-interface Panel {
-  competicion: { slug: string; nombre: string };
-  atleta: {
-    id: string; nombre: string; apellidos: string; nombreCompleto: string; sexo: 'F' | 'M'; categoria: string; divisionNombre: string; club: string; ciudad: string; menor: boolean; licencia: string;
-    estado: 'confirmado' | 'reserva' | 'baja'; origen: string; jornada: string; lote?: number; horaInicio?: string; pesajeInicio?: string; pesajeFin?: string; completo: number;
-    pesaje: { rackSq?: number; rackBp: string; segurosBp?: number; intentos: Marcas; estado: string; at?: string };
-    perfil: { slug: string; fotoUrl: string; focalX: number; focalY: number; frase: string; bio: string; instagram: string; marcas: Marcas; visible: boolean; imagen?: { at: string; version: string } };
-  };
-  acreditacion: string;
-  tienePassword?: boolean;
-  /** The password is the initial one the organisers sent: the area asks for a new one. */
-  passwordTemporal?: boolean;
-  checklist: { clave: string; texto: string; hecho: boolean; accion?: 'pesaje' | 'perfil' }[];
-  pesajeAbierto: boolean;
-  avisos: string[];
-  referido?: { codigo: string; invitados: number; maxUsos: number; devuelto: number; pendiente: number; pagado: number; descuento: string; recompensa: string; tope: boolean };
-  prueba?: PruebaArea;
-}
-interface PruebaArea {
-  elegida: '' | 'aep2' | 'aep3';
-  opciones: { codigo: string; nombre: string; fecha: string; plazas: number; ocupadas: number }[];
-  limite?: string;
-  cerrada: boolean;
-  cambioOrg?: string;
-}
-type Vista = 'cargando' | 'acceso' | 'enviado' | 'panel' | 'perfil' | 'pesaje';
+/** Lo que el área pinta: el estado de la sesión y, ya dentro, la subpágina que pide la URL (`?vista=…`). */
+type Estado = 'cargando' | 'acceso' | 'enviado' | 'listo';
+type Pantalla = 'cargando' | 'acceso' | 'enviado' | 'panel' | AreaVista;
+
 
 const api = '/api/area-atleta';
 const T = {
@@ -85,6 +64,8 @@ const T = {
     qrAlt: "Código QR de tu acreditación",
     acred: "Tu acreditación",
     acredTxt: "Enséñala en el pesaje. Es el QR de tu inscripción.",
+    miAcreditacion: "Mi acreditación",
+    ampliar: "Ampliar",
     prepara: "Prepara tu día",
     anadir: "Añadir",
     completar: "Completar",
@@ -108,28 +89,6 @@ const T = {
     tope: " (tope)",
     pendiente: "Pendiente",
     previa: "Previa del pesaje",
-    volver: "Volver",
-    tuPerfil: "Tu perfil",
-    loVeran: "Lo verán en /atletas/",
-    encuadre: "Encuadre: pulsa en tu cara",
-    fotoPerfil: "Foto de perfil",
-    fotoTxt: "JPG, PNG o WebP hasta 8 MB. Pulsa en la foto para centrar tu cara (se guarda la posición).",
-    subiendo: "Subiendo…",
-    subirFoto: "Subir foto",
-    noPublica: "Tu foto no se publicará en tu ficha hasta que aceptes el consentimiento de imagen.",
-    acepto: "Acepto que la organización publique mi foto en la web de la competición (",
-    consImg: "consentimiento de imagen",
-    retirarlo: "). Puedo retirarlo cuando quiera.",
-    retirar: "Retirarlo",
-    ciudad: "Ciudad",
-    usuario: "@usuario",
-    sobreTi: "Sobre ti (máx. 280)",
-    bioPh: "Tercera temporada en powerlifting. Vengo de la halterofilia…",
-    marcas: "Mejores marcas (kg)",
-    marcasMal: "Las marcas van entre 0 y 600 kg.",
-    mostrar: "Mostrar mi perfil público",
-    mostrarTxt: "Tu ficha en /atletas con foto, bio, Instagram y marcas. Tu nombre, club, categoría, horario y resultados son públicos siempre en participantes y resultados.",
-    guardarPerfil: "Guardar perfil",
     tuSesion: "Tu sesión: ",
     pesajeSp: " · pesaje ",
     horarioPP: "Horario por publicar",
@@ -194,14 +153,11 @@ const T = {
     noValido: "Revisa el email: no parece válido.",
     faltaDominio: "Revisa el email: falta el dominio (p. ej. @gmail.com).",
     noEnviar: "No hemos podido enviarlo. Inténtalo de nuevo en unos minutos.",
-    fotoSubida: "Foto subida",
-    noSubir: "No se pudo subir la foto.",
     perfilGuardado: "Perfil guardado",
     guardadoPesaje: "Guardado para el pesaje",
     noGuardarGen: "No se pudo guardar. Inténtalo de nuevo.",
     siInscrito: (e: string) => `Si ${e} está inscrito, te llegará un enlace de acceso. Caduca en 30 minutos.`,
     invitaTxt: (d: string, r: string) => d + ' para tus invitados · ' + r + ' para ti por cada uno',
-    consAceptado: (v: string) => `Consentimiento de imagen aceptado (${v}).`,
     cambiadoA: (n: string, d: string) => `La organización te ha cambiado a ${n} el ${d}. Tu flight sale al publicar los horarios.`,
     cerro: (d: string, c: string) => 'La elección cerró' + (d ? ' el ' + d + ' a las 12:00' : '') + '. Para cambiarla escribe a ' + (c || 'la organización') + '.',
     puedes: (d: string) => 'Puedes cambiarla hasta el ' + d + ' a las 12:00.',
@@ -248,6 +204,8 @@ const T = {
     qrAlt: "QR code of your accreditation",
     acred: "Your accreditation",
     acredTxt: "Show it at the weigh-in. It is the QR code of your entry.",
+    miAcreditacion: "My accreditation",
+    ampliar: "Enlarge",
     prepara: "Get ready for your day",
     anadir: "Add",
     completar: "Complete",
@@ -271,28 +229,6 @@ const T = {
     tope: " (cap)",
     pendiente: "Pending",
     previa: "Weigh-in preview",
-    volver: "Back",
-    tuPerfil: "Your profile",
-    loVeran: "They will see it at /atletas/",
-    encuadre: "Framing: tap on your face",
-    fotoPerfil: "Profile photo",
-    fotoTxt: "JPG, PNG or WebP up to 8 MB. Tap on the photo to centre your face (the position is saved).",
-    subiendo: "Uploading…",
-    subirFoto: "Upload photo",
-    noPublica: "Your photo will not be published on your page until you accept the image consent.",
-    acepto: "I agree that the organisers may publish my photo on the competition website (",
-    consImg: "image consent",
-    retirarlo: "). I can withdraw it at any time.",
-    retirar: "Withdraw it",
-    ciudad: "City",
-    usuario: "@username",
-    sobreTi: "About you (max. 280)",
-    bioPh: "Third season in powerlifting. I come from weightlifting…",
-    marcas: "Best lifts (kg)",
-    marcasMal: "Lifts must be between 0 and 600 kg.",
-    mostrar: "Show my public profile",
-    mostrarTxt: "Your page on /atletas with photo, bio, Instagram and lifts. Your name, club, weight class, schedule and results are always public in participants and results.",
-    guardarPerfil: "Save profile",
     tuSesion: "Your session: ",
     pesajeSp: " · weigh-in ",
     horarioPP: "Schedule to be announced",
@@ -357,14 +293,11 @@ const T = {
     noValido: "Check the email: it doesn't look valid.",
     faltaDominio: "Check the email: the domain is missing (e.g. @gmail.com).",
     noEnviar: "We couldn't send it. Please try again in a few minutes.",
-    fotoSubida: "Photo uploaded",
-    noSubir: "Couldn't upload the photo.",
     perfilGuardado: "Profile saved",
     guardadoPesaje: "Saved for the weigh-in",
     noGuardarGen: "Couldn't save. Please try again.",
     siInscrito: (e: string) => `If ${e} is registered, you will receive an access link. It expires in 30 minutes.`,
     invitaTxt: (d: string, r: string) => d + ' for your guests · ' + r + ' for you for each one',
-    consAceptado: (v: string) => `Image consent accepted (${v}).`,
     cambiadoA: (n: string, d: string) => `The organisers have moved you to ${n} on ${d}. Your flight comes out when the schedule is published.`,
     cerro: (d: string, c: string) => 'The choice closed' + (d ? ' on ' + d + ' at 12:00' : '') + '. To change it, write to ' + (c || 'the organisers') + '.',
     puedes: (d: string) => 'You can change it until ' + d + ' at 12:00.',
@@ -377,7 +310,7 @@ const T = {
 /** /area-atleta (Figma page 42): password-less access, panel, profile editor and weigh-in preview. Not indexed. */
 @Component({
   selector: 'gr-area-atleta',
-  imports: [RouterLink, LocPipe, FormsModule, NgTemplateOutlet, Navbar, Footer, GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [RouterLink, LocPipe, FormsModule, NgTemplateOutlet, Navbar, Footer, GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, AreaPerfilPage, AreaHorariosPage, AreaAcreditacionPage],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let p = panel();
@@ -385,7 +318,7 @@ const T = {
     <main class="relative">
       <div class="pointer-events-none absolute inset-x-0 top-0 h-[420px]" style="background: radial-gradient(60% 70% at 15% 0%, rgb(110 20 32 / 0.35), transparent 70%)"></div>
       <div class="relative mx-auto max-w-[1440px] px-5 pt-28 pb-18 md:px-8 md:pt-36 xl:px-[120px]">
-        @switch (vista()) {
+        @switch (pantalla()) {
           @case ('cargando') { <div class="mx-auto max-w-md"><gr-skeleton class="h-64 rounded-lg" /></div> }
 
           @case ('acceso') {
@@ -419,7 +352,7 @@ const T = {
               <p class="mt-3 text-body-l text-text-secondary">{{ t().siInscrito(email) }}</p>
               <button grButton class="mt-6" [disabled]="espera() > 0" [loading]="busy()" (click)="pedir()">{{ espera() > 0 ? t().reenviarEn + espera().toString().padStart(2, '0') : t().reenviar }}</button>
               <button grButton type="button" variant="secondary" class="mt-3" (click)="abrirCorreo()">{{ t().abrirCorreo }}</button>
-              <button type="button" class="mt-3 h-11 text-label-m text-accent-text" (click)="vista.set('acceso')">{{ t().otroEmail }}</button>
+              <button type="button" class="mt-3 h-11 text-label-m text-accent-text" (click)="estado.set('acceso')">{{ t().otroEmail }}</button>
             </div>
           }
 
@@ -444,13 +377,9 @@ const T = {
                   <button type="button" class="inline-flex h-11 items-center gap-2 rounded-sm px-4 text-label-m text-text-tertiary hover:bg-white/5 hover:text-text-primary focus-visible:outline-2 focus-visible:outline-accent" (click)="salir()"><gr-icon name="log-out" [size]="18" />{{ t().salir }}</button>
                 </div>
               </header>
-              <nav class="mt-4 grid grid-cols-2 gap-3 md:mt-6 md:grid-cols-4 md:gap-4" [attr.aria-label]="t().accesos">
+              <nav class="mt-4 grid grid-cols-2 gap-3 md:mt-6 md:grid-cols-5 md:gap-4" [attr.aria-label]="t().accesos">
                 @for (x of accesos(); track x.id) {
-                  @if (x.ruta) {
-                    <a [routerLink]="x.ruta | loc" [class]="tile"><span [class]="tileIcono"><gr-icon [name]="x.icono" [size]="26" /></span><span class="text-[15px] leading-tight font-semibold md:text-[17px]">{{ x.texto }}</span></a>
-                  } @else {
-                    <button type="button" [class]="tile" (click)="acceso(x.id)"><span [class]="tileIcono"><gr-icon [name]="x.icono" [size]="26" /></span><span class="text-[15px] leading-tight font-semibold md:text-[17px]">{{ x.texto }}</span></button>
-                  }
+                  <a [routerLink]="x.ruta ? (x.ruta | loc) : ('/area-atleta' | loc)" [queryParams]="x.vista ? { vista: x.vista } : {}" [class]="x.ancho ? tileAncho : tile"><span [class]="tileIcono"><gr-icon [name]="x.icono" [size]="26" /></span><span class="text-[15px] leading-tight font-semibold md:text-[17px]">{{ x.texto }}</span></a>
                 }
               </nav>
               @for (a of p.avisos; track a) { <gr-alert class="mt-6" tone="info" [title]="t().importante">{{ a }}</gr-alert> }
@@ -474,10 +403,10 @@ const T = {
                       @for (d of datos(); track d.k; let i = $index) { <div class="flex min-w-0 flex-col gap-1 rounded-md bg-white/4 p-3" [class.col-span-2]="i === 0"><dt class="text-label-xs uppercase tracking-wide text-text-tertiary">{{ d.k }}</dt><dd class="break-words text-[16px] font-semibold" [class.text-warning]="i === 0 && p.prueba && !p.prueba.elegida">{{ d.v }}</dd>@if (i === 0 && p.prueba && !p.prueba.cerrada && p.prueba.elegida) { <button type="button" class="-my-3 -ml-2 inline-flex h-11 min-w-11 items-center self-start px-2 text-[14px] font-semibold text-accent-text hover:underline" aria-controls="pr-sec" [attr.aria-expanded]="verEleccion()" (click)="toggleEleccion()">{{ t().cambiar }}</button> }</div> }
                     </dl>
                     @if (qr()) {
-                      <div class="flex items-center gap-3 border-t border-line-subtle pt-3">
-                        <img [src]="qr()" [alt]="t().qrAlt" class="size-[88px] shrink-0 bg-white p-1" />
-                        <div class="flex flex-col gap-1"><p class="text-label-l">{{ t().acred }}</p><p class="text-body-xs text-text-tertiary">{{ t().acredTxt }}</p></div>
-                      </div>
+                      <a [routerLink]="'/area-atleta' | loc" [queryParams]="{ vista: 'acreditacion' }" class="flex items-center gap-3 border-t border-line-subtle pt-3 focus-visible:outline-2 focus-visible:outline-accent">
+                        <img [src]="qr()" [alt]="t().qrAlt" width="240" height="240" class="size-[88px] shrink-0 bg-white p-1" />
+                        <span class="flex flex-col gap-1"><span class="text-label-l">{{ t().acred }}</span><span class="text-body-xs text-text-tertiary">{{ t().acredTxt }}</span><span class="text-label-s text-accent-text">{{ t().ampliar }} →</span></span>
+                      </a>
                     }
                   </section>
                   @if (p.prueba; as pr) { @if ((pr.elegida || pr.cerrada) && (!pr.elegida || pr.cambioOrg || verEleccion() || errorPrueba())) { <ng-container *ngTemplateOutlet="eleccionTpl; context: { $implicit: pr }" /> } }
@@ -495,18 +424,6 @@ const T = {
                       }
                     </ul>
                   </section>
-                  @if (p.passwordTemporal) {
-                    <!-- Initial password sent by the organisers: changing it is required before using the area -->
-                    <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 px-4">
-                      <form class="flex w-full max-w-md flex-col gap-4 rounded-xl border border-line-strong bg-bg-card p-6 shadow-card" role="dialog" aria-modal="true" aria-labelledby="temp-titulo" (ngSubmit)="guardarPassword()" novalidate>
-                        <div class="flex items-center gap-3"><span class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-accent-deep/40 text-accent-text"><gr-icon name="key" [size]="18" /></span><h2 id="temp-titulo" class="text-[18px] leading-tight font-semibold">{{ t().tempTitulo }}</h2></div>
-                        <p class="text-body-s text-text-secondary">{{ t().tempTexto }}</p>
-                        <gr-field [label]="t().nuevaPass" for="a-temppass"><input grInput id="a-temppass" name="nuevaTemp" type="password" autocomplete="new-password" minlength="10" [(ngModel)]="nuevaPassword" autofocus /></gr-field>
-                        @if (errorPassword()) { <p class="text-body-s text-accent-text" role="alert">{{ errorPassword() }}</p> }
-                        <button grButton variant="primary" type="submit" [block]="true" [loading]="busy()">{{ t().guardarPass }}</button>
-                      </form>
-                    </div>
-                  }
                   <section class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6">
                     <div class="flex items-center gap-3"><span class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-accent-deep/40 text-accent-text"><gr-icon name="key" [size]="18" /></span><h2 class="text-[18px] leading-tight font-semibold">{{ p.tienePassword ? t().cambiarPass : t().creaPass }}</h2></div>
                     <p class="text-body-s text-text-tertiary">{{ p.tienePassword ? t().yaPuedes : t().paraEntrar }}</p>
@@ -553,54 +470,15 @@ const T = {
           }
 
           @case ('perfil') {
-            @if (p) {
-              <div class="mx-auto max-w-xl">
-                <button type="button" class="mb-4 inline-flex h-11 items-center gap-1 text-label-s text-text-tertiary" (click)="ir('panel')"><gr-icon name="chevron-left" [size]="16" />{{ t().volver }}</button>
-                <h1 class="text-display-m outline-none" tabindex="-1">{{ t().tuPerfil }}</h1>
-                <p class="mt-1 text-body-s text-text-tertiary">{{ t().loVeran }}{{ p.atleta.perfil.slug }}</p>
-                <div class="mt-6 flex gap-4">
-                  <button type="button" class="relative size-24 shrink-0 overflow-hidden rounded-full bg-bg-raised" (click)="focal($event)" [disabled]="!p.atleta.perfil.fotoUrl" [attr.aria-label]="t().encuadre">
-                    @if (p.atleta.perfil.fotoUrl) { <img [src]="p.atleta.perfil.fotoUrl" [alt]="p.atleta.nombre + ' ' + p.atleta.apellidos" class="size-full object-cover" [style.object-position]="fx + '% ' + fy + '%'" /> }
-                    @else { <span class="flex size-full items-center justify-center text-label-l text-text-tertiary">{{ ((p.atleta.nombre[0] ?? '') + (p.atleta.apellidos[0] ?? '')).toUpperCase() }}</span> }
-                  </button>
-                  <div class="min-w-0">
-                    <p class="text-label-m">{{ t().fotoPerfil }}</p>
-                    <p class="text-body-xs text-text-tertiary">{{ t().fotoTxt }}</p>
-                    <label class="mt-2 inline-flex h-11 cursor-pointer items-center gap-2 rounded-md border border-line-strong px-4 text-label-s focus-within:outline-2 focus-within:outline-accent">{{ subiendo() ? t().subiendo : p.atleta.perfil.fotoUrl ? t().cambiar : t().subirFoto }}<gr-icon name="arrow-right" [size]="14" />
-                      <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" (change)="foto($event)" [disabled]="subiendo()" /></label>
-                  </div>
-                </div>
-                @if (!p.atleta.perfil.imagen) {
-                  @if (p.atleta.perfil.fotoUrl) { <p class="mt-4 text-body-s text-warning" role="note">{{ t().noPublica }}</p> }
-                  <label class="mt-4 flex min-h-11 items-start gap-3 rounded-md border border-line-subtle bg-bg-card p-3 text-body-s text-text-secondary">
-                    <input type="checkbox" name="imagen" [(ngModel)]="aceptaImagen" class="mt-0.5 size-6 shrink-0 accent-[#C42B3E]" />
-                    <span>{{ t().acepto }}<a [href]="'/consentimiento-datos' | loc" target="_blank" class="text-accent-text underline">{{ t().consImg }}</a>{{ t().retirarlo }}</span>
-                  </label>
-                } @else {
-                  <p class="mt-4 text-body-xs text-text-tertiary">{{ t().consAceptado(p.atleta.perfil.imagen.version) }} <button type="button" class="text-accent-text underline" (click)="retirar = true; guardarPerfil()">{{ t().retirar }}</button></p>
-                }
-                <form class="mt-6 flex flex-col gap-5" (ngSubmit)="guardarPerfil()" novalidate>
-                  <gr-field label="Club" for="f-club"><input grInput id="f-club" name="club" [(ngModel)]="f.club" maxlength="120" /></gr-field>
-                  <gr-field [label]="t().ciudad" for="f-city"><input grInput id="f-city" name="ciudad" autocomplete="address-level2" [(ngModel)]="f.ciudad" maxlength="80" /></gr-field>
-                  @if (!p.atleta.menor) { <gr-field label="Instagram" for="f-ig" [optional]="true"><input grInput id="f-ig" name="ig" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off" [(ngModel)]="f.instagram" [placeholder]="t().usuario" maxlength="60" /></gr-field> }
-                  <gr-field [label]="t().sobreTi" for="f-bio"><textarea grInput id="f-bio" name="bio" rows="4" [(ngModel)]="f.bio" maxlength="280" [placeholder]="t().bioPh"></textarea></gr-field>
-                  <fieldset><legend class="text-label-s">{{ t().marcas }}</legend>
-                    <div class="mt-2 grid grid-cols-3 gap-3">
-                      @for (m of lifts; track m.k) { <label class="flex flex-col gap-1"><span class="text-mono-xs text-text-tertiary">{{ m.s }}</span><input grInput type="number" inputmode="decimal" step="2.5" min="0" max="600" [name]="'m' + m.k" [(ngModel)]="f.marcas[m.k]" [attr.aria-invalid]="fuera(f.marcas[m.k]) || null" [attr.aria-describedby]="fuera(f.marcas[m.k]) ? 'm-err' : null" [class.border-accent]="fuera(f.marcas[m.k])" /></label> }
-                    </div>
-                    @if (marcasMal()) { <p id="m-err" class="mt-2 text-body-s text-accent-text" role="alert">{{ t().marcasMal }}</p> }
-                  </fieldset>
-                  <div class="flex items-center justify-between gap-4 rounded-md border border-line-subtle bg-bg-card p-4">
-                    <span><span class="block text-label-m">{{ t().mostrar }}</span><span class="block text-body-xs text-text-tertiary">{{ t().mostrarTxt }}</span></span>
-                    <button type="button" role="switch" [attr.aria-checked]="f.visible" (click)="f.visible = !f.visible" class="flex h-11 w-12 shrink-0 items-center justify-center" [attr.aria-label]="t().mostrar">
-                      <span class="relative h-6 w-10 rounded-pill" [class]="f.visible ? 'bg-accent' : 'bg-line-strong'"><span class="absolute top-0.5 size-5 rounded-full bg-white transition-[left]" [style.left.px]="f.visible ? 18 : 2"></span></span>
-                    </button>
-                  </div>
-                  @if (error()) { <p class="text-body-s text-accent-text" role="alert">{{ error() }}</p> }
-                  <div class="max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-5 max-md:border-t max-md:border-line-subtle max-md:bg-bg-base/95 max-md:px-5 max-md:pt-3 max-md:pb-[max(12px,env(safe-area-inset-bottom))] max-md:backdrop-blur-[10px]"><button grButton variant="primary" size="l" type="submit" [block]="true" [loading]="busy()" [disabled]="marcasMal()">{{ t().guardarPerfil }}</button></div>
-                </form>
-              </div>
-            }
+            @if (p) { <gr-area-perfil [panel]="p" (guardado)="alGuardar($event)" (listo)="alGuardarPerfil($event)" (expirada)="expirada()" /> }
+          }
+
+          @case ('horarios') {
+            @if (p) { <gr-area-horarios [panel]="p" /> }
+          }
+
+          @case ('acreditacion') {
+            @if (p) { <gr-area-acreditacion [panel]="p" /> }
           }
 
           @case ('pesaje') {
@@ -609,10 +487,22 @@ const T = {
                 <h1 class="text-display-xs outline-none md:text-display-m" tabindex="-1">{{ t().previa }}</h1>
                 <p class="mt-1 text-body-m text-text-tertiary">{{ p.atleta.jornada ? t().tuSesion + hora(p.atleta.horaInicio) + (p.atleta.pesajeInicio ? t().pesajeSp + hora(p.atleta.pesajeInicio) + '–' + hora(p.atleta.pesajeFin) : '') : t().horarioPP }}</p>
                 <section class="mt-5 flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-6"><ng-container *ngTemplateOutlet="previa" /></section>
-                <button type="button" class="mt-3 inline-flex h-11 items-center gap-1 text-label-s text-text-tertiary" (click)="ir('panel')"><gr-icon name="chevron-left" [size]="16" />{{ t().volverPanel }}</button>
+                <button type="button" class="mt-3 inline-flex h-11 items-center gap-1 text-label-s text-text-tertiary" (click)="ir(null)"><gr-icon name="chevron-left" [size]="16" />{{ t().volverPanel }}</button>
               </div>
             }
           }
+        }
+        @if (p?.passwordTemporal) {
+          <!-- Initial password sent by the organisers: changing it is required before using the area (any subpage) -->
+          <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 px-4">
+            <form class="flex w-full max-w-md flex-col gap-4 rounded-xl border border-line-strong bg-bg-card p-6 shadow-card" role="dialog" aria-modal="true" aria-labelledby="temp-titulo" (ngSubmit)="guardarPassword()" novalidate>
+              <div class="flex items-center gap-3"><span class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-accent-deep/40 text-accent-text"><gr-icon name="key" [size]="18" /></span><h2 id="temp-titulo" class="text-[18px] leading-tight font-semibold">{{ t().tempTitulo }}</h2></div>
+              <p class="text-body-s text-text-secondary">{{ t().tempTexto }}</p>
+              <gr-field [label]="t().nuevaPass" for="a-temppass"><input grInput id="a-temppass" name="nuevaTemp" type="password" autocomplete="new-password" minlength="10" [(ngModel)]="nuevaPassword" autofocus /></gr-field>
+              @if (errorPassword()) { <p class="text-body-s text-accent-text" role="alert">{{ errorPassword() }}</p> }
+              <button grButton variant="primary" type="submit" [block]="true" [loading]="busy()">{{ t().guardarPass }}</button>
+            </form>
+          </div>
         }
         <ng-template #previa>
           <p class="text-body-s text-text-tertiary">{{ t().dejalo }}</p>
@@ -631,7 +521,7 @@ const T = {
             @for (m of lifts; track m.k) { <label class="flex flex-col gap-1"><span class="text-mono-xs text-text-tertiary">{{ m.s }}</span><input grInput class="font-mono" type="number" inputmode="decimal" step="2.5" min="0" max="600" [name]="'i' + m.k" [(ngModel)]="pz.intentos[m.k]" [attr.aria-invalid]="fueraIntento(pz.intentos[m.k]) || null" [attr.aria-describedby]="fueraIntento(pz.intentos[m.k]) ? 'i-err' : null" [class.border-accent]="fueraIntento(pz.intentos[m.k])" /></label> }
           </div>
           @if (intentosMal()) { <p id="i-err" class="text-body-s text-accent-text" role="alert">{{ t().intentosMal }}</p> }
-          @if (error() && vista() !== 'perfil') { <p class="text-body-s text-accent-text" role="alert">{{ error() }}</p> }
+          @if (error()) { <p class="text-body-s text-accent-text" role="alert">{{ error() }}</p> }
           <button grButton variant="primary" size="l" [block]="true" [loading]="busy()" [disabled]="intentosMal()" (click)="guardarPesaje()">{{ t().guardarPesaje }}</button>
         </ng-template>
         <ng-template #eleccionTpl let-pr>
@@ -674,29 +564,45 @@ const T = {
 export class AreaAtletaPage {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly comp = inject(Competition);
   private readonly i18n = inject(I18n);
+  private readonly area = inject(AreaSesion);
+  private readonly injector = inject(Injector);
   protected readonly t = this.i18n.dict(T);
   protected readonly hora = (iso?: string) => hora(iso, this.i18n.lang());
   protected readonly cat = cat;
   protected readonly tile = 'group flex aspect-square flex-col items-center justify-center gap-3 rounded-xl border border-white/8 bg-white/3 p-4 text-center transition-[background-color,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-accent/50 hover:bg-white/6 focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transition-none motion-reduce:hover:translate-y-0 md:gap-4';
+  protected readonly tileAncho = this.tile + ' max-md:col-span-2 max-md:aspect-auto max-md:py-5';
   protected readonly tileIcono = 'flex size-14 items-center justify-center rounded-lg bg-accent/16 text-accent-text transition-colors group-hover:bg-accent/24 md:size-16';
-  protected readonly accesos: Signal<{ id: string; texto: string; icono: 'pencil' | 'calendar' | 'instagram' | 'trophy'; ruta?: string }[]> = computed(() => [
-    { id: 'perfil', texto: this.t().editar, icono: 'pencil' },
-    { id: 'horarios', texto: this.t().verHorarios, icono: 'calendar' },
-    { id: 'post', texto: this.t().postBuilder, icono: 'instagram', ruta: '/area-atleta/compartir' },
-    { id: 'resultados', texto: this.t().verResultados, icono: 'trophy', ruta: '/resultados' },
+  /** Los accesos rápidos son URLs: cada subpágina del área tiene la suya (`?vista=…`) y atrás/adelante funcionan. */
+  protected readonly accesos: Signal<{ id: string; texto: string; icono: 'pencil' | 'qr' | 'calendar' | 'instagram' | 'trophy'; vista?: AreaVista; ruta?: string; ancho?: boolean }[]> = computed(() => [
+    { id: 'perfil', texto: this.t().editar, icono: 'pencil', vista: 'perfil' },
+    { id: 'acreditacion', texto: this.t().miAcreditacion, icono: 'qr', vista: 'acreditacion' },
+    { id: 'horarios', texto: this.t().verHorarios, icono: 'calendar', vista: 'horarios' },
+    { id: 'post', texto: this.t().postBuilder, icono: 'instagram', vista: 'post' },
+    { id: 'resultados', texto: this.t().verResultados, icono: 'trophy', ruta: '/resultados', ancho: true },
   ]);
-  protected acceso(id: string): void {
-    if (id === 'perfil') return this.abrir('perfil');
-    document.getElementById('mis-horarios')?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
-  }
-  protected readonly vista = signal<Vista>('cargando');
-  protected readonly panel = signal<Panel | null>(null);
+
+  /** Estado de la sesión; ya dentro, la subpágina sale de la URL. */
+  protected readonly estado = signal<Estado>('cargando');
+  private readonly ruta = toSignal(this.route.queryParamMap.pipe(map((m) => m.get('vista'))), { initialValue: this.route.snapshot.queryParamMap.get('vista') });
+  protected readonly vistaRuta = computed<AreaVista | null>(() => {
+    const v = this.ruta();
+    return esVista(v) ? v : null;
+  });
+  /** Subpágina que el atleta pidió antes de entrar (la deja la guarda en `?volver=`). */
+  protected readonly volver = signal<AreaVista | null>(null);
+  protected readonly pantalla = computed<Pantalla>(() => {
+    const e = this.estado();
+    if (e !== 'listo') return e;
+    const v = this.vistaRuta();
+    return v === 'post' ? 'cargando' : (v ?? 'panel'); // el post builder vive en /area-atleta/compartir
+  });
+  protected readonly panel = this.area.panel;
   protected readonly qr = signal('');
   protected readonly busy = signal(false);
-  protected readonly subiendo = signal(false);
   protected readonly error = signal('');
   protected readonly errorEnlace = signal('');
   protected readonly ok = signal('');
@@ -713,6 +619,7 @@ export class AreaAtletaPage {
     try {
       await this.set(await firstValueFrom(this.http.post<Panel>(`${api}/login`, { competicion: COMPETITION_SLUG, email: this.email.trim(), password: this.password })));
       this.password = '';
+      await this.irADestino(null);
     } catch (e) {
       this.error.set(e instanceof HttpErrorResponse && e.status === 429 ? this.t().demasiados : textoError(e, this.t().noEntrar));
     } finally {
@@ -737,11 +644,6 @@ export class AreaAtletaPage {
   protected abrirCorreo(): void {
     location.href = /iPhone|iPad|iPod/.test(navigator.userAgent) ? 'message://' : 'mailto:';
   }
-  protected aceptaImagen = false;
-  protected retirar = false;
-  protected fx = 50;
-  protected fy = 50;
-  protected f = { club: '', ciudad: '', instagram: '', bio: '', marcas: {} as Marcas, visible: true };
   protected pz: { rackSq?: number; rackBp?: number; segurosBp?: number; intentos: Marcas } = { intentos: {} };
   protected readonly lifts: { k: keyof Marcas; s: string }[] = [{ k: 'sq', s: 'SQ' }, { k: 'bp', s: 'BP' }, { k: 'dl', s: 'DL' }];
   protected readonly steppers: Signal<{ k: 'rackSq' | 'rackBp' | 'segurosBp'; label: string }[]> = computed(() => [{ k: 'rackSq', label: this.t().rackSq }, { k: 'rackBp', label: this.t().rackBp }, { k: 'segurosBp', label: this.t().seguros }]);
@@ -818,7 +720,7 @@ export class AreaAtletaPage {
     } catch (e) {
       const actual = this.panel()?.prueba?.elegida;
       this.errorPrueba.set((textoError(e, this.t().noGuardarComp)) + (actual ? this.t().seMantiene(this.nombrePrueba(actual)) : '') + this.t().reintenta);
-      firstValueFrom(this.http.get<Panel>(`${api}/yo`)).then((p) => this.panel.set(p), () => undefined);
+      void this.area.cargar(true);
     } finally {
       this.guardandoPrueba.set(false);
     }
@@ -833,58 +735,61 @@ export class AreaAtletaPage {
   protected intentosMal(): boolean {
     return this.lifts.some((m) => this.fueraIntento(this.pz.intentos[m.k]));
   }
-  protected marcasMal(): boolean {
-    return this.lifts.some((m) => this.fuera(this.f.marcas[m.k]));
-  }
-
   private async recargar(): Promise<void> {
     const antes = this.panel()?.prueba?.elegida;
-    try {
-      const p = await firstValueFrom(this.http.get<Panel>(`${api}/yo`));
-      await this.set(p);
-      if (antes !== undefined && p.prueba && p.prueba.elegida !== antes) this.aviso(this.t().orgCambio + this.nombrePrueba(p.prueba.elegida));
-    } catch {
-      /* keeps the panel shown */
-    }
+    const p = await this.area.cargar(true);
+    if (!p) return; // keeps the panel shown
+    await this.set(p);
+    if (antes !== undefined && p.prueba && p.prueba.elegida !== antes) this.aviso(this.t().orgCambio + this.nombrePrueba(p.prueba.elegida));
   }
 
   constructor() {
     inject(Seo).set({ title: this.t().seoT, description: this.t().seoD, path: '/area-atleta', robots: 'noindex' });
-    const route = inject(ActivatedRoute);
     inject(DestroyRef).onDestroy(() => clearInterval(this.timer));
     void inject(PendingTasks).run(() => this.comp.load());
+    // The guard sends an athlete without a session here with the subpage asked for in `?volver=`.
+    const volver = this.route.snapshot.queryParamMap.get('volver');
+    if (esVista(volver)) this.volver.set(volver);
+    // Cada subpágina arranca arriba y con el foco en su H1 (UX3-R1-1), también al usar atrás/adelante.
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe(() => this.enfocar());
+    // El post builder es su propia página (/area-atleta/compartir): `?vista=post` llega hasta allí.
+    effect(() => {
+      if (this.vistaRuta() === 'post' && this.browser) void this.router.navigateByUrl(this.i18n.path('/area-atleta/compartir'), { replaceUrl: true });
+    });
     if (!this.browser) return; // private page: rendered in the browser (session cookie)
     // back to the tab: reload the panel so changes made by the organisation show up (U17-R1-4)
-    const alVolver = () => { if (document.visibilityState === 'visible' && this.vista() === 'panel') void this.recargar(); };
+    const alVolver = () => { if (document.visibilityState === 'visible' && this.pantalla() === 'panel') void this.recargar(); };
     document.addEventListener('visibilitychange', alVolver);
     inject(DestroyRef).onDestroy(() => document.removeEventListener('visibilitychange', alVolver));
     void (async () => {
-      const token = route.snapshot.queryParamMap.get('acceso');
+      const token = this.route.snapshot.queryParamMap.get('acceso');
       if (token) {
-        const next = route.snapshot.queryParamMap.get('next');
-        history.replaceState(null, '', this.i18n.path('/area-atleta')); // the one-time token never stays in the address bar
+        const next = this.route.snapshot.queryParamMap.get('next');
         try {
-          this.set(await firstValueFrom(this.http.post<Panel>(`${api}/sesion`, { acceso: token })));
-          // the link asked from «Comparte tu cuenta atrás» comes back there (Figma 83 · 01)
-          if (next === '/area-atleta/compartir') void this.router.navigateByUrl(this.i18n.path(next), { replaceUrl: true });
+          await this.set(await firstValueFrom(this.http.post<Panel>(`${api}/sesion`, { acceso: token })));
+          await this.irADestino(next); // replaceUrl: the one-time token never stays in the address bar
           return;
         } catch {
           this.errorEnlace.set(this.t().caducado);
+          history.replaceState(null, '', this.i18n.path('/area-atleta'));
         }
       }
-      try {
-        this.set(await firstValueFrom(this.http.get<Panel>(`${api}/yo`)));
-      } catch {
-        this.vista.set('acceso');
-      }
+      const p = await this.area.cargar();
+      if (!p) return this.estado.set('acceso');
+      await this.set(p);
+      if (this.volver()) await this.irADestino(null); // ya había sesión: a la subpágina que pidió
     })();
   }
 
   private async set(p: Panel): Promise<void> {
-    this.panel.set(p);
+    this.area.poner(p);
     this.eleccion.set(p.prueba?.elegida ?? '');
-    if (this.vista() !== 'pesaje') this.prepararPesaje(p);
-    if (this.vista() === 'cargando' || this.vista() === 'acceso') this.vista.set('panel');
+    // La previa del pesaje se rellena siempre salvo que el atleta esté editándola (no se le borra lo escrito); en un
+    // enlace directo a ?vista=pesaje pz aún viene vacío y hay que prepararlo.
+    if (!this.pzListo || this.vistaRuta() !== 'pesaje') this.prepararPesaje(p);
+    if (this.estado() === 'cargando' || this.estado() === 'acceso') this.estado.set('listo');
+    // The QR comes from the CDN once it is published there; until then it is drawn here from its payload.
+    if (p.acreditacionUrl) return this.qr.set(p.acreditacionUrl);
     // qrcode is CommonJS: the dynamic import exposes it as `default`.
     const mod = await import('qrcode');
     const QR = (mod as unknown as { default?: typeof mod }).default ?? mod;
@@ -898,8 +803,9 @@ export class AreaAtletaPage {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) return this.error.set(!e.includes('@') ? this.t().faltaArroba : /@[^\s@]*\.[^\s@]{2,}$/.test(e) ? this.t().noValido : this.t().faltaDominio);
     this.busy.set(true);
     try {
-      await firstValueFrom(this.http.post(`${api}/enlace`, { competicion: COMPETITION_SLUG, email: this.email.trim(), ...(motivo ? { motivo } : {}) }));
-      this.vista.set('enviado');
+      const destino = this.vistaRuta() ?? this.volver();
+      await firstValueFrom(this.http.post(`${api}/enlace`, { competicion: COMPETITION_SLUG, email: this.email.trim(), ...(motivo ? { motivo } : {}), ...(destino ? { next: '/area-atleta?vista=' + destino } : {}) }));
+      this.estado.set('enviado');
       this.espera.set(45);
       clearInterval(this.timer);
       this.timer = setInterval(() => {
@@ -914,23 +820,31 @@ export class AreaAtletaPage {
   }
 
   protected abrir(v: 'perfil' | 'pesaje'): void {
-    const a = this.panel()?.atleta;
-    if (!a) return;
+    if (!this.panel()?.atleta) return;
     this.error.set('');
-    if (v === 'perfil') {
-      this.f = { club: a.club, ciudad: a.ciudad, instagram: a.perfil.instagram, bio: a.perfil.bio || a.perfil.frase, marcas: { ...a.perfil.marcas }, visible: a.perfil.visible };
-      this.fx = a.perfil.focalX;
-      this.fy = a.perfil.focalY;
-      this.aceptaImagen = false;
-      this.retirar = false;
-    } else this.prepararPesaje(this.panel()!);
+    if (v === 'pesaje') this.prepararPesaje(this.panel()!);
     this.ir(v);
   }
 
-  private readonly injector = inject(Injector);
-  /** Switches view and, once rendered, jumps to the top and focuses the H1 (UX3-R1-1). */
-  protected ir(v: Vista): void {
-    this.vista.set(v);
+  /** Subpágina del área por URL: `?vista=…` (sin vista, el panel). Atrás y adelante del navegador funcionan. */
+  protected ir(v: AreaVista | null, opciones: { replaceUrl?: boolean } = {}): void {
+    void this.router.navigate([], { relativeTo: this.route, queryParams: v ? { vista: v } : {}, replaceUrl: opciones.replaceUrl });
+  }
+
+  /** El enlace del email (`next`) o la subpágina que pidió el atleta antes de entrar; el post builder es su propia ruta. */
+  private async irADestino(next: string | null): Promise<void> {
+    if (next === '/area-atleta/compartir') {
+      await this.router.navigateByUrl(this.i18n.path('/area-atleta/compartir'), { replaceUrl: true });
+      return;
+    }
+    const delEnlace = next?.match(/^\/area-atleta\?vista=([a-z]+)$/)?.[1];
+    const vista = esVista(delEnlace) ? delEnlace : (this.volver() ?? this.vistaRuta());
+    this.volver.set(null); // el destino ya se ha usado: no vuelve a llevar allí en el siguiente acceso
+    await this.router.navigate([], { relativeTo: this.route, queryParams: vista ? { vista } : {}, replaceUrl: true });
+  }
+
+  /** Tras cada cambio de subpágina: arriba del todo y el foco en el H1 (UX3-R1-1). */
+  private enfocar(): void {
     if (!this.browser) return;
     afterNextRender(() => {
       scrollTo({ top: 0, behavior: 'instant' });
@@ -938,67 +852,34 @@ export class AreaAtletaPage {
     }, { injector: this.injector });
   }
 
+  /** El formulario del perfil ha guardado (el editor vive en gr-area-perfil). */
+  protected alGuardarPerfil(p: Panel): void {
+    void this.set(p);
+    this.aviso(this.t().perfilGuardado);
+    this.ir(null);
+  }
+
+  /** Foto o encuadre guardados: el panel se refresca sin salir del editor. */
+  protected alGuardar(p: Panel): void {
+    void this.set(p);
+  }
+
+  /** La sesión del área ha caducado dentro de una subpágina. */
+  protected expirada(): void {
+    this.estado.set('acceso');
+  }
+
+  /** Ya hay valores del pesaje en pantalla (para no pisar los que el atleta está escribiendo al recargar). */
+  private pzListo = false;
   private prepararPesaje(p: Panel): void {
     const a = p.atleta;
     const [bp, seg] = (a.pesaje.rackBp || '').split('/').map((x) => Number(x) || undefined);
     this.pz = { rackSq: a.pesaje.rackSq ?? 12, rackBp: bp ?? 6, segurosBp: a.pesaje.segurosBp ?? seg ?? 4, intentos: { ...a.pesaje.intentos } };
+    this.pzListo = true;
   }
 
   protected paso(k: 'rackSq' | 'rackBp' | 'segurosBp', d: number): void {
     this.pz[k] = Math.min(30, Math.max(k === 'segurosBp' ? 0 : 1, (this.pz[k] ?? 0) + d));
-  }
-
-  protected async focal(ev: MouseEvent): Promise<void> {
-    const r = (ev.currentTarget as HTMLElement).getBoundingClientRect();
-    this.fx = Math.round(((ev.clientX - r.left) / r.width) * 100);
-    this.fy = Math.round(((ev.clientY - r.top) / r.height) * 100);
-    try {
-      this.set(await firstValueFrom(this.http.put<Panel>(`${api}/foto/encuadre`, { focalX: this.fx, focalY: this.fy })));
-    } catch {
-      /* the next save keeps trying */
-    }
-  }
-
-  protected async foto(ev: Event): Promise<void> {
-    const file = (ev.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-    this.error.set('');
-    this.subiendo.set(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const p = await firstValueFrom(this.http.post<Panel>(`${api}/foto`, fd));
-      this.fx = p.atleta.perfil.focalX;
-      this.fy = p.atleta.perfil.focalY;
-      this.set(p);
-      this.aviso(this.t().fotoSubida);
-    } catch (e) {
-      this.error.set(textoError(e, this.t().noSubir));
-    } finally {
-      this.subiendo.set(false);
-    }
-  }
-
-  protected async guardarPerfil(): Promise<void> {
-    this.error.set('');
-    const mal = this.lifts.filter((m) => this.fuera(this.f.marcas[m.k])).map((m) => m.s);
-    if (mal.length) return this.error.set(mal.join(', ') + ': las marcas van entre 0 y 600 kg.');
-    this.busy.set(true);
-    const n = (v: unknown) => (v === null || v === undefined || v === '' ? undefined : Number(v));
-    try {
-      const p = await firstValueFrom(this.http.put<Panel>(`${api}/perfil`, {
-        club: this.f.club, ciudad: this.f.ciudad, instagram: this.f.instagram, bio: this.f.bio, marcas: { sq: n(this.f.marcas.sq), bp: n(this.f.marcas.bp), dl: n(this.f.marcas.dl) },
-        visible: this.f.visible, aceptaUsoDeImagen: this.aceptaImagen, retirarConsentimiento: this.retirar,
-      }));
-      this.set(p);
-      this.retirar = false;
-      this.ir('panel');
-      this.aviso(this.t().perfilGuardado);
-    } catch (e) {
-      this.error.set(this.msg(e));
-    } finally {
-      this.busy.set(false);
-    }
   }
 
   protected async guardarPesaje(): Promise<void> {
@@ -1007,8 +888,8 @@ export class AreaAtletaPage {
     this.busy.set(true);
     const n = (v: unknown) => (v === null || v === undefined || v === '' ? undefined : Number(v));
     try {
-      this.set(await firstValueFrom(this.http.put<Panel>(`${api}/pesaje`, { rackSq: this.pz.rackSq, rackBp: this.pz.rackBp, segurosBp: this.pz.segurosBp, intentos: { sq: n(this.pz.intentos.sq), bp: n(this.pz.intentos.bp), dl: n(this.pz.intentos.dl) } })));
-      this.ir('panel');
+      await this.set(await firstValueFrom(this.http.put<Panel>(`${api}/pesaje`, { rackSq: this.pz.rackSq, rackBp: this.pz.rackBp, segurosBp: this.pz.segurosBp, intentos: { sq: n(this.pz.intentos.sq), bp: n(this.pz.intentos.bp), dl: n(this.pz.intentos.dl) } })));
+      this.ir(null);
       this.aviso(this.t().guardadoPesaje);
     } catch (e) {
       this.error.set(this.msg(e));
@@ -1034,13 +915,14 @@ export class AreaAtletaPage {
 
   protected async salir(): Promise<void> {
     await firstValueFrom(this.http.post(`${api}/salir`, {})).catch(() => undefined);
-    this.panel.set(null);
-    this.vista.set('acceso');
+    this.area.poner(null);
+    this.estado.set('acceso');
+    await this.router.navigate([], { relativeTo: this.route, queryParams: {} });
   }
 
   private msg(e: unknown): string {
     if (e instanceof HttpErrorResponse && e.status === 401) {
-      this.vista.set('acceso');
+      this.estado.set('acceso');
       return '';
     }
     return textoError(e, this.t().noGuardarGen);

@@ -140,7 +140,13 @@ app.use(
  * ~6 API calls charged to the visitor's rate limit and ~10 ms of CPU each. The browser renders the 404 page itself.
  * Known route patterns and the CMS pages published in the SEO map still render on the server.
  */
-const PATRONES = routes.map((r) => (r.path ?? '').split('/').filter(Boolean)).filter((p) => p[0] !== '**' && p[0] !== ':pslug');
+// children included (the games routes hang from their gate, /en from its prefix)
+const planas = (rs: typeof routes, pre: string[] = []): string[][] =>
+  rs.flatMap((r) => {
+    const p = [...pre, ...(r.path ?? '').split('/').filter(Boolean)];
+    return r.children ? planas(r.children, p) : [p];
+  });
+const PATRONES = planas(routes).filter((p) => p[0] !== '**' && p[0] !== ':pslug' && !p.includes('**'));
 const SHELL = (() => {
   try {
     // marker read by Cms.pagina(): the server already answered 404, so the client must not ask the CMS again

@@ -735,6 +735,7 @@ export class Juegos {
 @Injectable({ providedIn: 'root' })
 export class JuegosEstado {
   private readonly juegos = inject(Juegos);
+  private readonly vivo = inject(JuegosEnVivo);
   private readonly fan = inject(FanSession);
   private readonly router = inject(Router);
 
@@ -773,6 +774,8 @@ export class JuegosEstado {
     if (id) return lista.find((j) => j.id === id) ?? null;
     return lista.find((j) => j.actual) ?? lista.find((j) => j.estado === 'abierta' || j.estado === 'en_juego') ?? lista[0] ?? null;
   });
+  /** «Activar juegos» apagado en el backoffice: /porra, /fantasy y la pestaña porra enseñan que aún no están abiertos. */
+  readonly cerrados = computed(() => (this.vivo.activo() ?? this.config()?.activo) === false);
   /** ¿La jornada mostrada es de solo lectura (cerrada)? */
   readonly soloLectura = computed(() => this.jornada()?.estado === 'cerrada');
   readonly saldoPorra = computed(() => this.cartera()?.porra ?? 0);
@@ -796,9 +799,11 @@ export class JuegosEstado {
   }
 
   /** La configuración pública de los juegos (si el endpoint no existe, se queda null). */
-  async cargarConfig(): Promise<void> {
-    if (this.config()) return;
-    this.config.set(await this.juegos.config().catch(() => null));
+  async cargarConfig(forzar = false): Promise<void> {
+    if (this.config() && !forzar) return;
+    const c = await this.juegos.config().catch(() => null);
+    if (c || !this.config()) this.config.set(c);
+    if (c) this.vivo.activo.set(null); // the fresh config wins over an older live event
   }
 
   /** Elige la jornada (vacío = la activa). */
@@ -996,6 +1001,8 @@ export class JuegosEnVivo {
   readonly podios = signal<{ porra: string[]; fantasy: string[] } | null>(null);
   /** Si algo cambió (para recargar la vista sin perder el scroll). */
   readonly version = signal(0);
+  /** Último «Activar juegos» recibido en vivo (null = ninguno: vale el de la configuración). */
+  readonly activo = signal<boolean | null>(null);
   /** Schedule events seen on the stream (publish, withdraw, changes, «Publicar horarios»): the home reloads its section. */
   readonly versionHorarios = signal(0);
 
@@ -1044,6 +1051,13 @@ export class JuegosEnVivo {
     es.addEventListener('fantasy.nota', (e) => this.eventoNota(e));
     es.addEventListener('porra.mercado', (e) => this.mercado(e));
     es.addEventListener('juegos.clasificacion', (e) => this.clasificacion(e));
+    // «Activar juegos» del backoffice: las pantallas pasan al momento entre los juegos y el aviso de cerrados
+    es.addEventListener('juegos.estado', (e) => {
+      const d = this.datos(e);
+      if (d && typeof d['activo'] === 'boolean') this.activo.set(d['activo']);
+    });
+    // altas, cambios y bajas de atletas: el mercado de fantasy y la porra se recargan
+    es.addEventListener('fantasy.atletas', () => this.version.update((v) => v + 1));
     // The home reuses this stream (one connection) to reload its schedule section live.
     for (const ev of EVENTOS_HORARIOS) es.addEventListener(ev, () => this.versionHorarios.update((v) => v + 1));
   }

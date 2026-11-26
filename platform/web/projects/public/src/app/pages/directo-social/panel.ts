@@ -8,7 +8,8 @@ import { ChatService, diaDeHoy } from '../../core/chat';
 import { type Directo } from '../../core/directo';
 import { FanSession } from '../../core/fan';
 import { I18n } from '../../core/i18n';
-import { Juegos, type Jornada } from '../../core/juegos';
+import { Juegos, JuegosEnVivo, JuegosEstado, type Jornada } from '../../core/juegos';
+import { JuegosCerrados } from '../juegos-cerrados';
 import { ChatView } from './chat-view';
 import { DonantesView } from './donantes-view';
 import { DonarModal } from './donar-modal';
@@ -68,7 +69,7 @@ export function escritorio(): Signal<boolean> {
  */
 @Component({
   selector: 'gr-panel-social',
-  imports: [GrIcon, ChatView, DonantesView, PorraView, DonarModal, TarimaView],
+  imports: [GrIcon, ChatView, DonantesView, PorraView, DonarModal, TarimaView, JuegosCerrados],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   styles: `
@@ -96,7 +97,11 @@ export function escritorio(): Signal<boolean> {
         @switch (t) {
           @case ('chat') { @defer (on immediate) { <gr-chat-view (donar)="donar.set(true)" /> } }
           @case ('donantes') { @defer (on immediate) { <gr-donantes-view [diaSala]="hoy" [jornadaId]="jornadaPorra()?.id ?? ''" (donar)="donar.set(true)" /> } }
-          @case ('porra') { @defer (on immediate) { <gr-porra-view [jornadaId]="jornadaPorra()?.id ?? ''" [jornadaNombre]="jornadaPorra()?.nombre ?? ''" [cargada]="jornadasCargadas()" /> } }
+          @case ('porra') {
+            <!-- «Activar juegos» apagado en el backoffice: el aviso en lugar de la porra (vuelve sola al activarse) -->
+            @if (juegosEstado.cerrados()) { <gr-juegos-cerrados class="px-4 py-4" [compacto]="true" /> }
+            @else { @defer (on immediate) { <gr-porra-view [jornadaId]="jornadaPorra()?.id ?? ''" [jornadaNombre]="jornadaPorra()?.nombre ?? ''" [cargada]="jornadasCargadas()" /> } }
+          }
           @case ('tarima') { @if (directo(); as d) { @defer (on immediate) { <gr-tarima-view class="px-4 py-4 md:px-5" [directo]="d" [conexion]="conexion()" /> } } }
         }
       </div>
@@ -110,6 +115,7 @@ export class PanelSocial {
   private readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(T);
   private readonly juegos = inject(Juegos);
+  protected readonly juegosEstado = inject(JuegosEstado);
   protected readonly fan = inject(FanSession);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly toasts = inject(GrToasts);
@@ -163,6 +169,7 @@ export class PanelSocial {
         const t = this.tab();
         if (pedidas || t !== 'porra') return;
         pedidas = true;
+        void this.juegosEstado.cargarConfig(true); // «Activar juegos»: the porra or the «not open yet» notice
         void this.juegos
           .jornadas()
           .then((l) => this.jornadas.set(l))
@@ -170,6 +177,16 @@ export class PanelSocial {
           .finally(() => this.jornadasCargadas.set(true));
       });
       // `?tab=` always names the tab shown (an absent or unknown value becomes the real one, without a history entry)
+      // «Porra» follows «Activar juegos» live (juegos.estado on the games stream) while it is shown
+      const vivo = inject(JuegosEnVivo);
+      let enPorra = false;
+      effect(() => {
+        const t = this.tab() === 'porra';
+        if (t === enPorra) return;
+        enPorra = t;
+        untracked(() => (t ? vivo.conectar() : vivo.desconectar()));
+      });
+      inject(DestroyRef).onDestroy(() => enPorra && vivo.desconectar());
       effect(() => {
         const t = this.tab();
         if (this.pedida() !== t) untracked(() => void this.router.navigate([], { relativeTo: this.route, queryParams: { tab: t }, queryParamsHandling: 'merge', replaceUrl: true }));

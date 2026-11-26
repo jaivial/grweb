@@ -49,6 +49,7 @@ type atleta struct {
 	RackBP         string    `json:"rackBp,omitempty"`
 	Frase          string    `json:"frase,omitempty"`
 	FotoURL        string    `json:"fotoUrl,omitempty"` // athletes sends it only with public profile + image consent
+	Prueba         string    `json:"prueba,omitempty"`  // aep2, aep3 or "" (the games place the athletes without sesion by it)
 	// from the published schedule
 	Lote   int       `json:"-"`
 	Sesion uuid.UUID `json:"-"`

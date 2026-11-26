@@ -66,6 +66,12 @@ func nombrePublico(a *atleta) string {
 	if a.Publico {
 		return a.Nombre
 	}
+	if a.Lote == 0 { // not in a published sesion yet: no lot (and maybe no weight class either)
+		if a.Categoria == "" {
+			return "Atleta"
+		}
+		return "Atleta · " + sinMenos(a.Categoria) + " kg"
+	}
 	return "Atleta · " + sinMenos(a.Categoria) + " kg · lote " + itoa(a.Lote)
 }
 
@@ -83,8 +89,11 @@ func sinMenos(cat string) string {
 }
 
 // marcadorDelDia builds the scoreboard of one day. It computes the places on a sub-plan with only that day's
-// sesiones, so two jornadas of the same competition (AEP-2, AEP-3) rank independently.
-func (s *Svc) marcadorDelDia(ctx context.Context, cid uuid.UUID, dia string) (*Marcador, error) {
+// sesiones, so two jornadas of the same competition (AEP-2, AEP-3) rank independently. prueba ("" = off) also
+// lists the confirmed athletes that are in no published sesion of any day yet, so the games can offer them before
+// the schedule places them: "*" every one of them, "aep2"/"aep3" the ones of that competition and those without
+// one. They carry no sesion (uuid.Nil) and are never ranked here.
+func (s *Svc) marcadorDelDia(ctx context.Context, cid uuid.UUID, dia, prueba string) (*Marcador, error) {
 	e, err := s.estadoLeer(ctx, cid)
 	if err != nil {
 		return nil, err
@@ -104,6 +113,12 @@ func (s *Svc) marcadorDelDia(ctx context.Context, cid uuid.UUID, dia string) (*M
 	pubs, err := cargarPublicados(ctx, s.a.DB, cid)
 	if err != nil {
 		return nil, err
+	}
+	enSesion := map[uuid.UUID]bool{} // athletes placed in a published sesion of any day
+	for i := range p.Sesiones {
+		for _, x := range p.Sesiones[i].Atletas {
+			enSesion[x.ID] = true
+		}
 	}
 	sub := &plan{Version: p.Version, Atletas: p.Atletas, Degradado: p.Degradado}
 	for i := range p.Sesiones {
@@ -200,49 +215,64 @@ func (s *Svc) marcadorDelDia(ctx context.Context, cid uuid.UUID, dia string) (*M
 		return pesoCat(a[1:]) < pesoCat(b[1:])
 	})
 
+	anadir := func(a *atleta, sesionID uuid.UUID) {
+		k := clave(a.Sexo, a.Categoria)
+		ma := MarcadorAtleta{
+			AtletaID: a.ID, NombrePublico: nombrePublico(a), FotoURL: fotoPublica(a), Sexo: a.Sexo, Categoria: a.Categoria,
+			SesionID: sesionID, SesionEnCurso: sesionID != uuid.Nil && e.SesionID != nil && *e.SesionID == sesionID,
+			Intentos: map[string][]MarcadorIntento{}, Mejor: map[string]*float64{},
+			PuestoMovimiento: map[string]int{}, Blanqueo: map[string]bool{},
+		}
+		if c, ok := cats[k]; ok {
+			for j := range c.Filas {
+				if c.Filas[j].AtletaID == a.ID {
+					ma.Mejor = map[string]*float64{"sq": c.Filas[j].SQ, "bp": c.Filas[j].BP, "dl": c.Filas[j].DL}
+					ma.Total, ma.GL, ma.PuestoCategoria = c.Filas[j].Total, c.Filas[j].GL, c.Filas[j].Puesto
+				}
+			}
+		}
+		terminado := true
+		for _, mv := range movs {
+			for n := 1; n <= 3; n++ {
+				it := t.get(a.ID, mv, n)
+				if it == nil {
+					terminado = false
+					continue
+				}
+				ma.Intentos[mv] = append(ma.Intentos[mv], MarcadorIntento{N: n, Peso: it.Peso, Resultado: it.Resultado, JuzgadoAt: it.JuzgadoAt})
+				if !it.resuelto() {
+					terminado = false
+				}
+			}
+			ma.Blanqueo[mv] = blanqueoDe(t, a.ID, mv)
+			if px := puestoMov[a.ID]; px != nil {
+				ma.PuestoMovimiento[mv] = px[mv]
+			}
+		}
+		ma.Terminado = terminado && len(ma.Intentos) > 0
+		ma.PuestoGL = puestoGL[a.ID]
+		m.Atletas = append(m.Atletas, ma)
+	}
 	for i := range sub.Sesiones {
 		f := &sub.Sesiones[i]
 		for _, x := range f.Atletas {
-			a := sub.Atletas[x.ID]
-			if a == nil {
-				continue
+			if a := sub.Atletas[x.ID]; a != nil {
+				anadir(a, f.ID)
 			}
-			k := clave(a.Sexo, a.Categoria)
-			ma := MarcadorAtleta{
-				AtletaID: a.ID, NombrePublico: nombrePublico(a), FotoURL: fotoPublica(a), Sexo: a.Sexo, Categoria: a.Categoria,
-				SesionID: f.ID, SesionEnCurso: e.SesionID != nil && *e.SesionID == f.ID,
-				Intentos: map[string][]MarcadorIntento{}, Mejor: map[string]*float64{},
-				PuestoMovimiento: map[string]int{}, Blanqueo: map[string]bool{},
+		}
+	}
+	if prueba != "" {
+		var sin []*atleta
+		for _, a := range p.Atletas {
+			if !enSesion[a.ID] && (a.Sexo == "F" || a.Sexo == "M") && (prueba == "*" || a.Prueba == "" || a.Prueba == prueba) {
+				sin = append(sin, a)
 			}
-			if c, ok := cats[k]; ok {
-				for j := range c.Filas {
-					if c.Filas[j].AtletaID == a.ID {
-						ma.Mejor = map[string]*float64{"sq": c.Filas[j].SQ, "bp": c.Filas[j].BP, "dl": c.Filas[j].DL}
-						ma.Total, ma.GL, ma.PuestoCategoria = c.Filas[j].Total, c.Filas[j].GL, c.Filas[j].Puesto
-					}
-				}
-			}
-			terminado := true
-			for _, mv := range movs {
-				for n := 1; n <= 3; n++ {
-					it := t.get(a.ID, mv, n)
-					if it == nil {
-						terminado = false
-						continue
-					}
-					ma.Intentos[mv] = append(ma.Intentos[mv], MarcadorIntento{N: n, Peso: it.Peso, Resultado: it.Resultado, JuzgadoAt: it.JuzgadoAt})
-					if !it.resuelto() {
-						terminado = false
-					}
-				}
-				ma.Blanqueo[mv] = blanqueoDe(t, a.ID, mv)
-				if px := puestoMov[a.ID]; px != nil {
-					ma.PuestoMovimiento[mv] = px[mv]
-				}
-			}
-			ma.Terminado = terminado && len(ma.Intentos) > 0
-			ma.PuestoGL = puestoGL[a.ID]
-			m.Atletas = append(m.Atletas, ma)
+		}
+		sort.Slice(sin, func(i, j int) bool {
+			return sin[i].Nombre < sin[j].Nombre || (sin[i].Nombre == sin[j].Nombre && sin[i].ID.String() < sin[j].ID.String())
+		})
+		for _, a := range sin {
+			anadir(a, uuid.Nil)
 		}
 	}
 	return m, nil
@@ -275,6 +305,8 @@ func (s *Svc) registerMarcador() {
 	type in struct {
 		CID uuid.UUID `path:"cid"`
 		Dia string    `query:"dia" minLength:"0" maxLength:"10" doc:"YYYY-MM-DD (Europe/Madrid); vacío = todos los días"`
+		// the games (juegos) list every confirmed athlete, also the ones the schedule has not placed yet
+		Prueba string `query:"prueba" pattern:"^(\\*|aep2|aep3)?$" required:"false" doc:"Añade los atletas confirmados sin sesión publicada: * todos, aep2/aep3 los de esa competición y los que no tienen; vacío = no"`
 	}
 	huma.Register(s.a.API, huma.Operation{OperationID: "internal-marcador", Method: http.MethodGet,
 		Path: "/internal/competiciones/{cid}/marcador", Summary: "Marcador por atleta y día (solo juegos)", Tags: []string{"Interno"}, Hidden: true},
@@ -282,7 +314,21 @@ func (s *Svc) registerMarcador() {
 			if _, err := auth.RequireService(ctx); err != nil {
 				return nil, err
 			}
-			m, err := s.marcadorDelDia(ctx, i.CID, i.Dia)
+			m, err := s.marcadorDelDia(ctx, i.CID, i.Dia, i.Prueba)
 			return &struct{ Body *Marcador }{m}, err
+		})
+	// juegos calls it on every athletes.* event: the plan cache (15 s) is dropped so the next marcador reads the
+	// athletes again at once (an approved, edited or deleted athlete reaches the games in about a second).
+	type cidIn struct {
+		CID uuid.UUID `path:"cid"`
+	}
+	huma.Register(s.a.API, huma.Operation{OperationID: "internal-plan-refrescar", Method: http.MethodPost,
+		Path: "/internal/competiciones/{cid}/plan/refrescar", Summary: "Olvidar el plan cacheado (solo juegos)", Tags: []string{"Interno"}, Hidden: true, DefaultStatus: http.StatusNoContent},
+		func(ctx context.Context, i *cidIn) (*struct{}, error) {
+			if _, err := auth.RequireService(ctx); err != nil {
+				return nil, err
+			}
+			s.cache.Del(ctx, "plan:"+i.CID.String())
+			return nil, nil
 		})
 }

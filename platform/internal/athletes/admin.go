@@ -268,6 +268,9 @@ func (s *Svc) registerAdmin() {
 			id := newID()
 			b := in.Body
 			err := s.change(ctx, in.CID, "athletes.atleta_creado", map[string]any{"id": id, "nombre": b.Nombre + " " + b.Apellidos}, func(tx pgx.Tx) error {
+				if err := s.emailEnUso(ctx, tx, in.CID, id, b.Email); err != nil {
+					return err
+				}
 				if _, err := tx.Exec(ctx, `INSERT INTO atletas (id, competition_id, licencia, nombre, apellidos, email, telefono, sexo, fecha_nacimiento, categoria, division, club, ciudad, estado, origen, prueba)
 					VALUES ($1,$2,$3,$4,$5,NULLIF($6,''),$7,$8,$9,$10,$11,$12,$13,$14,'manual',COALESCE($15,''))`, id, in.CID, b.Licencia, b.Nombre, b.Apellidos, b.Email, b.Telefono, b.Sexo, b.fecha(),
 					b.Categoria, b.Division, b.Club, b.Ciudad, b.Estado, b.Prueba); err != nil {
@@ -323,7 +326,13 @@ func (s *Svc) registerAdmin() {
 					}
 				}
 				// one account per email: the directo account of this athlete follows a new email
-				// one account per email: the directo account of this athlete follows a new email
+				// Checked when the address changes or the athlete leaves «baja» (a reactivated one cannot take an
+				// address already in use). Existing duplicates already saved stay editable.
+				if prev.Email == nil || !strings.EqualFold(*prev.Email, b.Email) || prev.Estado == "baja" && b.Estado != "baja" {
+					if err := s.emailEnUso(ctx, tx, in.CID, in.ID, b.Email); err != nil {
+						return err
+					}
+				}
 				if _, err := tx.Exec(ctx, `UPDATE atletas SET licencia=$3, nombre=$4, apellidos=$5, email=NULLIF($6,''), telefono=$7, sexo=$8, fecha_nacimiento=$9, categoria=$10,
 					division=$11, club=$12, ciudad=$13, estado=$14, prueba = COALESCE($15, prueba), prueba_org_at = CASE WHEN COALESCE($15, prueba) <> prueba THEN now() ELSE prueba_org_at END,
 					orden_reserva = CASE WHEN $14 = 'reserva' THEN orden_reserva ELSE NULL END,
@@ -343,7 +352,12 @@ func (s *Svc) registerAdmin() {
 				if err != nil {
 					return err
 				}
-				return hist(ctx, tx, in.ID, "Datos de competición editados", strings.TrimSpace(strings.Join([]string{cambios(prev, b), nota}, " · ")))
+				// No dangling « · » when the fan note is empty.
+				partes := []string{cambios(prev, b)}
+				if nota != "" {
+					partes = append(partes, nota)
+				}
+				return hist(ctx, tx, in.ID, "Datos de competición editados", strings.Join(partes, " · "))
 			})
 			if err != nil {
 				return nil, err
@@ -719,6 +733,29 @@ func (s *Svc) lock(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, ifm string
 		return r, problem.Conflict("CONFLICTO_EDICION", "Otra persona ha guardado esta ficha mientras la editabas. Recarga para ver sus cambios.")
 	}
 	return r, nil
+}
+
+// emailEnUso rejects a second non-baja athlete of the competition with the same email (TELBO-02). There is no unique
+// index on purpose (prod data may already hold duplicates): the advisory lock serialises two edits that pick the same
+// address at the same time, and it is released with the transaction.
+func (s *Svc) emailEnUso(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, email string) error {
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return nil
+	}
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, cid.String()+"|"+strings.ToLower(email)); err != nil {
+		return err
+	}
+	var nombre string
+	err := tx.QueryRow(ctx, `SELECT trim(nombre || ' ' || apellidos) FROM atletas
+		WHERE competition_id = $1 AND id <> $2 AND estado <> 'baja' AND email = $3 LIMIT 1`, cid, id, email).Scan(&nombre)
+	if err == nil {
+		return problem.Conflict("EMAIL_EN_USO", "Ese email ya lo usa otro atleta ("+nombre+").")
+	}
+	if db.IsNoRows(err) {
+		return nil
+	}
+	return err
 }
 
 // DatosIn are the competition data of an athlete.

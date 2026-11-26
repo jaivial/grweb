@@ -57,7 +57,7 @@ const T = {
             </nav>
             <div class="flex flex-col">
               @if (eyebrow()) { <p class="sr-only">{{ eyebrow() }}</p> }
-              <h1 [class.text-display-l]="tituloMovilGrande()" [class.text-display-m]="!tituloMovilGrande()" class="[overflow-wrap:anywhere] hyphens-auto [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-xl" [class.sr-only]="hideTitle()">{{ title() }} @if (accent()) { <span [class]="tituloMovilGrande() ? 'text-accent' : 'text-accent-text'">{{ accent() }}</span> }@if (suffix()) { {{ ' ' + suffix() }} }</h1>
+              <h1 [class.text-display-l]="tituloMovilGrande()" [class.text-display-m]="!tituloMovilGrande()" [class.gr-h1-movil]="tituloMovilGrande()" class="hyphens-none [text-shadow:0_2px_20px_rgb(0_0_0/0.8)] md:text-display-xl" [class.sr-only]="hideTitle()">{{ title() }} @if (accent()) { <span [class]="tituloMovilGrande() ? 'text-accent' : 'text-accent-text'">{{ accent() }}</span> }@if (suffix()) { {{ ' ' + suffix() }} }</h1>
               @if (subtitle()) { @if (subtitleHtml()) { <p class="sr-only" [innerHTML]="subtitleHtml()"></p> } @else { <p class="sr-only">{{ subtitle() }}</p> } }
             </div>
             <div class="flex flex-wrap items-center gap-3 empty:hidden"><ng-content select="[pageStamps]" /></div>

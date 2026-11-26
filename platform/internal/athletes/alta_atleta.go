@@ -98,8 +98,13 @@ type Consentimiento struct {
 
 // solicitud is a row of «solicitudes_atleta».
 type solicitud struct {
-	ID                uuid.UUID  `db:"id"`
-	CompetitionID     uuid.UUID  `db:"competition_id"`
+	ID            uuid.UUID `db:"id"`
+	CompetitionID uuid.UUID `db:"competition_id"`
+	// Tipo: «alta» (the public form) or «cambio_perfil» (the athlete area proposes changes; nothing is written
+	// until it is approved).
+	Tipo string `db:"tipo"`
+	// Cambios is the before/after snapshot of a «cambio_perfil» request (only the fields that change).
+	Cambios           string     `db:"cambios"`
 	MatchAtletaID     *uuid.UUID `db:"match_atleta_id"`
 	MatchTipo         string     `db:"match_tipo"`
 	Licencia          string     `db:"licencia"`
@@ -168,7 +173,7 @@ func (s solicitud) edad() *int {
 	return &e
 }
 
-const selSolicitud = `SELECT id, competition_id, match_atleta_id, match_tipo, licencia, nombre, apellidos, email::text AS email, telefono, sexo,
+const selSolicitud = `SELECT id, competition_id, tipo, cambios::text AS cambios, match_atleta_id, match_tipo, licencia, nombre, apellidos, email::text AS email, telefono, sexo,
 	fecha_nacimiento, club, ciudad, frase, bio, instagram, entrenador, historial,
 	marca_sq::float8 AS marca_sq, marca_bp::float8 AS marca_bp, marca_dl::float8 AS marca_dl,
 	focal_x, focal_y, es_menor, foto_clave, foto_sha256, autorizacion_clave, estado, notas, motivo_rechazo,
@@ -687,8 +692,8 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 		}
 		_, err := tx.Exec(ctx, `INSERT INTO solicitudes_atleta (id, competition_id, match_atleta_id, match_tipo, licencia, nombre, apellidos, email, telefono, sexo,
 			fecha_nacimiento, club, ciudad, frase, bio, instagram, entrenador, historial, marca_sq, marca_bp, marca_dl, focal_x, focal_y, es_menor,
-			foto_clave, foto_sha256, estado, consentimientos, consentimiento_at, ip, user_agent, prueba, categoria)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,'pendiente',$27,now(),$28,$29,$30,$31)`,
+			foto_clave, foto_sha256, estado, consentimientos, consentimiento_at, ip, user_agent, prueba, categoria, tipo)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,'pendiente',$27,now(),$28,$29,$30,$31,'alta')`,
 			id, c.ID, matchID, matchTipo, d.Licencia, d.Nombre, d.Apellidos, d.Email, d.Telefono, d.Sexo, fecha(d.FechaNacimiento),
 			d.Club, d.Ciudad, d.Frase, d.Bio, d.Instagram, d.Entrenador, d.Historial, d.MarcaSQ, d.MarcaBP, d.MarcaDL, d.FocalX, d.FocalY, menor,
 			fotoClave, fotoSHA, string(consJSON), anonIP(ip), ua, d.Prueba, d.Categoria)

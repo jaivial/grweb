@@ -17,9 +17,10 @@ export class Novedades {
     // the API caps origen at 80 (long blog slugs would otherwise block the subscription)
     await firstValueFrom(this.http.post('/api/suscripciones', { competicion: COMPETITION_SLUG, email, acepta, origen: origen.slice(0, 80) }));
   }
-  /** BIZ-165 «Avísame» for an upcoming event (idempotent: same answer if the email was already saved). */
-  async avisame(evento: string, email: string): Promise<void> {
-    await firstValueFrom(this.http.post('/api/avisos-evento', { competicion: COMPETITION_SLUG, evento, email }));
+  /** BIZ-165 «Avísame» for an upcoming event: true when the email was new, false when it was already on the list. */
+  async avisame(evento: string, email: string): Promise<boolean> {
+    const r = await firstValueFrom(this.http.post<{ nuevo: boolean }>('/api/avisos-evento', { competicion: COMPETITION_SLUG, evento, email }));
+    return !!r?.nuevo;
   }
   async confirmar(token: string): Promise<string> {
     return (await firstValueFrom(this.http.post<{ email: string }>('/api/suscripciones/confirmar', { token }))).email;

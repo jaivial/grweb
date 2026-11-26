@@ -35,7 +35,11 @@ func (s *Svc) sincronizarMercados(ctx context.Context, cid uuid.UUID, j jornada)
 			return err
 		}
 		creados, err = sincronizarMercadosTx(ctx, tx, cid, j, cfg, m, degradado)
-		return err
+		if err != nil {
+			return err
+		}
+		// both days are playable from the start: the fantasy market of a day to come is filled in too
+		return sincronizarAtletasTx(ctx, tx, cid, j, m, cfg, degradado)
 	})
 	return creados, err
 }
@@ -91,9 +95,11 @@ func mercadosDeseados(m *Marcador) (map[claveMercado][]uuid.UUID, map[claveMerca
 	titulos := map[claveMercado]string{}
 	for i := range m.Atletas {
 		ma := &m.Atletas[i]
-		kc := claveMercado{tipo: "categoria", sexo: ma.Sexo, categoria: ma.Categoria}
-		deseados[kc] = append(deseados[kc], ma.AtletaID)
-		titulos[kc] = gl[ma.Sexo] + " " + guion(ma.Categoria) + " kg"
+		if ma.Categoria != "" { // an approved athlete without weight class yet only plays the per-sex markets
+			kc := claveMercado{tipo: "categoria", sexo: ma.Sexo, categoria: ma.Categoria}
+			deseados[kc] = append(deseados[kc], ma.AtletaID)
+			titulos[kc] = gl[ma.Sexo] + " " + guion(ma.Categoria) + " kg"
+		}
 		kg := claveMercado{tipo: "gl", sexo: ma.Sexo}
 		deseados[kg] = append(deseados[kg], ma.AtletaID)
 		titulos[kg] = "Mejor IPF GL " + gl[ma.Sexo]

@@ -39,6 +39,7 @@ var tiposAutorizacion = map[string]string{"image/jpeg": ".jpg", "image/png": ".p
 // ItemSolicitud is one row of the list of requests.
 type ItemSolicitud struct {
 	ID            uuid.UUID  `json:"id"`
+	Tipo          string     `json:"tipo" enum:"alta,cambio_perfil" doc:"alta = formulario público; cambio_perfil = cambios pedidos desde el área de atleta"`
 	Nombre        string     `json:"nombre"`
 	Apellidos     string     `json:"apellidos"`
 	Email         string     `json:"email"`
@@ -134,27 +135,29 @@ type AtletaEnlace struct {
 // DetalleSolicitud is everything the review drawer shows.
 type DetalleSolicitud struct {
 	ItemSolicitud
-	Licencia        string               `json:"licencia"`
-	Telefono        string               `json:"telefono"`
-	Sexo            string               `json:"sexo"`
-	FechaNacimiento string               `json:"fechaNacimiento,omitempty"`
-	Ciudad          string               `json:"ciudad"`
-	Entrenador      string               `json:"entrenador"`
-	Prueba          string               `json:"prueba"`
-	Frase           string               `json:"frase"`
-	Bio             string               `json:"bio"`
-	Instagram       string               `json:"instagram"`
-	Historial       string               `json:"historial"`
-	MarcaSQ         *float64             `json:"marcaSQ,omitempty"`
-	MarcaBP         *float64             `json:"marcaBP,omitempty"`
-	MarcaDL         *float64             `json:"marcaDL,omitempty"`
-	FocalX          int                  `json:"focalX"`
-	FocalY          int                  `json:"focalY"`
-	MotivoRechazo   string               `json:"motivoRechazo"`
-	RevisadoAt      *time.Time           `json:"revisadoAt,omitempty"`
-	RevisadoPor     string               `json:"revisadoPor"`
-	Atleta          *AtletaEnlace        `json:"atleta"`
-	Diferencias     []Diferencia         `json:"diferencias"`
+	Licencia        string        `json:"licencia"`
+	Telefono        string        `json:"telefono"`
+	Sexo            string        `json:"sexo"`
+	FechaNacimiento string        `json:"fechaNacimiento,omitempty"`
+	Ciudad          string        `json:"ciudad"`
+	Entrenador      string        `json:"entrenador"`
+	Prueba          string        `json:"prueba"`
+	Frase           string        `json:"frase"`
+	Bio             string        `json:"bio"`
+	Instagram       string        `json:"instagram"`
+	Historial       string        `json:"historial"`
+	MarcaSQ         *float64      `json:"marcaSQ,omitempty"`
+	MarcaBP         *float64      `json:"marcaBP,omitempty"`
+	MarcaDL         *float64      `json:"marcaDL,omitempty"`
+	FocalX          int           `json:"focalX"`
+	FocalY          int           `json:"focalY"`
+	MotivoRechazo   string        `json:"motivoRechazo"`
+	RevisadoAt      *time.Time    `json:"revisadoAt,omitempty"`
+	RevisadoPor     string        `json:"revisadoPor"`
+	Atleta          *AtletaEnlace `json:"atleta"`
+	Diferencias     []Diferencia  `json:"diferencias"`
+	// Cambios is the before/after snapshot of a «cambio_perfil» request: only the fields that change.
+	Cambios         []CambioPerfilCampo  `json:"cambios"`
 	Consentimientos []ConsentimientoItem `json:"consentimientos"`
 	CuentaPublico   bool                 `json:"cuentaPublico" doc:"El email ya tiene una cuenta de público del directo: al aprobar pasa a ser de atleta"`
 	AtletaEmail     string               `json:"atletaEmail,omitempty" doc:"Nombre del atleta que ya tiene este email: al aprobar se enlaza a él, sin duplicado ni avisos"`
@@ -188,6 +191,7 @@ type AprobarOut struct {
 type FiltrosLista struct {
 	CID    uuid.UUID `path:"cid"`
 	Estado string    `query:"estado" enum:"pendiente,revision,menor,aprobada,rechazada,todas" default:"todas"`
+	Tipo   string    `query:"tipo" enum:"todas,alta,cambio_perfil" default:"todas"`
 	Match  string    `query:"match" enum:"licencia,email,nombre,manual,ninguna" default:""`
 	Menor  string    `query:"menor" enum:"si,no" default:""`
 	Q      string    `query:"q" maxLength:"80"`
@@ -332,6 +336,10 @@ func (s *Svc) registerAltaAtletaAdmin() {
 			if in.Body.Cambios != nil {
 				cambios = *in.Body.Cambios
 			}
+			// A «cambio_perfil» request does not create anything: it applies its before/after snapshot to the athlete.
+			if pre, err := getSolicitud(ctx, s.a.DB, in.CID, in.ID); err == nil && pre.Tipo == "cambio_perfil" {
+				return s.apruebaCambioPerfil(ctx, in.CID, in.ID, in.IfMatch, in.Body.AvisarEmail, in.Body.AvisarWhatsApp, pr.Name)
+			}
 			return s.apruebaSolicitud(ctx, in.CID, in.ID, in.IfMatch, in.Body.AtletaID, in.Body.Nuevo, cambios,
 				in.Body.AvisarEmail, in.Body.AvisarWhatsApp, pr.Name)
 		})
@@ -341,7 +349,7 @@ func (s *Svc) registerAltaAtletaAdmin() {
 		ID      uuid.UUID `path:"id"`
 		IfMatch string    `header:"If-Match"`
 		Body    struct {
-			Motivo         string `json:"motivo" minLength:"3" maxLength:"400"`
+			Motivo         string `json:"motivo" maxLength:"400" doc:"Obligatorio en un alta; en un cambio de perfil es opcional"`
 			AvisarEmail    bool   `json:"avisarEmail,omitempty"`
 			AvisarWhatsApp bool   `json:"avisarWhatsApp,omitempty"`
 		}
@@ -428,9 +436,9 @@ func (s *Svc) registerAltaAtletaAdmin() {
 
 // listaSolicitudes returns the requests of the competition with its counters and KPIs.
 func (s *Svc) listaSolicitudes(ctx context.Context, in *FiltrosLista) (*ListaSolicitud, error) {
-	where, args := s.filtrosSolicitud(in.CID, in.Estado, in.Match, in.Menor, in.Q)
+	where, args := s.filtrosSolicitud(in.CID, in.Estado, in.Tipo, in.Match, in.Menor, in.Q)
 	// The counters ignore the state filter (they are the tabs of the panel).
-	base, argsBase := s.filtrosSolicitud(in.CID, "", in.Match, in.Menor, in.Q)
+	base, argsBase := s.filtrosSolicitud(in.CID, "", in.Tipo, in.Match, in.Menor, in.Q)
 	// The counters of the tabs: each state is counted apart (a minor is inside «pendiente» or
 	// «revision», not in a group of its own) and «menor» counts the minors still pending review.
 	cont := Contadores{}
@@ -470,9 +478,15 @@ func (s *Svc) listaSolicitudes(ctx context.Context, in *FiltrosLista) (*ListaSol
 }
 
 // filtrosSolicitud builds the WHERE of the list.
-func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, match string, menor string, q string) (string, []any) {
+func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, tipo, match string, menor string, q string) (string, []any) {
 	where := []string{"competition_id = $1"}
 	args := []any{cid}
+	switch tipo {
+	case "alta":
+		where = append(where, "tipo = 'alta'")
+	case "cambio_perfil":
+		where = append(where, "tipo = 'cambio_perfil'")
+	}
 	switch estado {
 	case "pendiente":
 		where = append(where, "estado = 'pendiente'")
@@ -518,9 +532,12 @@ func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, match string, menor string
 // itemSolicitud is one row of the list.
 func (s *Svc) itemSolicitud(cid uuid.UUID, sol solicitud) ItemSolicitud {
 	it := ItemSolicitud{
-		ID: sol.ID, Nombre: sol.Nombre, Apellidos: sol.Apellidos, Email: sol.Email, Club: sol.Club,
+		ID: sol.ID, Tipo: sol.Tipo, Nombre: sol.Nombre, Apellidos: sol.Apellidos, Email: sol.Email, Club: sol.Club,
 		Edad: sol.edad(), EsMenor: sol.EsMenor, Autorizacion: sol.AutorizacionClave != "", Match: sol.MatchTipo,
 		AtletaID: sol.MatchAtletaID, Estado: sol.Estado, CreatedAt: sol.CreatedAt, Version: sol.Version,
+	}
+	if it.Tipo == "" {
+		it.Tipo = "alta"
 	}
 	// A reviewed request no longer keeps its private photo (published or deleted on review).
 	if sol.FotoClave != "" && sol.Estado != "aprobada" && sol.Estado != "rechazada" {
@@ -542,18 +559,23 @@ func (s *Svc) detalleSolicitud(ctx context.Context, cid, id uuid.UUID) (DetalleS
 		MarcaSQ: sol.MarcaSQ, MarcaBP: sol.MarcaBP, MarcaDL: sol.MarcaDL,
 		FocalX: int(sol.FocalX), FocalY: int(sol.FocalY),
 		MotivoRechazo: sol.MotivoRechazo, RevisadoAt: sol.RevisadoAt, RevisadoPor: sol.RevisadoPor,
-		Diferencias: []Diferencia{}, Consentimientos: []ConsentimientoItem{},
+		Diferencias: []Diferencia{}, Cambios: cambiosDeSolicitud(sol), Consentimientos: []ConsentimientoItem{},
 	}
 	if sol.FechaNacimiento != nil {
 		d.FechaNacimiento = sol.FechaNacimiento.Format("2006-01-02")
 	}
-	// The consents, in the order of the form.
+	// The consents, in the order of the form. A «cambio_perfil» request carries no boxes of its own (the athlete
+	// signed them in their alta): the panel shows the changes, not the proofs.
 	cons := sol.consentMap()
-	for _, c := range casillasAlta {
-		p := cons[c]
-		d.Consentimientos = append(d.Consentimientos, ConsentimientoItem{Casilla: c, Aceptado: p.Aceptado, Version: p.Version, Hash: p.Hash, At: p.At, IP: p.IP})
+	if sol.Tipo != "cambio_perfil" {
+		for _, c := range casillasAlta {
+			p := cons[c]
+			d.Consentimientos = append(d.Consentimientos, ConsentimientoItem{Casilla: c, Aceptado: p.Aceptado, Version: p.Version, Hash: p.Hash, At: p.At, IP: p.IP})
+		}
 	}
-	if sol.Estado != "aprobada" && sol.Estado != "rechazada" {
+	// A change request is about an athlete that already has their access: the «email already an athlete» and the
+	// «público account» notices are only for altas.
+	if sol.Estado != "aprobada" && sol.Estado != "rechazada" && sol.Tipo != "cambio_perfil" {
 		var n string
 		if err := s.a.DB.QueryRow(ctx, `SELECT trim(nombre || ' ' || apellidos) FROM atletas WHERE competition_id = $1 AND email = $2 AND estado <> 'baja' ORDER BY estado = 'confirmado' DESC, created_at LIMIT 1`,
 			cid, normEmail(sol.Email)).Scan(&n); err == nil {
@@ -569,7 +591,10 @@ func (s *Svc) detalleSolicitud(ctx context.Context, cid, id uuid.UUID) (DetalleS
 		if err == nil {
 			actual := s.enlaceDe(a)
 			d.Atleta = &actual
-			d.Diferencias = diferencias(actual, sol)
+			// A change request already carries its own before/after snapshot: the 17-field comparison is for altas.
+			if sol.Tipo != "cambio_perfil" {
+				d.Diferencias = diferencias(actual, sol)
+			}
 		}
 	}
 	return d, nil
@@ -670,7 +695,7 @@ func (s *Svc) candidatos(ctx context.Context, cid uuid.UUID, q string) (*Candida
 func (s *Svc) lockSolicitud(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, ifm string) (solicitud, error) {
 	var sol solicitud
 	err := tx.QueryRow(ctx, selSolicitud+` WHERE competition_id = $1 AND id = $2 FOR UPDATE`, cid, id).
-		Scan(&sol.ID, &sol.CompetitionID, &sol.MatchAtletaID, &sol.MatchTipo, &sol.Licencia, &sol.Nombre, &sol.Apellidos, &sol.Email,
+		Scan(&sol.ID, &sol.CompetitionID, &sol.Tipo, &sol.Cambios, &sol.MatchAtletaID, &sol.MatchTipo, &sol.Licencia, &sol.Nombre, &sol.Apellidos, &sol.Email,
 			&sol.Telefono, &sol.Sexo, &sol.FechaNacimiento, &sol.Club, &sol.Ciudad, &sol.Frase, &sol.Bio, &sol.Instagram,
 			&sol.Entrenador, &sol.Historial, &sol.MarcaSQ, &sol.MarcaBP, &sol.MarcaDL, &sol.FocalX, &sol.FocalY, &sol.EsMenor,
 			&sol.FotoClave, &sol.FotoSHA256, &sol.AutorizacionClave, &sol.Estado, &sol.Notas, &sol.MotivoRechazo, &sol.RevisadoAt,
@@ -724,6 +749,11 @@ func (s *Svc) enlazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm string
 		}
 		if err := yaRevisada(sol); err != nil {
 			return err
+		}
+		// A change request is already linked to its athlete: linking it elsewhere would apply the changes to
+		// somebody else.
+		if sol.Tipo == "cambio_perfil" {
+			return problem.Conflict("CAMBIO_YA_ENLAZADO", "Un cambio de perfil ya está enlazado a su atleta: no se puede enlazar a otro.")
 		}
 		var destino *uuid.UUID
 		tipo := ""
@@ -1156,9 +1186,6 @@ func (s *Svc) borraFotoPublicada(ctx context.Context, cid uuid.UUID, url string)
 // rechazaSolicitud closes a request with a reason and deletes its private photo.
 func (s *Svc) rechazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm, motivo string, avisarEmail, avisarWhatsApp bool, por string) error {
 	motivo = strings.TrimSpace(motivo)
-	if len([]rune(motivo)) < 3 {
-		return problem.Unprocessable("MOTIVO_OBLIGATORIO", "Escribe el motivo del rechazo (el atleta lo verá si le avisas).")
-	}
 	var fotoClave string
 	err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 		sol, err := s.lockSolicitud(ctx, tx, cid, id, ifm)
@@ -1167,6 +1194,11 @@ func (s *Svc) rechazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm, moti
 		}
 		if err := yaRevisada(sol); err != nil {
 			return err
+		}
+		// The reason is required for an alta (it is the only thing the athlete gets) and optional for a change of
+		// profile: nothing changes, so «no lo hemos aplicado» is already the whole answer.
+		if sol.Tipo != "cambio_perfil" && len([]rune(motivo)) < 3 {
+			return problem.Unprocessable("MOTIVO_OBLIGATORIO", "Escribe el motivo del rechazo (el atleta lo verá si le avisas).")
 		}
 		cons := sol.consentMap()
 		fotoClave = sol.FotoClave
@@ -1178,15 +1210,27 @@ func (s *Svc) rechazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm, moti
 			map[string]any{"id": id, "nombre": sol.Nombre}, events.Competition(cid.String()), events.ForPermission("atletas.editar"))); err != nil {
 			return err
 		}
+		// The notices: an alta writes to the address and the number of the form; a change request writes to the
+		// ones the athlete has today (the new ones are not verified until they are approved).
+		para, tel := sol.Email, sol.Telefono
+		plantilla, urlAviso := "atleta-solicitud-rechazada", s.webURL+"/alta-atleta"
+		if sol.Tipo == "cambio_perfil" {
+			para, tel = contactoActual(ctx, tx, sol)
+			plantilla, urlAviso = "atleta-cambio-perfil-rechazado", s.webURL+"/area-atleta"
+		}
+		vars := map[string]string{"nombre": sol.Nombre, "motivo": motivo}
+		if sol.Tipo == "cambio_perfil" {
+			vars["urlArea"] = urlAviso
+		} else {
+			vars["urlAlta"] = urlAviso
+		}
 		if avisarEmail {
-			if err := email(ctx, tx, cid, sol.Email, "atleta-solicitud-rechazada", map[string]string{
-				"nombre": sol.Nombre, "motivo": motivo, "urlAlta": s.webURL + "/alta-atleta"}); err != nil {
+			if err := email(ctx, tx, cid, para, plantilla, vars); err != nil {
 				return err
 			}
 		}
-		if avisarWhatsApp && sol.Telefono != "" && cons["whatsapp"].Aceptado {
-			if err := whatsapp(ctx, tx, cid, sol.Telefono, false, "atleta-solicitud-rechazada", map[string]string{
-				"nombre": sol.Nombre, "motivo": motivo, "urlAlta": s.webURL + "/alta-atleta"}, ""); err != nil {
+		if avisarWhatsApp && tel != "" && cons["whatsapp"].Aceptado {
+			if err := whatsapp(ctx, tx, cid, tel, false, plantilla, vars, ""); err != nil {
 				return err
 			}
 		}
