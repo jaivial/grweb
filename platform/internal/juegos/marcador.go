@@ -5,10 +5,45 @@ package juegos
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+// ordenPruebas: AEP-2 runs the first day of the event and AEP-3 the second one (the split of schedule and athletes).
+var ordenPruebas = []string{"aep2", "aep3"}
+
+// pruebaDelDia tells live which confirmed athletes without a published sesion belong to the jornada of dia: every
+// approved athlete plays from the moment the request is approved, schedule or not. With one jornada per
+// competition (AEP-2 the first date, AEP-3 the second) each one goes to its own day; otherwise "*" (all of them).
+// Athletes without a competition go to every day (live adds them for aep2/aep3 too).
+func (s *Svc) pruebaDelDia(ctx context.Context, cid uuid.UUID, dia string) string {
+	if s.a == nil || s.a.DB == nil {
+		return "*"
+	}
+	var dias []string
+	rows, err := s.a.DB.Query(ctx, `SELECT dia::text FROM jornadas WHERE competition_id = $1 ORDER BY dia`, cid)
+	if err != nil {
+		return "*"
+	}
+	for rows.Next() {
+		var d string
+		if rows.Scan(&d) == nil {
+			dias = append(dias, d)
+		}
+	}
+	rows.Close()
+	if len(dias) < len(ordenPruebas) {
+		return "*"
+	}
+	for i, d := range dias {
+		if d == dia && i < len(ordenPruebas) {
+			return ordenPruebas[i]
+		}
+	}
+	return "*"
+}
 
 // MarcadorIntento mirrors one attempt of the live scoreboard.
 type MarcadorIntento struct {
@@ -95,7 +130,7 @@ func (s *Svc) cargarMarcador(cid uuid.UUID, dia, k string, prev marcEntrada, hay
 	defer cancel()
 	var m Marcador
 	n := marcEntrada{m: &m, ok: time.Now(), exp: time.Now().Add(time.Second)}
-	if err := s.live.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/marcador?dia="+dia, nil, &m); err != nil {
+	if err := s.live.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/marcador?dia="+dia+"&prueba="+url.QueryEscape(s.pruebaDelDia(ctx, cid, dia)), nil, &m); err != nil {
 		s.a.Log.Warn("marcador no disponible", "cid", cid, "dia", dia, "err", err)
 		n = marcEntrada{err: err, caido: true, exp: time.Now().Add(2 * time.Second)}
 		if hayPrev && prev.m != nil && time.Since(prev.ok) < marcadorStale {

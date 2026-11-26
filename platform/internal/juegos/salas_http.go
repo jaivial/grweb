@@ -147,6 +147,11 @@ func (s *Svc) registerSalas() {
 		if !j.jugable() {
 			return uuid.Nil, nil, f, problem.Conflict("JORNADA_NO_JUGABLE", "La jornada no está abierta para jugar.")
 		}
+		if cfg, err := configJuegos(ctx, s.a.DB, c.ID); err != nil {
+			return uuid.Nil, nil, f, err
+		} else if err := cfg.abiertos(); err != nil {
+			return uuid.Nil, nil, f, err
+		}
 		if s.horario(ctx, c.ID, j.Dia).empezado(*j, time.Now()) {
 			return uuid.Nil, nil, f, errEmpezada
 		}

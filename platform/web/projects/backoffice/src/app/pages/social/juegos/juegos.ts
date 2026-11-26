@@ -4,7 +4,7 @@ import { GrAlert, GrBadge, GrButton, GrEmpty, GrIcon, GrIconButton, GrKpi, GrToa
 import { Auth } from '../../../core/auth';
 import { Competitions } from '../../../core/competitions';
 import { Realtime } from '../../../core/realtime';
-import { BoPageHeader, Confirm, errText } from '../../../shared/ui';
+import { BoPageHeader, BoToggle, Confirm, errText } from '../../../shared/ui';
 import { SoCard, SoPuesto, SoSkelFilas, SoSkelKpis, compacto, diaCorto, num } from '../ui';
 import { JuegosApi, type Clasificaciones, type EstadoJornada, type Jornada, type Mercado } from './api';
 
@@ -34,7 +34,7 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
  */
 @Component({
   selector: 'bo-juegos',
-  imports: [RouterLink, BoPageHeader, GrAlert, GrBadge, GrButton, GrEmpty, GrIcon, GrIconButton, GrKpi, SoCard, SoPuesto, SoSkelFilas, SoSkelKpis],
+  imports: [RouterLink, BoPageHeader, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrIcon, GrIconButton, GrKpi, SoCard, SoPuesto, SoSkelFilas, SoSkelKpis],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-[1280px] flex-col gap-6 pb-24">
@@ -42,11 +42,17 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
         [subtitle]="subtitulo()" [crumbs]="[comps.current()?.nombreCorto || '', 'Directo social', 'Juegos']">
         <ng-container actions>
           <a grButton icon="sliders" [routerLink]="['/', comps.current()?.slug, 'juegos', 'config']">Configuración</a>
+          @if (activo() !== null) {
+            <label class="flex items-center gap-1 rounded-md border border-line-subtle bg-bg-card pl-3" [title]="activo() ? 'GRS Porra y GRS Fantasy se juegan en la web' : 'La web avisa de que los juegos aún no están abiertos'">
+              <span class="text-label-s" [class]="activo() ? 'text-text-primary' : 'text-text-tertiary'">Activar juegos</span>
+              <bo-toggle [value]="!!activo()" (changed)="activar($event)" label="Activar juegos" [disabled]="!puede() || cambiandoActivo()" />
+            </label>
+          }
         </ng-container>
       </bo-page-header>
 
       @if (!puede()) {
-        <gr-alert tone="warning" title="Tu rol no puede gestionar los juegos">Hace falta el permiso «directo.operar». Puedes ver las jornadas y las clasificaciones, pero los botones de cerrar y liquidar quedan desactivados.
+        <gr-alert tone="warning" title="Tu rol no puede gestionar los juegos">Hace falta el permiso «directo.operar». Puedes ver las jornadas y las clasificaciones, pero «Activar juegos» y los botones de cerrar y liquidar quedan desactivados.
           <a alertAction [routerLink]="['/', comps.current()?.slug, 'equipo']" class="mt-2 inline-flex items-center gap-1 text-label-s hover:underline">Pedir acceso a un admin <gr-icon name="arrow-right" [size]="14" /></a>
         </gr-alert>
       }
@@ -74,7 +80,7 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
 
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
           <!-- ===== Jornadas ===== -->
-          <so-card titulo="Jornadas" [ayuda]="jornadas().length + ' jornadas · ' + (comps.current()?.nombreCorto ?? '')" class="self-start">
+          <so-card titulo="Jornadas" [ayuda]="jornadas().length + ' jornadas · se abren y se cierran solas'" class="self-start">
             <a cardActions [routerLink]="['/', comps.current()?.slug, 'horarios']" class="inline-flex items-center gap-1 text-label-s text-accent-text hover:underline">Fechas en Horarios <gr-icon name="arrow-right" [size]="14" /></a>
             @if (!jornadas().length) {
               <gr-empty icon="calendar" title="No hay jornadas" text="Cada fecha de Horarios crea su jornada (mismas reglas de porra y fantasy). Añade las fechas en Horarios.">
@@ -91,25 +97,11 @@ const MONEDAS = new Intl.NumberFormat('es-ES');
                         <span class="mt-0.5 block text-body-xs text-text-tertiary">
                           {{ diaCorto(j.dia) || 'sin fecha' }} ·
                           @if (actual) { {{ jugadores(j) }} en porra · {{ jugadoresFantasy(j) }} en fantasy }
-                          @else { {{ j.estado === 'cerrada' ? 'histórico · solo lectura' : j.estado === 'borrador' ? 'borrador · sin definir' : 'pendiente de abrir' }} }
+                          @else { {{ j.estado === 'cerrada' ? 'histórico · solo lectura' : j.estado === 'en_juego' ? 'en juego' : 'abierta · se juega desde ya' }} }
                         </span>
                       </span>
                       <gr-badge [tone]="est(j.estado).tone">{{ est(j.estado).l }}</gr-badge>
                     </button>
-                    @if (actual && j.estado !== 'cerrada') {
-                      <div class="flex flex-wrap gap-2 border-t border-line-subtle px-3.5 py-3">
-                        @if (j.estado === 'borrador') {
-                          <button grButton size="s" variant="primary" icon="play" [disabled]="!puede()" (click)="estado(j, 'abierta')">Abrir</button>
-                        }
-                        @if (j.estado === 'abierta') {
-                          <button grButton size="s" variant="primary" icon="play" [disabled]="!puede()" (click)="estado(j, 'en_juego')">En juego</button>
-                        }
-                        @if (j.estado === 'abierta' || j.estado === 'en_juego') {
-                          <button grButton size="s" icon="lock" [disabled]="!puede()" (click)="estado(j, 'cerrada')">Cerrar jornada</button>
-                        }
-                        <button grButton size="s" variant="ghost" icon="refresh" [disabled]="!puede()" (click)="sincronizar()">Sincronizar</button>
-                      </div>
-                    }
                   </li>
                 }
               </ul>
@@ -209,6 +201,9 @@ export class JuegosPage {
   protected readonly cargando = signal(true);
   protected readonly ocupado = signal(false);
   protected readonly error = signal('');
+  /** «Activar juegos» (config_juegos.activo); null mientras carga. */
+  protected readonly activo = signal<boolean | null>(null);
+  protected readonly cambiandoActivo = signal(false);
   private t: ReturnType<typeof setTimeout> | undefined;
 
   protected readonly est = (e: EstadoJornada) => ESTADOS[e];
@@ -258,7 +253,7 @@ export class JuegosPage {
       untracked(() => void this.cargar());
     });
     const sub = inject(Realtime).events.subscribe((e) => {
-      if (!e.tipo.startsWith('porra.') || !this.seleccionada()) return;
+      if (!(e.tipo.startsWith('porra.') || e.tipo === 'fantasy.atletas') || !this.seleccionada()) return;
       clearTimeout(this.t);
       this.t = setTimeout(() => void this.cargarJornada(this.seleccionada()), 500);
     });
@@ -274,7 +269,8 @@ export class JuegosPage {
     this.cargando.set(true);
     this.error.set('');
     try {
-      const { jornadas } = await this.api.jornadas(cid);
+      const [{ jornadas }, cfg] = await Promise.all([this.api.jornadas(cid), this.api.config(cid)]);
+      this.activo.set(cfg.activo);
       this.jornadas.set(jornadas);
       const actual = this.seleccionada();
       const sigue = jornadas.some((j) => j.id === actual)
@@ -330,28 +326,22 @@ export class JuegosPage {
     await this.cargarJornada(j.id);
   }
 
-  protected async estado(j: Jornada, estado: EstadoJornada): Promise<void> {
+  /** «Activar juegos»: la web pasa al momento (SSE juegos.estado) entre los juegos y el aviso de que aún no están abiertos. */
+  protected async activar(v: boolean): Promise<void> {
     const cid = this.cid();
     if (!cid) return;
-    if (estado === 'cerrada') {
-      const ok = await this.confirm.ask({
-        title: '¿Cerrar la jornada?',
-        text: `«${j.nombre}» quedará como histórico de solo lectura: no se podrá volver a apostar ni cambiar los mercados.`,
-        confirm: 'Cerrar jornada',
-        danger: true,
-      });
-      if (!ok) return;
-    }
-    this.ocupado.set(true);
+    const antes = this.activo();
+    this.activo.set(v);
+    this.cambiandoActivo.set(true);
     try {
-      await this.api.jornada(cid, j.id, { estado });
-      this.jornadas.update((l) => l.map((x) => (x.id === j.id ? { ...x, estado } : x)));
-      this.toasts.success(`Jornada ${estado === 'abierta' ? 'abierta' : estado === 'en_juego' ? 'en juego' : 'cerrada'}`);
-      await this.cargarJornada(j.id);
+      const cfg = await this.api.activo(cid, v);
+      this.activo.set(cfg.activo);
+      this.toasts.success(v ? 'Juegos activados' : 'Juegos desactivados', v ? 'GRS Porra y GRS Fantasy ya se juegan en la web.' : 'La web avisa de que los juegos aún no están abiertos.');
     } catch (e) {
-      this.toasts.error(errText(e, 'No se pudo cambiar el estado.'));
+      this.activo.set(antes);
+      this.toasts.error(errText(e, 'No se pudo cambiar «Activar juegos».'));
     } finally {
-      this.ocupado.set(false);
+      this.cambiandoActivo.set(false);
     }
   }
 
@@ -425,19 +415,4 @@ export class JuegosPage {
     }
   }
 
-  protected async sincronizar(): Promise<void> {
-    const cid = this.cid();
-    const j = this.sel();
-    if (!cid || !j) return;
-    this.ocupado.set(true);
-    try {
-      await this.api.sincronizarFantasy(cid, j.id);
-      this.toasts.success('Atletas de fantasy sincronizados');
-      await this.cargarJornada(j.id);
-    } catch (e) {
-      this.toasts.error(errText(e, 'No se pudo sincronizar.'));
-    } finally {
-      this.ocupado.set(false);
-    }
-  }
 }

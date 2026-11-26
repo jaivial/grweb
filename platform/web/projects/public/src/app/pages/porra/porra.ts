@@ -12,7 +12,7 @@ import { GrAlert, GrIcon, GrSkeleton } from '@grcup/ui';
 import { map } from 'rxjs';
 import { Cms } from '../../core/cms';
 import { FanSession, codigoError } from '../../core/fan';
-import { Juegos, JuegosEnVivo, JuegosEstado, PorraStore, type Jornada, type Mercado, type Sexo, mensajeError, nombreJornadaLoc } from '../../core/juegos';
+import { Juegos, JuegosEnVivo, JuegosEstado, PorraStore, type Jornada, type Mercado, type Sexo, mensajeError, nombreJornadaLoc, recargaAgrupada } from '../../core/juegos';
 import { I18n, LocPipe } from '../../core/i18n';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
@@ -435,6 +435,16 @@ export class PorraPage {
         });
       });
       // los botes cambian con cada porra: un refresco ligero cada 20 s
+      // altas, cambios y bajas de atletas (fantasy.atletas) cambian las opciones: recarga agrupada al momento
+      const porAtletas = recargaAgrupada(() => void this.store.recargarMercados());
+      let version = this.vivo.version();
+      effect(() => {
+        const v = this.vivo.version();
+        if (v !== version) {
+          version = v;
+          untracked(() => porAtletas.pedir());
+        }
+      });
       const t = setInterval(() => {
         if (!document.hidden) void this.store.recargarMercados();
       }, 20000);
@@ -447,6 +457,7 @@ export class PorraPage {
         clearInterval(t);
         clearInterval(reloj);
         if (recarga) clearTimeout(recarga);
+        porAtletas.cancelar();
         this.vivo.desconectar();
       });
     }
