@@ -9,6 +9,7 @@ import { CATEGORIAS_IPF, Favoritos } from '../core/atletas';
 import { hora, qrDataURL, type Entradas, type SesionPub } from '../core/entradas';
 import { HorariosPublic, ICS_URL, normalizar, type Horarios, type PubAtleta, type PubDia, type PubFlight } from '../core/horarios';
 import { Lightbox } from '../layout/lightbox';
+import { GrTelefono } from '../layout/telefono';
 import { DivisionPipe, I18n, LocPipe, divisionEn } from '../core/i18n';
 import { ANCHO, GLOW, GrCabecera, GrEyebrow, GrTitulo, SECCION, sinNumero, textoTitulo } from './bloques';
 import { GrInscripcionesCerradas } from '../core/inscripcion-aep';
@@ -50,7 +51,7 @@ const TA = {
  */
 @Component({
   selector: 'gr-sec-alta',
-  imports: [RouterLink, GrButton, GrIcon, LocPipe, GrInscripcionesCerradas],
+  imports: [RouterLink, GrButton, GrIcon, LocPipe, GrInscripcionesCerradas, GrTelefono],
   styles: `.gr-progreso{width:0;animation:gr-progreso linear forwards} @keyframes gr-progreso{to{width:100%}} @media (prefers-reduced-motion:reduce){.gr-progreso{animation:none;width:100%}}`,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block bg-bg-base px-5 pt-10 pb-18 md:px-8 md:pt-16 md:pb-24 xl:px-20 xl:pb-32' },
@@ -66,8 +67,7 @@ const TA = {
         <div #movil class="flex w-full shrink-0 flex-col items-center gap-4 lg:w-auto" role="region" [attr.aria-roledescription]="ta().carrusel" [attr.aria-label]="ta().region" tabindex="0"
           (pointerenter)="pausa.set(true)" (pointerleave)="pausa.set(false)" (focusin)="pausa.set(true)" (focusout)="pausa.set(false)"
           (touchstart)="pausa.set(true)" (touchend)="pausa.set(false)">
-          <div class="relative aspect-[9/19.5] w-[min(64vw,270px)] rounded-[44px] border border-white/20 bg-[#0b0a0a] p-[9px] sm:w-[320px] sm:rounded-[50px] sm:p-[11px] lg:rounded-[56px] lg:p-[12px] shadow-[0_30px_80px_rgb(0_0_0/0.6)] lg:w-[360px]">
-            <div class="relative flex size-full flex-col overflow-hidden rounded-[35px] bg-black sm:rounded-[39px] lg:rounded-[44px]">
+          <gr-telefono class="w-[min(64vw,270px)] sm:w-[320px] lg:w-[360px]">
               <!-- status bar (safe area): the Dynamic Island never covers the screen content -->
               <div class="flex h-[6.5%] shrink-0 items-center justify-between px-[9%] text-[11px] font-semibold text-white sm:text-[13px]" aria-hidden="true"></div>
               <div class="relative min-h-0 flex-1">
@@ -75,10 +75,7 @@ const TA = {
                 <img [attr.srcset]="p.srcset ?? null" sizes="(min-width: 1024px) 336px, (min-width: 640px) 298px, min(calc(64vw - 18px), 252px)" [src]="p.src" [alt]="p.alt" loading="lazy" decoding="async" class="absolute inset-0 size-full transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none" [class]="(p.story ? 'object-contain ' : 'object-cover object-top ') + (i === slide() ? 'opacity-100 scale-100' : 'opacity-0 scale-[1.03]')" [attr.aria-hidden]="i !== slide() || null" />
               }
               </div>
-              <span class="absolute top-2.5 left-1/2 h-[22px] w-[76px] -translate-x-1/2 sm:h-7 sm:w-[96px] rounded-pill bg-black" aria-hidden="true"></span>
-              <span class="absolute bottom-2 left-1/2 h-1 w-[110px] -translate-x-1/2 rounded-pill bg-white/80" aria-hidden="true"></span>
-            </div>
-          </div>
+          </gr-telefono>
           <!-- discreet indicator: thin bars, the current one fills in 1.5 s -->
           <span class="flex w-[120px] gap-1.5" aria-hidden="true">
             @for (p of pantallas(); track p.src; let i = $index) {
