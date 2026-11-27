@@ -121,6 +121,7 @@ type solicitud struct {
 	Instagram         string     `db:"instagram"`
 	Entrenador        string     `db:"entrenador"`
 	Prueba            string     `db:"prueba"`
+	Categoria         string     `db:"categoria"`
 	Historial         string     `db:"historial"`
 	MarcaSQ           *float64   `db:"marca_sq"`
 	MarcaBP           *float64   `db:"marca_bp"`
@@ -178,7 +179,7 @@ const selSolicitud = `SELECT id, competition_id, tipo, cambios::text AS cambios,
 	marca_sq::float8 AS marca_sq, marca_bp::float8 AS marca_bp, marca_dl::float8 AS marca_dl,
 	focal_x, focal_y, es_menor, foto_clave, foto_sha256, autorizacion_clave, estado, notas, motivo_rechazo,
 	revisado_at, revisado_por, consentimientos::text AS consentimientos, consentimiento_at, ip, user_agent,
-	version, created_at, updated_at, prueba FROM solicitudes_atleta`
+	version, created_at, updated_at, prueba, categoria FROM solicitudes_atleta`
 
 // getSolicitud reads a request of the competition.
 func getSolicitud(ctx context.Context, q querier, cid, id uuid.UUID) (solicitud, error) {
@@ -210,7 +211,7 @@ type DatosAlta struct {
 	Entrenador      string          `json:"entrenador"`
 	AsignarHandler  bool            `json:"asignarHandler"` // «No tengo handler / Asignadme uno»: notified as a handler request
 	Prueba          string          `json:"prueba"`
-	Categoria       string          `json:"categoria"` // optional weight class (BIZ-211: compared with the AEP roll)
+	Categoria       string          `json:"categoria"` // weight class, required by the public form (BIZ-211: compared with the AEP roll)
 	Frase           string          `json:"frase"`
 	Bio             string          `json:"bio"`
 	Instagram       string          `json:"instagram"`
@@ -1111,7 +1112,9 @@ func (s *Svc) validaDatos(d DatosAlta) []*huma.ErrorDetail {
 	if !pruebaValida(d.Prueba) {
 		add("prueba", "Elige AEP-2, AEP-3 o «Aún no lo sé».")
 	}
-	if d.Categoria != "" && (d.Sexo != "F" && d.Sexo != "M" || !categoriaValida(d.Sexo, d.Categoria)) {
+	if d.Categoria == "" {
+		add("categoria", "Elige tu categoría de peso.")
+	} else if d.Sexo != "F" && d.Sexo != "M" || !categoriaValida(d.Sexo, d.Categoria) {
 		add("categoria", "Elige una categoría de peso de tu sexo (por ejemplo -63 o +84).")
 	}
 	if len([]rune(d.Frase)) > 80 {

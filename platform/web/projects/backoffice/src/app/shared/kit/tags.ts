@@ -20,7 +20,7 @@ let seq = 0;
             [attr.aria-label]="'Quitar ' + t" (click)="remove(t)"><gr-icon name="x" [size]="12" /></button>
         </span>
       }
-      <input [id]="id" class="h-7 min-w-24 flex-1 bg-transparent text-body-s text-text-primary placeholder:text-text-muted focus:outline-none"
+      <input [id]="id" class="h-7 min-w-24 flex-1 bg-transparent text-[16px] text-text-primary placeholder:text-text-muted focus:outline-none"
         placeholder="Añadir…" [value]="draft()" (input)="draft.set($any($event.target).value)" (keydown)="key($event)" [attr.aria-invalid]="err() || null"
         [attr.aria-describedby]="id + '-h'" />
     </div>

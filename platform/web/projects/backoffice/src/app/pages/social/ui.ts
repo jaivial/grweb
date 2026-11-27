@@ -272,7 +272,7 @@ export class SoGuardar {
             [attr.aria-label]="'Quitar ' + t" [disabled]="disabled()" (click)="quitar(t)"><gr-icon name="x" [size]="12" /></button>
         </span>
       }
-      <input class="h-8 min-w-[7rem] flex-1 bg-transparent px-1 text-body-s outline-none placeholder:text-text-muted" [placeholder]="placeholder()" [attr.aria-label]="label() || placeholder()"
+      <input class="h-8 min-w-[7rem] flex-1 bg-transparent px-1 text-[16px] outline-none placeholder:text-text-muted" [placeholder]="placeholder()" [attr.aria-label]="label() || placeholder()"
         [disabled]="disabled()" [value]="nuevo()" [attr.aria-invalid]="error() ? true : null" (input)="escribir($any($event.target).value)" (keydown)="tecla($event)" (blur)="anadir()" />
     </div>
     @if (error()) { <p class="mt-1.5 text-body-xs text-error" role="alert">{{ error() }}</p> }

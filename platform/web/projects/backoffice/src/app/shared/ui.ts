@@ -342,7 +342,7 @@ export class Confirm {
           @if (r.word) {
             <label class="flex flex-col gap-2">
               <span class="text-label-s text-text-secondary">Escribe {{ r.word }} para confirmar</span>
-              <input #w class="h-10 rounded-sm border border-line-strong bg-bg-field px-3 text-body-s text-text-primary focus:border-accent focus:outline-none" autocomplete="off" (input)="c.typed.set(w.value)" />
+              <input #w class="h-10 rounded-sm border border-line-strong bg-bg-field px-3 text-[16px] text-text-primary focus:border-accent focus:outline-none" autocomplete="off" (input)="c.typed.set(w.value)" />
               <span class="text-body-xs text-text-tertiary">Esta acción queda en el registro de auditoría</span>
             </label>
           }

@@ -20,9 +20,10 @@ let fieldSeq = 0;
     '[class.h-11]': '!area && grSize() === "m"',
     '[class.md:pointer-fine:h-10]': '!area && grSize() === "m"',
     '[class.h-12]': '!area && grSize() === "l"',
-    '[class.text-body-s]': 'grSize() === "m"',
-    // iOS zooms on focus below 16 px (UX3-R1-2)
-    '[class.max-md:text-[16px]]': 'grSize() === "m"',
+    '[class.text-body-s]': 'grSize() === "m" && !bo',
+    // iOS zooms on focus below 16 px (UX3-R1-2): web fields on phones, every backoffice field (iPad too)
+    '[class.max-md:text-[16px]]': 'grSize() === "m" && !bo',
+    '[class.text-[16px]]': 'grSize() === "m" && bo',
     '[class.text-body-m]': 'grSize() === "l"',
     '[class.focus:border-accent-text]': 'grSize() === "m" && !bo',
     '[class.focus:ring-2]': 'grSize() === "m" && !bo',
