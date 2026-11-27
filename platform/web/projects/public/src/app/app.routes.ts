@@ -31,6 +31,9 @@ const paginas: Routes = [
   { path: 'rifa', pathMatch: 'full', redirectTo: 'sorteo' },
   { path: 'en-directo', loadComponent: () => import('./pages/directo').then((m) => m.EnDirectoPage) },
   { path: 'acceso', loadComponent: () => import('./pages/acceso').then((m) => m.AccesoPage) },
+  // Cuenta: perfil del público (los atletas tienen /area-atleta) y el enlace del email para cambiar la contraseña.
+  { path: 'mi-perfil', loadComponent: () => import('./pages/mi-perfil').then((m) => m.MiPerfilPage) },
+  { path: 'restablecer-contrasena', loadComponent: () => import('./pages/restablecer-contrasena').then((m) => m.RestablecerContrasenaPage) },
   { path: 'directo', pathMatch: 'full', redirectTo: 'en-directo' },
   // Juegos: porra y GRS Fantasy (Figma 71 y 72). «Cómo se juega» se ve siempre; el resto pasa por la puerta de
   // «Activar juegos» (backoffice): apagado, enseña que los juegos aún no están abiertos.

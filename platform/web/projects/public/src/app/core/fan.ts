@@ -15,6 +15,7 @@ export interface Fan {
   atletaId?: string;
   insignia?: string;
   email?: string;
+  telefono?: string;
 }
 
 /** Destino interno al que vuelve el fan tras canjear el enlace mágico (solo rutas /fantasy/…; el backend ignora el resto). */
