@@ -120,14 +120,11 @@ func (s *Svc) escanear(ctx context.Context, cid uuid.UUID, in EscaneoIn) (Result
 	}
 	quien := actor(ctx)
 	err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-		var id, sid uuid.UUID
-		var sid2 *uuid.UUID
-		var nombre, ape, estado, sesion, sesion2 string
-		var personas, dentro, dentro2 int
-		var fin1 time.Time
-		err := tx.QueryRow(ctx, `SELECT e.id, e.sesion_id, e.nombre, e.apellidos, e.estado, s.nombre, e.personas, e.dentro, s.fin, e.sesion2_id, e.dentro2, COALESCE(s2.nombre, '')
-			FROM entradas e JOIN sesiones s ON s.id = e.sesion_id LEFT JOIN sesiones s2 ON s2.id = e.sesion2_id
-			WHERE e.competition_id = $1 AND e.codigo = $2 FOR UPDATE OF e`, cid, codigo).Scan(&id, &sid, &nombre, &ape, &estado, &sesion, &personas, &dentro, &fin1, &sid2, &dentro2, &sesion2)
+		var id uuid.UUID
+		var nombre, ape, estado string
+		var personas int
+		err := tx.QueryRow(ctx, `SELECT e.id, e.nombre, e.apellidos, e.estado, e.personas FROM entradas e
+			WHERE e.competition_id = $1 AND e.codigo = $2 FOR UPDATE OF e`, cid, codigo).Scan(&id, &nombre, &ape, &estado, &personas)
 		if db.IsNoRows(err) {
 			r.Resultado, r.Codigo, r.Mensaje = "invalida", codigo, "No hay ninguna entrada con ese código."
 			return s.registrarTx(ctx, tx, cid, nil, codigo, in, r.Resultado, 0, at, quien)
@@ -135,18 +132,28 @@ func (s *Svc) escanear(ctx context.Context, cid uuid.UUID, in EscaneoIn) (Result
 		if err != nil {
 			return err
 		}
-		// «Both days» ticket: the door's session (or, without one, the clock) says which day is being entered.
-		dia2 := sid2 != nil && ((in.SesionID != nil && *in.SesionID == *sid2) || (in.SesionID == nil && at.After(fin1)))
-		otro := dentro2 // who has entered on the other day of a «both days» ticket
-		if dia2 {
-			otro = dentro
-			sid, sesion, dentro = *sid2, sesion2, dentro2
+		dias, err := diasDe(ctx, tx, id)
+		if err != nil {
+			return err
 		}
-		r.Codigo, r.Nombre, r.Personas, r.Dentro, r.Sesion, r.SesionID = codigo, strings.TrimSpace(nombre+" "+ape), personas, dentro, sesion, &sid
-		r.Pendientes = max(0, personas-dentro)
+		if len(dias) == 0 {
+			r.Resultado, r.Codigo, r.Mensaje = "invalida", codigo, "Esa entrada no tiene ningún día."
+			return s.registrarTx(ctx, tx, cid, &id, codigo, in, r.Resultado, 0, at, quien)
+		}
+		// The ticket may cover several days: the station's session (or the clock, without one) picks which day is entered.
+		d, cubre := diaDeEntrada(dias, in.SesionID, at)
+		r.Codigo, r.Nombre, r.Personas, r.Dentro, r.Sesion, r.SesionID = codigo, strings.TrimSpace(nombre+" "+ape), personas, d.Dentro, d.Nombre, &d.ID
+		r.Pendientes = max(0, personas-d.Dentro)
 		switch {
 		case estado == "anulada":
 			r.Resultado, r.Mensaje = "anulada", "Esta entrada está anulada."
+		case !cubre && !in.Forzar:
+			// The ticket does not cover the day this station is entering: say which days it has.
+			nombres := make([]string, len(dias))
+			for i, x := range dias {
+				nombres[i] = x.Nombre
+			}
+			r.Resultado, r.Mensaje = "otra_sesion", "Su entrada es para «"+strings.Join(nombres, ", ")+"»."
 		case r.Pendientes == 0:
 			r.Resultado = "ya_usada"
 			var p time.Time
@@ -163,14 +170,13 @@ func (s *Svc) escanear(ctx context.Context, cid uuid.UUID, in EscaneoIn) (Result
 			} else {
 				r.Mensaje = "Ya ha entrado todo el grupo."
 			}
-		case in.SesionID != nil && *in.SesionID != sid && !in.Forzar:
-			if sid2 != nil {
-				sesion = sesion + " / " + sesion2
-			}
-			r.Resultado, r.Mensaje = "otra_sesion", "Su entrada es para «"+sesion+"»."
 		default:
 			r.Resultado = "valida"
-			r.Mensaje = fmt.Sprintf("%d persona%s · %s", r.Pendientes, map[bool]string{true: "s"}[r.Pendientes != 1], sesion)
+			etiqueta := d.Nombre
+			if len(dias) > 1 {
+				etiqueta += fmt.Sprintf(" (%d de %d días)", indexDe(dias, d)+1, len(dias))
+			}
+			r.Mensaje = fmt.Sprintf("%d persona%s · %s", r.Pendientes, map[bool]string{true: "s"}[r.Pendientes != 1], etiqueta)
 		}
 		if r.Resultado != "valida" {
 			return s.registrarTx(ctx, tx, cid, &id, codigo, in, r.Resultado, 0, at, quien)
@@ -185,16 +191,20 @@ func (s *Svc) escanear(ctx context.Context, cid uuid.UUID, in EscaneoIn) (Result
 		r.Dentro += n
 		r.Pendientes -= n
 		r.Registrado = true
-		nuevo := "reservada"
-		// A «both days» ticket is used once the group has entered on both days.
-		if r.Pendientes == 0 && (sid2 == nil || otro >= personas) {
-			nuevo = "usada"
+		if _, err := tx.Exec(ctx, `UPDATE entrada_sesiones SET dentro = $3 WHERE entrada_id = $1 AND sesion_id = $2`, id, d.ID, r.Dentro); err != nil {
+			return err
 		}
-		col := "dentro"
-		if dia2 {
-			col = "dentro2"
+		// Legacy column of the first day (the previous version still reads it while both run during a swap).
+		if _, err := tx.Exec(ctx, `UPDATE entradas SET dentro = CASE WHEN sesion_id = $2 THEN $3 ELSE dentro END WHERE id = $1`, id, d.ID, r.Dentro); err != nil {
+			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE entradas SET `+col+` = $2, estado = $3, updated_at = now() WHERE id = $1`, id, r.Dentro, nuevo); err != nil {
+		// Used once the whole group has entered on every day of the ticket.
+		var usada bool
+		if err := tx.QueryRow(ctx, `SELECT bool_and(dentro >= $2) FROM entrada_sesiones WHERE entrada_id = $1`, id, personas).Scan(&usada); err != nil {
+			return err
+		}
+		nuevo := map[bool]string{true: "usada", false: "reservada"}[usada]
+		if _, err := tx.Exec(ctx, `UPDATE entradas SET estado = $2, updated_at = now() WHERE id = $1`, id, nuevo); err != nil {
 			return err
 		}
 		res := "valida"
@@ -260,6 +270,66 @@ type Compacta struct {
 	Estado   string    `json:"e"`
 }
 
+// diaEntrada is one day of a ticket as the door needs it.
+type diaEntrada struct {
+	ID           uuid.UUID
+	Nombre       string
+	Puertas, Fin time.Time
+	Dentro       int
+}
+
+// diasDe loads the days of a ticket, in order (one row per day: a ticket can cover several).
+func diasDe(ctx context.Context, q interface {
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+}, id uuid.UUID) ([]diaEntrada, error) {
+	rows, err := q.Query(ctx, `SELECT s.id, s.nombre, s.puertas, s.fin, es.dentro FROM entrada_sesiones es JOIN sesiones s ON s.id = es.sesion_id
+		WHERE es.entrada_id = $1 ORDER BY s.inicio`, id)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowToStructByPos[diaEntrada])
+}
+
+// diaDeEntrada: the day the station is entering. The station's session when the ticket covers it; otherwise the day
+// with its doors open at `at`, else the next one to come, else the last. `cubre` is false when the station's session
+// is not one of the ticket's days (a multi-day ticket scanned on a day it does not cover).
+func diaDeEntrada(dias []diaEntrada, sesion *uuid.UUID, at time.Time) (d diaEntrada, cubre bool) {
+	if sesion != nil {
+		for _, x := range dias {
+			if x.ID == *sesion {
+				return x, true
+			}
+		}
+	}
+	for _, x := range dias {
+		if !at.Before(x.Puertas) && at.Before(x.Fin) {
+			d = x
+			break
+		}
+	}
+	if d.ID == uuid.Nil {
+		for _, x := range dias {
+			if at.Before(x.Fin) {
+				d = x
+				break
+			}
+		}
+	}
+	if d.ID == uuid.Nil {
+		d = dias[len(dias)-1]
+	}
+	return d, sesion == nil
+}
+
+func indexDe(dias []diaEntrada, d diaEntrada) int {
+	for i, x := range dias {
+		if x.ID == d.ID {
+			return i
+		}
+	}
+	return 0
+}
+
 func (s *Svc) puestos(ctx context.Context, cid uuid.UUID) ([]Puesto, error) {
 	rows, err := s.a.DB.Query(ctx, `SELECT p.id, p.nombre, p.tipo, p.detalle, p.responsable, p.telefono, p.ultimo_ping_at, p.cola,
 		(SELECT count(*) FROM escaneos e WHERE e.competition_id = p.competition_id AND e.puesto = p.nombre AND e.escaneado_at > now() - interval '15 minutes')::int
@@ -313,12 +383,10 @@ func (s *Svc) registerCheckin() {
 					o.Body.Actual = &id
 				}
 			}
-			// Only what a door needs offline: tickets of sessions that have not ended, first name + surname initial.
-			// A «both days» ticket shows up as its second session once the first has ended.
-			rows, err := s.a.DB.Query(ctx, `SELECT e.codigo, CASE WHEN s2.id IS NOT NULL AND s.fin <= now() THEN s2.id ELSE e.sesion_id END,
-				trim(e.nombre || ' ' || COALESCE(NULLIF(left(e.apellidos, 1), '') || '.', '')), e.personas, CASE WHEN s2.id IS NOT NULL AND s.fin <= now() THEN e.dentro2 ELSE e.dentro END, e.estado
-				FROM entradas e JOIN sesiones s ON s.id = e.sesion_id LEFT JOIN sesiones s2 ON s2.id = e.sesion2_id
-				WHERE e.competition_id = $1 AND e.estado <> 'anulada' AND COALESCE(s2.fin, s.fin) > now()`, in.CID)
+			// Only what a door needs offline: one row per day of each ticket that has not ended, first name + surname initial.
+			rows, err := s.a.DB.Query(ctx, `SELECT e.codigo, es.sesion_id, trim(e.nombre || ' ' || COALESCE(NULLIF(left(e.apellidos, 1), '') || '.', '')), e.personas, es.dentro, e.estado
+				FROM entradas e JOIN entrada_sesiones es ON es.entrada_id = e.id JOIN sesiones s ON s.id = es.sesion_id
+				WHERE e.competition_id = $1 AND e.estado <> 'anulada' AND s.fin > now() ORDER BY s.inicio`, in.CID)
 			if err != nil {
 				return nil, err
 			}

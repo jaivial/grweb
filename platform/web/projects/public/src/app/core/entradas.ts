@@ -13,11 +13,11 @@ export interface SesionPub {
 }
 export interface Entradas { sesiones: SesionPub[]; personas: number; plazas: number }
 export interface ReservaIn {
-  sesionId: string; sesion2Id?: string; nombre: string; apellidos: string; email: string; telefono?: string; personas: number; origen?: string; utm?: Record<string, string>; aceptaPrivacidad: boolean; novedades?: boolean;
+  sesionIds: string[]; nombre: string; apellidos: string; email: string; telefono?: string; personas: number; origen?: string; utm?: Record<string, string>; aceptaPrivacidad: boolean; novedades?: boolean;
 }
 export interface MiEntrada {
-  codigo: string; qr: string; nombre: string; apellidos: string; email: string; personas: number; dentro: number; estado: 'reservada' | 'usada' | 'anulada'; validadaAt?: string; sesion: SesionPub; lugar: string;
-  puedeCambiar: boolean; maxPersonas: number; compartir: string; novedades: '' | 'si' | 'no'; sesion2?: SesionPub;
+  codigo: string; qr: string; nombre: string; apellidos: string; email: string; personas: number; dentro: number; estado: 'reservada' | 'usada' | 'anulada'; validadaAt?: string; sesiones: SesionPub[]; lugar: string;
+  puedeCambiar: boolean; maxPersonas: number; compartir: string; novedades: '' | 'si' | 'no';
 }
 export interface Oferta { sesion: SesionPub; personas: number; expira: string; estado: string }
 

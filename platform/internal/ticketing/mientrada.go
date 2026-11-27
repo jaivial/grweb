@@ -22,22 +22,21 @@ import (
 
 // MiEntrada is the ticket page (Figma 38 · /entradas/confirmacion and /mi-entrada).
 type MiEntrada struct {
-	Codigo       string     `json:"codigo"`
-	QR           string     `json:"qr" doc:"Contenido del código QR"`
-	Nombre       string     `json:"nombre"`
-	Apellidos    string     `json:"apellidos"`
-	Email        string     `json:"email" doc:"Enmascarado"`
-	Personas     int        `json:"personas"`
-	Dentro       int        `json:"dentro"`
-	Estado       string     `json:"estado" enum:"reservada,usada,anulada"`
-	ValidadaAt   *time.Time `json:"validadaAt,omitempty" doc:"Primer escaneo válido en la puerta (entradas usadas)"`
-	Sesion       SesionPub  `json:"sesion"`
-	Sesion2      *SesionPub `json:"sesion2,omitempty" doc:"Segunda sesión de una entrada de los dos días (sesion lleva entonces el nombre de ambas)"`
-	Lugar        string     `json:"lugar"`
-	PuedeCambiar bool       `json:"puedeCambiar"`
-	MaxPersonas  int        `json:"maxPersonas" doc:"Máximo al que puede subir (plazas libres y límite por reserva)"`
-	Compartir    string     `json:"compartir" doc:"Enlace para invitar a otras personas"`
-	Novedades    string     `json:"novedades" enum:"si,no," doc:"Respuesta a las novedades: si, no o vacío (sin responder)"`
+	Codigo       string      `json:"codigo"`
+	QR           string      `json:"qr" doc:"Contenido del código QR"`
+	Nombre       string      `json:"nombre"`
+	Apellidos    string      `json:"apellidos"`
+	Email        string      `json:"email" doc:"Enmascarado"`
+	Personas     int         `json:"personas"`
+	Dentro       int         `json:"dentro"`
+	Estado       string      `json:"estado" enum:"reservada,usada,anulada"`
+	ValidadaAt   *time.Time  `json:"validadaAt,omitempty" doc:"Primer escaneo válido en la puerta (entradas usadas)"`
+	Sesiones     []SesionPub `json:"sesiones" doc:"Días de la entrada, en orden (una entrada puede cubrir varios con un solo QR)"`
+	Lugar        string      `json:"lugar"`
+	PuedeCambiar bool        `json:"puedeCambiar"`
+	MaxPersonas  int         `json:"maxPersonas" doc:"Máximo al que puede subir (plazas libres y límite por reserva)"`
+	Compartir    string      `json:"compartir" doc:"Enlace para invitar a otras personas"`
+	Novedades    string      `json:"novedades" enum:"si,no," doc:"Respuesta a las novedades: si, no o vacío (sin responder)"`
 }
 
 type tokIn struct {
@@ -77,12 +76,10 @@ func (s *Svc) porToken(ctx context.Context, q interface {
 
 func (s *Svc) miEntrada(ctx context.Context, c compref.Comp, id uuid.UUID) (MiEntrada, error) {
 	var m MiEntrada
-	var sid uuid.UUID
-	var sid2 *uuid.UUID
 	var mail *string
-	if err := s.a.DB.QueryRow(ctx, `SELECT codigo, nombre, apellidos, email::text, personas, dentro, estado, sesion_id, sesion2_id,
-		CASE WHEN consentimientos->>'novedades' = 'true' THEN 'si' WHEN consentimientos->>'novedadesNo' = 'true' THEN 'no' ELSE '' END FROM entradas WHERE id = $1`, id).
-		Scan(&m.Codigo, &m.Nombre, &m.Apellidos, &mail, &m.Personas, &m.Dentro, &m.Estado, &sid, &sid2, &m.Novedades); err != nil {
+	if err := s.a.DB.QueryRow(ctx, `SELECT codigo, nombre, apellidos, email::text, personas, (SELECT COALESCE(sum(dentro), 0) FROM entrada_sesiones WHERE entrada_id = entradas.id),
+		estado, CASE WHEN consentimientos->>'novedades' = 'true' THEN 'si' WHEN consentimientos->>'novedadesNo' = 'true' THEN 'no' ELSE '' END FROM entradas WHERE id = $1`, id).
+		Scan(&m.Codigo, &m.Nombre, &m.Apellidos, &mail, &m.Personas, &m.Dentro, &m.Estado, &m.Novedades); err != nil {
 		return m, err
 	}
 	if mail != nil {
@@ -93,31 +90,19 @@ func (s *Svc) miEntrada(ctx context.Context, c compref.Comp, id uuid.UUID) (MiEn
 			return m, err
 		}
 	}
-	rows, err := s.a.DB.Query(ctx, selSesion+` WHERE s.id = $1`, sid)
+	xs, err := sesionesDeEntrada(ctx, s.a.DB, id)
 	if err != nil {
 		return m, err
 	}
-	x, err := pgx.CollectExactlyOneRow(rows, scanSesion)
-	if err != nil {
-		return m, err
+	if len(xs) == 0 {
+		return m, problem.NotFound("Esta entrada no tiene ningún día.")
 	}
 	now := time.Now()
-	m.Sesion = x.pub(now)
-	libres := m.Sesion.Libres
-	maxPor := x.MaxPorReserva
-	if sid2 != nil {
-		rows, err := s.a.DB.Query(ctx, selSesion+` WHERE s.id = $1`, *sid2)
-		if err != nil {
-			return m, err
-		}
-		y, err := pgx.CollectExactlyOneRow(rows, scanSesion)
-		if err != nil {
-			return m, err
-		}
-		p2 := y.pub(now)
-		m.Sesion2 = &p2
-		m.Sesion.Nombre, m.Sesion.Fin = dosDias(x, y).Nombre, y.Fin
-		libres, maxPor = min(libres, p2.Libres), min(maxPor, y.MaxPorReserva)
+	libres, maxPor := xs[0].Aforo, xs[0].MaxPorReserva
+	for _, x := range xs {
+		p := x.pub(now)
+		m.Sesiones = append(m.Sesiones, p)
+		libres, maxPor = min(libres, p.Libres), min(maxPor, x.MaxPorReserva)
 	}
 	if m.Estado != "anulada" {
 		m.QR = s.qr(c.ID, m.Codigo)
@@ -126,7 +111,7 @@ func (s *Svc) miEntrada(ctx context.Context, c compref.Comp, id uuid.UUID) (MiEn
 	if c.Sede.Ciudad != "" && strings.Contains(c.Sede.Nombre, c.Sede.Ciudad) {
 		m.Lugar = c.Sede.Nombre // BIZ-170: «Pabellón Municipal de Almussafes», no «…, Almussafes»
 	}
-	m.PuedeCambiar = m.Estado == "reservada" && now.Before(x.Inicio)
+	m.PuedeCambiar = m.Estado == "reservada" && now.Before(xs[0].Inicio)
 	m.MaxPersonas = min(maxPor, m.Personas+libres)
 	m.Compartir = s.webURL + "/entradas?ref=" + m.Codigo
 	return m, nil
@@ -155,18 +140,17 @@ func (s *Svc) registerMiEntrada() {
 				if id, cid, c, err = s.porToken(ctx, tx, in.Body.Token, true); err != nil {
 					return err
 				}
-				var sid uuid.UUID
-				var sid2 *uuid.UUID
 				var antes int
 				var estado string
-				if err := tx.QueryRow(ctx, `SELECT sesion_id, sesion2_id, personas, estado FROM entradas WHERE id = $1`, id).Scan(&sid, &sid2, &antes, &estado); err != nil {
+				if err := tx.QueryRow(ctx, `SELECT personas, estado FROM entradas WHERE id = $1`, id).Scan(&antes, &estado); err != nil {
 					return err
 				}
-				ids := []uuid.UUID{sid}
-				if sid2 != nil {
-					ids = append(ids, *sid2)
-					slices.SortFunc(ids, func(a, b uuid.UUID) int { return strings.Compare(a.String(), b.String()) })
+				xs, err := sesionesDeEntrada(ctx, tx, id)
+				if err != nil {
+					return err
 				}
+				ids := idsDe(xs)
+				slices.SortFunc(ids, func(a, b uuid.UUID) int { return strings.Compare(a.String(), b.String()) })
 				n := in.Body.Personas
 				for _, k := range ids {
 					x, err := s.bloquearSesion(ctx, tx, cid, k)
@@ -186,7 +170,7 @@ func (s *Svc) registerMiEntrada() {
 				if _, err := tx.Exec(ctx, `UPDATE entradas SET personas = $2, updated_at = now() WHERE id = $1`, id, n); err != nil {
 					return err
 				}
-				if err := events.Enqueue(ctx, tx, events.New(ctx, "entrada.cambiada", map[string]any{"sesionId": sid, "antes": antes, "personas": n}, events.Competition(cid.String()), events.ForPermission("entradas.gestionar"))); err != nil {
+				if err := events.Enqueue(ctx, tx, events.New(ctx, "entrada.cambiada", map[string]any{"sesionId": ids[0], "antes": antes, "personas": n}, events.Competition(cid.String()), events.ForPermission("entradas.gestionar"))); err != nil {
 					return err
 				}
 				for _, k := range ids {
@@ -303,11 +287,15 @@ func (s *Svc) registerMiEntrada() {
 			if m.Estado == "anulada" {
 				return nil, problem.New(http.StatusGone, "ENTRADA_ANULADA", "Esta entrada está anulada.")
 			}
+			xs, err := sesionesDeEntrada(ctx, s.a.DB, id)
+			if err != nil || len(xs) == 0 {
+				return nil, err
+			}
 			ts := func(t time.Time) string { return t.UTC().Format("20060102T150405Z") }
 			esc := strings.NewReplacer(`\`, `\\`, ";", `\;`, ",", `\,`, "\n", `\n`)
 			lines := []string{"BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//GR Strength Cup//Entradas//ES", "METHOD:PUBLISH", "BEGIN:VEVENT",
-				"UID:" + m.Codigo + "@grcup", "DTSTAMP:" + ts(time.Now()), "DTSTART:" + ts(m.Sesion.Puertas), "DTEND:" + ts(m.Sesion.Fin),
-				"SUMMARY:" + esc.Replace(c.Nombre+" · "+m.Sesion.Nombre), "LOCATION:" + esc.Replace(m.Lugar),
+				"UID:" + m.Codigo + "@grcup", "DTSTAMP:" + ts(time.Now()), "DTSTART:" + ts(xs[0].Puertas), "DTEND:" + ts(xs[len(xs)-1].Fin),
+				"SUMMARY:" + esc.Replace(c.Nombre+" · "+variosDias(xs).Nombre), "LOCATION:" + esc.Replace(m.Lugar),
 				"DESCRIPTION:" + esc.Replace(fmt.Sprintf("Entrada %s · %d persona(s). Enseña el QR en la puerta: %s/mi-entrada", m.Codigo, m.Personas, s.webURL)),
 				"BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Mañana es el día", "TRIGGER:-P1D", "END:VALARM", "END:VEVENT", "END:VCALENDAR"}
 			return &icsOut{ContentType: "text/calendar; charset=utf-8", Disposition: `attachment; filename="entrada-` + m.Codigo + `.ics"`, Body: []byte(strings.Join(lines, "\r\n") + "\r\n")}, nil
@@ -319,9 +307,7 @@ func (s *Svc) reenviar(ctx context.Context, tx pgx.Tx, c compref.Comp, id uuid.U
 	var cod, nombre, ape string
 	var mail *string
 	var personas int
-	var sid uuid.UUID
-	var sid2 *uuid.UUID
-	if err := tx.QueryRow(ctx, `SELECT codigo, nombre, apellidos, email::text, personas, sesion_id, sesion2_id FROM entradas WHERE id = $1 AND estado <> 'anulada'`, id).Scan(&cod, &nombre, &ape, &mail, &personas, &sid, &sid2); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT codigo, nombre, apellidos, email::text, personas FROM entradas WHERE id = $1 AND estado <> 'anulada'`, id).Scan(&cod, &nombre, &ape, &mail, &personas); err != nil {
 		return problem.Conflict("ENTRADA_ANULADA", "Esta entrada está anulada.")
 	}
 	if mail == nil {
@@ -334,35 +320,21 @@ func (s *Svc) reenviar(ctx context.Context, tx pgx.Tx, c compref.Comp, id uuid.U
 			return err
 		}
 	}
-	rows, err := tx.Query(ctx, selSesion+` WHERE s.id = $1`, sid)
+	xs, err := sesionesDeEntrada(ctx, tx, id)
 	if err != nil {
 		return err
 	}
-	x, err := pgx.CollectExactlyOneRow(rows, scanSesion)
-	if err != nil {
-		return err
+	if len(xs) == 0 {
+		return problem.Conflict("SIN_DIAS", "Esta entrada no tiene ningún día: no se puede reenviar.")
 	}
-	if sid2 != nil {
-		rows, err := tx.Query(ctx, selSesion+` WHERE s.id = $1`, *sid2)
-		if err != nil {
-			return err
-		}
-		y, err := pgx.CollectExactlyOneRow(rows, scanSesion)
-		if err != nil {
-			return err
-		}
-		x = dosDias(x, y)
-	}
-	return email(ctx, tx, c.ID, *mail, "entrada-confirmada", s.varsEntrada(c, x, cod, tok, nombre, ape, personas))
+	return email(ctx, tx, c.ID, *mail, "entrada-confirmada", s.varsEntrada(c, xs, cod, tok, nombre, ape, personas))
 }
 
 // anular cancels a ticket (its QR stops working), announces the freed places and, if asked, emails the holder.
 func (s *Svc) anular(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, motivo string, avisar bool) error {
-	var sid uuid.UUID
-	var sid2 *uuid.UUID
 	var estado, cod, nombre string
 	var mail *string
-	if err := tx.QueryRow(ctx, `SELECT sesion_id, sesion2_id, estado, codigo, nombre, email::text FROM entradas WHERE id = $1 FOR UPDATE`, id).Scan(&sid, &sid2, &estado, &cod, &nombre, &mail); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT estado, codigo, nombre, email::text FROM entradas WHERE id = $1 FOR UPDATE`, id).Scan(&estado, &cod, &nombre, &mail); err != nil {
 		return err
 	}
 	if estado == "anulada" {
@@ -374,20 +346,24 @@ func (s *Svc) anular(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, motivo s
 	if _, err := tx.Exec(ctx, `UPDATE entradas SET estado = 'anulada', anulada_at = now(), motivo = $2, updated_at = now() WHERE id = $1`, id, motivo); err != nil {
 		return err
 	}
+	xs, err := sesionesDeEntrada(ctx, tx, id)
+	if err != nil {
+		return err
+	}
 	if avisar && mail != nil {
 		var sesion string
-		_ = tx.QueryRow(ctx, `SELECT string_agg(nombre, ' + ' ORDER BY inicio) FROM sesiones WHERE id = $1 OR id = $2`, sid, sid2).Scan(&sesion)
+		_ = tx.QueryRow(ctx, `SELECT string_agg(s.nombre, ' + ' ORDER BY s.inicio) FROM entrada_sesiones es JOIN sesiones s ON s.id = es.sesion_id WHERE es.entrada_id = $1`, id).Scan(&sesion)
 		if err := email(ctx, tx, cid, *mail, "entrada-anulada", map[string]string{"nombre": nombre, "codigo": cod, "sesion": sesion, "entradas": s.webURL + "/entradas"}); err != nil {
 			return err
 		}
 	}
-	if err := events.Enqueue(ctx, tx, events.New(ctx, "entrada.anulada", map[string]any{"codigo": cod, "sesionId": sid, "motivo": motivo}, events.Competition(cid.String()), events.ForPermission("entradas.gestionar"))); err != nil {
+	if err := events.Enqueue(ctx, tx, events.New(ctx, "entrada.anulada", map[string]any{"codigo": cod, "sesionId": variosDias(xs).ID, "motivo": motivo}, events.Competition(cid.String()), events.ForPermission("entradas.gestionar"))); err != nil {
 		return err
 	}
-	if sid2 != nil {
-		if err := s.aforoEvento(ctx, tx, cid, *sid2); err != nil {
+	for _, x := range xs {
+		if err := s.aforoEvento(ctx, tx, cid, x.ID); err != nil {
 			return err
 		}
 	}
-	return s.aforoEvento(ctx, tx, cid, sid)
+	return nil
 }
