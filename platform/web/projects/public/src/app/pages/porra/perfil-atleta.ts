@@ -80,9 +80,9 @@ export type OpcionPerfil = Pick<OpcionMercado, 'atletaId' | 'nombre' | 'slug' | 
         <div class="flex flex-col gap-6">
           <div class="flex items-center gap-4">
             @if (foto()) {
-              <img [src]="foto()" [alt]="o.nombre" class="size-20 shrink-0 rounded-md object-cover" loading="lazy" />
+              <img [src]="foto()" [alt]="o.nombre" class="size-40 shrink-0 rounded-md object-cover" loading="lazy" />
             } @else {
-              <span class="flex size-20 shrink-0 items-center justify-center rounded-md border border-line-strong bg-bg-card font-display text-[1.5rem] text-text-primary italic" aria-hidden="true">{{ ini() }}</span>
+              <span class="flex size-40 shrink-0 items-center justify-center rounded-md border border-line-strong bg-bg-card font-display text-[3rem] text-text-primary italic" aria-hidden="true">{{ ini() }}</span>
             }
             <div class="flex min-w-0 flex-col gap-1">
               <p class="font-display text-[1.25rem] leading-tight text-text-primary">{{ o.nombre }}</p>
@@ -181,7 +181,11 @@ export class PerfilAtleta {
   private refresco: ReturnType<typeof setTimeout> | undefined;
 
   protected readonly ini = computed(() => iniciales(this.opcion()?.nombre));
-  protected readonly foto = computed(() => this.ficha()?.fotoUrl || this.opcion()?.fotoUrl || '');
+  /** A 160 px photo on a 3× screen needs 480 px: the media library serves that copy (`?w=480`). */
+  protected readonly foto = computed(() => {
+    const u = this.ficha()?.fotoUrl || this.opcion()?.fotoUrl || '';
+    return u.startsWith('/api/medios/') && !u.includes('?') ? u + '?w=480' : u;
+  });
   protected readonly subtitulo = computed(() => {
     const o = this.opcion();
     const f = this.ficha();
