@@ -5,7 +5,7 @@ import { GrTelefono } from '../layout/telefono';
 
 const T = {
   es: {
-    tuFoto: 'Tu foto aquí', usuario: 'tu.usuario', mensaje: 'Enviar mensaje',
+    tuFoto: 'Tu foto aquí', usuario: '@atleta', mensaje: 'Enviar mensaje',
     titulo: 'Recorta tu foto', cancelar: 'Cancelar',
     ayuda: 'Arrastra la foto para encuadrarla y usa el zoom. Lo que queda dentro del marco 9:16 es lo que verás en la vista previa y lo que usaremos en la imagen final.',
     escenario: 'Foto: arrastra o usa las flechas para moverla, + y − para el zoom', mover: 'Arrastra para mover',
@@ -13,7 +13,7 @@ const T = {
     restablecer: 'Restablecer', aplicar: 'Aplicar recorte', coma: ',',
   },
   en: {
-    tuFoto: 'Your photo here', usuario: 'your.username', mensaje: 'Send message',
+    tuFoto: 'Your photo here', usuario: '@athlete', mensaje: 'Send message',
     titulo: 'Crop your photo', cancelar: 'Cancel',
     ayuda: 'Drag the photo to frame it and use the zoom. Whatever stays inside the 9:16 frame is what you will see in the preview and what we will use in the final image.',
     escenario: 'Photo: drag or use the arrow keys to move it, + and − to zoom', mover: 'Drag to move',
@@ -28,36 +28,70 @@ export interface Recorte {
   zoom: number;
 }
 
-/** Reference phone of Figma 83 (iPhone + Instagram story UI): visual reference only, never exported. */
+/**
+ * Reference phone of Figma 83 (iPhone + Instagram story UI): visual reference only, never exported. Every size is in
+ * cqw (1 cqw = 1/100 of the phone width, i.e. 3.93 pt) with the proportions of Instagram on a 393 × 852 pt iPhone:
+ * status bar 54 pt, story 9:16 under it, and the reply row in the black band over the home indicator.
+ */
 @Component({
   selector: 'gr-story-movil',
   imports: [GrIcon, GrTelefono],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'block w-[200px] md:w-[230px] lg:w-[250px]' },
+  host: { class: 'block w-[200px] md:w-[230px] lg:w-[240px] xl:w-[288px]' },
   template: `
     <gr-telefono>
-      <!-- status bar (safe area) above the 9:16 story, as on a real iPhone -->
-      <div class="h-[6.5%] shrink-0" aria-hidden="true"></div>
-      <div class="relative aspect-[9/16] shrink-0 overflow-hidden" [style.background]="fondo() || '#000'">
-        @if (fondo()) { <div class="absolute inset-0 bg-cover bg-center grayscale" [style.background-image]="'url(' + fondo() + ')'"></div> }
-        @if (src()) { <img [src]="src()" [alt]="alt()" class="absolute inset-0 h-full w-full object-cover" [class.blur-[6px]]="borroso()" /> }
+      <!-- status bar: time and signal / wifi / battery flanking the Dynamic Island, as on a real iPhone -->
+      <div class="relative h-[13.7cqw] shrink-0 text-white" aria-hidden="true">
+        <div class="absolute inset-x-[6.9cqw] top-[2.8cqw] flex h-[9.4cqw] items-center justify-between">
+          <span class="text-[3.31cqw] font-semibold tabular-nums">9:41</span>
+          <span class="flex items-center gap-[1.7cqw]">
+            <svg viewBox="0 0 18 12" class="h-[2.6cqw] w-auto" fill="currentColor"><rect width="3" height="4" x="0" y="8" rx="1" /><rect width="3" height="6" x="5" y="6" rx="1" /><rect width="3" height="9" x="10" y="3" rx="1" /><rect width="3" height="12" x="15" rx="1" /></svg>
+            <svg viewBox="0 0 16 12" class="h-[2.6cqw] w-auto" fill="currentColor"><path d="M8 12 5.7 9.5a3.5 3.5 0 0 1 4.6 0z" /><path d="M8 8.1c-1.5 0-2.8.6-3.9 1.6L2.7 8.2A7.6 7.6 0 0 1 8 5.9c2 0 3.9.8 5.3 2.3l-1.4 1.5A5.5 5.5 0 0 0 8 8.1" /><path d="M8 4.3c-2.4 0-4.6.9-6.3 2.5L.2 5.4A10.8 10.8 0 0 1 8 2.3c3.1 0 5.9 1.1 8 3.1l-1.5 1.4A8.8 8.8 0 0 0 8 4.3" /></svg>
+            <svg viewBox="0 0 27 13" class="h-[3cqw] w-auto"><rect width="22" height="12" x=".5" y=".5" rx="3.5" fill="none" stroke="currentColor" stroke-opacity=".4" /><rect width="15" height="9" x="2" y="2" rx="2" fill="currentColor" /><path d="M24.5 4.4v4.2c1-.3 1.5-1 1.5-2.1s-.5-1.8-1.5-2.1" fill="currentColor" fill-opacity=".4" /></svg>
+          </span>
+        </div>
+      </div>
+      <!-- the 9:16 story, full screen width and not cropped -->
+      <div class="relative aspect-[9/16] shrink-0 overflow-hidden rounded-[2.5cqw] bg-black">
+        @if (sticker()) {
+          <!-- a transparent PNG needs a background to read as a sticker: a generic, dimmed placeholder -->
+          <div class="absolute inset-0 bg-[#18181b] [background-image:radial-gradient(55%_42%_at_72%_16%,#565660,transparent_70%),radial-gradient(45%_35%_at_22%_62%,#33333a,transparent_70%)]"></div>
+        }
+        @if (src()) { <img [src]="src()" [alt]="alt()" class="absolute inset-0 h-full w-full object-cover" [class.blur-[1.1cqw]]="borroso()" /> }
         @else { <div class="absolute inset-0 animate-pulse bg-white/5"></div> }
         @if (hueco()) {
-          <div class="absolute inset-x-0 top-[28%] flex flex-col items-center gap-1 text-white/60" aria-hidden="true"><gr-icon name="image" [size]="16" /><span class="font-mono text-[7px] tracking-[0.12em] uppercase">{{ t().tuFoto }}</span></div>
+          <div class="absolute inset-x-0 top-[28%] flex flex-col items-center gap-[0.8cqw] text-white/60" aria-hidden="true"><gr-icon class="gr-icono-fluido size-[4.2cqw]" name="image" /><span class="font-mono text-[1.9cqw] tracking-[0.12em] uppercase">{{ t().tuFoto }}</span></div>
         }
-        <!-- status bar, story progress and Instagram header -->
-        <div class="pointer-events-none absolute inset-x-0 top-0 px-4 pt-2 text-white" aria-hidden="true">
-          <div class="flex items-center justify-between text-[12px] font-semibold"><span></span><span class="invisible h-5 w-16"></span><span></span></div>
-          @if (!borroso()) {
-            <div class="mt-2 h-0.5 rounded bg-white/30"><div class="h-full w-1/3 rounded bg-white"></div></div>
-            <div class="mt-2 flex items-center gap-1.5 text-[9px] font-semibold"><span class="size-4 rounded-full border border-white/60 bg-white/20"></span>{{ usuario() || t().usuario }} · 1 min<gr-icon class="ml-auto" name="x" [size]="12" /></div>
-          }
-        </div>
-        @if (!borroso()) {
-          <div class="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-2 px-3 pb-5 text-white" aria-hidden="true">
-            <span class="flex-1 rounded-full border border-white/70 px-3 py-1 text-[8px]">{{ t().mensaje }}</span><gr-icon name="heart" [size]="14" /><gr-icon name="send" [size]="14" />
+        <!-- scrim so the white chrome stays readable on a bright photo, then progress and header -->
+        <div class="pointer-events-none absolute inset-x-0 top-0 h-[26cqw] bg-gradient-to-b from-black/60 to-transparent" aria-hidden="true"></div>
+        <div class="pointer-events-none absolute inset-x-0 top-0 px-[3.05cqw] pt-[2.2cqw] text-white" aria-hidden="true">
+          <div class="flex gap-[1.02cqw]">
+            @for (s of segmentos; track $index) {
+              <span class="h-[0.6cqw] flex-1 overflow-hidden rounded-full bg-white/35"><span class="block h-full bg-white" [style.width.%]="s"></span></span>
+            }
           </div>
-        }
+          <div class="mt-[2.2cqw] flex items-center gap-[2.3cqw]">
+            @if (avatar()) {
+              <img [src]="avatar()" alt="" class="size-[8.14cqw] shrink-0 rounded-full object-cover ring-1 ring-white/25" />
+            } @else {
+              <span class="grid size-[8.14cqw] shrink-0 place-items-center rounded-full bg-white/25 text-[2.9cqw] font-semibold">{{ iniciales() }}</span>
+            }
+            <span class="flex min-w-0 items-center gap-[1.2cqw]">
+              <span class="truncate text-[3.31cqw] font-semibold">{{ handle() }}</span>
+              <span class="shrink-0 text-[3.05cqw] text-white/80">· 1 min</span>
+            </span>
+            <span class="ml-auto flex shrink-0 items-center gap-[2.6cqw]">
+              <gr-icon class="gr-icono-fluido size-[6.1cqw]" name="more" /><gr-icon class="gr-icono-fluido size-[5.1cqw]" name="x" />
+            </span>
+          </div>
+        </div>
+      </div>
+      <!-- in the black band under the story, as Instagram does on a 19.5:9 iPhone -->
+      <div class="pointer-events-none flex flex-1 flex-col justify-end px-[3.05cqw] pb-[5.2cqw] text-white" aria-hidden="true">
+        <div class="flex items-center gap-[2.6cqw]">
+          <span class="flex h-[11.2cqw] flex-1 items-center rounded-full border border-white/60 px-[3.6cqw] text-[3.31cqw]">{{ t().mensaje }}</span>
+          <gr-icon class="gr-icono-fluido size-[6.1cqw]" name="heart" /><gr-icon class="gr-icono-fluido size-[6.1cqw]" name="send" />
+        </div>
       </div>
     </gr-telefono>
   `,
@@ -66,11 +100,24 @@ export class StoryMovil {
   readonly src = input('');
   readonly alt = input('');
   protected readonly t = inject(I18n).dict(T);
+  /** Handle or first name of the athlete in the story header («@lucia», «Lucía»). */
   readonly usuario = input('');
+  /** The athlete's photo for the header avatar; their initials when there is none. */
+  readonly avatar = input('');
+  readonly nombre = input('');
   readonly borroso = input(false);
   readonly hueco = input(false);
-  /** Background photo behind a transparent sticker. */
-  readonly fondo = input('');
+  /** A transparent PNG over a generic placeholder instead of the composed story. */
+  readonly sticker = input(false);
+  /** Handle shown in the header («@atleta» in the blurred example). */
+  protected readonly handle = computed(() => this.usuario() || this.t().usuario);
+  /** Three stories in the account: the first one is being played. */
+  protected readonly segmentos = [38, 0, 0];
+  protected readonly iniciales = computed(() => {
+    const p = this.nombre().trim().split(/\s+/).filter(Boolean);
+    const i = p.length > 1 ? p[0][0] + p[1][0] : (p[0]?.[0] ?? this.handle().replace('@', '')[0] ?? '');
+    return i.toUpperCase() || '·';
+  });
 }
 
 /** «Recorta tu foto» (Figma 83 · 06): 9:16 frame, drag to move, wheel / pinch / slider to zoom (1×–4×). */
