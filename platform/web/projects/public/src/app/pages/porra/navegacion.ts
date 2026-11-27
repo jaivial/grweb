@@ -179,9 +179,9 @@ export class PorraNivel {
               class="flex min-h-32 flex-col items-center justify-center gap-3 rounded-md border border-line-subtle bg-bg-card p-4 text-center transition-colors hover:border-line-strong" [class]="g.clase">
               <span class="flex h-[42px] w-12 items-center justify-center md:h-14 md:w-16">
                 @if (g.imagen; as src) {
-                  <img [src]="src" alt="" width="223" height="193" loading="lazy" decoding="async" class="h-full w-full object-contain" />
+                  <img [src]="src" alt="" width="223" height="193" loading="eager" decoding="async" class="h-full w-full object-contain" />
                 } @else if (g.icono; as nombre) {
-                  <gr-icon [name]="nombre" [size]="36" [stroke]="1.5" class="text-text-secondary [&>svg]:size-9 md:[&>svg]:size-11" />
+                  <gr-icon [name]="nombre" [size]="36" [stroke]="1.5" class="text-text-secondary [&>svg]:size-[42px] md:[&>svg]:size-[52px]" />
                 }
               </span>
               <span class="block min-h-[2lh] text-label-m text-text-primary">{{ g.l }}</span>
