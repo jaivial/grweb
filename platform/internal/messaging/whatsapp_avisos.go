@@ -217,7 +217,7 @@ func (s *Svc) registerAvisos() {
 			c := s.waDe(ctx, in.CID)
 			texto := "GR Cup · WhatsApp funcionando. Este es un mensaje de prueba del panel «Sistema › WhatsApp»."
 			for _, t := range a.Telefonos {
-				if _, err := s.enviarWA(ctx, c, t.Numero, WhatsApp{Texto: texto}); err != nil {
+				if _, err := s.enviarPruebaWA(ctx, in.CID, c, t.Numero, WhatsApp{Texto: texto}); err != nil {
 					s.waLog(ctx, in.CID, "enviar el mensaje de prueba", err)
 					o.Body.Errores = append(o.Body.Errores, struct {
 						Numero string `json:"numero"`

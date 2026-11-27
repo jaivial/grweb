@@ -39,7 +39,8 @@ func (s *Svc) worker(ctx context.Context) {
 		case <-t.C:
 		}
 		if n++; n%30 == 0 {
-			_, _ = s.a.DB.Exec(ctx, `UPDATE mensajes SET estado = 'reintentando', updated_at = now() WHERE estado = 'enviando' AND updated_at < now() - interval '5 minutes'`)
+			_, _ = s.a.DB.Exec(ctx, `UPDATE mensajes SET estado = 'reintentando', updated_at = now() WHERE estado = 'enviando' AND updated_at < now() - interval '2 minutes'`)
+			_, _ = s.a.DB.Exec(ctx, `DELETE FROM envio_registro WHERE at < now() - interval '2 days'`)
 		}
 		if err := s.tick(ctx); err != nil && ctx.Err() == nil {
 			s.a.Log.Warn("envío de emails", "err", err)
@@ -47,24 +48,25 @@ func (s *Svc) worker(ctx context.Context) {
 	}
 }
 
+// tick claims ONE message at a time (a pod that dies leaves at most one «enviando», back in the queue after 2
+// minutes) and sends up to 20 per tick. A message being sent finishes even if the pod is stopping.
 func (s *Svc) tick(ctx context.Context) error {
-	// Messages to the organisers' group go after the ones to people (the rate limit is shared).
-	rows, err := s.a.DB.Query(ctx, `UPDATE mensajes SET estado = 'enviando', intentos = intentos + 1, updated_at = now() WHERE id IN (
-		SELECT id FROM mensajes WHERE estado IN ('en_cola', 'reintentando') AND proximo_at <= now() ORDER BY (destino::text LIKE '%@g.us'), proximo_at LIMIT 20 FOR UPDATE SKIP LOCKED)
-		RETURNING id, competition_id, canal, plantilla, destino::text, vars, prueba, intentos`)
-	if err != nil {
-		return err
-	}
-	lote, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (pendiente, error) {
+	for range 20 {
+		if ctx.Err() != nil {
+			return nil
+		}
+		// Messages to the organisers' group go after the ones to people (the pace is shared); FIFO inside.
 		var p pendiente
-		err := r.Scan(&p.id, &p.cid, &p.canal, &p.clave, &p.destino, &p.vars, &p.prueba, &p.intentos)
-		return p, err
-	})
-	if err != nil {
-		return err
-	}
-	for _, p := range lote {
-		s.procesar(ctx, p)
+		err := s.a.DB.QueryRow(ctx, `UPDATE mensajes SET estado = 'enviando', intentos = intentos + 1, updated_at = now() WHERE id = (
+			SELECT id FROM mensajes WHERE estado IN ('en_cola', 'reintentando') AND proximo_at <= now() ORDER BY (destino::text LIKE '%@g.us'), proximo_at, created_at LIMIT 1 FOR UPDATE SKIP LOCKED)
+			RETURNING id, competition_id, canal, plantilla, destino::text, vars, prueba, intentos`).Scan(&p.id, &p.cid, &p.canal, &p.clave, &p.destino, &p.vars, &p.prueba, &p.intentos)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		s.procesar(context.WithoutCancel(ctx), p)
 	}
 	return nil
 }
@@ -165,16 +167,15 @@ func (s *Svc) procesar(ctx context.Context, p pendiente) {
 		s.devolver(ctx, p, time.Minute-time.Since(cambiado)+time.Second, "SMTP caído: reintento automático")
 		return
 	}
-	// Pace per competition (emails per minute).
+	// Pace per sending account (the competition's emails per minute, 2000 a day), shared with the campaigns.
 	ritmo := 120
 	_ = s.a.DB.QueryRow(ctx, `SELECT ritmo_minuto FROM ajustes WHERE competition_id = $1`, p.cid).Scan(&ritmo)
-	key := s.a.Keys.Of("messaging", "ritmo", p.cid.String(), time.Now().UTC().Format("200601021504"))
-	if n, err := s.a.Redis.Incr(ctx, key).Result(); err == nil {
-		s.a.Redis.Expire(ctx, key, 2*time.Minute)
-		if int(n) > ritmo {
-			s.devolver(ctx, p, time.Duration(60-time.Now().Second()+1)*time.Second, "Ritmo máximo por minuto: en cola")
-			return
-		}
+	if espera, err := s.turno(ctx, remitenteEmail(cfg), p.destino, false, time.Minute/time.Duration(max(ritmo, 1))); err != nil {
+		s.devolver(ctx, p, time.Minute, "En cola: reintento automático")
+		return
+	} else if espera > 0 {
+		s.devolver(ctx, p, espera, enCola("Ritmo de envío de la cuenta", espera))
+		return
 	}
 	cab := map[string]string{"Auto-Submitted": "auto-generated"}
 	// One-click unsubscribe (RFC 8058) when the producer gives the POST endpoint; the body link stays the web page.
@@ -187,6 +188,7 @@ func (s *Svc) procesar(ctx context.Context, p pendiente) {
 	r.Adjunto = s.adjuntoDe(ctx, p.cid, p.vars)
 	id, err := enviarSMTP(ctx, cfg, p.destino, r, cab)
 	if err == nil {
+		s.anotar(ctx, remitenteEmail(cfg), p.destino, false)
 		s.estadoSMTP(ctx, p.cid, cfg, true, "")
 		s.fin(ctx, p, "enviado", "250 OK", func(tx pgx.Tx) error {
 			if p.cid == uuid.Nil || p.prueba {
@@ -241,23 +243,29 @@ func (s *Svc) procesarWA(ctx context.Context, p pendiente, t plantillaEfectiva) 
 		return
 	}
 	c := s.waDe(ctx, p.cid)
-	// Circuit breaker: while the server is down, the messages wait instead of burning attempts.
-	caido := s.a.Keys.Of("messaging", "canal-caido", p.cid.String(), "whatsapp")
-	if n, _ := s.a.Redis.Exists(ctx, caido).Result(); n > 0 {
-		s.devolver(ctx, p, time.Minute, "WhatsApp (evo-weai) no disponible: reintento automático")
+	// Quiet hours: nothing leaves the number from 22:00 to 09:00 (a test from the backoffice does, the person is
+	// waiting for it).
+	if d := s.silencio(ctx, p.cid); d > 0 && !p.prueba {
+		s.devolver(ctx, p, d, enCola("Horario de descanso de WhatsApp", d))
 		return
 	}
-	// Pace per competition (6 WhatsApp per minute, like the campaigns: the number is a person, not a mailbox).
-	key := s.a.Keys.Of("messaging", "ritmo-wa", p.cid.String(), time.Now().UTC().Format("200601021504"))
-	if n, err := s.a.Redis.Incr(ctx, key).Result(); err == nil {
-		s.a.Redis.Expire(ctx, key, 2*time.Minute)
-		if int(n) > 6 {
-			s.devolver(ctx, p, time.Duration(60-time.Now().Second()+1)*time.Second, "Ritmo máximo por minuto: en cola")
-			return
-		}
+	// Circuit breaker: while the server is down or the number unlinked, the messages wait instead of burning attempts.
+	caido := s.a.Keys.Of("messaging", "canal-caido", p.cid.String(), "whatsapp")
+	if causa, err := s.a.Redis.Get(ctx, caido).Result(); err == nil {
+		s.devolver(ctx, p, time.Minute, causa)
+		return
+	}
+	// The turn of the number (one every 30–60 s and the caps of ritmo.go), shared with the campaigns.
+	if espera, err := s.turno(ctx, remitenteWA(c, p.cid), p.destino, true, intervaloWA()); err != nil {
+		s.devolver(ctx, p, time.Minute, "En cola: reintento automático")
+		return
+	} else if espera > 0 {
+		s.devolver(ctx, p, espera, enCola("Ritmo de WhatsApp", espera))
+		return
 	}
 	id, err := s.enviarWA(ctx, c, p.destino, waDe(t.WA, texto, p.vars))
 	if err == nil {
+		s.anotar(ctx, remitenteWA(c, p.cid), p.destino, true)
 		detalle := "Enviado"
 		if c.Modo == "simulado" {
 			detalle = "Simulado (WhatsApp sin número conectado)"
@@ -280,11 +288,18 @@ func (s *Svc) procesarWA(ctx context.Context, p pendiente, t plantillaEfectiva) 
 	if !errors.As(err, &ew) {
 		ew = &errWA{msg: err.Error()}
 	}
-	if ew.servidor {
+	if ew.pausa() {
 		s.waLog(ctx, p.cid, "enviar el mensaje de WhatsApp", err)
-		_ = s.a.Redis.Set(ctx, caido, ew.msg, time.Minute).Err()
-		s.devolver(ctx, p, time.Minute, "WhatsApp (evo-weai) no disponible: reintento automático")
+		causa := "WhatsApp (evo-weai) no disponible: reintento automático"
+		if ew.desconectado {
+			causa = s.waMensaje(ctx, p.cid, err) + " Los mensajes esperan en la cola y salen solos al volver."
+		}
+		_ = s.a.Redis.Set(ctx, caido, causa, time.Minute).Err()
+		s.devolver(ctx, p, time.Minute, causa)
 		return
+	}
+	if ew.codigo != 0 {
+		s.anotar(ctx, remitenteWA(c, p.cid), p.destino, true) // WhatsApp saw it (a number that is not on WhatsApp counts too)
 	}
 	// The provider answers in English and with the technical name of the instance: the person reads a sentence in
 	// Spanish and the log keeps the detail.

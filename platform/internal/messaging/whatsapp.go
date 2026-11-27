@@ -94,15 +94,20 @@ func (s *Svc) waDe(ctx context.Context, cid uuid.UUID) waCfg {
 
 // errWA is a send error; permanent means the number is not on WhatsApp.
 type errWA struct {
-	msg        string
-	texto      string // the message of the provider, without the JSON wrapper (for the log and the translation)
-	permanente bool
-	servidor   bool // evo-weai itself is down (connection, 5xx): the batch waits, no try is spent
-	existe     bool // the instance already exists (409): the caller adopts it
-	codigo     int  // the HTTP status of the answer of evo-weai
+	msg          string
+	texto        string // the message of the provider, without the JSON wrapper (for the log and the translation)
+	permanente   bool
+	servidor     bool // evo-weai itself is down (connection, 5xx): the batch waits, no try is spent
+	desconectado bool // the number is not linked (logged out, banned, instance gone, key refused): the channel waits too
+	existe       bool // the instance already exists (409): the caller adopts it
+	codigo       int  // the HTTP status of the answer of evo-weai
 }
 
 func (e *errWA) Error() string { return e.msg }
+
+// pausa: the channel cannot send right now (evo-weai down or the number unlinked): the messages wait without
+// spending a try and go out by themselves when it comes back.
+func (e *errWA) pausa() bool { return e.servidor || e.desconectado }
 
 func (s *Svc) evo(ctx context.Context, c waCfg, method, path string, in, out any) error {
 	var body io.Reader
@@ -140,7 +145,8 @@ func (s *Svc) evo(ctx context.Context, c waCfg, method, path string, in, out any
 			texto = j.Message
 		}
 		return &errWA{msg: fmt.Sprintf("evo-weai %d: %s", res.StatusCode, m), texto: texto, permanente: perm, servidor: res.StatusCode >= 500,
-			existe: res.StatusCode == http.StatusConflict || strings.Contains(low, "already in use"), codigo: res.StatusCode}
+			desconectado: strings.Contains(low, "not connected") || res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden || res.StatusCode == http.StatusNotFound,
+			existe:       res.StatusCode == http.StatusConflict || strings.Contains(low, "already in use"), codigo: res.StatusCode}
 	}
 	if out != nil {
 		return json.Unmarshal(raw, out)
@@ -181,7 +187,7 @@ func (s *Svc) enviarWA(ctx context.Context, c waCfg, numero string, w WhatsApp) 
 			return r.Key.ID, nil
 		}
 		var ew *errWA
-		if errors.As(err, &ew) && ew.servidor {
+		if errors.As(err, &ew) && ew.pausa() {
 			return "", err
 		}
 		w.Texto = conLineas(w.Texto, w.Enlaces)
@@ -535,6 +541,8 @@ func (s *Svc) registerWhatsApp() {
 			if err := s.registrarWebhook(ctx, c, in.CID); err != nil {
 				s.waLog(ctx, in.CID, "registrar el webhook", err)
 			}
+			// A number linked again (after a ban, too) starts its warm-up from 30 messages a day.
+			s.calentar(ctx, remitenteWA(c, in.CID))
 			_, _ = s.a.DB.Exec(ctx, `INSERT INTO whatsapp_instancia (competition_id, instancia, url, estado, updated_at) VALUES ($1,$2,$3,'conectando', now())
 				ON CONFLICT (competition_id) DO UPDATE SET instancia = EXCLUDED.instancia, url = EXCLUDED.url, estado = 'conectando', updated_at = now()`, in.CID, nombre, url)
 			if err := s.waEvento(ctx, in.CID, "whatsapp.conexion", map[string]any{"estado": "conectando"}); err != nil {
@@ -608,6 +616,7 @@ func (s *Svc) registerWhatsApp() {
 			if err := s.registrarWebhook(ctx, c, in.CID); err != nil {
 				s.waLog(ctx, in.CID, "registrar el webhook", err)
 			}
+			s.calentar(ctx, remitenteWA(c, in.CID))
 			if num != "" {
 				_, _ = s.a.DB.Exec(ctx, `UPDATE whatsapp_instancia SET numero = $2, estado = 'conectando', updated_at = now() WHERE competition_id = $1`, in.CID, "+"+num)
 			} else {
@@ -843,6 +852,8 @@ func (s *Svc) registerWhatsApp() {
 				if !strings.HasSuffix(d.Key.RemoteJid, "@s.whatsapp.net") {
 					return nil, nil
 				}
+				// Who writes to us is no longer a first contact (ritmo.go).
+				s.contacto(ctx, remitenteWA(s.waDe(ctx, in.C), in.C), strings.Split(strings.Split(d.Key.RemoteJid, "@")[0], ":")[0])
 				txt := strings.ToUpper(strings.TrimSpace(d.Message.Conversation + d.Message.Extended.Text))
 				if txt == "BAJA" || txt == "STOP" || strings.HasPrefix(txt, "DARME DE BAJA") {
 					tel := "+" + strings.Split(d.Key.RemoteJid, "@")[0]

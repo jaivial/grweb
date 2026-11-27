@@ -745,7 +745,7 @@ func (s *Svc) registerCampanas() {
 					return nil, problem.Unprocessable("DESTINO_NO_VALIDO", "Escribe un email o un teléfono con prefijo (+34…).")
 				}
 				cfg := s.waDe(ctx, in.CID)
-				id, err := s.enviarWA(ctx, cfg, tel, WhatsApp{Texto: personalizar("[Prueba]\n\n"+wa, "Prueba", baja, false), Imagen: waImg, Enlaces: botones})
+				id, err := s.enviarPruebaWA(ctx, in.CID, cfg, tel, WhatsApp{Texto: personalizar("[Prueba]\n\n"+wa, "Prueba", baja, false), Imagen: waImg, Enlaces: botones})
 				if err != nil {
 					// The provider answers in English and with the technical name of the instance: the person reads a
 					// sentence in Spanish and the log keeps the detail.
