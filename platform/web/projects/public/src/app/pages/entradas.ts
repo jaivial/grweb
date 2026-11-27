@@ -815,7 +815,7 @@ const CAMPO = 'h-12 w-full rounded-sm border bg-bg-field px-3.5 text-body-m text
             [class]="todosSel() ? 'border-accent bg-accent/10' : err('sesion') ? 'border-accent-text/60' : 'border-line-subtle hover:border-line-strong'">
             <span class="flex size-5 shrink-0 items-center justify-center rounded-[5px] border-2" [class]="todosSel() ? 'border-accent bg-accent text-white' : 'border-line-strong'">@if (todosSel()) { <gr-icon name="check" [size]="13" /> }</span>
             <span class="min-w-0 flex-1"><span class="block text-label-m">{{ t().pg.diasTit(diasAbiertos()) }}</span><span class="block text-body-xs text-text-tertiary">{{ t().pg.diasD(diasAbiertos()) }}</span></span>
-            <span class="inline-flex h-6 shrink-0 items-center rounded-full border px-2.5 text-label-xs uppercase" [class]="estado['disponible'].cls">{{ t().est.disponible }}</span>
+            <span class="inline-flex h-6 shrink-0 items-center rounded-full border border-line-strong px-2.5 text-label-xs text-text-secondary uppercase">{{ t().pg.cuenta(diasAbiertos()) }}</span>
           </button>
         }
       </div>
