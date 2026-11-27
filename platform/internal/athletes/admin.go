@@ -265,6 +265,9 @@ func (s *Svc) registerAdmin() {
 			if err := in.Body.validate(); err != nil {
 				return nil, err
 			}
+			if in.Body.fecha() == nil { // the AEP matching needs the birth year
+				return nil, problem.Unprocessable("FECHA_OBLIGATORIA", "Escribe la fecha de nacimiento (AAAA-MM-DD).")
+			}
 			id := newID()
 			b := in.Body
 			err := s.change(ctx, in.CID, "athletes.atleta_creado", map[string]any{"id": id, "nombre": b.Nombre + " " + b.Apellidos}, func(tx pgx.Tx) error {
