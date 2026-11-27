@@ -14,7 +14,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
     <div class="relative aspect-[9/19.5] rounded-[14.3cqw] bg-[#0b0a0a] p-[1.35cqw] shadow-[0_30px_80px_rgb(0_0_0/0.6)] ring-1 ring-white/10">
       <div class="relative flex size-full flex-col overflow-hidden rounded-[12.9cqw] bg-black">
         <ng-content />
-        <span class="absolute top-[2.8cqw] left-1/2 h-[9.4cqw] w-[32cqw] -translate-x-1/2 rounded-pill bg-black" aria-hidden="true"></span>
+        <span class="absolute top-[2.8cqw] left-1/2 h-[9.4cqw] w-[32cqw] -translate-x-1/2 rounded-pill bg-black ring-1 ring-white/15" aria-hidden="true"></span>
         <span class="absolute bottom-[2.2cqw] left-1/2 h-[1.2cqw] w-[34cqw] -translate-x-1/2 rounded-pill bg-white/80" aria-hidden="true"></span>
       </div>
     </div>

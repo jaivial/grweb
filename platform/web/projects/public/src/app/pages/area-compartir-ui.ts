@@ -43,7 +43,7 @@ export interface Recorte {
       <!-- status bar: time and signal / wifi / battery flanking the Dynamic Island, as on a real iPhone -->
       <div class="relative h-[13.7cqw] shrink-0 text-white" aria-hidden="true">
         <div class="absolute inset-x-[6.9cqw] top-[2.8cqw] flex h-[9.4cqw] items-center justify-between">
-          <span class="text-[3.31cqw] font-semibold tabular-nums">9:41</span>
+          <span class="text-[3.82cqw] font-semibold tabular-nums">9:41</span>
           <span class="flex items-center gap-[1.7cqw]">
             <svg viewBox="0 0 18 12" class="h-[2.6cqw] w-auto" fill="currentColor"><rect width="3" height="4" x="0" y="8" rx="1" /><rect width="3" height="6" x="5" y="6" rx="1" /><rect width="3" height="9" x="10" y="3" rx="1" /><rect width="3" height="12" x="15" rx="1" /></svg>
             <svg viewBox="0 0 16 12" class="h-[2.6cqw] w-auto" fill="currentColor"><path d="M8 12 5.7 9.5a3.5 3.5 0 0 1 4.6 0z" /><path d="M8 8.1c-1.5 0-2.8.6-3.9 1.6L2.7 8.2A7.6 7.6 0 0 1 8 5.9c2 0 3.9.8 5.3 2.3l-1.4 1.5A5.5 5.5 0 0 0 8 8.1" /><path d="M8 4.3c-2.4 0-4.6.9-6.3 2.5L.2 5.4A10.8 10.8 0 0 1 8 2.3c3.1 0 5.9 1.1 8 3.1l-1.5 1.4A8.8 8.8 0 0 0 8 4.3" /></svg>
@@ -57,7 +57,7 @@ export interface Recorte {
           <!-- a transparent PNG needs a background to read as a sticker: a generic, dimmed placeholder -->
           <div class="absolute inset-0 bg-[#18181b] [background-image:radial-gradient(55%_42%_at_72%_16%,#565660,transparent_70%),radial-gradient(45%_35%_at_22%_62%,#33333a,transparent_70%)]"></div>
         }
-        @if (src()) { <img [src]="src()" [alt]="alt()" class="absolute inset-0 h-full w-full object-cover" [class.blur-[1.1cqw]]="borroso()" /> }
+        @if (src()) { <img [src]="src()" [alt]="alt()" class="absolute inset-0 h-full w-full object-cover transition-opacity" [class.blur-[1.6cqw]]="borroso()" [class.grayscale]="borroso()" [class.opacity-40]="cargando()" /> }
         @else { <div class="absolute inset-0 animate-pulse bg-white/5"></div> }
         @if (hueco()) {
           <div class="absolute inset-x-0 top-[28%] flex flex-col items-center gap-[0.8cqw] text-white/60" aria-hidden="true"><gr-icon class="gr-icono-fluido size-[4.2cqw]" name="image" /><span class="font-mono text-[1.9cqw] tracking-[0.12em] uppercase">{{ t().tuFoto }}</span></div>
@@ -65,14 +65,14 @@ export interface Recorte {
         <!-- scrim so the white chrome stays readable on a bright photo, then progress and header -->
         <div class="pointer-events-none absolute inset-x-0 top-0 h-[26cqw] bg-gradient-to-b from-black/60 to-transparent" aria-hidden="true"></div>
         <div class="pointer-events-none absolute inset-x-0 top-0 px-[3.05cqw] pt-[2.2cqw] text-white" aria-hidden="true">
-          <div class="flex gap-[1.02cqw]">
+          <div class="flex gap-[0.5cqw]">
             @for (s of segmentos; track $index) {
-              <span class="h-[0.6cqw] flex-1 overflow-hidden rounded-full bg-white/35"><span class="block h-full bg-white" [style.width.%]="s"></span></span>
+              <span class="h-[0.5cqw] flex-1 overflow-hidden rounded-full bg-white/35"><span class="block h-full bg-white" [style.width.%]="s"></span></span>
             }
           </div>
           <div class="mt-[2.2cqw] flex items-center gap-[2.3cqw]">
             @if (avatar()) {
-              <img [src]="avatar()" alt="" class="size-[8.14cqw] shrink-0 rounded-full object-cover ring-1 ring-white/25" />
+              <img [src]="avatar()" alt="" [style.object-position]="avatarFoco()" class="size-[8.14cqw] shrink-0 rounded-full object-cover ring-1 ring-white/25" />
             } @else {
               <span class="grid size-[8.14cqw] shrink-0 place-items-center rounded-full bg-white/25 text-[2.9cqw] font-semibold">{{ iniciales() }}</span>
             }
@@ -81,7 +81,7 @@ export interface Recorte {
               <span class="shrink-0 text-[3.05cqw] text-white/80">· 1 min</span>
             </span>
             <span class="ml-auto flex shrink-0 items-center gap-[2.6cqw]">
-              <gr-icon class="gr-icono-fluido size-[6.1cqw]" name="more" /><gr-icon class="gr-icono-fluido size-[5.1cqw]" name="x" />
+              <gr-icon class="gr-icono-fluido size-[6.1cqw]" name="more" /><gr-icon class="gr-icono-fluido size-[6.1cqw]" name="x" />
             </span>
           </div>
         </div>
@@ -89,7 +89,7 @@ export interface Recorte {
       <!-- in the black band under the story, as Instagram does on a 19.5:9 iPhone -->
       <div class="pointer-events-none flex flex-1 flex-col justify-end px-[3.05cqw] pb-[5.2cqw] text-white" aria-hidden="true">
         <div class="flex items-center gap-[2.6cqw]">
-          <span class="flex h-[11.2cqw] flex-1 items-center rounded-full border border-white/60 px-[3.6cqw] text-[3.31cqw]">{{ t().mensaje }}</span>
+          <span class="flex h-[10.2cqw] flex-1 items-center rounded-full border border-white/60 px-[3.6cqw] text-[3.31cqw]">{{ t().mensaje }}</span>
           <gr-icon class="gr-icono-fluido size-[6.1cqw]" name="heart" /><gr-icon class="gr-icono-fluido size-[6.1cqw]" name="send" />
         </div>
       </div>
@@ -104,11 +104,15 @@ export class StoryMovil {
   readonly usuario = input('');
   /** The athlete's photo for the header avatar; their initials when there is none. */
   readonly avatar = input('');
+  /** `object-position` of that photo: the focus saved in the profile (focalX/focalY). */
+  readonly avatarFoco = input('50% 35%');
   readonly nombre = input('');
   readonly borroso = input(false);
   readonly hueco = input(false);
   /** A transparent PNG over a generic placeholder instead of the composed story. */
   readonly sticker = input(false);
+  /** The composition is being redrawn: the previous one stays, dimmed. */
+  readonly cargando = input(false);
   /** Handle shown in the header («@atleta» in the blurred example). */
   protected readonly handle = computed(() => this.usuario() || this.t().usuario);
   /** Three stories in the account: the first one is being played. */
@@ -118,6 +122,42 @@ export class StoryMovil {
     const i = p.length > 1 ? p[0][0] + p[1][0] : (p[0]?.[0] ?? this.handle().replace('@', '')[0] ?? '');
     return i.toUpperCase() || '·';
   });
+}
+
+/** Full-size view of the composition (tap on the phone): the only way to proofread what will be published. */
+@Component({
+  selector: 'gr-story-zoom',
+  imports: [GrIcon],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  styles: `dialog::backdrop{background:rgb(0 0 0/.85)} .damero{background:repeating-conic-gradient(#3a3a3e 0 25%,#2a2a2e 0 50%) 0 0/12px 12px}`,
+  template: `
+    <!-- native <dialog>: Esc and the focus trap come for free; a click on the backdrop closes it -->
+    <dialog #dlg class="relative m-auto max-h-[94dvh] max-w-[94vw] rounded-lg border border-line-subtle bg-bg-card p-2 text-text-primary" [attr.aria-label]="titulo()"
+      (cancel)="$event.preventDefault(); cerrarDialogo()" (click)="cerrarDialogo()">
+      <div class="mb-2 flex justify-end">
+        <button type="button" class="-my-0.5 flex size-9 items-center justify-center rounded-xs text-text-tertiary hover:text-text-primary" [attr.aria-label]="cerrarTxt()" (click)="cerrarDialogo()"><gr-icon name="x" [size]="20" /></button>
+      </div>
+      <img [src]="src()" [alt]="alt()" class="damero block max-h-[80dvh] w-auto rounded-xs" (click)="$event.stopPropagation()" />
+    </dialog>
+  `,
+})
+export class StoryZoom {
+  readonly src = input.required<string>();
+  readonly alt = input('');
+  readonly titulo = input('');
+  readonly cerrarTxt = input('');
+  readonly cerrar = output<void>();
+  private readonly dlg = viewChild.required<ElementRef<HTMLDialogElement>>('dlg');
+
+  constructor() {
+    afterNextRender(() => this.dlg().nativeElement.showModal());
+  }
+
+  /** close() first: the browser gives focus back to the phone that opened it, then the page unmounts us. */
+  protected cerrarDialogo() {
+    this.dlg().nativeElement.close();
+    this.cerrar.emit();
+  }
 }
 
 /** «Recorta tu foto» (Figma 83 · 06): 9:16 frame, drag to move, wheel / pinch / slider to zoom (1×–4×). */
