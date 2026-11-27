@@ -103,6 +103,18 @@ const (
 	tipoMatchNacimiento = "nacimiento"
 )
 
+// reglaMatch names the rule of a match in the record and the panel: «por teléfono», «por nombre y fecha de
+// nacimiento». It is empty for the rules that already name themselves (licence, email, manual).
+func reglaMatch(tipo string) string {
+	switch tipo {
+	case tipoMatchTelefono:
+		return "por teléfono"
+	case tipoMatchNacimiento:
+		return "por nombre y fecha de nacimiento"
+	}
+	return ""
+}
+
 // atletaDuplicado is the record the request is about, by a rule stronger than the name alone: the phone with the same
 // name first, the name and the birth date after. It answers the athlete and the rule that matched it.
 func (s *Svc) atletaDuplicado(ctx context.Context, q rowsQuerier, cid uuid.UUID, p personaAtleta) (*uuid.UUID, string, error) {

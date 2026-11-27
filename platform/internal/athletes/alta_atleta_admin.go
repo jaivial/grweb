@@ -877,8 +877,18 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		// The athlete: the one the reviewer chose, the one of the match or a new one.
 		destino := atletaID
 		perfilNuevo := false
+		// The rule that links the request, when it is not the reviewer choosing the athlete: it names the link in the
+		// record of the athlete and in the request.
+		matchTipo := sol.MatchTipo
 		if destino == nil && sol.MatchAtletaID != nil && sol.MatchTipo != "nombre" {
 			destino = sol.MatchAtletaID
+			// A pre-match by phone (or the birth date) explains itself in the history.
+			if regla := reglaMatch(sol.MatchTipo); regla != "" {
+				if err := hist(ctx, tx, *destino, "Solicitud de alta enlazada a la ficha existente "+regla,
+					"La solicitud es de este mismo atleta: sin duplicado"); err != nil {
+					return err
+				}
+			}
 		}
 		// One athlete per email: a request whose email already belongs to an athlete of the competition is linked to
 		// that athlete (no duplicate) and nobody is notified (the athlete already has their access).
@@ -905,12 +915,9 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 			}
 			if id != nil {
 				destino = id
-				regla := "por teléfono"
-				if tipo == tipoMatchNacimiento {
-					regla = "por nombre y fecha de nacimiento"
-				}
-				if err := hist(ctx, tx, *id, "Solicitud de alta enlazada a la ficha existente "+regla,
-					"La solicitud es de este mismo atleta: sin duplicado y sin avisos"); err != nil {
+				matchTipo = tipo
+				if err := hist(ctx, tx, *id, "Solicitud de alta enlazada a la ficha existente "+reglaMatch(tipo),
+					"La solicitud es de este mismo atleta: sin duplicado"); err != nil {
 					return err
 				}
 			}
@@ -1006,9 +1013,9 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		if err := hist(ctx, tx, *destino, "Perfil creado o actualizado desde una solicitud de alta", "revisado por "+por); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE solicitudes_atleta SET estado = 'aprobada', match_atleta_id = $3, foto_clave = '',
+		if _, err := tx.Exec(ctx, `UPDATE solicitudes_atleta SET estado = 'aprobada', match_atleta_id = $3, match_tipo = $5, foto_clave = '',
 			revisado_at = now(), revisado_por = $4, version = version + 1, updated_at = now() WHERE competition_id = $1 AND id = $2`,
-			cid, id, destino, por); err != nil {
+			cid, id, destino, por, matchTipo); err != nil {
 			return err
 		}
 		// «¿Necesitas handler?» del alta: la solicitud de handling del atleta, en la misma transacción. Si ya la
