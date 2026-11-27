@@ -28,6 +28,7 @@ API_T=$(other "$API_LIVE")
 log "rollback: web $WEB_LIVE → $WEB_T · api $API_LIVE → $API_T"
 
 TOUCHED_API=$API_T
+pg_headroom_or_die
 cgrun -m 12G -n "bg-rollback-api-$API_T" -- "$BG_DIR/bg-compose.sh" app "$API_T" up -d --no-build \
   || die "no arranca grcup-$API_T (¿hay imágenes de su último despliegue?)"
 gate_api "$API_T" || die "el gateway $API_T no pasa los gates"

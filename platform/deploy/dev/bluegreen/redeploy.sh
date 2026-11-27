@@ -62,6 +62,7 @@ if [ "$SCOPE" = all ] || [ "$SCOPE" = api ]; then
   API_NEW=$API_IDLE
   TOUCHED_API=$API_IDLE
   log "API: compose up del color inactivo $API_IDLE (build de las imágenes)"
+  pg_headroom_or_die
   cgrun -m 12G -n "bg-api-$API_IDLE" -- "$BG_DIR/bg-compose.sh" app "$API_IDLE" up -d --build \
     || die "compose up grcup-$API_IDLE"
   gate_api "$API_IDLE" || die "el gateway $API_IDLE no pasa los gates"

@@ -83,14 +83,33 @@ wait_until() { # <segundos> <descripción> <comando...>
 
 ok_gateway() { [ "$(http_code "http://127.0.0.1:${PORT_GW[$1]}/healthz")" = 204 ]; }
 ok_api() { [ "$(http_code "http://127.0.0.1:${PORT_GW[$1]}/api/competiciones/grcup")" = 200 ]; }
+# Rutas que el SSR pide en su primera pantalla (cms, entradas, juegos, horarios, atletas, seo): todas deben estar
+# calientes (pools, caché de competición) antes de que el color reciba tráfico.
+WARM_PATHS=(/api/competiciones/grcup/web /api/competiciones/grcup/entradas /api/competiciones/grcup/juegos/fantasy/resumen /api/competiciones/grcup/horarios /api/competiciones/grcup/atletas /api/competiciones/grcup/seo)
+ok_warm() {
+  local p
+  for p in "${WARM_PATHS[@]}"; do
+    [ "$(http_code "http://127.0.0.1:${PORT_GW[$1]}$p")" = 200 ] || return 1
+  done
+}
 ok_ssr() { [ "$(http_code -H "Host: $PUBLIC_HOST" "http://127.0.0.1:${PORT_WEB[$1]}/")" = 200 ]; }
 ok_edge() {
   [ "$(http_code "https://$PUBLIC_HOST/")" = 200 ] && [ "$(http_code "https://$PUBLIC_HOST/api/competiciones/grcup")" = 200 ]
 }
 
-gate_api() { # gateway del color: /healthz 204 y una llamada real a la API 200
+gate_api() { # gateway del color: /healthz 204, la API principal 200 y las rutas de arranque del SSR 200
   wait_until 150 "gateway $1 /healthz" ok_gateway "$1" || return 1
   wait_until 60 "gateway $1 /api/competiciones/grcup" ok_api "$1" || return 1
+  wait_until 90 "gateway $1 rutas calientes (${#WARM_PATHS[@]})" ok_warm "$1" || return 1
+}
+
+# Un color más en el solape: las conexiones en uso (+80 de margen) tienen que caber en max_connections.
+pg_headroom_or_die() {
+  local used max
+  used=$(docker exec grcup-infra-postgres-1 psql -U postgres -tAc 'select count(*) from pg_stat_activity' 2>/dev/null || echo 999)
+  max=$(docker exec grcup-infra-postgres-1 psql -U postgres -tAc 'show max_connections' 2>/dev/null || echo 0)
+  [ $((used + 80)) -lt "$max" ] || die "postgres sin holgura: $used de $max conexiones en uso (hacen falta ~80 para un color nuevo)"
+  log "postgres: $used de $max conexiones en uso"
 }
 
 gate_web() { wait_until 90 "SSR $1 GET / (Host $PUBLIC_HOST)" ok_ssr "$1" || return 1; }
