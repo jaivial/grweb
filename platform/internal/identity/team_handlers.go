@@ -60,9 +60,9 @@ const selRol = `SELECT r.id, r.slug, r.nombre, r.sistema, r.bloqueado, r.permiso
 	(SELECT count(*) FROM membresias m WHERE m.rol_id = r.id AND m.estado = 'activo')::int AS miembros FROM roles r`
 
 type invitacion struct {
-	ID        uuid.UUID `db:"id" json:"id"`
-	Email     string    `db:"email" json:"email"`
-	RolSlug   string    `db:"rol_slug" json:"rolSlug"`
+	ID          uuid.UUID `db:"id" json:"id"`
+	Email       string    `db:"email" json:"email"`
+	RolSlug     string    `db:"rol_slug" json:"rolSlug"`
 	RolNombre   string    `db:"rol_nombre" json:"rolNombre"`
 	InvitadoPor string    `db:"invitado_por" json:"invitadoPor"`
 	ExpiresAt   time.Time `db:"expires_at" json:"expiresAt"`

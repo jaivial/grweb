@@ -1,37 +1,40 @@
 /**
  * porra/porra.ts — /porra (Figma 211:141707 «Hacer porra», 211:143732 estados y 211:163291 «En vivo»): dos pestañas
- * por query param (`?vista=en-vivo`). «Hacer porra»: jornada, buscador global y un acordeón por sexo + categoría de
- * peso con su buscador y sus atletas; al tocar uno, chips de monedas + stepper y «Confirmar porra · N». «En vivo»:
- * el ranking de atletas por monedas apostadas (sin agrupar por categoría), con refresco en vivo y reordenación FLIP.
+ * por query param (`?vista=en-vivo`). Sexo → mercado (ganador de categoría de peso, mejor IPF GL, sentadilla, banca,
+ * peso muerto) → nivel AEP-2 / AEP-3 → categoría de peso, todo en la URL (`?sexo&grupo&prueba&peso`). «Hacer porra»:
+ * los atletas del mercado con su cuota en vivo (gr-digit-roll), perfil rápido y, al elegir uno, importe con estimación
+ * de retorno y «Confirmar porra». «En vivo»: los tres más apostados de cada mercado, con «Ver más».
  */
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, effect, inject, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { GrAlert, GrIcon, GrSkeleton } from '@grcup/ui';
+import { GrAlert, GrDigitRoll, GrIcon, GrSkeleton } from '@grcup/ui';
 import { map } from 'rxjs';
 import { Cms } from '../../core/cms';
 import { FanSession, codigoError } from '../../core/fan';
-import { Juegos, JuegosEnVivo, JuegosEstado, PorraStore, type Jornada, type Mercado, type Sexo, mensajeError, nombreJornadaLoc, seguirMercadosEnVivo } from '../../core/juegos';
 import { I18n, LocPipe } from '../../core/i18n';
+import { Juegos, JuegosEnVivo, JuegosEstado, PorraStore, cuota, mensajeError, nombreJornadaLoc, seguirMercadosEnVivo, type Jornada, type Mercado, type OpcionMercado, type Sexo } from '../../core/juegos';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
-import { CoinBalance } from './componentes';
+import { CoinBalance, OddsRow } from './componentes';
+import { ComoFunciona } from './como-funciona';
 import { monedas, norm } from './formato';
-import { RankingPorra, kg, mercadosCategoria, misPorras, rankingAtletas, sexoTxt } from './ranking';
+import { GRUPOS, PRUEBA_TXT, PorraNavegacion, mercadosDe, type Grupo, type Prueba } from './navegacion';
+import { PerfilAtleta } from './perfil-atleta';
+import { kg, misPorras, sexoTxt } from './ranking';
 
 type Vista = 'hacer' | 'en-vivo';
-/** El peso de la categoría como número para ordenar («-63» → 63, «84+» → 84.5). */
-const peso = (c: string | undefined): number => (c ? parseFloat(c.replace('-', '')) + (c.endsWith('+') ? 0.5 : 0) : 999);
+/** Atletas por mercado que se ven en «En vivo» antes de «Ver más». */
+const TOP_VIVO = 3;
+
 /** «Sáb 19» a partir de la fecha ISO del día. */
 export function diaCorto(dia: string, locale = 'es-ES'): string {
   if (!dia) return '';
   const d = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(new Date(dia + 'T12:00:00Z')).replace('.', '');
   return d.charAt(0).toUpperCase() + d.slice(1) + ' ' + Number(dia.slice(8, 10));
 }
-
-const TOP = 10;
 
 const T = {
   es: {
@@ -41,19 +44,14 @@ const T = {
     juegos: 'Juegos',
     enVivo: 'En vivo',
     hacer: 'Hacer porra',
-    masculino: 'Masculino',
-    femenino: 'Femenino',
+    hola: (n: string) => `Hola, ${n}`,
     errorCarga: 'No hemos podido cargar la porra',
     jornada: 'Jornada',
     busca: 'Busca un atleta por nombre',
-    categorias: 'Categorías',
-    nCategorias: (n: number) => `${n} ${n === 1 ? 'categoría' : 'categorías'}`,
     nAtletas: (n: number) => `${n} atletas`,
     resuelta: 'resuelta',
-    cerrada: 'cerrada',
     bote: 'bote',
-    catCerrada: 'Categoría cerrada: ya no se puede hacer porra',
-    buscarEn: 'Buscar en',
+    catCerrada: 'Mercado cerrado: ya no se puede hacer porra',
     cambiar: 'Cambiar',
     cuantas: '¿Cuántas monedas?',
     importe: 'Importe',
@@ -61,26 +59,28 @@ const T = {
     mas: 'Más monedas',
     monedas: ' monedas',
     sinSaldo: (n: string) => `No tienes monedas suficientes: tu saldo es ${n}. Gana más escribiendo en el chat del directo.`,
-    saldoTras: (n: string) => `Saldo tras la porra: ${n} monedas · puedes sumar más mientras la categoría siga abierta.`,
+    saldoTras: (n: string) => `Saldo tras la porra: ${n} monedas · puedes sumar más mientras el mercado siga abierto.`,
+    recibiras: (a: string, b: string) => `Apuestas ${a} monedas, recibirías ${b} monedas`,
+    estimacion: 'estimación: la cuota cambia hasta el cierre',
     enviando: 'Enviando…',
     confirmar: (n: string) => 'Confirmar porra · ' + n,
     tuPorra: 'Tu porra',
     elegir: 'Elegir',
+    verPerfil: (n: string) => 'Ver perfil de ' + n,
     ninguno: (q: string) => `Ningún atleta coincide con «${q}».`,
-    verLos: (n: number) => `Ver los ${n} atletas`,
+    sinAtletasMercado: 'Todavía no hay atletas en este mercado.',
+    sinMercado: (n: string) => `Esta jornada no tiene mercados de ${n} para este grupo.`,
+    verMas: (n: number) => `Ver más (${n})`,
+    verMenos: 'Ver menos',
     sinResultados: (q: string) => `Sin resultados para «${q}»`,
     revisa: 'Revisa el nombre o busca por apellido.',
     borrar: 'Borrar búsqueda',
-    pronto: 'Las categorías de esta jornada aparecerán aquí cuando se publiquen.',
-    sexo: 'Sexo',
-    masApostados: 'Más apostados · todas las categorías',
     porrasEnJuego: (p: string, b: string) => [p + ' porras · ', b + ' monedas en juego'] as const,
-    sinAtletas: (f: boolean) => `Todavía nadie ha apostado por ${f ? 'atletas femeninas' : 'atletas masculinos'} en esta jornada.`,
     aviso: 'Monedas de juego: nunca se compran con dinero ni se canjean por dinero.',
     todo: 'Todo',
     hecha: (n: string, a: string) => `Porra hecha: ${n} monedas a ${a}.`,
     seoTitulo: 'Porra · GRS Cup',
-    seoDesc: 'Haz tu porra con monedas de juego en la GRS Cup: elige atleta en cada categoría y sigue en vivo a los más apostados.',
+    seoDesc: 'Haz tu porra con monedas de juego en la GRS Cup: elige atleta en cada mercado y sigue en vivo a los más apostados.',
   },
   en: {
     porra: 'Pool',
@@ -89,19 +89,14 @@ const T = {
     juegos: 'Games',
     enVivo: 'Live',
     hacer: 'Make a pick',
-    masculino: 'Men',
-    femenino: 'Women',
+    hola: (n: string) => `Hi, ${n}`,
     errorCarga: "We couldn't load the betting pool",
     jornada: 'Day',
     busca: 'Search for an athlete by name',
-    categorias: 'Categories',
-    nCategorias: (n: number) => `${n} ${n === 1 ? 'category' : 'categories'}`,
     nAtletas: (n: number) => `${n} athletes`,
     resuelta: 'settled',
-    cerrada: 'closed',
     bote: 'pot',
-    catCerrada: 'Category closed: picks can no longer be made',
-    buscarEn: 'Search in',
+    catCerrada: 'Market closed: picks can no longer be made',
     cambiar: 'Change',
     cuantas: 'How many coins?',
     importe: 'Amount',
@@ -109,37 +104,39 @@ const T = {
     mas: 'More coins',
     monedas: ' coins',
     sinSaldo: (n: string) => `You don't have enough coins: your balance is ${n}. Earn more by writing in the live stream chat.`,
-    saldoTras: (n: string) => `Balance after your pick: ${n} coins · you can add more while the category stays open.`,
+    saldoTras: (n: string) => `Balance after your pick: ${n} coins · you can add more while the market stays open.`,
+    recibiras: (a: string, b: string) => `You bet ${a} coins, you would get ${b} coins`,
+    estimacion: 'estimate: the odds change until closing',
     enviando: 'Sending…',
     confirmar: (n: string) => 'Confirm pick · ' + n,
     tuPorra: 'Your pick',
     elegir: 'Choose',
+    verPerfil: (n: string) => 'See the profile of ' + n,
     ninguno: (q: string) => `No athlete matches “${q}”.`,
-    verLos: (n: number) => `See all ${n} athletes`,
+    sinAtletasMercado: 'There are no athletes in this market yet.',
+    sinMercado: (n: string) => `This day has no ${n} markets for this group.`,
+    verMas: (n: number) => `See more (${n})`,
+    verMenos: 'See less',
     sinResultados: (q: string) => `No results for “${q}”`,
     revisa: 'Check the name or search by surname.',
     borrar: 'Clear search',
-    pronto: "This day's categories will appear here once they are published.",
-    sexo: 'Sex',
-    masApostados: 'Most backed · all categories',
     porrasEnJuego: (p: string, b: string) => [p + ' picks · ', b + ' coins at stake'] as const,
-    sinAtletas: (f: boolean) => `Nobody has backed any ${f ? 'women' : 'men'} athletes on this day yet.`,
     aviso: 'Game coins: they are never bought with money or exchanged for money.',
     todo: 'All',
     hecha: (n: string, a: string) => `Pick made: ${n} coins on ${a}.`,
     seoTitulo: 'Betting pool · GRS Cup',
-    seoDesc: 'Make your pick with game coins at the GRS Cup: choose an athlete in each category and follow the most backed ones live.',
+    seoDesc: 'Make your pick with game coins at the GRS Cup: choose an athlete in each market and follow the most backed ones live.',
   },
 };
 
 @Component({
   selector: 'gr-porra-page',
-  imports: [LocPipe, Page, GrAlert, GrIcon, GrSkeleton, CoinBalance, RankingPorra],
+  imports: [LocPipe, Page, GrAlert, GrIcon, GrSkeleton, GrDigitRoll, CoinBalance, OddsRow, ComoFunciona, PorraNavegacion, PerfilAtleta],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page [title]="t().porra" [juego]="true">
       <div class="mx-auto flex w-full max-w-[640px] flex-col gap-5">
-        <!-- cabecera: migas, título y saldo -->
+        <!-- cabecera: migas, título, saldo, saludo y cómo funciona -->
         <div class="flex flex-col gap-2">
           <nav class="text-body-xs text-text-tertiary" [attr.aria-label]="t().migas">
             <a [href]="'/' | loc" class="hover:text-text-primary">{{ t().inicio }}</a> · {{ t().juegos }} · {{ t().porra }}@if (vista() === 'en-vivo') { · {{ t().enVivo }} }
@@ -147,6 +144,14 @@ const T = {
           <div class="flex items-center justify-between gap-3">
             <h1 class="bg-[linear-gradient(180deg,#ff5a6e,#c8102e)] bg-clip-text pr-1.5 font-display text-[2rem] leading-none text-transparent uppercase italic">{{ t().porra }}</h1>
             <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" [etiquetaMovil]="false" />
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            @if (fan.cargada() && fan.yo(); as yo) {
+              <p class="text-body-s text-text-secondary">{{ t().hola(yo.alias) }}</p>
+            } @else {
+              <span></span>
+            }
+            <gr-como-funciona />
           </div>
         </div>
 
@@ -181,7 +186,7 @@ const T = {
             </div>
           }
 
-          <!-- buscador global -->
+          <!-- buscador: filtra los atletas del mercado elegido -->
           <label class="relative block">
             <span class="sr-only">{{ t().busca }}</span>
             <gr-icon name="search" [size]="18" class="pointer-events-none absolute top-3.5 left-3.5 text-text-tertiary" />
@@ -189,120 +194,116 @@ const T = {
               [placeholder]="t().busca" autocomplete="off" [value]="q()" (input)="q.set($any($event.target).value)" />
           </label>
 
-          <div class="flex flex-col">
-            <p class="flex items-center justify-between gap-2 pb-2 font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">
-              <span>{{ t().categorias }}@if (jornadaActiva(); as j) { · {{ diaCorto(j.dia, i18n.locale()) }} }</span><span>{{ t().nCategorias(categorias().length) }}</span>
-            </p>
-            @for (m of categoriasVisibles(); track m.id) {
-              @let cerrada = cerradaM(m);
-              @let abierta = !cerrada && (abiertas().has(m.id) || !!q());
-              <section class="border-b border-line-subtle">
-                <button type="button" class="flex min-h-16 w-full items-center gap-3 py-3 text-left" [attr.aria-expanded]="cerrada ? null : abierta" [attr.aria-disabled]="cerrada || null"
-                  [attr.aria-controls]="'cat-' + m.id" (click)="alternar(m)">
-                  <span class="min-w-0 flex-1">
-                    <span class="block text-label-m" [class]="cerrada ? 'text-text-tertiary' : 'text-text-primary'">{{ etiqueta(m) }}</span>
-                    <span class="block text-body-xs text-text-tertiary">{{ t().nAtletas(m.opciones.length) }} · {{ cerrada ? (m.estado === 'liquidado' ? t().resuelta : t().cerrada) : t().bote + ' ' + monedas(m.bote) }}</span>
-                  </span>
-                  @if (miImporteMercado(m.id); as t) { <span class="inline-flex shrink-0 items-center gap-1 font-mono text-[12px] text-warning"><span class="size-2 rounded-full bg-warning" aria-hidden="true"></span>{{ monedas(t) }}</span> }
-                  @if (cerrada) { <gr-icon name="lock" [size]="16" class="shrink-0 text-text-tertiary" /><span class="sr-only">{{ t().catCerrada }}</span> }
-                  @else { <gr-icon name="chevron-down" [size]="18" class="shrink-0 text-text-secondary transition-transform duration-[240ms] motion-reduce:transition-none" [class.rotate-180]="abierta" /> }
-                </button>
-                @if (abierta) {
-                  <div [id]="'cat-' + m.id" class="flex flex-col gap-1 pb-4 motion-safe:animate-[gr-desplegar_240ms_ease-out]">
-                    @if (!q()) {
-                      <label class="relative mb-1 block">
-                        <span class="sr-only">{{ t().buscarEn }} {{ etiqueta(m) }}</span>
-                        <gr-icon name="search" [size]="16" class="pointer-events-none absolute top-3 left-3 text-text-tertiary" />
-                        <input type="search" class="h-10 w-full rounded-md border border-line-subtle bg-bg-field pr-3 pl-9 text-body-s text-text-primary outline-none placeholder:text-text-muted focus-visible:border-accent-text"
-                          [placeholder]="t().buscarEn + ' ' + kg(m.categoria)" autocomplete="off" [value]="qCat()[m.id] ?? ''" (input)="buscarEn(m.id, $any($event.target).value)" />
-                      </label>
-                    }
-                    @let lista = atletas(m);
-                    @for (o of lista; track o.atletaId) {
-                      @if (sel()?.mercadoId === m.id && sel()?.atletaId === o.atletaId) {
-                        <div class="my-1 flex flex-col gap-3 rounded-md border border-line-strong bg-bg-raised p-3.5 motion-safe:animate-[gr-desplegar_200ms_ease-out]">
-                          <p class="flex items-center gap-2.5">
-                            <gr-icon name="circle-check" [size]="18" class="shrink-0 text-accent-text" />
-                            <span class="min-w-0 flex-1 truncate text-label-m text-text-primary">{{ o.nombre }}</span>
-                            <button type="button" class="-my-2 min-h-11 px-1 text-label-s text-text-secondary hover:text-text-primary" (click)="sel.set(null)">{{ t().cambiar }}</button>
-                          </p>
-                          @if (exito(); as ok) {
-                            <p class="flex items-center gap-2 rounded-sm bg-success/10 px-3 py-2.5 text-body-s text-success" role="status"><gr-icon name="circle-check" [size]="16" class="shrink-0" />{{ ok }}</p>
-                          } @else {
-                            <p class="font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">{{ t().cuantas }}</p>
-                            <div class="grid grid-cols-5 gap-1.5" role="group" [attr.aria-label]="t().importe">
-                              @for (c of chips(); track c.l) {
-                                <button type="button" class="h-11 rounded-pill border font-mono text-[12px] transition-colors"
-                                  [class]="importe() === c.v ? 'border-accent bg-accent text-white' : 'border-line-subtle bg-bg-field text-text-secondary hover:text-text-primary'"
-                                  [attr.aria-pressed]="importe() === c.v" (click)="importe.set(c.v)">{{ c.l }}</button>
-                              }
-                            </div>
-                            <div class="flex items-center justify-between gap-3">
-                              <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong text-text-primary disabled:opacity-40" [attr.aria-label]="t().menos" [disabled]="importe() <= minimo()" (click)="paso(-1)"><gr-icon name="minus" [size]="18" /></button>
-                              <p class="flex items-center gap-2 font-display text-[1.75rem] leading-none text-text-primary tabular-nums italic" aria-live="polite"><span class="size-4 rounded-full bg-warning" aria-hidden="true"></span>{{ monedas(importe()) }}<span class="sr-only">{{ t().monedas }}</span></p>
-                              <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong text-text-primary disabled:opacity-40" [attr.aria-label]="t().mas" [disabled]="importe() >= maximo()" (click)="paso(1)"><gr-icon name="plus" [size]="18" /></button>
-                            </div>
-                            @if (sinSaldo()) {
-                              <p class="text-body-xs text-accent-text" role="alert">{{ t().sinSaldo(monedas(saldo())) }}</p>
-                            } @else {
-                              <p class="text-body-xs text-text-tertiary">{{ t().saldoTras(monedas(saldo() - importe())) }}</p>
-                            }
-                            @if (errorPorra(); as e) { <p class="text-body-xs text-accent-text" role="alert">{{ e }}</p> }
-                            <button type="button" class="flex h-12 items-center justify-center rounded-md bg-accent-grain text-label-m text-white shadow-glow-deep transition-opacity disabled:bg-bg-field disabled:text-text-muted disabled:shadow-none"
-                              [disabled]="sinSaldo() || enviando() || importe() < minimo()" (click)="confirmar(m, o.atletaId, o.nombre)">{{ enviando() ? t().enviando : t().confirmar(monedas(importe())) }}</button>
-                          }
-                        </div>
+          <gr-porra-navegacion [mercados]="store.mercados()" [sexo]="sexo()" [grupo]="grupo()" [prueba]="prueba()" [peso]="pesoActivo()" [conPesos]="true" />
+
+          @if (mercadoActivo(); as m) {
+            <section class="flex flex-col" [attr.aria-label]="etiquetaMercado(m)">
+              <p class="flex items-center justify-between gap-2 pb-2 font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">
+                <span>{{ etiquetaMercado(m) }}@if (jornadaActiva(); as j) { · {{ diaCorto(j.dia, i18n.locale()) }} }</span>
+                <span>{{ t().nAtletas(m.opciones.length) }} · {{ t().bote }} {{ monedas(m.bote) }}</span>
+              </p>
+              @if (cerradaM(m)) {
+                <p class="pb-2 text-body-xs text-text-tertiary">{{ m.estado === 'liquidado' ? t().resuelta : t().catCerrada }}</p>
+              }
+              @for (o of atletas(); track o.atletaId) {
+                @if (sel()?.mercadoId === m.id && sel()?.atletaId === o.atletaId) {
+                  <div class="my-2 flex flex-col gap-3 rounded-md border border-line-strong bg-bg-raised p-3.5 motion-safe:animate-[gr-desplegar_200ms_ease-out]">
+                    <p class="flex items-center gap-2.5">
+                      <gr-icon name="circle-check" [size]="18" class="shrink-0 text-accent-text" />
+                      <span class="min-w-0 flex-1 truncate text-label-m text-text-primary">{{ o.nombre }}</span>
+                      <button type="button" class="-my-2 min-h-11 px-1 text-label-s text-text-secondary hover:text-text-primary" (click)="sel.set(null)">{{ t().cambiar }}</button>
+                    </p>
+                    @if (exito(); as ok) {
+                      <p class="flex items-center gap-2 rounded-sm bg-success/10 px-3 py-2.5 text-body-s text-success" role="status"><gr-icon name="circle-check" [size]="16" class="shrink-0" />{{ ok }}</p>
+                    } @else {
+                      <p class="font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">{{ t().cuantas }}</p>
+                      <div class="grid grid-cols-5 gap-1.5" role="group" [attr.aria-label]="t().importe">
+                        @for (c of chips(); track c.l) {
+                          <button type="button" class="h-11 rounded-pill border font-mono text-[12px] transition-colors"
+                            [class]="importe() === c.v ? 'border-accent bg-accent text-white' : 'border-line-subtle bg-bg-field text-text-secondary hover:text-text-primary'"
+                            [attr.aria-pressed]="importe() === c.v" (click)="fijarImporte(c.v)">{{ c.l }}</button>
+                        }
+                      </div>
+                      <div class="flex items-center justify-between gap-3">
+                        <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong text-text-primary disabled:opacity-40" [attr.aria-label]="t().menos" [disabled]="importe() <= minimo()" (click)="paso(-1)"><gr-icon name="minus" [size]="18" /></button>
+                        <label class="flex items-center gap-2">
+                          <span class="sr-only">{{ t().importe }}</span>
+                          <span class="size-4 rounded-full bg-warning" aria-hidden="true"></span>
+                          <input id="importe-porra" type="text" inputmode="numeric" autocomplete="off" class="w-28 bg-transparent text-center font-display text-[1.75rem] leading-none text-text-primary tabular-nums italic outline-none focus-visible:border-accent-text"
+                            [value]="importeTxt()" (input)="escribir($event)" />
+                          <span class="sr-only">{{ t().monedas }}</span>
+                        </label>
+                        <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong text-text-primary disabled:opacity-40" [attr.aria-label]="t().mas" [disabled]="importe() >= maximo()" (click)="paso(1)"><gr-icon name="plus" [size]="18" /></button>
+                      </div>
+                      <p class="text-body-s text-text-primary" aria-live="polite">{{ t().recibiras(monedas(importe()), monedas(retorno())) }}</p>
+                      <p class="text-body-xs text-text-tertiary">{{ t().estimacion }}</p>
+                      @if (sinSaldo()) {
+                        <p class="text-body-xs text-accent-text" role="alert">{{ t().sinSaldo(monedas(saldo())) }}</p>
                       } @else {
-                        <button type="button" class="flex min-h-12 items-center gap-3 rounded-sm bg-[#89797914] px-2 py-1.5 text-left pointer-fine:hover:bg-[#8979793d]" (click)="elegir(m, o.atletaId)">
-                          <span class="min-w-0 flex-1">
-                            <span class="block truncate text-label-s text-text-primary">{{ o.nombre }}</span>
-                            @if (q()) { <span class="block text-[11px] leading-[1.3] text-text-tertiary">{{ etiqueta(m) }}</span> }
-                          </span>
-                          @if (mias().get(m.id + ':' + o.atletaId); as mio) { <span class="shrink-0 rounded-pill border border-warning/50 px-2 py-0.5 text-[11px] leading-none text-warning">{{ t().tuPorra }} {{ monedas(mio) }}</span> }
-                          <span class="inline-flex shrink-0 items-center gap-0.5 text-label-s text-accent-text">{{ t().elegir }} <gr-icon name="chevron-right" [size]="16" /></span>
-                        </button>
+                        <p class="text-body-xs text-text-tertiary">{{ t().saldoTras(monedas(saldo() - importe())) }}</p>
                       }
-                    } @empty {
-                      <p class="py-3 text-body-s text-text-tertiary">{{ t().ninguno(qCat()[m.id] ?? '') }}</p>
+                      @if (errorPorra(); as e) { <p class="text-body-xs text-accent-text" role="alert">{{ e }}</p> }
+                      <button type="button" class="flex h-12 items-center justify-center rounded-md bg-accent-grain text-label-m text-white shadow-glow-deep transition-opacity disabled:bg-bg-field disabled:text-text-muted disabled:shadow-none"
+                        [disabled]="sinSaldo() || enviando() || importe() < minimo() || cerradaM(m)" (click)="confirmar(m, o.atletaId, o.nombre)">{{ enviando() ? t().enviando : t().confirmar(monedas(importe())) }}</button>
                     }
                   </div>
+                } @else {
+                  <div class="flex items-center gap-2 border-b border-line-subtle py-1">
+                    <button type="button" class="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-sm px-2 py-1.5 text-left pointer-fine:hover:bg-white/5 disabled:cursor-default"
+                      [disabled]="cerradaM(m)" (click)="elegir(m, o.atletaId)">
+                      <span class="min-w-0 flex-1">
+                        <span class="block truncate text-label-s text-text-primary">{{ o.nombre }}</span>
+                        @if (mias().get(m.id + ':' + o.atletaId); as mio) { <span class="mt-0.5 inline-block rounded-pill border border-warning/50 px-2 py-0.5 text-[11px] leading-none text-warning">{{ t().tuPorra }} {{ monedas(mio) }}</span> }
+                      </span>
+                      @if (!cerradaM(m)) { <span class="inline-flex shrink-0 items-center gap-0.5 text-label-s text-accent-text">{{ t().elegir }} <gr-icon name="chevron-right" [size]="16" /></span> }
+                    </button>
+                    <button type="button" class="flex size-11 shrink-0 items-center justify-center rounded-full text-text-tertiary hover:text-text-primary" [attr.aria-label]="t().verPerfil(o.nombre)" (click)="perfil.set(o)"><gr-icon name="info" [size]="18" /></button>
+                    <span class="flex w-[4.75rem] shrink-0 justify-end font-mono text-[1rem] font-bold text-text-primary">
+                      <gr-digit-roll [texto]="cuotaTxt(m, o)" [valor]="cuotaNum(m, o)" />
+                    </span>
+                  </div>
+                }
+              } @empty {
+                @if (q()) {
+                  <p class="py-3 text-body-s text-text-tertiary">{{ t().ninguno(q()) }}</p>
+                } @else {
+                  <p class="py-3 text-body-s text-text-tertiary">{{ t().sinAtletasMercado }}</p>
+                }
+              }
+            </section>
+          } @else {
+            <p class="py-10 text-center text-body-s text-text-tertiary" role="status">{{ t().sinMercado(nivelTxt()) }}</p>
+          }
+          <gr-perfil-atleta [opcion]="perfil()" [jornada]="jornadaActiva()?.id ?? ''" (cerrar)="perfil.set(null)" />
+        } @else {
+          <!-- En vivo: sexo → mercado → nivel, con los tres más apostados de cada mercado -->
+          <gr-porra-navegacion [mercados]="store.mercados()" [sexo]="sexo()" [grupo]="grupo()" [prueba]="prueba()" [peso]="pesoActivo()" />
+
+          @if (enVivo().length) {
+            <p class="flex items-center gap-1.5 font-mono text-[12px] text-text-secondary">@let pj = t().porrasEnJuego(monedas(resumen().porras), monedas(resumen().bote));{{ pj[0] }}<span class="size-2.5 rounded-full bg-warning" aria-hidden="true"></span>{{ pj[1] }}</p>
+            @for (b of enVivo(); track b.m.id) {
+              <section class="flex flex-col gap-1 border-b border-line-subtle pb-4" [attr.aria-labelledby]="'vivo-' + b.m.id">
+                <h2 [id]="'vivo-' + b.m.id" class="flex items-center justify-between gap-3 text-label-m text-text-primary">
+                  <span>{{ etiquetaMercado(b.m) }}</span>
+                  <span class="font-mono text-[12px] font-normal text-text-secondary">{{ t().bote }} {{ monedas(b.m.bote) }}</span>
+                </h2>
+                @if (b.filas.length) {
+                  <ul class="flex flex-col" [attr.id]="'vivo-lista-' + b.m.id">
+                    @for (f of (expandidos().has(b.m.id) ? b.filas : b.top); track f.opcion.atletaId) {
+                      <li><gr-odds-row [opcion]="f.opcion" [bote]="b.m.bote" [total]="b.m.bote" [lider]="f.pos === 0 && f.opcion.apostado > 0" [activo]="false" /></li>
+                    }
+                  </ul>
+                  @if (b.filas.length > top) {
+                    <button type="button" class="mt-1 min-h-11 self-start px-1 text-label-s text-accent-text" [attr.aria-expanded]="expandidos().has(b.m.id)" [attr.aria-controls]="'vivo-lista-' + b.m.id"
+                      (click)="alternarVer(b.m.id)">{{ expandidos().has(b.m.id) ? t().verMenos : t().verMas(b.filas.length - top) }}</button>
+                  }
+                } @else {
+                  <p class="py-3 text-body-s text-text-tertiary">{{ t().sinAtletasMercado }}</p>
                 }
               </section>
-            } @empty {
-              @if (q()) {
-                <div class="flex flex-col items-center gap-2 py-10 text-center">
-                  <gr-icon name="search" [size]="24" class="text-text-tertiary" />
-                  <p class="text-label-m text-text-primary">{{ t().sinResultados(q()) }}</p>
-                  <p class="text-body-xs text-text-tertiary">{{ t().revisa }}</p>
-                  <button type="button" class="min-h-11 px-3 text-label-s text-accent-text" (click)="q.set('')">{{ t().borrar }}</button>
-                </div>
-              } @else {
-                <p class="py-10 text-center text-body-s text-text-tertiary">{{ t().pronto }}</p>
-              }
-            }
-          </div>
-        } @else {
-          <!-- En vivo -->
-          <div class="flex rounded-pill border border-line-subtle bg-bg-surface p-1" role="group" [attr.aria-label]="t().sexo">
-            @for (s of sexosVivo(); track s.v) {
-              <button type="button" class="h-10 flex-1 rounded-pill border text-label-s transition-colors"
-                [class]="sexo() === s.v ? 'border-line-strong bg-bg-raised text-text-primary' : 'border-transparent text-text-tertiary hover:text-text-primary'"
-                [attr.aria-pressed]="sexo() === s.v" (click)="sexo.set(s.v)">{{ s.l }}</button>
-            }
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <p class="flex items-center justify-between gap-2 font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">
-              <span>{{ t().masApostados }}</span>@if (jornadaActiva(); as j) { <span>{{ diaCorto(j.dia, i18n.locale()) }}</span> }
-            </p>
-            <p class="flex items-center gap-1.5 font-mono text-[12px] text-text-secondary">@let pj = t().porrasEnJuego(monedas(resumen().porras), monedas(resumen().bote));{{ pj[0] }}<span class="size-2.5 rounded-full bg-warning" aria-hidden="true"></span>{{ pj[1] }}</p>
-          </div>
-          @if (ranking().length) {
-            <gr-ranking-porra [filas]="verRanking() ? ranking() : ranking().slice(0, top)" aria-live="polite" />
-            @if (ranking().length > top && !verRanking()) {
-              <button type="button" class="mx-auto -mt-2 min-h-11 px-3 text-label-s text-accent-text" (click)="verRanking.set(true)">{{ t().verLos(ranking().length) }}</button>
             }
           } @else {
-            <p class="py-10 text-center text-body-s text-text-tertiary">{{ t().sinAtletas(sexo() === 'F') }}</p>
+            <p class="py-10 text-center text-body-s text-text-tertiary" role="status">{{ t().sinMercado(nivelTxt()) }}</p>
           }
         }
 
@@ -315,9 +316,8 @@ export class PorraPage {
   protected readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(T);
   protected readonly monedas = (v: number | null | undefined) => monedas(v, this.i18n.locale());
-  protected readonly kg = kg;
   protected readonly diaCorto = diaCorto;
-  protected readonly top = TOP;
+  protected readonly top = TOP_VIVO;
   protected readonly store = inject(PorraStore);
   protected readonly estado = inject(JuegosEstado);
   private readonly juegos = inject(Juegos);
@@ -330,22 +330,29 @@ export class PorraPage {
     { v: 'hacer', l: this.t().hacer },
     { v: 'en-vivo', l: this.t().enVivo },
   ]);
-  protected readonly sexosVivo = computed<{ v: Sexo; l: string }[]>(() => [
-    { v: 'M', l: this.t().masculino },
-    { v: 'F', l: this.t().femenino },
-  ]);
 
   protected readonly vista = toSignal(this.route.queryParamMap.pipe(map((p): Vista => (p.get('vista') === 'en-vivo' ? 'en-vivo' : 'hacer'))), { initialValue: 'hacer' as Vista });
+  /** El estado de la navegación vive en la URL: ?sexo, ?grupo, ?prueba y ?peso (categoría). */
+  private readonly qp = toSignal(this.route.queryParamMap, { initialValue: this.route.snapshot.queryParamMap });
+  protected readonly sexo = computed<Sexo>(() => (this.qp().get('sexo') === 'M' ? 'M' : 'F'));
+  protected readonly grupo = computed<Grupo>(() => {
+    const g = this.qp().get('grupo') ?? '';
+    return (GRUPOS as readonly string[]).includes(g) ? (g as Grupo) : 'categoria';
+  });
+  protected readonly prueba = computed<Prueba>(() => (this.qp().get('prueba') === 'aep3' ? 'aep3' : 'aep2'));
+  protected readonly nivelTxt = computed(() => PRUEBA_TXT[this.prueba()]);
+
   protected readonly q = signal(this.route.snapshot.queryParamMap.get('q') ?? '');
-  protected readonly qCat = signal<Record<string, string>>({});
-  protected readonly abiertas = signal<Set<string>>(new Set());
   protected readonly sel = signal<{ mercadoId: string; atletaId: string } | null>(null);
   protected readonly importe = signal(500);
+  protected readonly importeTxt = signal('500');
   protected readonly enviando = signal(false);
   protected readonly errorPorra = signal<string | null>(null);
   protected readonly exito = signal<string | null>(null);
-  protected readonly sexo = signal<Sexo>(this.route.snapshot.queryParamMap.get('sexo') === 'M' ? 'M' : 'F');
-  protected readonly verRanking = signal(false);
+  /** El atleta cuyo perfil rápido (gr-sheet) está abierto. */
+  protected readonly perfil = signal<OpcionMercado | null>(null);
+  /** Los mercados de «En vivo» con «Ver más» abierto. */
+  protected readonly expandidos = signal<Set<string>>(new Set());
 
   /** Chips de jornada en orden cronológico (Sáb 19 · Dom 20); el store las guarda de la más reciente a la más antigua. */
   protected readonly jornadas = computed(() => [...this.estado.jornadas()].sort((a, b) => a.dia.localeCompare(b.dia)));
@@ -367,20 +374,46 @@ export class PorraPage {
     return j?.estado === 'cerrada' || (!!j?.cierreAt && Date.parse(j.cierreAt) <= this.ahora());
   });
 
-  /** Los mercados por categoría, de femenino a masculino y de menos a más peso. */
-  protected readonly categorias = computed(() =>
-    mercadosCategoria(this.store.mercados()).sort((a, b) => (a.sexo === b.sexo ? peso(a.categoria) - peso(b.categoria) : a.sexo === 'F' ? -1 : 1)),
-  );
-  /** Con búsqueda global, solo las categorías con algún atleta que coincide. */
-  protected readonly categoriasVisibles = computed(() => {
+  /** Los mercados del sexo, nivel y grupo elegidos (categorías de menos a más peso). */
+  protected readonly mercadosNivel = computed(() => mercadosDe(this.store.mercados(), this.sexo(), this.grupo(), this.prueba()));
+  /** El mercado que se ve: la categoría de ?peso (o la primera) en el grupo de categorías; el único del grupo si no. */
+  protected readonly mercadoActivo = computed<Mercado | null>(() => {
+    const l = this.mercadosNivel();
+    if (this.grupo() !== 'categoria') return l[0] ?? null;
+    const peso = this.qp().get('peso');
+    return l.find((m) => m.categoria === peso) ?? l[0] ?? null;
+  });
+  protected readonly pesoActivo = computed(() => this.mercadoActivo()?.categoria ?? '');
+  /** Los atletas del mercado elegido, filtrados por el buscador y ordenados de la A a la Z. */
+  protected readonly atletas = computed(() => {
+    const m = this.mercadoActivo();
+    if (!m) return [];
     const q = norm(this.q());
-    return q ? this.categorias().filter((m) => m.opciones.some((o) => norm(o.nombre).includes(q))) : this.categorias();
+    return m.opciones.filter((o) => !q || norm(o.nombre).includes(q)).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
   });
   protected readonly mias = computed(() => misPorras(this.store.apuestas()));
-  protected readonly ranking = computed(() => rankingAtletas(this.store.mercados(), this.sexo(), this.mias()));
+  /** «En vivo»: por mercado, todos los atletas ordenados por lo apostado (los tres primeros se ven). */
+  protected readonly enVivo = computed(() =>
+    this.mercadosNivel().map((m) => {
+      const lang = this.i18n.lang();
+      const filas = [...m.opciones]
+        .sort((a, b) => b.apostado - a.apostado || a.nombre.localeCompare(b.nombre, 'es'))
+        .map((o, pos) => ({ pos, opcion: { ...o, sexoTxt: sexoTxt(m.sexo, lang), categoria: m.tipo === 'categoria' ? kg(m.categoria) : '' } }));
+      return { m, filas, top: filas.slice(0, TOP_VIVO) };
+    }),
+  );
   protected readonly resumen = computed(() => {
-    const ms = mercadosCategoria(this.store.mercados()).filter((m) => m.sexo === this.sexo());
+    const ms = this.mercadosNivel();
     return { porras: ms.reduce((s, m) => s + m.apuestas, 0), bote: ms.reduce((s, m) => s + m.bote, 0) };
+  });
+  /** Lo que se cobraría si acierta el atleta elegido con el importe del boleto (parimutuel, la apuesta propia entra en el bote). */
+  protected readonly retorno = computed(() => {
+    const s = this.sel();
+    const imp = this.importe();
+    const m = s ? this.store.mercados().find((x) => x.id === s.mercadoId) : undefined;
+    const o = m?.opciones.find((x) => x.atletaId === s?.atletaId);
+    if (!m || !o || imp <= 0) return 0;
+    return Math.floor((imp * (m.bote + imp)) / (o.apostado + imp));
   });
 
   constructor() {
@@ -432,37 +465,41 @@ export class PorraPage {
     return nombreJornadaLoc(j, this.i18n.locale());
   }
 
-  protected etiqueta(m: Mercado): string {
-    return sexoTxt(m.sexo, this.i18n.lang()) + ' · ' + kg(m.categoria);
+  /** «Masculino · −83 kg» en las categorías de peso; el título del mercado en los demás. */
+  protected etiquetaMercado(m: Mercado): string {
+    return m.tipo === 'categoria' ? sexoTxt(m.sexo, this.i18n.lang()) + ' · ' + kg(m.categoria) : m.titulo;
   }
 
   protected cerradaM(m: Mercado): boolean {
     return m.estado !== 'abierto' || this.soloLectura();
   }
 
-  /** Lo que llevo apostado en un mercado (0 = nada). */
-  protected miImporteMercado(id: string): number {
-    let t = 0;
-    for (const [k, v] of this.mias()) if (k.startsWith(id + ':')) t += v;
-    return t;
+  protected cuotaNum(m: Mercado, o: OpcionMercado): number {
+    if (o.cuota && o.cuota > 0) return o.cuota;
+    return o.apostado > 0 ? m.bote / o.apostado : 0;
   }
 
-  /** Los atletas del acordeón filtrados por su buscador (o por el global), de la A a la Z. */
-  protected atletas(m: Mercado) {
-    const q = norm(this.q() || this.qCat()[m.id] || '');
-    return m.opciones.filter((o) => !q || norm(o.nombre).includes(q)).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  protected cuotaTxt(m: Mercado, o: OpcionMercado): string {
+    const v = this.cuotaNum(m, o);
+    return v > 0 ? cuota(v, this.i18n.lang()) : '—';
   }
 
-  protected alternar(m: Mercado): void {
-    if (this.cerradaM(m) || this.q()) return;
-    const s = new Set(this.abiertas());
-    if (s.has(m.id)) s.delete(m.id);
-    else s.add(m.id);
-    this.abiertas.set(s);
+  protected alternarVer(id: string): void {
+    const s = new Set(this.expandidos());
+    if (s.has(id)) s.delete(id);
+    else s.add(id);
+    this.expandidos.set(s);
   }
 
-  protected buscarEn(id: string, v: string): void {
-    this.qCat.set({ ...this.qCat(), [id]: v });
+  protected escribir(e: Event): void {
+    const v = (e.target as HTMLInputElement).value.replace(/\D/g, '');
+    this.importeTxt.set(v);
+    this.importe.set(v ? Number(v) : 0);
+  }
+
+  protected fijarImporte(v: number): void {
+    this.importe.set(v);
+    this.importeTxt.set(String(v));
   }
 
   protected elegir(m: Mercado, atletaId: string): void {
@@ -470,14 +507,13 @@ export class PorraPage {
       this.fan.abrirAcceso('porra');
       return;
     }
-    this.importe.set(Math.min(Math.max(this.minimo(), 500), this.maximo()));
+    this.fijarImporte(Math.min(Math.max(this.minimo(), 500), this.maximo()));
     this.sel.set({ mercadoId: m.id, atletaId });
     void this.estado.cargarCartera();
   }
 
   protected paso(dir: 1 | -1): void {
-    const v = this.importe() + dir * 100;
-    this.importe.set(Math.min(this.maximo(), Math.max(this.minimo(), v)));
+    this.fijarImporte(Math.min(this.maximo(), Math.max(this.minimo(), this.importe() + dir * 100)));
   }
 
   protected elegirJornada(id: string): void {

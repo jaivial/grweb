@@ -44,6 +44,31 @@ export interface Jornada {
 
 /** Una opción de mercado de porra: el atleta, lo apostado y su cuota orientativa en vivo. */
 /** The visible jornada name without «(…)»; automatic «Sábado 19» names are re-formatted in the locale from «dia». */
+/** Un intento de un atleta en directo (peso y veredicto). */
+export interface IntentoEnDirecto {
+  n: number;
+  peso: number;
+  resultado: 'valido' | 'nulo' | 'renuncia' | 'pendiente';
+}
+
+/** La ficha en directo de un atleta de la porra (GET porra/atletas/{atletaId}). */
+export interface AtletaEnDirecto {
+  atletaId: string;
+  nombre: string;
+  slug: string;
+  fotoUrl: string;
+  sexo: Sexo;
+  categoria: string;
+  prueba: 'aep2' | 'aep3' | '';
+  sesionEnCurso: boolean;
+  terminado: boolean;
+  intentos: Record<Mov, IntentoEnDirecto[]>;
+  mejor: Record<Mov, number | null>;
+  total: number | null;
+  gl: number | null;
+  horaInicio: string;
+}
+
 export function nombreJornadaLoc(j: Pick<Jornada, 'nombre' | 'dia'>, locale: string): string {
   const n = j.nombre.replace(/\s*\(.*\)$/, '');
   if (!j.dia || locale.startsWith('es') || !/^(Domingo|Lunes|Martes|Miércoles|Jueves|Viernes|Sábado) \d{1,2}$/.test(n)) return n;
@@ -56,6 +81,9 @@ export interface OpcionMercado {
   nombre: string;
   apostado: number;
   cuota?: number;
+  slug?: string;
+  fotoUrl?: string;
+  categoria?: string;
 }
 
 /** Cambio en vivo de un mercado (evento porra.mercado); seq ordena los cambios recibidos. */
@@ -74,6 +102,8 @@ export interface Mercado {
   sexo: Sexo;
   categoria?: string;
   movimiento?: Mov;
+  /** Nivel de la competición del mercado (AEP-2 / AEP-3). */
+  prueba?: 'aep2' | 'aep3' | '';
   titulo: string;
   estado: EstadoMercado;
   opciones: OpcionMercado[];
@@ -574,6 +604,11 @@ export class Juegos {
     return fresco ? firstValueFrom(this.http.get<{ jornada?: Jornada; top: FilaPorra[]; miPuesto: number; miSaldo: number }>(url, { transferCache: false })) : this.get(url);
   }
 
+  /** La ficha en vivo de un atleta de la porra: intentos, mejores marcas, total y GL (con sesión o sin ella). */
+  porraAtleta(atletaId: string, jornadaId?: string): Promise<AtletaEnDirecto> {
+    return this.get(`${this.base}/porra/atletas/${atletaId}${this.q(jornadaId)}`);
+  }
+
   // ---- fantasy (todo va por sala: sin `sala` es la mía del día) ----
   fantasyMercado(jornadaId?: string, sala?: string): Promise<{ jornada?: Jornada; sala?: SalaResumen; atletas: AtletaMercado[]; clausulazo?: Clausulazo }> {
     return this.getFresco(`${this.base}/fantasy/mercado${this.qs({ jornada: jornadaId, sala })}`);
@@ -1015,6 +1050,8 @@ export class JuegosEnVivo {
   readonly feed = signal<MovimientoFeed[]>([]);
   /** Último cambio en vivo de cada mercado de porra (estado y, con cada apuesta, bote y cuotas). */
   readonly mercados = signal<Map<string, CambioMercado>>(new Map());
+  /** Sube con cada intento o veredicto del directo: las fichas en vivo se vuelven a pedir. */
+  readonly versionDirecto = signal(0);
   private seqMercado = 0;
   /** Podios de la última clasificación emitida (alias). */
   readonly podios = signal<{ porra: string[]; fantasy: string[] } | null>(null);
@@ -1069,6 +1106,8 @@ export class JuegosEnVivo {
     es.addEventListener('fantasy.solicitud', (e) => this.eventoSolicitud(e));
     es.addEventListener('fantasy.nota', (e) => this.eventoNota(e));
     es.addEventListener('porra.mercado', (e) => this.mercado(e));
+    // intentos y veredictos del directo (sin id de atleta): las fichas en vivo abiertas se refrescan
+    for (const ev of ['directo.intento', 'directo.veredicto']) es.addEventListener(ev, () => this.versionDirecto.update((v) => v + 1));
     es.addEventListener('juegos.clasificacion', (e) => this.clasificacion(e));
     // «Activar juegos» del backoffice: las pantallas pasan al momento entre los juegos y el aviso de cerrados
     es.addEventListener('juegos.estado', (e) => {

@@ -21,3 +21,6 @@ export * from './lib/web';
 export * from './lib/cdn';
 export * from './lib/lang';
 export * from './lib/confetti';
+export * from './lib/digit-roll';
+export * from './lib/sheet';
+export * from './lib/ipf-gl';

@@ -30,8 +30,11 @@ type MarcadorAtleta struct {
 	FotoURL          string                       `json:"fotoUrl,omitempty" doc:"Foto pública: solo con perfil público e imagen consentida"`
 	Sexo             string                       `json:"sexo"`
 	Categoria        string                       `json:"categoria"`
+	Prueba           string                       `json:"prueba" doc:"Competición del atleta: aep2, aep3 o vacío"`
+	Slug             string                       `json:"slug,omitempty" doc:"Slug público de /atletas: solo con perfil público"`
 	SesionID         uuid.UUID                    `json:"sesionId"`
 	SesionEnCurso    bool                         `json:"sesionEnCurso"`
+	SesionInicio     *time.Time                   `json:"sesionInicio,omitempty" doc:"Inicio de su sesión publicada"`
 	Intentos         map[string][]MarcadorIntento `json:"intentos"`
 	Mejor            map[string]*float64          `json:"mejor"`
 	Total            *float64                     `json:"total"`
@@ -67,6 +70,14 @@ func nombrePublico(a *atleta) string {
 		return a.Nombre
 	}
 	return "Atleta"
+}
+
+// slugPublico is the profile slug only for a public profile (the link to the athlete's page is public).
+func slugPublico(a *atleta) string {
+	if !a.Publico {
+		return ""
+	}
+	return a.Slug
 }
 
 // marcadorDelDia builds the scoreboard of one day. It computes the places on a sub-plan with only that day's
@@ -196,10 +207,11 @@ func (s *Svc) marcadorDelDia(ctx context.Context, cid uuid.UUID, dia, prueba str
 		return pesoCat(a[1:]) < pesoCat(b[1:])
 	})
 
-	anadir := func(a *atleta, sesionID uuid.UUID) {
+	anadir := func(a *atleta, sesionID uuid.UUID, inicio *time.Time) {
 		k := clave(a.Sexo, a.Categoria)
 		ma := MarcadorAtleta{
 			AtletaID: a.ID, NombrePublico: nombrePublico(a), FotoURL: fotoPublica(a), Sexo: a.Sexo, Categoria: a.Categoria,
+			Prueba: a.Prueba, Slug: slugPublico(a), SesionInicio: inicio,
 			SesionID: sesionID, SesionEnCurso: sesionID != uuid.Nil && e.SesionID != nil && *e.SesionID == sesionID,
 			Intentos: map[string][]MarcadorIntento{}, Mejor: map[string]*float64{},
 			PuestoMovimiento: map[string]int{}, Blanqueo: map[string]bool{},
@@ -238,7 +250,7 @@ func (s *Svc) marcadorDelDia(ctx context.Context, cid uuid.UUID, dia, prueba str
 		f := &sub.Sesiones[i]
 		for _, x := range f.Atletas {
 			if a := sub.Atletas[x.ID]; a != nil {
-				anadir(a, f.ID)
+				anadir(a, f.ID, &f.Inicio)
 			}
 		}
 	}
@@ -253,7 +265,7 @@ func (s *Svc) marcadorDelDia(ctx context.Context, cid uuid.UUID, dia, prueba str
 			return sin[i].Nombre < sin[j].Nombre || (sin[i].Nombre == sin[j].Nombre && sin[i].ID.String() < sin[j].ID.String())
 		})
 		for _, a := range sin {
-			anadir(a, uuid.Nil)
+			anadir(a, uuid.Nil, nil)
 		}
 	}
 	return m, nil
