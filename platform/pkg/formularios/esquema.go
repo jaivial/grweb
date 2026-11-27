@@ -157,6 +157,16 @@ const (
 // DefaultArchivoTipos son los tipos de archivo admitidos si el campo no indica otros.
 var DefaultArchivoTipos = []string{"image/*", "application/pdf"}
 
+// Límites de los textos del formulario, en caracteres. Los comprueban athletes (al guardar y al previsualizar) y el
+// asistente de IA (al editar), así que son la única fuente.
+const (
+	MaxNombre         = 160
+	MaxAsuntoEmail    = 160
+	MaxPreheaderEmail = 200
+	MaxIntroEmail     = 1000
+	MaxTextoWhatsapp  = 1000
+)
+
 // DefaultTema devuelve el tema por defecto.
 func DefaultTema() Tema {
 	return Tema{Acento: DefaultAcento, Fondo: DefaultFondo, Superficie: DefaultSuperficie, Texto: DefaultTexto,

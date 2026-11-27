@@ -220,7 +220,7 @@ func (s *Svc) registerAdmin() {
 
 	type claveIn struct {
 		CID   uuid.UUID `path:"cid"`
-		Clave string    `path:"clave" pattern:"^[a-z0-9-]{3,40}$"`
+		Clave string    `path:"clave" pattern:"^[a-z0-9_-]{3,40}$"`
 	}
 	type detOut struct {
 		ETag string `header:"ETag"`
@@ -252,7 +252,7 @@ func (s *Svc) registerAdmin() {
 
 	type putIn struct {
 		CID     uuid.UUID `path:"cid"`
-		Clave   string    `path:"clave" pattern:"^[a-z0-9-]{3,40}$"`
+		Clave   string    `path:"clave" pattern:"^[a-z0-9_-]{3,40}$"`
 		IfMatch string    `header:"If-Match"`
 		Body    Contenido
 	}
@@ -316,7 +316,7 @@ func (s *Svc) registerAdmin() {
 
 	type estadoIn struct {
 		CID   uuid.UUID `path:"cid"`
-		Clave string    `path:"clave" pattern:"^[a-z0-9-]{3,40}$"`
+		Clave string    `path:"clave" pattern:"^[a-z0-9_-]{3,40}$"`
 		Body  struct {
 			Estado string `json:"estado" enum:"activa,pausada"`
 		}
@@ -347,7 +347,7 @@ func (s *Svc) registerAdmin() {
 
 	type prevIn struct {
 		CID   uuid.UUID `path:"cid"`
-		Clave string    `path:"clave" pattern:"^[a-z0-9-]{3,40}$"`
+		Clave string    `path:"clave" pattern:"^[a-z0-9_-]{3,40}$"`
 		Body  struct {
 			Contenido *Contenido        `json:"contenido,omitempty" doc:"Diseño sin guardar (si no, el guardado)"`
 			Datos     map[string]string `json:"datos,omitempty" doc:"Datos de prueba (si no, los de ejemplo)"`
@@ -379,7 +379,7 @@ func (s *Svc) registerAdmin() {
 
 	type pruebaIn struct {
 		CID   uuid.UUID `path:"cid"`
-		Clave string    `path:"clave" pattern:"^[a-z0-9-]{3,40}$"`
+		Clave string    `path:"clave" pattern:"^[a-z0-9_-]{3,40}$"`
 		Body  struct {
 			Destino string `json:"destino" format:"email" maxLength:"254"`
 		}

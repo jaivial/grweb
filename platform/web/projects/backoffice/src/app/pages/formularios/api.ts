@@ -256,4 +256,13 @@ export class FormulariosApi {
   ia(cid: string, b: EntradaIA): Promise<RespuestaIA> {
     return firstValueFrom(this.http.post<RespuestaIA>(`/api/admin/competiciones/${cid}/ia/formulario`, b, { context: sinTimeout() }));
   }
+  /** Authenticated CSV download (bearer token via the HTTP interceptor), saved as `formulario-<slug>.csv`. */
+  async descargarCsv(cid: string, id: string, nombre: string): Promise<void> {
+    const blob = await firstValueFrom(this.http.get(this.csvUrl(cid, id), { responseType: 'blob', context: sinTimeout() }));
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${nombre.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'formulario'}-respuestas.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
 }

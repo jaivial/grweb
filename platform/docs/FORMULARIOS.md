@@ -238,3 +238,31 @@ Decisiones donde el contrato dejaba hueco o no encajaba del todo (el contrato ma
 - **Límites por defecto** cuando el campo no fija `validacion.maxLargo`: texto_corto 200, texto_largo 5000, email 254, telefono 30, fecha 10 caracteres.
 - **`NuevoID(prefijo)`:** acepta «c» u «o» (añade el `_`); también acepta «c_» y «o_».
 - **`Porcentaje`:** vale 100 si el formulario no tiene campos que admitan respuesta.
+
+## Implementación (B2)
+
+Desviaciones y decisiones de la fase de envíos, estadísticas y previsualización:
+
+- **Clave de plantilla:** `formulario_invitacion` (con guion bajo, como pide §6). Las rutas admin de plantillas aceptan `_` en `{clave}` (`^[a-z0-9_-]{3,40}$`).
+- **Automatización `formularios`:** aviso no operativo (`esencial: false`): se pausa durante el evento como las campañas y se puede desactivar desde «Automatizaciones».
+- **`evento_id` del WhatsApp al atleta:** messaging guarda el id del evento (antes, uno derivado) como `mensajes.evento_id`, para que athletes siga cada entrega. Los mensajes a organizadores conservan el id derivado.
+- **`formulario_html`:** messaging lo descarta de todo evento que no sea `athletes.*` (en `handleEmail`). Solo la plantilla `formulario_invitacion` lo inserta, sin escapar, debajo del cuerpo.
+- **Estado de un evento que messaging no conoce:** cuenta como «en cola». Ocurre también si el WhatsApp al atleta está desactivado en «Avisos de solicitudes»: messaging no crea ese mensaje.
+- **Límites de un envío:** más de 5000 atletas → 422 `DEMASIADOS_DESTINATARIOS`; ningún atleta → 422 `SIN_DESTINATARIOS`. `soloSinResponder` deja fuera (motivo `ya_completo`) a quien tiene la respuesta completa, también en la audiencia.
+- **Totales:** en el envío, `total` son los atletas del filtro y `omitidos` los que no tienen ningún canal encolado. En `CanalEstado`, `total` son las entregas de ese canal (encoladas y omitidas).
+- **Consentimiento de WhatsApp:** `waAceptado` (la ficha, o la casilla del alta aprobada; «retirado» lo anula), como en el resto de athletes.
+- **Vista previa:** acepta además `whatsapp` (opcional) para mostrar el texto de WhatsApp del borrador.
+- **Auditoría:** `athletes.formulario_{creado,guardado,borrado,duplicado,estado,enviado}`, admin con permiso `atletas.editar` y sin datos personales. Resúmenes en `internal/audit/rules.go`.
+- **Coste:** `formulario_html` viaja en cada evento y en `mensajes.vars` (una copia por destinatario).
+- **Estadísticas:** el estado de las entregas viene de messaging; si messaging no responde, responden 503.
+
+
+## Implementación (B3 · asistente de formularios)
+
+- Código: `internal/ai/formulario.go` (endpoint, prompt, borrador) y `internal/ai/formulario_tools.go` (herramientas). Lo compartido con campañas vive en `internal/ai/herramientas.go` (definición de herramientas, bucle de MiniMax, `tool_chain` con `$ref`, cupo, contexto de la competición); el asistente de campañas usa ese código sin cambio de comportamiento.
+- Permiso: `GET .../ia/modelos` acepta `campanas.enviar` **o** `atletas.editar` (`requerirAlguno` en `ai.go`). `ia-campana` sigue con `campanas.enviar`.
+- Cupo: el asistente de formularios comparte el cupo de IA de la competición (30/h por usuario, 300/día por competición) con el de campañas.
+- Cada cambio se aplica a una copia del borrador y solo reemplaza al original si `formularios.Validar` pasa; un error se devuelve al modelo como resultado `is_error` y no se aplica.
+- Límites de email/WhatsApp que el contrato no fija y el asistente comprueba: asunto 160, preheader 200, introducción 1000, WhatsApp 1000 caracteres. Athletes debe aplicar los mismos (o más laxos) al guardar.
+- Sin evento `ia.diseno` para formularios (no está en el contrato).
+- Pendiente: `editar_opciones`/`editar_campo` aceptan `opciones` también en tipos sin opciones; `Validar` las ignora y quedan guardadas. Conviene que el editor no lo ofrezca o que athletes las descarte al guardar.

@@ -73,8 +73,8 @@ export const NAV: NavGroup[] = [
       { label: 'Sorteo', path: 'sorteo', icon: 'gift', perm: 'sorteo.gestionar' },
       { label: 'Contactos', path: 'contactos', icon: 'users', perm: 'contactos.ver', oculto: true }, // tab of Emails y avisos
       { label: 'Campañas', path: 'campanas', icon: 'send', perm: 'campanas.enviar', oculto: true }, // tab of Emails y avisos
-      // Figma F1: «Formularios» right after «Campañas» (icon clipboard-list is not in GR_ICONS yet: file-text meanwhile)
-      { label: 'Formularios', path: 'formularios', icon: 'file-text', perm: 'atletas.editar' },
+      // Figma F1: «Formularios» right after «Campañas»
+      { label: 'Formularios', path: 'formularios', icon: 'clipboard-list', perm: 'atletas.editar' },
       { label: 'Emails y avisos', path: 'emails', icon: 'mail', perm: 'campanas.enviar' },
       { label: 'Clubs', path: 'clubs', icon: 'building', perm: 'web.editar', contador: 'clubs', modulo: 'clubs' },
       { label: 'Voluntarios', path: 'voluntarios', icon: 'heart', perm: 'web.editar', contador: 'voluntarios' },

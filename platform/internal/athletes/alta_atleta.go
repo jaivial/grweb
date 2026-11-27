@@ -1819,7 +1819,7 @@ func normTel(t string) string {
 
 // whatsapp asks messaging to send a WhatsApp message (the athlete or the organisers).
 func whatsapp(ctx context.Context, tx pgx.Tx, cid uuid.UUID, para string, organizadores bool, plantilla string, vars map[string]string, imagenURL string) error {
-	return events.Enqueue(ctx, tx, events.New(ctx, "athletes.whatsapp_solicitado",
-		map[string]any{"para": para, "organizadores": organizadores, "plantilla": plantilla, "vars": vars, "imagen": imagenURL},
-		events.Competition(cid.String()), events.Audience(events.Internal)))
+	_, err := encolaMensaje(ctx, tx, cid, "athletes.whatsapp_solicitado",
+		map[string]any{"para": para, "organizadores": organizadores, "plantilla": plantilla, "vars": vars, "imagen": imagenURL})
+	return err
 }

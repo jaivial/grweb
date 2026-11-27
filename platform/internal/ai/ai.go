@@ -50,6 +50,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.http = &http.Client{Timeout: 90 * time.Second}
 	s.register()
 	s.registerCampana()
+	s.registerFormulario()
 	s.registerPadron()
 	return nil
 }
@@ -77,7 +78,7 @@ func (s *Svc) register() {
 	}
 	huma.Register(api, huma.Operation{OperationID: "ia-modelos", Method: http.MethodGet, Path: base + "/modelos", Summary: "Modelos disponibles", Tags: []string{"IA"}, Security: bearer},
 		func(ctx context.Context, in *cidIn) (*struct{ Body []Modelo }, error) {
-			if _, err := auth.Require(ctx, in.CID.String(), "campanas.enviar"); err != nil {
+			if err := requerirAlguno(ctx, in.CID.String(), "campanas.enviar", "atletas.editar"); err != nil {
 				return nil, err
 			}
 			out := []Modelo{}
@@ -87,4 +88,19 @@ func (s *Svc) register() {
 			return &struct{ Body []Modelo }{out}, nil
 		})
 
+}
+
+// requerirAlguno lets the caller in when they hold any of the permissions in the competition. An unauthenticated caller
+// gets the authentication error; otherwise the error is the one of the last permission asked.
+func requerirAlguno(ctx context.Context, cid string, permisos ...string) error {
+	if _, err := auth.User(ctx); err != nil {
+		return err
+	}
+	var err error
+	for _, perm := range permisos {
+		if _, err = auth.Require(ctx, cid, perm); err == nil {
+			return nil
+		}
+	}
+	return err
 }

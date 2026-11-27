@@ -62,6 +62,7 @@ func (s *Svc) handleWhatsapp(ctx context.Context, e events.Event) error {
 		}
 	}
 	vistos := map[string]bool{}
+	atleta := normTel(d.Para)
 	return s.tx(ctx, func(tx pgx.Tx) error {
 		for _, num := range destinos {
 			if vistos[num] {
@@ -77,9 +78,15 @@ func (s *Svc) handleWhatsapp(ctx context.Context, e events.Event) error {
 			}
 			// The id is derived from the event and the recipient: a redelivery does not duplicate the message.
 			id := uuid.NewSHA1(e.ID, []byte(num))
+			// The athlete's message keeps the event id as its evento_id (as the email does): the producer follows its
+			// delivery state with it (formularios, FORMULARIOS.md §4). The organisers' messages keep the derived id.
+			evID := id
+			if num == atleta {
+				evID = e.ID
+			}
 			tag, err := tx.Exec(ctx, `INSERT INTO mensajes (id, competition_id, evento_id, canal, plantilla, destino, vars, estado)
 				VALUES ($1,$2,$3,'whatsapp',$4,$5,$6,'en_cola') ON CONFLICT (evento_id) DO NOTHING`,
-				id, cid, id, d.Plantilla, num, vars)
+				id, cid, evID, d.Plantilla, num, vars)
 			if err != nil {
 				return err
 			}

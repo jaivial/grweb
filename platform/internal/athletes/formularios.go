@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/jaivial/grweb/platform/pkg/auth"
 	"github.com/jaivial/grweb/platform/pkg/db"
+	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/formularios"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
@@ -23,16 +25,16 @@ import (
 // guarda también la lectura compartida (leeFormulario / formularioDe) que usan las respuestas, los envíos (fase B2) y
 // la web pública: un solo sitio que lee y que escanea un formulario.
 
-// FormularioEmail son los textos del email de invitación.
+// FormularioEmail son los textos del email de invitación. Sus límites los comprueba validaTextos.
 type FormularioEmail struct {
-	Asunto    string `json:"asunto" maxLength:"200"`
-	Preheader string `json:"preheader" maxLength:"200"`
-	Intro     string `json:"intro" maxLength:"1000"`
+	Asunto    string `json:"asunto"`
+	Preheader string `json:"preheader"`
+	Intro     string `json:"intro"`
 }
 
 // FormularioWhatsApp es el texto del WhatsApp de invitación (con {{enlace}} o la variable por defecto).
 type FormularioWhatsApp struct {
-	Texto string `json:"texto" maxLength:"1000"`
+	Texto string `json:"texto"`
 }
 
 // Formulario es la ficha completa de un formulario.
@@ -134,9 +136,36 @@ func truncaRunas(s string, n int) string {
 	return string([]rune(s)[:n])
 }
 
+// validaNombre exige un nombre de 1 a formularios.MaxNombre caracteres, ya recortado (422 en español).
+func validaNombre(nombre string) error {
+	if nombre == "" {
+		return problem.Unprocessable("NOMBRE_OBLIGATORIO", "Escribe el nombre del formulario.")
+	}
+	if utf8.RuneCountInString(nombre) > formularios.MaxNombre {
+		return problem.Unprocessable("NOMBRE_DEMASIADO_LARGO", fmt.Sprintf("El nombre no puede tener más de %d caracteres.", formularios.MaxNombre))
+	}
+	return nil
+}
+
+// validaTextos comprueba los límites de los textos de invitación: asunto, preheader, introducción y WhatsApp (422 en
+// español). Los mismos límites que el asistente de IA.
+func validaTextos(em FormularioEmail, wa FormularioWhatsApp) error {
+	switch {
+	case utf8.RuneCountInString(em.Asunto) > formularios.MaxAsuntoEmail:
+		return problem.Unprocessable("ASUNTO_DEMASIADO_LARGO", fmt.Sprintf("El asunto del email no puede tener más de %d caracteres.", formularios.MaxAsuntoEmail))
+	case utf8.RuneCountInString(em.Preheader) > formularios.MaxPreheaderEmail:
+		return problem.Unprocessable("PREHEADER_DEMASIADO_LARGO", fmt.Sprintf("El preheader del email no puede tener más de %d caracteres.", formularios.MaxPreheaderEmail))
+	case utf8.RuneCountInString(em.Intro) > formularios.MaxIntroEmail:
+		return problem.Unprocessable("INTRO_DEMASIADO_LARGA", fmt.Sprintf("La introducción del email no puede tener más de %d caracteres.", formularios.MaxIntroEmail))
+	case utf8.RuneCountInString(wa.Texto) > formularios.MaxTextoWhatsapp:
+		return problem.Unprocessable("WHATSAPP_DEMASIADO_LARGO", fmt.Sprintf("El mensaje de WhatsApp no puede tener más de %d caracteres.", formularios.MaxTextoWhatsapp))
+	}
+	return nil
+}
+
 // edicion es el cuerpo de PUT /formularios/{id}.
 type edicion struct {
-	Nombre   string              `json:"nombre" minLength:"1" maxLength:"120"`
+	Nombre   string              `json:"nombre"`
 	Esquema  formularios.Esquema `json:"esquema"`
 	Email    FormularioEmail     `json:"email"`
 	WhatsApp FormularioWhatsApp  `json:"whatsapp"`
@@ -148,6 +177,9 @@ func (s *Svc) registerFormularios() {
 	s.registerFormulariosAdmin()
 	s.registerFormulariosRespuestas()
 	s.registerFormulariosPublico()
+	s.registerFormulariosPrevia()
+	s.registerFormulariosEnvios()
+	s.registerFormulariosEstadisticas()
 }
 
 func (s *Svc) registerFormulariosAdmin() {
@@ -174,7 +206,7 @@ func (s *Svc) registerFormulariosAdmin() {
 		})
 
 	type nombreIn struct {
-		Nombre string `json:"nombre" minLength:"1" maxLength:"120"`
+		Nombre string `json:"nombre"`
 	}
 	type crearIn struct {
 		CID  uuid.UUID `path:"cid"`
@@ -186,8 +218,8 @@ func (s *Svc) registerFormulariosAdmin() {
 				return nil, err
 			}
 			nombre := strings.TrimSpace(in.Body.Nombre)
-			if nombre == "" {
-				return nil, problem.Unprocessable("NOMBRE_OBLIGATORIO", "Escribe el nombre del formulario.")
+			if err := validaNombre(nombre); err != nil {
+				return nil, err
 			}
 			id, err := s.creaFormulario(ctx, in.CID, nombre)
 			if err != nil {
@@ -227,8 +259,11 @@ func (s *Svc) registerFormulariosAdmin() {
 				return nil, err
 			}
 			in.Body.Nombre = strings.TrimSpace(in.Body.Nombre)
-			if in.Body.Nombre == "" {
-				return nil, problem.Unprocessable("NOMBRE_OBLIGATORIO", "Escribe el nombre del formulario.")
+			if err := validaNombre(in.Body.Nombre); err != nil {
+				return nil, err
+			}
+			if err := validaTextos(in.Body.Email, in.Body.WhatsApp); err != nil {
+				return nil, err
 			}
 			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 				return s.guardaEdicion(ctx, tx, in.CID, in.ID, in.Body)
@@ -249,7 +284,8 @@ func (s *Svc) registerFormulariosAdmin() {
 				return nil, err
 			}
 			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				if _, err := leeFormulario(ctx, tx, in.CID, in.ID, true); err != nil {
+				f, err := leeFormulario(ctx, tx, in.CID, in.ID, true)
+				if err != nil {
 					return err
 				}
 				var envios int
@@ -259,7 +295,10 @@ func (s *Svc) registerFormulariosAdmin() {
 				if envios > 0 {
 					return problem.Conflict("TIENE_ENVIOS", "Este formulario ya se ha enviado: ciérralo en lugar de borrarlo.")
 				}
-				_, err := tx.Exec(ctx, `DELETE FROM formularios WHERE id = $1 AND competition_id = $2`, in.ID, in.CID)
+				_, err = tx.Exec(ctx, `DELETE FROM formularios WHERE id = $1 AND competition_id = $2`, in.ID, in.CID)
+				if err == nil {
+					err = auditaFormulario(ctx, tx, in.CID, in.ID, "athletes.formulario_borrado", map[string]any{"nombre": f.Nombre})
+				}
 				return err
 			})
 			if err != nil {
@@ -284,10 +323,13 @@ func (s *Svc) registerFormulariosAdmin() {
 					return err
 				}
 				if _, err := tx.Exec(ctx, `INSERT INTO formularios (id, competition_id, nombre, esquema, version, email, whatsapp, creado_por)
-					VALUES ($1, $2, $3, $4, 1, $5, $6, $7)`, nuevo, in.CID, truncaRunas(f.Nombre+" (copia)", 120), esqJSON, emJSON, waJSON, actor(ctx)); err != nil {
+					VALUES ($1, $2, $3, $4, 1, $5, $6, $7)`, nuevo, in.CID, truncaRunas(f.Nombre+" (copia)", formularios.MaxNombre), esqJSON, emJSON, waJSON, actor(ctx)); err != nil {
 					return err
 				}
 				_, err = tx.Exec(ctx, `INSERT INTO formulario_versiones (formulario_id, version, esquema) VALUES ($1, 1, $2)`, nuevo, esqJSON)
+				if err == nil {
+					err = auditaFormulario(ctx, tx, in.CID, nuevo, "athletes.formulario_duplicado", map[string]any{"origen": in.ID})
+				}
 				return err
 			})
 			if err != nil {
@@ -312,12 +354,18 @@ func (s *Svc) registerFormulariosAdmin() {
 			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {
 				return nil, err
 			}
-			tag, err := s.a.DB.Exec(ctx, `UPDATE formularios SET estado = $3, updated_at = now() WHERE id = $1 AND competition_id = $2`, in.ID, in.CID, in.Body.Estado)
+			err := s.change(ctx, in.CID, "athletes.formulario_estado", map[string]any{"id": in.ID, "estado": in.Body.Estado}, func(tx pgx.Tx) error {
+				tag, err := tx.Exec(ctx, `UPDATE formularios SET estado = $3, updated_at = now() WHERE id = $1 AND competition_id = $2`, in.ID, in.CID, in.Body.Estado)
+				if err != nil {
+					return err
+				}
+				if tag.RowsAffected() == 0 {
+					return problem.NotFound("Formulario no encontrado.")
+				}
+				return nil
+			})
 			if err != nil {
 				return nil, err
-			}
-			if tag.RowsAffected() == 0 {
-				return nil, problem.NotFound("Formulario no encontrado.")
 			}
 			f, err := s.formularioDe(ctx, in.CID, in.ID)
 			if err != nil {
@@ -325,6 +373,12 @@ func (s *Svc) registerFormulariosAdmin() {
 			}
 			return &formOut{Body: f}, nil
 		})
+}
+
+// auditaFormulario deja en la misma transacción el evento de administración del formulario (registro de actividad).
+func auditaFormulario(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, ev string, data map[string]any) error {
+	return events.Enqueue(ctx, tx, events.New(ctx, ev, data, events.Competition(cid.String()), events.Subject("formulario:"+id.String()),
+		events.ForPermission("atletas.editar")))
 }
 
 // listaFormularios devuelve los formularios de la competición con sus contadores (SQL).
@@ -367,8 +421,10 @@ func (s *Svc) creaFormulario(ctx context.Context, cid uuid.UUID, nombre string) 
 			VALUES ($1, $2, $3, $4, 1, $5, $6, $7)`, id, cid, nombre, esqJSON, emJSON, waJSON, actor(ctx)); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `INSERT INTO formulario_versiones (formulario_id, version, esquema) VALUES ($1, 1, $2)`, id, esqJSON)
-		return err
+		if _, err := tx.Exec(ctx, `INSERT INTO formulario_versiones (formulario_id, version, esquema) VALUES ($1, 1, $2)`, id, esqJSON); err != nil {
+			return err
+		}
+		return auditaFormulario(ctx, tx, cid, id, "athletes.formulario_creado", map[string]any{"nombre": nombre})
 	})
 	return id, err
 }
@@ -405,5 +461,8 @@ func (s *Svc) guardaEdicion(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, b
 	}
 	_, err = tx.Exec(ctx, `UPDATE formularios SET nombre = $3, esquema = $4, email = $5, whatsapp = $6, version = $7, updated_at = now()
 		WHERE id = $1 AND competition_id = $2`, id, cid, b.Nombre, esqJSON, emJSON, waJSON, version)
+	if err == nil {
+		err = auditaFormulario(ctx, tx, cid, id, "athletes.formulario_guardado", map[string]any{"nombre": b.Nombre, "version": version})
+	}
 	return err
 }

@@ -5,7 +5,7 @@
 CREATE TABLE formularios (
     id             uuid        PRIMARY KEY,
     competition_id uuid        NOT NULL,
-    nombre         text        NOT NULL CHECK (char_length(nombre) BETWEEN 1 AND 120),
+    nombre         text        NOT NULL CHECK (char_length(nombre) BETWEEN 1 AND 160),
     estado         text        NOT NULL DEFAULT 'borrador' CHECK (estado IN ('borrador', 'activo', 'cerrado')),
     esquema        jsonb       NOT NULL CHECK (jsonb_typeof(esquema) = 'object'),
     version        int         NOT NULL DEFAULT 1 CHECK (version >= 1),
