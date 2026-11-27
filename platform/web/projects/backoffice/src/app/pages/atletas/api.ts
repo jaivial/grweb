@@ -1,6 +1,22 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import type { GrTone } from '@grcup/ui';
+
+/** Latest «handling gratis» request of an athlete (null without one). */
+export interface HandlingAtleta {
+  id: string;
+  estado: 'pendiente' | 'revision' | 'aprobada' | 'rechazada';
+  fecha: string;
+  motivo?: string;
+}
+/** Text and tone of the handling state (list column, filter and ficha). */
+export const HANDLING: Record<HandlingAtleta['estado'], { l: string; tone: GrTone }> = {
+  pendiente: { l: 'Pendiente', tone: 'warning' },
+  revision: { l: 'En revisión', tone: 'warning' },
+  aprobada: { l: 'Aprobada', tone: 'success' },
+  rechazada: { l: 'Rechazada', tone: 'danger' },
+};
 
 export interface Marcas {
   sq?: number;
@@ -31,13 +47,14 @@ export interface ItemLista {
   avisos: Incidencia[];
   edad?: number;
   pesaje: string;
+  handling?: HandlingAtleta;
 }
 export interface Lista {
   items: ItemLista[];
   total: number;
   pagina: number;
   por: number;
-  pestanas: Record<'todos' | 'confirmados' | 'reserva' | 'bajas' | 'incidencias', number>;
+  pestanas: Record<'todos' | 'confirmados' | 'reserva' | 'bajas' | 'incidencias' | 'handling', number>;
   kpis: { perfilesCompletos: number; pctCompletos: number; sinFoto: number; conImagen: number; imagenPendiente: number; menoresPendientes: number; seguimientos: number; seguimientosSemana: number };
   categorias: string[];
   jornadas: string[];
@@ -104,6 +121,8 @@ export interface Atleta {
   autorizacion?: EstadoAutorizacion;
   /** Consentimiento de los avisos por WhatsApp (en la ficha o por la casilla del alta); sin él no se envían. */
   whatsapp?: { at: string; version: string; origen: string };
+  /** Latest «handling gratis» request (null: never asked). */
+  handling?: HandlingAtleta;
 }
 export interface EstadoAutorizacion {
   estado: 'sin_pedir' | 'enviada' | 'revision' | 'rechazada' | 'aprobada';
@@ -240,8 +259,17 @@ export class AtletasApi {
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
-  /** Whole list, or only `ids` (bulk «Exportar selección»). */
-  exportar(cid: string, ids: string[] = []): Promise<void> { return this.descargar(`${this.base(cid)}/exportar.csv` + (ids.length ? '?ids=' + ids.join(',') : ''), 'atletas.csv'); }
+  /**
+   * The scope the team is seeing (tab, filters, search, order) or only `ids` (bulk «Exportar selección»):
+   * the service applies the same filters as the list, so the file has every matching athlete, not one page.
+   */
+  exportar(cid: string, ids: string[] = [], filtros: Record<string, string> = {}): Promise<void> {
+    const p = new URLSearchParams();
+    if (ids.length) p.set('ids', ids.join(','));
+    else for (const [k, v] of Object.entries(filtros)) if (v) p.set(k, v);
+    const qs = p.toString();
+    return this.descargar(`${this.base(cid)}/exportar.csv` + (qs ? '?' + qs : ''), 'atletas.csv');
+  }
   plantilla(cid: string): Promise<void> { return this.descargar(`${this.base(cid)}/importaciones/plantilla.xlsx`, 'plantilla-acta-aep.xlsx'); }
 }
 

@@ -5,7 +5,7 @@ import { firstValueFrom } from 'rxjs';
 /** Estado of an «alta de atleta» request (athletes service). */
 export type EstadoSolicitud = 'pendiente' | 'revision' | 'aprobada' | 'rechazada';
 /** Type of request: the public sign-up form or the profile changes asked from the athlete area. */
-export type TipoSolicitud = 'alta' | 'cambio_perfil' | 'autorizacion';
+export type TipoSolicitud = 'alta' | 'cambio_perfil' | 'autorizacion' | 'handling';
 /** How the request was matched against the athletes' list: licence, e-mail, name suggestion, by hand or nothing. */
 export type TipoMatch = '' | 'licencia' | 'email' | 'nombre' | 'manual';
 export type TipoDiferencia = 'igual' | 'distinto' | 'nuevo';
@@ -26,7 +26,7 @@ export interface Kpis {
 
 export interface SolicitudItem {
   id: string;
-  /** alta = formulario público; cambio_perfil = cambios pedidos desde el área de atleta. */
+  /** alta = formulario público; cambio_perfil / autorizacion / handling = pedidos desde el área de atleta. */
   tipo: TipoSolicitud;
   nombre: string;
   apellidos: string;

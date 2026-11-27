@@ -8,7 +8,7 @@ import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
 import { BoCount, BoToggle, Confirm, Media, errText, BoTabsMovil } from '../../shared/ui';
-import { AtletasApi, CATEGORIAS, DIVISIONES, cat, diaFecha, kg, type Atleta, type Historial, type Marcas } from './api';
+import { AtletasApi, CATEGORIAS, DIVISIONES, HANDLING, cat, diaFecha, kg, type Atleta, type Historial, type Marcas } from './api';
 import { AccionNecesariaDialogo } from './accion-necesaria';
 import { PerfilExisteDialogo } from './perfil-existe';
 import { BoDatePicker } from '../../shared/kit';
@@ -280,6 +280,19 @@ const PUBLIC_WEB = webPublica();
                   @if (a.pesaje.at) { <p class="mt-2 text-body-xs text-text-tertiary">{{ a.pesaje.por }} · {{ ago(a.pesaje.at) }}</p> }
                   @if (canWeigh() && a.estado === 'confirmado') { <a grButton class="mt-4" [block]="true" icon="scale" [routerLink]="['../pesaje']" [queryParams]="{ atleta: a.id }">Ir al pesaje</a> }
                 </section>
+                <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                  <h2 class="text-ui-h5">Handling gratis</h2>
+                  @if (a.handling; as h) {
+                    <dl class="mt-3 text-body-s">
+                      <div class="flex justify-between gap-3 border-b border-line-subtle py-2"><dt class="text-text-tertiary">Estado</dt><dd><gr-badge [tone]="HANDLING[h.estado].tone">{{ HANDLING[h.estado].l }}</gr-badge></dd></div>
+                      <div class="flex justify-between gap-3 py-2" [class.border-b]="h.motivo" [class.border-line-subtle]="h.motivo"><dt class="text-text-tertiary">Solicitado</dt><dd>{{ fmtShortDate(h.fecha) }}</dd></div>
+                      @if (h.motivo) { <div class="flex justify-between gap-3 py-2"><dt class="text-text-tertiary">Motivo</dt><dd class="text-right">{{ h.motivo }}</dd></div> }
+                    </dl>
+                    <a grButton class="mt-4" [block]="true" [routerLink]="['/', comps.current()?.slug, 'atletas', 'solicitudes', h.id]">Ver la solicitud</a>
+                  } @else {
+                    <p class="mt-1 text-body-xs text-text-tertiary">No ha pedido handling gratis.</p>
+                  }
+                </section>
                 @if (a.estado === 'reserva' && canEdit()) {
                   <section class="rounded-lg border border-info/30 bg-info/5 p-5">
                     <h2 class="text-ui-h5">Reserva · puesto {{ a.ordenReserva }}</h2>
@@ -363,6 +376,7 @@ export class AtletaFichaPage {
   private readonly media = inject(Media);
   private readonly router = inject(Router);
   protected readonly estado = ESTADO;
+  protected readonly HANDLING = HANDLING;
   protected readonly cat = cat;
   protected readonly kg = kg;
   protected readonly valido = telefonoValido;
