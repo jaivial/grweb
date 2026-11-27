@@ -196,10 +196,10 @@ export class SolicitudesApi {
     return firstValueFrom(this.http.post<SolicitudDetalle>(`${this.base(cid)}/${id}/enlazar`, cuerpo, { headers: this.cab(version) }));
   }
   aprobar(cid: string, id: string, version: number, cuerpo: AprobarIn): Promise<{ atletaId: string; slug: string; publica: boolean; foto: boolean }> {
-    return firstValueFrom(this.http.post<{ atletaId: string; slug: string; publica: boolean; foto: boolean }>(`${this.base(cid)}/${id}/aprobar`, cuerpo, { headers: this.cab(version) }));
+    return firstValueFrom(this.http.post<{ atletaId: string; slug: string; publica: boolean; foto: boolean }>(`${this.base(cid)}/${id}/aprobar`, cuerpo, { headers: this.cab(version), context: sinTimeout() }));
   }
   rechazar(cid: string, id: string, version: number, cuerpo: RechazarIn): Promise<SolicitudDetalle> {
-    return firstValueFrom(this.http.post<SolicitudDetalle>(`${this.base(cid)}/${id}/rechazar`, cuerpo, { headers: this.cab(version) }));
+    return firstValueFrom(this.http.post<SolicitudDetalle>(`${this.base(cid)}/${id}/rechazar`, cuerpo, { headers: this.cab(version), context: sinTimeout() }));
   }
   /** Signed authorisation of the guardian (minors): private file, never published. */
   subirAutorizacion(cid: string, id: string, file: File): Promise<unknown> {

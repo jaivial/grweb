@@ -1,6 +1,7 @@
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 
 /** Juegos service (contrato §6). Admin: C/juegos/* con permiso «directo.operar». */
 
@@ -144,7 +145,7 @@ export class JuegosApi {
    * el mercado queda liquidado aunque el resultado todavía no sea definitivo (el backend lo audita con un evento).
    */
   liquidarMercado(cid: string, mid: string, devolver = false): Promise<void> {
-    return firstValueFrom(this.http.post<void>(`${this.b(cid)}/mercados/${mid}/liquidar`, { devolver }));
+    return firstValueFrom(this.http.post<void>(`${this.b(cid)}/mercados/${mid}/liquidar`, { devolver }, { context: sinTimeout() }));
   }
 
   tituloMercado(cid: string, mid: string, titulo: string): Promise<void> {

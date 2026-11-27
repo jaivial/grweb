@@ -1,6 +1,7 @@
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 
 export type TipoBloque = 'cabecera' | 'portada' | 'titulo' | 'texto' | 'boton' | 'imagen' | 'lista' | 'dos_columnas' | 'cuenta_atras' | 'horario' | 'separador' | 'espacio';
 export type CanalBloque = 'ambos' | 'email' | 'whatsapp';
@@ -73,9 +74,9 @@ export class CampanasApi {
   /** A pasted email (or any HTML) as a WhatsApp message, to review and edit. */
   whatsappDesdeHtml(cid: string, html: string): Promise<WhatsApp> { return firstValueFrom(this.http.post<WhatsApp>(`${this.b(cid)}/whatsapp/desde-html`, { html })); }
   audiencia(cid: string, id: string): Promise<Audiencia> { return firstValueFrom(this.http.get<Audiencia>(`${this.b(cid)}/${id}/audiencia`)); }
-  prueba(cid: string, id: string, destino: string): Promise<{ canal: string; detalle: string }> { return firstValueFrom(this.http.post<{ canal: string; detalle: string }>(`${this.b(cid)}/${id}/prueba`, { destino })); }
+  prueba(cid: string, id: string, destino: string): Promise<{ canal: string; detalle: string }> { return firstValueFrom(this.http.post<{ canal: string; detalle: string }>(`${this.b(cid)}/${id}/prueba`, { destino }, { context: sinTimeout() })); }
   enviar(cid: string, id: string, version: number, b: { programadaAt?: string; soloEmail?: boolean }): Promise<{ estado: string; encolados: number }> {
-    return firstValueFrom(this.http.post<{ estado: string; encolados: number }>(`${this.b(cid)}/${id}/enviar`, b, { headers: new HttpHeaders({ 'If-Match': `"${version}"` }) }));
+    return firstValueFrom(this.http.post<{ estado: string; encolados: number }>(`${this.b(cid)}/${id}/enviar`, b, { headers: new HttpHeaders({ 'If-Match': `"${version}"` }), context: sinTimeout() }));
   }
   accion(cid: string, id: string, a: 'pausar' | 'reanudar' | 'cancelar' | 'desprogramar'): Promise<Campana> { return firstValueFrom(this.http.post<Campana>(`${this.b(cid)}/${id}/${a}`, {})); }
   destinatarios(cid: string, id: string, f: { canal?: string; estado?: string; pagina?: number }): Promise<Destinatarios> {
@@ -88,7 +89,7 @@ export class CampanasApi {
   modelos(cid: string): Promise<Modelo[]> { return firstValueFrom(this.http.get<Modelo[]>(`/api/admin/competiciones/${cid}/ia/modelos`)); }
   /** The assistant edits the whole draft with tools (data, channels, audience, pace, blocks); nothing is saved. */
   ia(cid: string, b: { instruccion: string; campana: CampanaIn; seleccion?: string; historial: MensajeIA[]; segmentos: { id: string; nombre: string }[] }): Promise<RespuestaIA> {
-    return firstValueFrom(this.http.post<RespuestaIA>(`/api/admin/competiciones/${cid}/ia/campana`, b));
+    return firstValueFrom(this.http.post<RespuestaIA>(`/api/admin/competiciones/${cid}/ia/campana`, b, { context: sinTimeout() }));
   }
 }
 

@@ -21,6 +21,7 @@ import {
   GrSkeleton,
   GrToasts,
   type GrIconName,
+  sinTimeout,
 } from '@grcup/ui';
 import { problemOf } from '../../core/api';
 import { Auth } from '../../core/auth';
@@ -383,7 +384,7 @@ export class EquipoFichaPage {
     const base = `/api/competition/${c.cid}/users`;
     try {
       if (!rol) await firstValueFrom(this.http.delete(`${base}/${m.usuarioId}`));
-      else if (!antes) await firstValueFrom(this.http.post(base, { email: m.email, rolSlug: rol }));
+      else if (!antes) await firstValueFrom(this.http.post(base, { email: m.email, rolSlug: rol }, { context: sinTimeout() }));
       else await firstValueFrom(this.http.patch(`${base}/${m.usuarioId}`, { rolSlug: rol }));
       const nombre = c.roles.find((r) => r.slug === rol)?.nombre;
       this.toasts.success(rol ? `Rol en ${c.nombre}: ${nombre}` : `Sin acceso a ${c.nombre}`);

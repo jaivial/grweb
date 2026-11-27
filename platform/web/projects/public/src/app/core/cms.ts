@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { DOCUMENT, Injectable, RESPONSE_INIT, TransferState, inject, makeStateKey, signal } from '@angular/core';
 import { NavigationStart, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 import { I18n } from './i18n';
 import { COMPETITION_SLUG, FalloApi, esNoEncontrado } from './competition';
 
@@ -182,7 +183,7 @@ export class Cms {
   gimnasios(): Promise<Sitio[] | null> { return this.get<Sitio[]>('/gimnasios'); }
 
   async voluntario(body: unknown): Promise<void> {
-    await firstValueFrom(this.http.post(`${base}/voluntarios`, body));
+    await firstValueFrom(this.http.post(`${base}/voluntarios`, body, { context: sinTimeout() }));
   }
 
   /** The signed-in fan's own volunteer request (empty estado = none); null without a session. */

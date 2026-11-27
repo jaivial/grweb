@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { CdkDrag, CdkDragHandle, CdkDropList, type CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { firstValueFrom } from 'rxjs';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, GrSkeleton, GrToasts, type GrTone, fmtAgo } from '@grcup/ui';
+import { sinTimeout } from '@grcup/ui';
 import { Competitions } from '../core/competitions';
 import { Realtime } from '../core/realtime';
 import { webPublica } from '../core/web';
@@ -438,7 +439,7 @@ export class ClubsPage {
     this.ocupado.set(true);
     this.error.set('');
     try {
-      await firstValueFrom(this.http.post(`${this.base}/clubs/${c.id}/rechazar`, { motivo: this.re.motivo.trim(), avisar: this.re.avisar }));
+      await firstValueFrom(this.http.post(`${this.base}/clubs/${c.id}/rechazar`, { motivo: this.re.motivo.trim(), avisar: this.re.avisar }, { context: sinTimeout() }));
       this.abierto.set(false);
       this.toasts.success('Solicitud rechazada', this.re.avisar ? `Le hemos escrito a ${c.contactoEmail}.` : 'Sin aviso por email.');
       await this.cargar();
