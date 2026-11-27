@@ -47,7 +47,7 @@ type ItemSolicitud struct {
 	Edad          *int       `json:"edad,omitempty"`
 	EsMenor       bool       `json:"esMenor"`
 	Autorizacion  bool       `json:"autorizacion"`
-	Match         string     `json:"match"`
+	Match         string     `json:"match" enum:"licencia,email,telefono,nacimiento,nombre,manual," doc:"licencia · email · telefono (mismo teléfono y nombre) · nacimiento (mismo nombre y fecha de nacimiento) · nombre (sugerida) · manual"`
 	AtletaID      *uuid.UUID `json:"atletaId,omitempty"`
 	Estado        string     `json:"estado"`
 	FotoMiniatura string     `json:"fotoMiniatura"`
@@ -205,7 +205,7 @@ type FiltrosLista struct {
 	CID    uuid.UUID `path:"cid"`
 	Estado string    `query:"estado" enum:"pendiente,revision,menor,aprobada,rechazada,todas" default:"todas"`
 	Tipo   string    `query:"tipo" enum:"todas,alta,cambio_perfil,autorizacion,handling" default:"todas"`
-	Match  string    `query:"match" enum:"licencia,email,nombre,manual,ninguna" default:""`
+	Match  string    `query:"match" enum:"licencia,email,telefono,nombre,manual,ninguna" default:""`
 	Menor  string    `query:"menor" enum:"si,no" default:""`
 	Q      string    `query:"q" maxLength:"80"`
 	Pagina int       `query:"pagina" minimum:"1" default:"1"`
@@ -528,6 +528,8 @@ func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, tipo, match string, menor 
 		where = append(where, "match_tipo = 'licencia'")
 	case "email":
 		where = append(where, "match_tipo = 'email'")
+	case "telefono":
+		where = append(where, "match_tipo = 'telefono'")
 	case "nombre":
 		where = append(where, "match_tipo = 'nombre'")
 	case "manual":
@@ -891,6 +893,26 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 				}
 			} else if !errors.Is(err, pgx.ErrNoRows) {
 				return err
+			}
+		}
+		// The same person with another email (a typo in the domain, a second alta): the phone with the same name, or
+		// the same name and birth date, is this athlete and the request is linked like the email match (no duplicate).
+		if destino == nil {
+			id, tipo, err := s.atletaDuplicado(ctx, tx, cid, personaAtleta{Nombre: sol.Nombre, Apellidos: sol.Apellidos,
+				Telefono: sol.Telefono, Nacimiento: sol.FechaNacimiento})
+			if err != nil {
+				return err
+			}
+			if id != nil {
+				destino = id
+				regla := "por teléfono"
+				if tipo == tipoMatchNacimiento {
+					regla = "por nombre y fecha de nacimiento"
+				}
+				if err := hist(ctx, tx, *id, "Solicitud de alta enlazada a la ficha existente "+regla,
+					"La solicitud es de este mismo atleta: sin duplicado y sin avisos"); err != nil {
+					return err
+				}
 			}
 		}
 		if destino == nil {

@@ -3,7 +3,7 @@ import type { SolicitudDetalle } from './solicitudes-api';
 import type { GrTone } from '@grcup/ui';
 
 /** Estado de la coincidencia de un atleta con el padrón de la AEP (lo que guarda el emparejamiento). */
-export type EstadoPadron = 'sin' | 'auto' | 'parcial' | 'manual' | 'confirmada' | 'descartada';
+export type EstadoPadron = 'sin' | 'auto' | 'parcial' | 'manual' | 'confirmada' | 'descartada' | 'duplicado';
 
 /** Una fila del padrón AEP (inscripciones_aep). */
 export interface FilaPadron {
@@ -36,6 +36,14 @@ export interface DetallePadron {
   nivelAep: string[];
   notasIa: string[];
   motivo: string;
+  /** La otra ficha que ya tiene una fila del padrón con este nombre (estado «duplicado»). */
+  duplicado?: OtraFicha;
+}
+
+/** Otra ficha del atleta, para nombrarla y enlazarla desde el panel. */
+export interface OtraFicha {
+  id: string;
+  nombre: string;
 }
 
 /** Una decisión del registro de emparejamientos. */
@@ -81,13 +89,16 @@ export interface PadronEstado {
   confianza?: number;
   /** Campos que difieren con la fila del padrón (los mismos que marca la tabla del panel). */
   campos?: string[];
+  /** La otra ficha con una fila del padrón de este nombre (estado «duplicado»). */
+  duplicado?: OtraFicha;
 }
 
-/** Texto y color de cada estado: verde enlazado, ámbar parcial, gris sin coincidencia, rojo error de la IA. */
+/** Texto y color de cada estado: verde enlazado, ámbar parcial, ámbar «duplicado», gris sin coincidencia, rojo error de la IA. */
 export const PADRON: Record<EstadoPadron, { l: string; tone: GrTone }> = {
   auto: { l: 'Enlazado', tone: 'success' },
   confirmada: { l: 'Confirmado', tone: 'success' },
   parcial: { l: 'Parcial · revisar', tone: 'warning' },
+  duplicado: { l: 'Posible duplicado', tone: 'warning' },
   manual: { l: 'Sin coincidencia', tone: 'neutral' },
   descartada: { l: 'Descartada', tone: 'neutral' },
   sin: { l: 'Sin comparar', tone: 'neutral' },
@@ -133,7 +144,7 @@ export function estadoCorto(e: { estado: EstadoPadron; origen?: string }): { l: 
   const p = PADRON[e.estado] ?? PADRON.sin;
   if (e.origen === 'error_ia') return { l: 'Error IA', tone: 'danger' };
   const corto: Record<EstadoPadron, string> = {
-    auto: 'Auto', confirmada: 'Staff', parcial: 'Parcial', manual: 'Sin coincidencia', descartada: 'Sin coincidencia', sin: 'Sin comparar',
+    auto: 'Auto', confirmada: 'Staff', parcial: 'Parcial', duplicado: 'Duplicado', manual: 'Sin coincidencia', descartada: 'Sin coincidencia', sin: 'Sin comparar',
   };
   return { l: corto[e.estado ?? 'sin'] ?? 'Sin comparar', tone: p.tone };
 }
@@ -141,10 +152,12 @@ export function estadoCorto(e: { estado: EstadoPadron; origen?: string }): { l: 
 /** Etiqueta de una decisión del registro. */
 export const DECISION: Record<string, string> = {
   auto: 'Enlazado solo', parcial: 'Parcial', confirmada: 'Confirmada', descartada: 'Descartada', manual: 'Sin candidato',
+  duplicado: 'Posible duplicado',
   sugerido: 'Propuesta', aceptado: 'Aceptada', corregido: 'Corregida', rechazado: 'Rechazada',
 };
 export const ORIGEN: Record<string, string> = {
   exacto: 'sin IA', ia: 'IA', error_ia: 'error de la IA', sin_candidatos: 'sin candidatos', staff: 'equipo', revision: 'revisión',
+  duplicado: 'otra ficha del padrón',
 };
 
 const anio = (f?: string) => (f ? Number(String(f).slice(0, 4)) || undefined : undefined);
