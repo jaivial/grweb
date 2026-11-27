@@ -36,6 +36,7 @@ const TOP = 10;
 const T = {
   es: {
     porra: 'Porra',
+    hola: (n: string) => `Hola, ${n}`,
     migas: 'Migas',
     inicio: 'Inicio',
     juegos: 'Juegos',
@@ -84,6 +85,7 @@ const T = {
   },
   en: {
     porra: 'Pool',
+    hola: (n: string) => `Hi, ${n}`,
     migas: 'Breadcrumbs',
     inicio: 'Home',
     juegos: 'Games',
@@ -148,6 +150,9 @@ const T = {
             <h1 class="bg-[linear-gradient(180deg,#ff5a6e,#c8102e)] bg-clip-text pr-1.5 font-display text-[2rem] leading-none text-transparent uppercase italic">{{ t().porra }}</h1>
             <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" [etiquetaMovil]="false" />
           </div>
+          @if (fan.cargada() && fan.yo(); as yo) {
+            <p class="text-body-s text-text-secondary">{{ t().hola(yo.alias) }}</p>
+          }
         </div>
 
         <!-- pestañas Hacer porra / En vivo -->
