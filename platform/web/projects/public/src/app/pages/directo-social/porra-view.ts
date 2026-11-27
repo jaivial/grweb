@@ -13,7 +13,7 @@ import { FanSession } from '../../core/fan';
 import { I18n, LocPipe } from '../../core/i18n';
 import { JuegosEnVivo, JuegosEstado, PorraStore, monedas, seguirMercadosEnVivo, type Mercado } from '../../core/juegos';
 import { MercadoResumen, etiquetaDeMercado } from '../porra/mercado-resumen';
-import { PRUEBA_TXT, PorraNavegacion, filtrosPorra, mercadosDe, saldoNivelTxt } from '../porra/navegacion';
+import { PRUEBA_TXT, PorraNavegacion, filtrosPorra, mercadosSeleccion, saldoNivelTxt } from '../porra/navegacion';
 import { GrCoin } from './ui';
 
 const T = {
@@ -69,17 +69,16 @@ const T = {
         <gr-skeleton class="h-28 shrink-0 rounded-md" />
       }
 
-      <!-- porra: sexo → nivel → grupo, con el resumen de cada mercado del grupo -->
+      <!-- porra: la navegación en dos pasos; con un grupo, el resumen de sus mercados y la llamada a apostar -->
       <div class="flex shrink-0 flex-col gap-3 pt-1">
         <p class="bg-[linear-gradient(180deg,#ff5a6e,#c8102e)] bg-clip-text pr-1 font-display text-[1.25rem] leading-none text-transparent uppercase italic">{{ t().titulo }}</p>
-        <gr-porra-navegacion ruta="/en-directo" [mercados]="store.mercadosDeNivel(nav().prueba)" [sexo]="nav().sexo" [grupo]="nav().grupo" [prueba]="nav().prueba" />
-
+        <gr-porra-navegacion ruta="/en-directo" [dosColumnas]="true" [mercados]="store.mercadosDeNivel(nav().prueba)" [sexo]="nav().sexo" [grupo]="nav().grupo" [prueba]="nav().prueba" [peso]="nav().peso">
         @if (store.cargando()) {
           <div class="flex flex-col gap-2"><gr-skeleton class="h-12 rounded-md" /><gr-skeleton class="h-12 rounded-md" /><gr-skeleton class="h-12 rounded-md" /></div>
         } @else if (store.error()) {
           <p class="flex items-center gap-2 rounded-md border border-line-subtle bg-bg-raised p-3 text-body-s text-text-tertiary"><gr-icon name="circle-alert" [size]="16" class="shrink-0" />{{ t().error }}</p>
-        } @else if (mercadosGrupo().length) {
-          @for (m of mercadosGrupo(); track m.id) {
+        } @else if (mercadosSel().length) {
+          @for (m of mercadosSel(); track m.id) {
             <gr-mercado-resumen [mercado]="m" [etiqueta]="etiqueta(m)" />
           }
         } @else {
@@ -88,6 +87,7 @@ const T = {
 
         <a grButton variant="primary" size="l" [block]="true" [routerLink]="'/porra' | loc" iconRight="arrow-right"
           [queryParams]="{ vista: 'hacer', sexo: nav().sexo, prueba: nav().prueba, grupo: nav().grupo }">{{ t().apostar }}</a>
+        </gr-porra-navegacion>
       </div>
 
       <!-- llamada -->
@@ -118,7 +118,7 @@ export class PorraView {
   protected readonly cartera = computed(() => this.store.carteraDe(this.nav().prueba));
   protected readonly etiquetaSaldo = computed(() => saldoNivelTxt(this.nav().prueba, this.i18n.lang()));
   protected readonly nivelTxt = computed(() => PRUEBA_TXT[this.nav().prueba]);
-  protected readonly mercadosGrupo = computed(() => mercadosDe(this.store.mercadosDeNivel(this.nav().prueba), this.nav().sexo, this.nav().grupo, this.nav().prueba));
+  protected readonly mercadosSel = computed(() => mercadosSeleccion(this.store.mercadosDeNivel(this.nav().prueba), this.nav()));
   protected readonly monedas = (v: number | null | undefined) => monedas(v, this.i18n.lang());
 
   constructor() {

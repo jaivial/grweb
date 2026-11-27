@@ -23,7 +23,7 @@ import { CoinBalance } from './componentes';
 import { ComoFunciona } from './como-funciona';
 import { monedas, norm } from './formato';
 import { MercadoResumen, etiquetaDeMercado } from './mercado-resumen';
-import { PRUEBA_TXT, PorraNavegacion, filtrosPorra, mercadosDe, saldoNivelTxt } from './navegacion';
+import { PRUEBA_TXT, PorraNavegacion, filtrosPorra, mercadosSeleccion, saldoNivelTxt } from './navegacion';
 import { PerfilAtleta } from './perfil-atleta';
 import { misPorras } from './ranking';
 
@@ -155,7 +155,10 @@ const T = {
           <div class="flex flex-col gap-3" aria-busy="true">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-16 rounded-md" /> }</div>
         } @else if (store.error(); as e) {
           <gr-alert tone="warning" [title]="t().errorCarga">{{ e }}</gr-alert>
-        } @else if (vista() === 'hacer') {
+        } @else {
+          <!-- la navegación en dos pasos; su contenido (buscador, atletas, o los resúmenes) va debajo del paso de categorías -->
+          <gr-porra-navegacion [mercados]="store.mercadosDeNivel(prueba())" [sexo]="sexo()" [grupo]="grupo()" [prueba]="prueba()" [peso]="peso()">
+          @if (vista() === 'hacer') {
           <!-- buscador: filtra los atletas del mercado elegido -->
           <label class="relative block">
             <span class="sr-only">{{ t().busca }}</span>
@@ -163,8 +166,6 @@ const T = {
             <input type="search" class="h-12 w-full rounded-md border border-line-subtle bg-bg-field pr-4 pl-11 text-body-s text-text-primary outline-none placeholder:text-text-muted focus-visible:border-accent-text"
               [placeholder]="t().busca" autocomplete="off" [value]="q()" (input)="q.set($any($event.target).value)" />
           </label>
-
-          <gr-porra-navegacion [mercados]="store.mercadosDeNivel(prueba())" [sexo]="sexo()" [grupo]="grupo()" [prueba]="prueba()" [peso]="pesoActivo()" [conPesos]="true" />
 
           @if (mercadoActivo(); as m) {
             <section class="flex flex-col" [attr.aria-label]="etiquetaMercado(m)">
@@ -247,18 +248,18 @@ const T = {
             <p class="py-10 text-center text-body-s text-text-tertiary" role="status">{{ t().sinMercado(nivelTxt()) }}</p>
           }
           <gr-perfil-atleta [opcion]="perfil()" [jornada]="mercadoActivo()?.jornadaId ?? ''" (cerrar)="perfil.set(null)" />
-        } @else {
-          <!-- En vivo: sexo → nivel → mercado, con los tres más apostados de cada mercado -->
-          <gr-porra-navegacion [mercados]="store.mercadosDeNivel(prueba())" [sexo]="sexo()" [grupo]="grupo()" [prueba]="prueba()" [peso]="pesoActivo()" />
-
-          @if (mercadosNivel().length) {
-            <p class="flex items-center gap-1.5 font-mono text-[12px] text-text-secondary">@let pj = t().porrasEnJuego(monedas(resumen().porras), monedas(resumen().bote));{{ pj[0] }}<span class="size-2.5 rounded-full bg-warning" aria-hidden="true"></span>{{ pj[1] }}</p>
-            @for (m of mercadosNivel(); track m.id) {
-              <gr-mercado-resumen [mercado]="m" [etiqueta]="etiquetaMercado(m)" />
-            }
           } @else {
-            <p class="py-10 text-center text-body-s text-text-tertiary" role="status">{{ t().sinMercado(nivelTxt()) }}</p>
+            <!-- En vivo: los tres más apostados del mercado elegido, con «Ver más» -->
+            @if (mercadosSel().length) {
+              <p class="flex items-center gap-1.5 font-mono text-[12px] text-text-secondary">@let pj = t().porrasEnJuego(monedas(resumen().porras), monedas(resumen().bote));{{ pj[0] }}<span class="size-2.5 rounded-full bg-warning" aria-hidden="true"></span>{{ pj[1] }}</p>
+              @for (m of mercadosSel(); track m.id) {
+                <gr-mercado-resumen [mercado]="m" [etiqueta]="etiquetaMercado(m)" />
+              }
+            } @else {
+              <p class="py-10 text-center text-body-s text-text-tertiary" role="status">{{ t().sinMercado(nivelTxt()) }}</p>
+            }
           }
+          </gr-porra-navegacion>
         }
 
         <p class="flex items-start gap-2 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="14" class="mt-0.5 shrink-0" />{{ t().aviso }}</p>
@@ -321,16 +322,11 @@ export class PorraPage {
     return j?.estado === 'cerrada' || (!!j?.cierreAt && Date.parse(j.cierreAt) <= this.ahora());
   }
 
-  /** Los mercados del sexo, nivel y grupo elegidos (categorías de menos a más peso). */
-  protected readonly mercadosNivel = computed(() => mercadosDe(this.store.mercadosDeNivel(this.prueba()), this.sexo(), this.grupo(), this.prueba()));
-  /** El mercado que se ve: la categoría de ?peso (o la primera) en el grupo de categorías; el único del grupo si no. */
-  protected readonly mercadoActivo = computed<Mercado | null>(() => {
-    const l = this.mercadosNivel();
-    if (this.grupo() !== 'categoria') return l[0] ?? null;
-    const peso = this.qp().get('peso');
-    return l.find((m) => m.categoria === peso) ?? l[0] ?? null;
-  });
-  protected readonly pesoActivo = computed(() => this.mercadoActivo()?.categoria ?? '');
+  /** Los mercados que se ven con los filtros: en categorías, la de ?peso (o la primera); los demás grupos, todos. */
+  protected readonly mercadosSel = computed(() => mercadosSeleccion(this.store.mercadosDeNivel(this.prueba()), this.nav()));
+  /** El mercado de «Hacer porra». */
+  protected readonly mercadoActivo = computed<Mercado | null>(() => this.mercadosSel()[0] ?? null);
+  protected readonly peso = computed(() => this.nav().peso);
   /** Los atletas del mercado elegido, filtrados por el buscador y ordenados de la A a la Z. */
   protected readonly atletas = computed(() => {
     const m = this.mercadoActivo();
@@ -340,7 +336,7 @@ export class PorraPage {
   });
   protected readonly mias = computed(() => misPorras(this.store.apuestas()));
   protected readonly resumen = computed(() => {
-    const ms = this.mercadosNivel();
+    const ms = this.mercadosSel();
     return { porras: ms.reduce((s, m) => s + m.apuestas, 0), bote: ms.reduce((s, m) => s + m.bote, 0) };
   });
   /** Lo que se cobraría si acierta el atleta elegido con el importe del boleto (parimutuel, la apuesta propia entra en el bote). */
