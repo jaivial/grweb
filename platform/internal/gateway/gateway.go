@@ -56,6 +56,7 @@ var routeTable = func() []route {
 		{p + `(directo|resultados|pantalla)(/|$)`, "live"},
 		// .../inscripcion (AEP link and state) belongs to competition; the own registration lives under inscripcion/config.
 		{c + `(atletas|inscripcion/config|cupones|referidos|pagos)(/|$)`, "athletes"},
+		{c + `formularios(/|$)`, "athletes"},
 		{p + `inscripcion(/|$)`, "athletes"},
 		{`^/api/webhooks/pagos/inscripciones$`, "athletes"},
 		{`^/api/pagos/simulado/athletes/`, "athletes"},
@@ -64,6 +65,7 @@ var routeTable = func() []route {
 		{p + `alta-atleta(/|$)`, "athletes"},
 		{p + `autorizacion(/|$)`, "athletes"},
 		{`^/api/area-atleta(/|$)`, "athletes"},
+		{`^/api/formularios(/|$)`, "athletes"},
 		{c + `(horarios|flights)(/|$)`, "schedule"},
 		{p + `horarios(/|$|\.ics$)`, "schedule"},
 		{c + `(entradas|checkin)(/|$)`, "ticketing"},

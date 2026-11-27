@@ -1,0 +1,409 @@
+package athletes
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"net/http"
+	"strings"
+	"time"
+	"unicode/utf8"
+
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
+	"github.com/jaivial/grweb/platform/pkg/auth"
+	"github.com/jaivial/grweb/platform/pkg/db"
+	"github.com/jaivial/grweb/platform/pkg/formularios"
+	"github.com/jaivial/grweb/platform/pkg/problem"
+)
+
+// Formularios (platform/docs/FORMULARIOS.md §4): el CRUD del formulario del backoffice y sus versiones. Este fichero
+// guarda también la lectura compartida (leeFormulario / formularioDe) que usan las respuestas, los envíos (fase B2) y
+// la web pública: un solo sitio que lee y que escanea un formulario.
+
+// FormularioEmail son los textos del email de invitación.
+type FormularioEmail struct {
+	Asunto    string `json:"asunto" maxLength:"200"`
+	Preheader string `json:"preheader" maxLength:"200"`
+	Intro     string `json:"intro" maxLength:"1000"`
+}
+
+// FormularioWhatsApp es el texto del WhatsApp de invitación (con {{enlace}} o la variable por defecto).
+type FormularioWhatsApp struct {
+	Texto string `json:"texto" maxLength:"1000"`
+}
+
+// Formulario es la ficha completa de un formulario.
+type Formulario struct {
+	ID            uuid.UUID           `json:"id"`
+	Nombre        string              `json:"nombre"`
+	Estado        string              `json:"estado" enum:"borrador,activo,cerrado"`
+	Esquema       formularios.Esquema `json:"esquema"`
+	Version       int                 `json:"version"`
+	Email         FormularioEmail     `json:"email"`
+	WhatsApp      FormularioWhatsApp  `json:"whatsapp"`
+	SoloWeb       bool                `json:"soloWeb"`
+	ActualizadoAt time.Time           `json:"actualizadoAt"`
+}
+
+// FormularioResumen es una fila de la lista de formularios, con sus contadores.
+type FormularioResumen struct {
+	ID            uuid.UUID `json:"id"`
+	Nombre        string    `json:"nombre"`
+	Estado        string    `json:"estado" enum:"borrador,activo,cerrado"`
+	Titulo        string    `json:"titulo"`
+	SoloWeb       bool      `json:"soloWeb"`
+	Destinatarios int       `json:"destinatarios"`
+	Respuestas    int       `json:"respuestas"`
+	Completas     int       `json:"completas"`
+	ActualizadoAt time.Time `json:"actualizadoAt"`
+}
+
+// selFormulario es la única consulta que lee un formulario completo (scanFormulario la interpreta).
+const selFormulario = `SELECT id, nombre, estado, esquema, version, email, whatsapp, updated_at FROM formularios`
+
+// scanFormulario lee una fila de selFormulario: esquema, email y WhatsApp llegan como jsonb.
+func scanFormulario(r pgx.Row) (Formulario, error) {
+	var f Formulario
+	var esquema, email, whatsapp []byte
+	if err := r.Scan(&f.ID, &f.Nombre, &f.Estado, &esquema, &f.Version, &email, &whatsapp, &f.ActualizadoAt); err != nil {
+		return f, err
+	}
+	if err := json.Unmarshal(esquema, &f.Esquema); err != nil {
+		return f, err
+	}
+	if err := json.Unmarshal(email, &f.Email); err != nil {
+		return f, err
+	}
+	if err := json.Unmarshal(whatsapp, &f.WhatsApp); err != nil {
+		return f, err
+	}
+	f.SoloWeb = formularios.SoloWeb(f.Esquema)
+	return f, nil
+}
+
+// leeFormulario carga un formulario de la competición. Con lock=true lo bloquea hasta el fin de la transacción.
+func leeFormulario(ctx context.Context, q rowQuerier, cid, id uuid.UUID, lock bool) (Formulario, error) {
+	sql := selFormulario + ` WHERE id = $1 AND competition_id = $2`
+	if lock {
+		sql += ` FOR UPDATE`
+	}
+	f, err := scanFormulario(q.QueryRow(ctx, sql, id, cid))
+	if db.IsNoRows(err) {
+		return f, problem.NotFound("Formulario no encontrado.")
+	}
+	return f, err
+}
+
+// formularioDe es la ficha de un formulario de la competición (solo lectura). La usa también la fase B2.
+func (s *Svc) formularioDe(ctx context.Context, cid, id uuid.UUID) (Formulario, error) {
+	return leeFormulario(ctx, s.a.DB, cid, id, false)
+}
+
+// jsonFormulario serializa lo que se guarda en las columnas jsonb del formulario.
+func jsonFormulario(esq formularios.Esquema, em FormularioEmail, wa FormularioWhatsApp) (esqJSON, emJSON, waJSON []byte, err error) {
+	if esqJSON, err = json.Marshal(esq); err != nil {
+		return nil, nil, nil, err
+	}
+	if emJSON, err = json.Marshal(em); err != nil {
+		return nil, nil, nil, err
+	}
+	if waJSON, err = json.Marshal(wa); err != nil {
+		return nil, nil, nil, err
+	}
+	return esqJSON, emJSON, waJSON, nil
+}
+
+// esquemaBase es un formulario nuevo: título = nombre, un campo de texto corto y el tema por defecto.
+func esquemaBase(nombre string) formularios.Esquema {
+	e := formularios.Esquema{
+		Ajustes: formularios.Ajustes{Titulo: nombre, PermiteEditar: true},
+		Campos:  []formularios.Campo{{ID: formularios.NuevoID("c"), Tipo: formularios.TipoTextoCorto, Etiqueta: "Tu respuesta", Ancho: "completo"}},
+	}
+	formularios.Normalizar(&e)
+	return e
+}
+
+// truncaRunas corta a n caracteres (no bytes) para no partir una letra acentuada.
+func truncaRunas(s string, n int) string {
+	if utf8.RuneCountInString(s) <= n {
+		return s
+	}
+	return string([]rune(s)[:n])
+}
+
+// edicion es el cuerpo de PUT /formularios/{id}.
+type edicion struct {
+	Nombre   string              `json:"nombre" minLength:"1" maxLength:"120"`
+	Esquema  formularios.Esquema `json:"esquema"`
+	Email    FormularioEmail     `json:"email"`
+	WhatsApp FormularioWhatsApp  `json:"whatsapp"`
+	Version  int                 `json:"version" minimum:"1"`
+}
+
+// registerFormularios registra las rutas de formularios: admin, respuestas y web pública por token.
+func (s *Svc) registerFormularios() {
+	s.registerFormulariosAdmin()
+	s.registerFormulariosRespuestas()
+	s.registerFormulariosPublico()
+}
+
+func (s *Svc) registerFormulariosAdmin() {
+	api := s.a.API
+	base := "/api/admin/competiciones/{cid}/formularios"
+
+	type formOut struct {
+		Body Formulario
+	}
+	type listOut struct {
+		Body []FormularioResumen
+	}
+
+	huma.Register(api, huma.Operation{OperationID: "formularios-list", Method: http.MethodGet, Path: base, Summary: "Formularios de la competición con sus contadores", Tags: tagAdmin, Security: bearer},
+		func(ctx context.Context, in *cidIn) (*listOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {
+				return nil, err
+			}
+			items, err := s.listaFormularios(ctx, in.CID)
+			if err != nil {
+				return nil, err
+			}
+			return &listOut{Body: items}, nil
+		})
+
+	type nombreIn struct {
+		Nombre string `json:"nombre" minLength:"1" maxLength:"120"`
+	}
+	type crearIn struct {
+		CID  uuid.UUID `path:"cid"`
+		Body nombreIn
+	}
+	huma.Register(api, huma.Operation{OperationID: "formularios-create", Method: http.MethodPost, Path: base, Summary: "Crear un formulario (borrador con un campo de partida)", Tags: tagAdmin, Security: bearer, DefaultStatus: http.StatusCreated},
+		func(ctx context.Context, in *crearIn) (*formOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {
+				return nil, err
+			}
+			nombre := strings.TrimSpace(in.Body.Nombre)
+			if nombre == "" {
+				return nil, problem.Unprocessable("NOMBRE_OBLIGATORIO", "Escribe el nombre del formulario.")
+			}
+			id, err := s.creaFormulario(ctx, in.CID, nombre)
+			if err != nil {
+				return nil, err
+			}
+			f, err := s.formularioDe(ctx, in.CID, id)
+			if err != nil {
+				return nil, err
+			}
+			return &formOut{Body: f}, nil
+		})
+
+	type idRutaIn struct {
+		CID uuid.UUID `path:"cid"`
+		ID  uuid.UUID `path:"id"`
+	}
+	huma.Register(api, huma.Operation{OperationID: "formularios-get", Method: http.MethodGet, Path: base + "/{id}", Summary: "Ficha de un formulario", Tags: tagAdmin, Security: bearer},
+		func(ctx context.Context, in *idRutaIn) (*formOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {
+				return nil, err
+			}
+			f, err := s.formularioDe(ctx, in.CID, in.ID)
+			if err != nil {
+				return nil, err
+			}
+			return &formOut{Body: f}, nil
+		})
+
+	type edicionIn struct {
+		CID  uuid.UUID `path:"cid"`
+		ID   uuid.UUID `path:"id"`
+		Body edicion
+	}
+	huma.Register(api, huma.Operation{OperationID: "formularios-update", Method: http.MethodPut, Path: base + "/{id}", Summary: "Guardar el formulario (version optimista; 422 si el esquema no es válido)", Tags: tagAdmin, Security: bearer},
+		func(ctx context.Context, in *edicionIn) (*formOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {
+				return nil, err
+			}
+			in.Body.Nombre = strings.TrimSpace(in.Body.Nombre)
+			if in.Body.Nombre == "" {
+				return nil, problem.Unprocessable("NOMBRE_OBLIGATORIO", "Escribe el nombre del formulario.")
+			}
+			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				return s.guardaEdicion(ctx, tx, in.CID, in.ID, in.Body)
+			})
+			if err != nil {
+				return nil, err
+			}
+			f, err := s.formularioDe(ctx, in.CID, in.ID)
+			if err != nil {
+				return nil, err
+			}
+			return &formOut{Body: f}, nil
+		})
+
+	huma.Register(api, huma.Operation{OperationID: "formularios-delete", Method: http.MethodDelete, Path: base + "/{id}", Summary: "Borrar un formulario sin envíos (409 si ya tiene envíos)", Tags: tagAdmin, Security: bearer, DefaultStatus: http.StatusNoContent},
+		func(ctx context.Context, in *idRutaIn) (*struct{}, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {
+				return nil, err
+			}
+			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				if _, err := leeFormulario(ctx, tx, in.CID, in.ID, true); err != nil {
+					return err
+				}
+				var envios int
+				if err := tx.QueryRow(ctx, `SELECT count(*) FROM formulario_envios WHERE formulario_id = $1`, in.ID).Scan(&envios); err != nil {
+					return err
+				}
+				if envios > 0 {
+					return problem.Conflict("TIENE_ENVIOS", "Este formulario ya se ha enviado: ciérralo en lugar de borrarlo.")
+				}
+				_, err := tx.Exec(ctx, `DELETE FROM formularios WHERE id = $1 AND competition_id = $2`, in.ID, in.CID)
+				return err
+			})
+			if err != nil {
+				return nil, err
+			}
+			return &struct{}{}, nil
+		})
+
+	huma.Register(api, huma.Operation{OperationID: "formularios-duplicar", Method: http.MethodPost, Path: base + "/{id}/duplicar", Summary: "Duplicar un formulario (copia del esquema y de los textos)", Tags: tagAdmin, Security: bearer, DefaultStatus: http.StatusCreated},
+		func(ctx context.Context, in *idRutaIn) (*formOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {
+				return nil, err
+			}
+			nuevo := newID()
+			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+				f, err := leeFormulario(ctx, tx, in.CID, in.ID, false)
+				if err != nil {
+					return err
+				}
+				esqJSON, emJSON, waJSON, err := jsonFormulario(f.Esquema, f.Email, f.WhatsApp)
+				if err != nil {
+					return err
+				}
+				if _, err := tx.Exec(ctx, `INSERT INTO formularios (id, competition_id, nombre, esquema, version, email, whatsapp, creado_por)
+					VALUES ($1, $2, $3, $4, 1, $5, $6, $7)`, nuevo, in.CID, truncaRunas(f.Nombre+" (copia)", 120), esqJSON, emJSON, waJSON, actor(ctx)); err != nil {
+					return err
+				}
+				_, err = tx.Exec(ctx, `INSERT INTO formulario_versiones (formulario_id, version, esquema) VALUES ($1, 1, $2)`, nuevo, esqJSON)
+				return err
+			})
+			if err != nil {
+				return nil, err
+			}
+			f, err := s.formularioDe(ctx, in.CID, nuevo)
+			if err != nil {
+				return nil, err
+			}
+			return &formOut{Body: f}, nil
+		})
+
+	type estadoIn struct {
+		CID  uuid.UUID `path:"cid"`
+		ID   uuid.UUID `path:"id"`
+		Body struct {
+			Estado string `json:"estado" enum:"borrador,activo,cerrado"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "formularios-estado", Method: http.MethodPost, Path: base + "/{id}/estado", Summary: "Cambiar el estado (borrador · activo · cerrado)", Tags: tagAdmin, Security: bearer},
+		func(ctx context.Context, in *estadoIn) (*formOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {
+				return nil, err
+			}
+			tag, err := s.a.DB.Exec(ctx, `UPDATE formularios SET estado = $3, updated_at = now() WHERE id = $1 AND competition_id = $2`, in.ID, in.CID, in.Body.Estado)
+			if err != nil {
+				return nil, err
+			}
+			if tag.RowsAffected() == 0 {
+				return nil, problem.NotFound("Formulario no encontrado.")
+			}
+			f, err := s.formularioDe(ctx, in.CID, in.ID)
+			if err != nil {
+				return nil, err
+			}
+			return &formOut{Body: f}, nil
+		})
+}
+
+// listaFormularios devuelve los formularios de la competición con sus contadores (SQL).
+func (s *Svc) listaFormularios(ctx context.Context, cid uuid.UUID) ([]FormularioResumen, error) {
+	rows, err := s.a.DB.Query(ctx, `SELECT f.id, f.nombre, f.estado, f.esquema, f.updated_at,
+		(SELECT count(*) FROM formulario_destinatarios d WHERE d.formulario_id = f.id)::int,
+		(SELECT count(*) FROM formulario_respuestas r WHERE r.formulario_id = f.id)::int,
+		(SELECT count(*) FROM formulario_respuestas r WHERE r.formulario_id = f.id AND r.estado = 'completa')::int
+		FROM formularios f WHERE f.competition_id = $1 ORDER BY f.updated_at DESC`, cid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []FormularioResumen{}
+	for rows.Next() {
+		var r FormularioResumen
+		var esquema []byte
+		if err := rows.Scan(&r.ID, &r.Nombre, &r.Estado, &esquema, &r.ActualizadoAt, &r.Destinatarios, &r.Respuestas, &r.Completas); err != nil {
+			return nil, err
+		}
+		var e formularios.Esquema
+		if err := json.Unmarshal(esquema, &e); err != nil {
+			return nil, err
+		}
+		r.Titulo, r.SoloWeb = e.Ajustes.Titulo, formularios.SoloWeb(e)
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// creaFormulario inserta un formulario nuevo (versión 1) y devuelve su id.
+func (s *Svc) creaFormulario(ctx context.Context, cid uuid.UUID, nombre string) (uuid.UUID, error) {
+	id := newID()
+	esqJSON, emJSON, waJSON, err := jsonFormulario(esquemaBase(nombre), FormularioEmail{}, FormularioWhatsApp{})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `INSERT INTO formularios (id, competition_id, nombre, esquema, version, email, whatsapp, creado_por)
+			VALUES ($1, $2, $3, $4, 1, $5, $6, $7)`, id, cid, nombre, esqJSON, emJSON, waJSON, actor(ctx)); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `INSERT INTO formulario_versiones (formulario_id, version, esquema) VALUES ($1, 1, $2)`, id, esqJSON)
+		return err
+	})
+	return id, err
+}
+
+// guardaEdicion guarda la edición del formulario: 409 si la versión no coincide, 422 si el esquema no es válido, y una
+// versión nueva solo cuando el esquema cambia.
+func (s *Svc) guardaEdicion(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, b edicion) error {
+	cur, err := leeFormulario(ctx, tx, cid, id, true)
+	if err != nil {
+		return err
+	}
+	if b.Version != cur.Version {
+		return problem.Conflict("VERSION_DISTINTA", "El formulario se ha cambiado mientras lo editabas. Recárgalo para ver la última versión.")
+	}
+	esq := b.Esquema
+	formularios.Normalizar(&esq)
+	if err := formularios.Validar(esq); err != nil {
+		return problem.Unprocessable("ESQUEMA_NO_VALIDO", err.Error())
+	}
+	esqJSON, emJSON, waJSON, err := jsonFormulario(esq, b.Email, b.WhatsApp)
+	if err != nil {
+		return err
+	}
+	curJSON, err := json.Marshal(cur.Esquema)
+	if err != nil {
+		return err
+	}
+	version := cur.Version
+	if !bytes.Equal(curJSON, esqJSON) {
+		version++
+		if _, err := tx.Exec(ctx, `INSERT INTO formulario_versiones (formulario_id, version, esquema) VALUES ($1, $2, $3)`, id, version, esqJSON); err != nil {
+			return err
+		}
+	}
+	_, err = tx.Exec(ctx, `UPDATE formularios SET nombre = $3, esquema = $4, email = $5, whatsapp = $6, version = $7, updated_at = now()
+		WHERE id = $1 AND competition_id = $2`, id, cid, b.Nombre, esqJSON, emJSON, waJSON, version)
+	return err
+}

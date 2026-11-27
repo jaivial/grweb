@@ -163,6 +163,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerEmparejamiento()
 	s.registerPadronEquipo()
 	s.registerAltaCupos()
+	s.registerFormularios()
 	a.Go(s.expirador)
 	// Places changed in the backoffice (competition service): publish the new counter to the open pages.
 	a.Go((&events.Consumer{Redis: a.Redis, Stream: a.Stream(), Group: "athletes-plazas", Start: "$", Types: []string{"competition.inscripcion_actualizada"},

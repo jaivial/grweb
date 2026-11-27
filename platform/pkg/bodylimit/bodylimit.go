@@ -13,11 +13,12 @@ const Default = 1 << 20
 
 // Limits of the upload routes (file + multipart overhead).
 const (
-	Foto   = 9 << 20  // athletes: 8 MB photo or signed authorisation
-	Import = 6 << 20  // athletes: 5 MB AEP sheet
-	Upload = 11 << 20 // cms: 10 MB image or PDF
-	Sync   = 4 << 20  // openlifter: state of the table
-	Intern = 2 << 20  // internal PUTs between services
+	Foto    = 9 << 20  // athletes: 8 MB photo or signed authorisation
+	Archivo = 21 << 20 // athletes: archivo de un formulario (hasta 20 MB + multipart)
+	Import  = 6 << 20  // athletes: 5 MB AEP sheet
+	Upload  = 11 << 20 // cms: 10 MB image or PDF
+	Sync    = 4 << 20  // openlifter: state of the table
+	Intern  = 2 << 20  // internal PUTs between services
 )
 
 // Rule raises the limit of Method + Path ("*" matches one segment; Path "**" every path of the service).
@@ -35,6 +36,7 @@ var Rules = []Rule{
 	{"athletes", http.MethodPost, "/api/competiciones/*/alta-atleta", Foto},
 	{"athletes", http.MethodPost, "/api/admin/competiciones/*/atletas/solicitudes/*/autorizacion", Foto},
 	{"athletes", http.MethodPost, "/api/competiciones/*/autorizacion/*", Upload},
+	{"athletes", http.MethodPost, "/api/formularios/*/archivos", Archivo},
 	{"athletes", http.MethodPut, "/internal/competiciones/*/horarios", Intern},
 	{"cms", http.MethodPost, "/api/admin/competiciones/*/medios", Upload},
 	{"cms", http.MethodPost, "/api/admin/competiciones/*/web/mapas/imagen", Upload},
