@@ -1,7 +1,7 @@
-// porra.go: the parimutuel betting pool (contract §6.2). Markets are generated from the live scoreboard, bets only
-// with porra coins (min and max configurable), automatic close at the first judged attempt and a pot split without
-// a house: winners share floor(pot × own bet / total bet on the winners); ties share among the tied; if nobody hit,
-// everything comes back.
+// porra.go: the parimutuel betting pool (contract §6.2). Markets are generated from the live scoreboard, per sex and
+// competition (prueba), bets only with porra coins (min and max configurable), automatic close once a 2nd attempt is
+// judged and a pot split without a house: winners share floor(pot × own bet / total bet on the winners); ties share
+// among the tied; if nobody hit, everything comes back.
 package juegos
 
 import (
@@ -19,11 +19,15 @@ import (
 )
 
 // opcionVista is one athlete of a market with its live stake and odds (contract §6.2: bote / apostado_a_ese_atleta).
+// Slug and FotoURL come from the scoreboard (public profile only); Categoria from the fantasy roster.
 type opcionVista struct {
-	AtletaID uuid.UUID `json:"atletaId"`
-	Nombre   string    `json:"nombre"`
-	Apostado int64     `json:"apostado"`
-	Cuota    float64   `json:"cuota,omitempty"`
+	AtletaID  uuid.UUID `json:"atletaId"`
+	Nombre    string    `json:"nombre"`
+	Slug      string    `json:"slug,omitempty"`
+	FotoURL   string    `json:"fotoUrl,omitempty"`
+	Categoria string    `json:"categoria,omitempty"`
+	Apostado  int64     `json:"apostado"`
+	Cuota     float64   `json:"cuota,omitempty"`
 }
 
 // mercadoVista is one market with its pot and odds.
@@ -31,6 +35,7 @@ type mercadoVista struct {
 	ID         uuid.UUID     `json:"id"`
 	Tipo       string        `json:"tipo" enum:"categoria,gl,movimiento"`
 	Sexo       string        `json:"sexo" enum:"F,M"`
+	Prueba     string        `json:"prueba" doc:"aep2, aep3 o vacío (atleta sin competición)"`
 	Categoria  string        `json:"categoria,omitempty"`
 	Movimiento string        `json:"movimiento,omitempty" enum:"sq,bp,dl"`
 	Titulo     string        `json:"titulo"`
@@ -46,7 +51,7 @@ type mercadoVista struct {
 
 // mercadosVista lists the markets of a jornada with names, live pot and odds (botes grouped from apuestas).
 func (s *Svc) mercadosVista(ctx context.Context, cid uuid.UUID, j *jornada) ([]mercadoVista, error) {
-	rows, err := s.a.DB.Query(ctx, `SELECT id, tipo, sexo, categoria, movimiento, titulo, estado, opciones, ganador
+	rows, err := s.a.DB.Query(ctx, `SELECT id, tipo, sexo, prueba, categoria, movimiento, titulo, estado, opciones, ganador
 		FROM mercados WHERE jornada_id = $1 ORDER BY created_at`, j.ID)
 	if err != nil {
 		return nil, err
@@ -58,7 +63,8 @@ func (s *Svc) mercadosVista(ctx context.Context, cid uuid.UUID, j *jornada) ([]m
 		var m mercadoRow
 		var t string
 		var g []uuid.UUID
-		if err := rows.Scan(&m.ID, &m.Tipo, &m.Sexo, &m.Categoria, &m.Movimiento, &t, &m.Estado, &m.Opciones, &g); err != nil {
+		if err := rows.Scan(&m.ID, &m.Tipo, &m.Sexo, &m.Prueba, &m.Categoria, &m.Movimiento, &t, &m.Estado, &m.Opciones, &g); err != nil {
+
 			rows.Close()
 			return nil, err
 		}
@@ -74,29 +80,39 @@ func (s *Svc) mercadosVista(ctx context.Context, cid uuid.UUID, j *jornada) ([]m
 		return []mercadoVista{}, nil
 	}
 	nombres := map[uuid.UUID]string{}
+	categorias := map[uuid.UUID]string{}
 	var ids []uuid.UUID
 	for _, m := range ms {
 		ids = append(ids, m.Opciones...)
 	}
 	// Name of the jornada first; a closed/historical jornada may have no fantasy roster: fall back to the latest
 	// name of that athlete in the competition.
-	rows, err = s.a.DB.Query(ctx, `SELECT DISTINCT ON (atleta_id) atleta_id, nombre_publico FROM fantasy_atletas
+	rows, err = s.a.DB.Query(ctx, `SELECT DISTINCT ON (atleta_id) atleta_id, nombre_publico, categoria FROM fantasy_atletas
 		WHERE competition_id = $1 AND atleta_id = ANY($2) ORDER BY atleta_id, (jornada_id = $3) DESC, updated_at DESC`, cid, ids, j.ID)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
 		var aid uuid.UUID
-		var n string
-		if err := rows.Scan(&aid, &n); err != nil {
+		var n, cat string
+		if err := rows.Scan(&aid, &n, &cat); err != nil {
 			rows.Close()
 			return nil, err
 		}
 		nombres[aid] = n
+		categorias[aid] = cat
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+	// Slug and photo are not in fantasy_atletas: they come from the scoreboard of the day (cached 1 s by marcador).
+	// Without a scoreboard the options just come without them.
+	fichas := map[uuid.UUID]*MarcadorAtleta{}
+	if m, _, _ := s.marcador(ctx, cid, j.Dia); m != nil {
+		for i := range m.Atletas {
+			fichas[m.Atletas[i].AtletaID] = &m.Atletas[i]
+		}
 	}
 	type botesKey struct {
 		mercado, atleta uuid.UUID
@@ -125,7 +141,7 @@ func (s *Svc) mercadosVista(ctx context.Context, cid uuid.UUID, j *jornada) ([]m
 	}
 	out := make([]mercadoVista, 0, len(ms))
 	for _, m := range ms {
-		v := mercadoVista{ID: m.ID, Tipo: m.Tipo, Sexo: m.Sexo, Categoria: m.Categoria, Movimiento: m.Movimiento,
+		v := mercadoVista{ID: m.ID, Tipo: m.Tipo, Sexo: m.Sexo, Prueba: m.Prueba, Categoria: m.Categoria, Movimiento: m.Movimiento,
 			Titulo: titulos[m.ID], Estado: m.Estado, Ganador: ganadores[m.ID], Opciones: []opcionVista{}}
 		bote := int64(0)
 		for _, a := range m.Opciones {
@@ -133,7 +149,10 @@ func (s *Svc) mercadosVista(ctx context.Context, cid uuid.UUID, j *jornada) ([]m
 		}
 		for _, a := range m.Opciones {
 			k := botesKey{m.ID, a}
-			op := opcionVista{AtletaID: a, Nombre: nombres[a], Apostado: apostado[k]}
+			op := opcionVista{AtletaID: a, Nombre: nombres[a], Categoria: categorias[a], Apostado: apostado[k]}
+			if f := fichas[a]; f != nil {
+				op.Slug, op.FotoURL = f.Slug, f.FotoURL
+			}
 			if op.Apostado > 0 && bote > 0 {
 				op.Cuota = math.Round(float64(bote)/float64(op.Apostado)*100) / 100
 			}
@@ -167,18 +186,18 @@ func guion(cat string) string {
 	return s
 }
 
-func buscarMercado(mercados []mercadoRow, tipo, sexo, categoria, movimiento string) *mercadoRow {
+func buscarMercado(mercados []mercadoRow, k claveMercado) *mercadoRow {
 	for i := range mercados {
 		m := &mercados[i]
-		if m.Tipo == tipo && m.Sexo == sexo && m.Categoria == categoria && m.Movimiento == movimiento {
+		if claveDe(*m) == k {
 			return m
 		}
 	}
 	return nil
 }
 
-// cerrarMercadosTx closes open markets at the first judged attempt (contract §6.2): `categoria` and `gl` when any
-// of their athletes has a verdict; `movimiento` when any athlete of that sex and lift has one.
+// cerrarMercadosTx closes open markets once a 2nd attempt is judged (contract §6.2): `categoria` when any of its
+// athletes has one; `gl` and `movimiento` when any athlete of that sex and prueba has one.
 func cerrarMercadosTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, m *Marcador, mercados []mercadoRow) error {
 	for _, mc := range mercados {
 		if mc.Estado != "abierto" || !cerrarMercado(m, mc) {
@@ -285,7 +304,7 @@ func cerrarMercado(m *Marcador, mc mercadoRow) bool {
 				}
 			}
 		case "gl":
-			if ma.Sexo == mc.Sexo {
+			if ma.Sexo == mc.Sexo && ma.Prueba == mc.Prueba {
 				for _, mv := range movimientos {
 					if juzgado(ma, mv) {
 						return true
@@ -293,7 +312,7 @@ func cerrarMercado(m *Marcador, mc mercadoRow) bool {
 				}
 			}
 		case "movimiento":
-			if ma.Sexo == mc.Sexo && juzgado(ma, mc.Movimiento) {
+			if ma.Sexo == mc.Sexo && ma.Prueba == mc.Prueba && juzgado(ma, mc.Movimiento) {
 				return true
 			}
 		}

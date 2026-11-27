@@ -9,6 +9,7 @@ package juegos
 import (
 	"context"
 	"sort"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -18,7 +19,12 @@ import (
 
 // claveMercado is the identity of a market (the UNIQUE of the table).
 type claveMercado struct {
-	tipo, sexo, categoria, movimiento string
+	tipo, sexo, prueba, categoria, movimiento string
+}
+
+// claveDe is the identity of an existing market row.
+func claveDe(mc mercadoRow) claveMercado {
+	return claveMercado{mc.Tipo, mc.Sexo, mc.Prueba, mc.Categoria, mc.Movimiento}
 }
 
 // sincronizarMercados syncs the markets of one jornada with the scoreboard of its day. Returns how many markets
@@ -82,8 +88,9 @@ func (s *Svc) sincronizarMercadosAbiertas(ctx context.Context, cid uuid.UUID, ho
 	return primer
 }
 
-// mercadosDeseados is the market set the scoreboard implies: one `categoria` per sex and weight class, one `gl`
-// per sex and one `movimiento` per sex and lift, with the same titles generarMercados used.
+// mercadosDeseados is the market set the scoreboard implies: per sex and competition (prueba) one `categoria` per
+// weight class, one `gl` and one `movimiento` per lift. Each market only has the athletes of its sex and prueba, so
+// its odds are independent of the other ones.
 func mercadosDeseados(m *Marcador) (map[claveMercado][]uuid.UUID, map[claveMercado]string) {
 	mov := map[string]string{"sq": "Sentadilla", "bp": "Press banca", "dl": "Peso muerto"}
 	gl := map[string]string{"F": "Femenino", "M": "Masculino"}
@@ -91,21 +98,30 @@ func mercadosDeseados(m *Marcador) (map[claveMercado][]uuid.UUID, map[claveMerca
 	titulos := map[claveMercado]string{}
 	for i := range m.Atletas {
 		ma := &m.Atletas[i]
+		sufijo := sufijoPrueba(ma.Prueba)
 		if ma.Categoria != "" { // an approved athlete without weight class yet only plays the per-sex markets
-			kc := claveMercado{tipo: "categoria", sexo: ma.Sexo, categoria: ma.Categoria}
+			kc := claveMercado{tipo: "categoria", sexo: ma.Sexo, prueba: ma.Prueba, categoria: ma.Categoria}
 			deseados[kc] = append(deseados[kc], ma.AtletaID)
-			titulos[kc] = gl[ma.Sexo] + " " + guion(ma.Categoria) + " kg"
+			titulos[kc] = "Ganador " + gl[ma.Sexo] + " " + guion(ma.Categoria) + " kg" + sufijo
 		}
-		kg := claveMercado{tipo: "gl", sexo: ma.Sexo}
+		kg := claveMercado{tipo: "gl", sexo: ma.Sexo, prueba: ma.Prueba}
 		deseados[kg] = append(deseados[kg], ma.AtletaID)
-		titulos[kg] = "Mejor IPF GL " + gl[ma.Sexo]
+		titulos[kg] = "Mejor IPF GL " + gl[ma.Sexo] + sufijo
 		for _, mv := range movimientos {
-			km := claveMercado{tipo: "movimiento", sexo: ma.Sexo, movimiento: mv}
+			km := claveMercado{tipo: "movimiento", sexo: ma.Sexo, prueba: ma.Prueba, movimiento: mv}
 			deseados[km] = append(deseados[km], ma.AtletaID)
-			titulos[km] = "Mayor " + mov[mv] + " " + gl[ma.Sexo]
+			titulos[km] = "Mayor " + mov[mv] + " " + gl[ma.Sexo] + sufijo
 		}
 	}
 	return deseados, titulos
+}
+
+// sufijoPrueba is the competition at the end of a market title («· AEP-2»); nothing for an athlete without one.
+func sufijoPrueba(prueba string) string {
+	if prueba == "" {
+		return ""
+	}
+	return " · " + strings.ToUpper(strings.Replace(prueba, "aep", "AEP-", 1))
 }
 
 // sincronizarMercadosTx reconciles the open markets of one jornada with the marcador in one transaction: creates
@@ -146,6 +162,9 @@ func sincronizarMercadosTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jorn
 		if a.sexo != b.sexo {
 			return a.sexo < b.sexo
 		}
+		if a.prueba != b.prueba {
+			return a.prueba < b.prueba
+		}
 		if a.categoria != b.categoria {
 			return a.categoria < b.categoria
 		}
@@ -156,7 +175,7 @@ func sincronizarMercadosTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jorn
 	for _, k := range claves {
 		opts := deseados[k]
 		vistas[k] = true
-		if mc := buscarMercado(actuales, k.tipo, k.sexo, k.categoria, k.movimiento); mc != nil {
+		if mc := buscarMercado(actuales, k); mc != nil {
 			if err := ajustarMercadoTx(ctx, tx, cid, j, cfg, mc, opts, degradado); err != nil {
 				return creados, err
 			}
@@ -181,7 +200,7 @@ func sincronizarMercadosTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jorn
 	// with the whole pot back: the same «Anular y devolver» of the staff, without anybody left to bet on. The
 	// rows are in id order, the same the locking below takes.
 	for _, mc := range actuales {
-		k := claveMercado{mc.Tipo, mc.Sexo, mc.Categoria, mc.Movimiento}
+		k := claveDe(mc)
 		if vistas[k] || mc.Estado != "abierto" {
 			continue
 		}
@@ -346,14 +365,14 @@ func insertarMercadoTx(ctx context.Context, tx pgx.Tx, cid, jid uuid.UUID, k cla
 		return nil, nil
 	}
 	id := newID()
-	err := tx.QueryRow(ctx, `INSERT INTO mercados (id, competition_id, jornada_id, tipo, sexo, categoria, movimiento, titulo, opciones)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (jornada_id, tipo, sexo, categoria, movimiento) DO NOTHING RETURNING id`,
-		id, cid, jid, k.tipo, k.sexo, k.categoria, k.movimiento, titulo, opciones).Scan(&id)
+	err := tx.QueryRow(ctx, `INSERT INTO mercados (id, competition_id, jornada_id, tipo, sexo, prueba, categoria, movimiento, titulo, opciones)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT (jornada_id, tipo, sexo, prueba, categoria, movimiento) DO NOTHING RETURNING id`,
+		id, cid, jid, k.tipo, k.sexo, k.prueba, k.categoria, k.movimiento, titulo, opciones).Scan(&id)
 	if db.IsNoRows(err) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	return &mercadoRow{ID: id, Tipo: k.tipo, Sexo: k.sexo, Categoria: k.categoria, Movimiento: k.movimiento, Estado: "abierto", Opciones: opciones}, nil
+	return &mercadoRow{ID: id, Tipo: k.tipo, Sexo: k.sexo, Prueba: k.prueba, Categoria: k.categoria, Movimiento: k.movimiento, Estado: "abierto", Opciones: opciones}, nil
 }

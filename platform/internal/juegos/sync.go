@@ -18,6 +18,7 @@ type mercadoRow struct {
 	ID         uuid.UUID
 	Tipo       string
 	Sexo       string
+	Prueba     string
 	Categoria  string
 	Movimiento string
 	Estado     string
@@ -137,7 +138,7 @@ func cargarMercadosTx(ctx context.Context, tx pgx.Tx, jid uuid.UUID) ([]mercadoR
 	// ORDER BY id: the orphan markets are locked in a stable order (the main loop locks the sorted keys first),
 	// so two concurrent syncs with the same marcador take the markets in the same order and cannot deadlock each
 	// other (BIZ-200 R2-2).
-	rows, err := tx.Query(ctx, `SELECT id, tipo, sexo, categoria, movimiento, estado, opciones FROM mercados WHERE jornada_id = $1 ORDER BY id`, jid)
+	rows, err := tx.Query(ctx, `SELECT id, tipo, sexo, prueba, categoria, movimiento, estado, opciones FROM mercados WHERE jornada_id = $1 ORDER BY id`, jid)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +146,7 @@ func cargarMercadosTx(ctx context.Context, tx pgx.Tx, jid uuid.UUID) ([]mercadoR
 	var out []mercadoRow
 	for rows.Next() {
 		var m mercadoRow
-		if err := rows.Scan(&m.ID, &m.Tipo, &m.Sexo, &m.Categoria, &m.Movimiento, &m.Estado, &m.Opciones); err != nil {
+		if err := rows.Scan(&m.ID, &m.Tipo, &m.Sexo, &m.Prueba, &m.Categoria, &m.Movimiento, &m.Estado, &m.Opciones); err != nil {
 			return nil, err
 		}
 		out = append(out, m)

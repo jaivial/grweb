@@ -244,8 +244,8 @@ func (s *Svc) registerAdmin() {
 		}
 		return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 			var mc mercadoRow
-			e := tx.QueryRow(ctx, `SELECT id, tipo, sexo, categoria, movimiento, estado, opciones FROM mercados WHERE id = $1 AND competition_id = $2`, in.MID, in.CID).
-				Scan(&mc.ID, &mc.Tipo, &mc.Sexo, &mc.Categoria, &mc.Movimiento, &mc.Estado, &mc.Opciones)
+			e := tx.QueryRow(ctx, `SELECT id, tipo, sexo, prueba, categoria, movimiento, estado, opciones FROM mercados WHERE id = $1 AND competition_id = $2`, in.MID, in.CID).
+				Scan(&mc.ID, &mc.Tipo, &mc.Sexo, &mc.Prueba, &mc.Categoria, &mc.Movimiento, &mc.Estado, &mc.Opciones)
 			if db.IsNoRows(e) {
 				return problem.NotFound("Mercado no encontrado.")
 			}
@@ -253,7 +253,7 @@ func (s *Svc) registerAdmin() {
 				return e
 			}
 			if accion == "cerrar" {
-				// closing by hand is forced (the automatic close waits for the first judged attempt)
+				// closing by hand is forced (the automatic close waits for a 2nd judged attempt)
 				return cerrarMercadoATx(ctx, tx, in.CID, mc)
 			}
 			// liquidar a mano: winners from the scoreboard now
@@ -668,41 +668,23 @@ func jornadaDeMercado(ctx context.Context, q querier, cid, mid uuid.UUID) (*jorn
 	return &j, nil
 }
 
-// liquidarDesdeMarcadorTx liquidates a market by hand: winners are the athletes at the winning place of the
-// scoreboard right now (puestoCategoria/puestoGL/puestoMovimiento == 1). The result has to be definitive (the
-// category published, or every category of the sex published for the GL and movement markets): if it is not, the
+// liquidarDesdeMarcadorTx liquidates a market by hand: winners are the athletes at the top of the market (its sex and
+// prueba, see ganadoresDeMercado) on the scoreboard right now. The result has to be definitive (the category
+// published, or every category of its sex and prueba published for the GL and movement markets): if it is not, the
 // market stays closed (409 RESULTADO_PENDIENTE) unless the staff forces the refund (`devolver`: the whole pot
 // comes back and the market is settled, audited with an admin event).
 func liquidarDesdeMarcadorTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, j jornada, cfg *Config, m *Marcador, mc mercadoRow, devolver bool) error {
-	var ganadores []uuid.UUID
-	for i := range m.Atletas {
-		ma := &m.Atletas[i]
-		switch mc.Tipo {
-		case "categoria":
-			if ma.Sexo == mc.Sexo && ma.Categoria == mc.Categoria && ma.PuestoCategoria == 1 {
-				ganadores = append(ganadores, ma.AtletaID)
-			}
-		case "gl":
-			if ma.Sexo == mc.Sexo && ma.PuestoGL == 1 {
-				ganadores = append(ganadores, ma.AtletaID)
-			}
-		case "movimiento":
-			if ma.Sexo == mc.Sexo && ma.PuestoMovimiento[mc.Movimiento] == 1 {
-				ganadores = append(ganadores, ma.AtletaID)
-			}
-		}
-	}
 	return liquidarMercadoTx(ctx, tx, cid, j, cfg, &mc, resultadoMercado{
 		definitivo: resultadoDefinitivo(m, mc),
-		ganadores:  ganadores,
+		ganadores:  ganadoresDeMercado(m, mc),
 		devolver:   devolver,
 	})
 }
 
 // resultadoDefinitivo reports whether the result of a market is definitive: the category of a `categoria` market
 // has to be published and the scoreboard has to bring its athletes, and a `gl`/`movimiento` market needs every
-// category of its sex published (contract §6.2). A degraded scoreboard (no athletes of the sex, or none of the
-// category) is NOT a definitive result: the market stays closed (409 RESULTADO_PENDIENTE) instead of returning the
+// category of its sex and prueba published (contract §6.2). A degraded scoreboard (no athletes of the sex, or none of
+// the category) is NOT a definitive result: the market stays closed (409 RESULTADO_PENDIENTE) instead of returning the
 // pot and settling it for good.
 func resultadoDefinitivo(m *Marcador, mc mercadoRow) bool {
 	publicadas := map[string]bool{}
@@ -716,7 +698,7 @@ func resultadoDefinitivo(m *Marcador, mc mercadoRow) bool {
 		// Without the athletes of the category nobody can have won it: the result is unknown, not definitive.
 		return tieneAtletasCategoria(m, mc.Sexo, mc.Categoria)
 	}
-	return resultadoDefinitivoDeCategorias(publicadas, categoriasDelSexo(m, mc.Sexo))
+	return resultadoDefinitivoDeCategorias(publicadas, categoriasDelSexo(m, mc.Sexo, mc.Prueba))
 }
 
 // actor names the staff member behind the request (like internal/live and internal/chat): it goes in the audit
