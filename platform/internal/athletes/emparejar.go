@@ -10,7 +10,7 @@ package athletes
 //  2. otherwise MiniMax (ai service) gets the request and the candidates, public data only (never email, phone or
 //     image), and answers which candidate it is, with a confidence;
 //  3. the code compares sex, weight class, division and AEP level of the chosen row with the request;
-//  4. decision: auto (confidence ≥ 0.9 and no discrepancy: approved, linked with the roll row and the OpenLifter
+//  4. decision: auto (confidence ≥ 0.8 and no discrepancy: approved, linked with the roll row and the OpenLifter
 //     entry, athlete notified), sugerido (a candidate with discrepancies or a lower confidence: review), manual
 //     (no candidate, low confidence or an error of the model).
 //
@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	empAuto        = 0.90 // automatic approval
+	empAuto        = 0.80 // automatic approval
 	empSugerido    = 0.60 // shown as a proposal
 	empMinNombre   = 0.50 // prefilter
 	empCandidatos  = 5
