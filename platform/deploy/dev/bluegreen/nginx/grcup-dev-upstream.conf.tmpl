@@ -1,0 +1,12 @@
+# GRS Cup (dev en jaime-desktop). Destinos vivos de cada puerta: lo reescribe lib.sh (render_upstream) en cada
+# redeploy y rollback. No editar a mano: el archivo instalado lo genera el script.
+map $http_upgrade $grcup_dev_conn { default upgrade; '' ''; }
+
+upstream grcup_web {
+    server 127.0.0.1:@WEB_PORT@;
+}
+
+upstream grcup_api {
+    server 127.0.0.1:@API_PORT@;
+    keepalive 16;
+}
