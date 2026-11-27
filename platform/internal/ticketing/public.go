@@ -622,6 +622,10 @@ func (s *Svc) varsEntrada(c compref.Comp, xs []sesionRow, cod, tok, nombre, apel
 	if personas > 1 {
 		acomp = fmt.Sprintf(" + %d acompañante%s", personas-1, map[bool]string{true: "s"}[personas > 2])
 	}
+	if len(xs) == 0 { // a ticket always has a day; never panic the emails if the data is off
+		return map[string]string{"nombre": strings.TrimSpace(nombre), "titular": strings.TrimSpace(nombre+" "+apellidos) + acomp, "sesion": "", "dia": "", "puertas": "", "hasta": "",
+			"personas": fmt.Sprint(personas), "codigo": cod, "qr": s.qrURL(c.Slug, c.ID, cod), "enlace": s.webURL + "/mi-entrada?t=" + tok, "lugar": lugar(c)}
+	}
 	corto := variosDias(xs)
 	dia, hasta := diaTxt(corto.Inicio), hm(corto.Fin)
 	if len(xs) > 1 { // one ticket for several days: «los 3 días … (13:00 el viernes, 13:00 el sábado y 14:00 el domingo)»

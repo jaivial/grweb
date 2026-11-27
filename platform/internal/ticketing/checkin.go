@@ -147,6 +147,13 @@ func (s *Svc) escanear(ctx context.Context, cid uuid.UUID, in EscaneoIn) (Result
 		switch {
 		case estado == "anulada":
 			r.Resultado, r.Mensaje = "anulada", "Esta entrada está anulada."
+		case !cubre && !in.Forzar:
+			// The ticket does not cover the day this station is entering: say which days it has.
+			nombres := make([]string, len(dias))
+			for i, x := range dias {
+				nombres[i] = x.Nombre
+			}
+			r.Resultado, r.Mensaje = "otra_sesion", "Su entrada es para «"+strings.Join(nombres, ", ")+"»."
 		case r.Pendientes == 0:
 			r.Resultado = "ya_usada"
 			var p time.Time
@@ -163,12 +170,6 @@ func (s *Svc) escanear(ctx context.Context, cid uuid.UUID, in EscaneoIn) (Result
 			} else {
 				r.Mensaje = "Ya ha entrado todo el grupo."
 			}
-		case !cubre && !in.Forzar:
-			nombres := make([]string, len(dias))
-			for i, x := range dias {
-				nombres[i] = x.Nombre
-			}
-			r.Resultado, r.Mensaje = "otra_sesion", "Su entrada es para «"+strings.Join(nombres, ", ")+"»."
 		default:
 			r.Resultado = "valida"
 			etiqueta := d.Nombre

@@ -194,6 +194,9 @@ func (s *Svc) recordatorios(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
+				if len(xs) == 0 {
+					return nil // no days: nothing to remind
+				}
 				v := s.varsEntrada(c, xs, cod, tok, nombre, ape, personas)
 				v["cuando"] = r.cuando
 				return email(ctx, tx, p.cid, mail, "entrada-recordatorio", v)

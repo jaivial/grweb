@@ -152,7 +152,7 @@ type Entrada struct {
 	Sesion    string      `json:"sesion" doc:"Días de la entrada («Sábado 19 · jornada + Domingo 20 · jornada»)"`
 	SesionIDs []uuid.UUID `json:"sesionIds" doc:"Todos los días de la entrada"`
 	Personas  int         `json:"personas"`
-	Dentro    int         `json:"dentro" doc:"Personas dentro sumando todos los días"`
+	Dentro    int         `json:"dentro" doc:"Personas de la entrada que han pasado en el día con más accesos"`
 	Estado    string      `json:"estado"`
 	Origen    string      `json:"origen"`
 	Manual    bool        `json:"manual"`
@@ -168,7 +168,7 @@ type Entrada struct {
 
 const selEntrada = `SELECT e.id, e.codigo, e.nombre, e.apellidos, COALESCE(e.email::text, ''), e.telefono, e.sesion_id,
 	(SELECT string_agg(s2.nombre, ' + ' ORDER BY s2.inicio) FROM entrada_sesiones es JOIN sesiones s2 ON s2.id = es.sesion_id WHERE es.entrada_id = e.id), e.personas,
-	(SELECT COALESCE(sum(es.dentro), 0) FROM entrada_sesiones es WHERE es.entrada_id = e.id), e.estado, e.origen, e.manual, e.nota,
+	(SELECT COALESCE(max(es.dentro), 0) FROM entrada_sesiones es WHERE es.entrada_id = e.id), e.estado, e.origen, e.manual, e.nota,
 	e.consentimientos, e.motivo, e.created_at, e.email_rebotado_at IS NOT NULL, e.novedades_confirmada_at IS NOT NULL,
 	(SELECT COALESCE(array_agg(es.sesion_id), '{}') FROM entrada_sesiones es WHERE es.entrada_id = e.id) FROM entradas e JOIN sesiones s ON s.id = e.sesion_id`
 

@@ -324,6 +324,9 @@ func (s *Svc) reenviar(ctx context.Context, tx pgx.Tx, c compref.Comp, id uuid.U
 	if err != nil {
 		return err
 	}
+	if len(xs) == 0 {
+		return problem.Conflict("SIN_DIAS", "Esta entrada no tiene ningún día: no se puede reenviar.")
+	}
 	return email(ctx, tx, c.ID, *mail, "entrada-confirmada", s.varsEntrada(c, xs, cod, tok, nombre, ape, personas))
 }
 
@@ -354,7 +357,7 @@ func (s *Svc) anular(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, motivo s
 			return err
 		}
 	}
-	if err := events.Enqueue(ctx, tx, events.New(ctx, "entrada.anulada", map[string]any{"codigo": cod, "sesionId": xs[0].ID, "motivo": motivo}, events.Competition(cid.String()), events.ForPermission("entradas.gestionar"))); err != nil {
+	if err := events.Enqueue(ctx, tx, events.New(ctx, "entrada.anulada", map[string]any{"codigo": cod, "sesionId": variosDias(xs).ID, "motivo": motivo}, events.Competition(cid.String()), events.ForPermission("entradas.gestionar"))); err != nil {
 		return err
 	}
 	for _, x := range xs {
