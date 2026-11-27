@@ -189,13 +189,13 @@ func (s *Svc) enviarLote(ctx context.Context, c envioCamp, canal string, porMin 
 	if canal == "email" {
 		remitente, intervalo = remitenteEmail(smtpc), time.Minute/time.Duration(max(porMin, 1))
 	}
-	// devolverResto puts the recipients not sent yet back in the queue with their tries.
+	// devolverResto puts the recipients not sent yet back in the queue with their tries (also when the pod is stopping).
 	devolverResto := func(rest []pendienteCamp, en time.Duration, detalle string) {
 		ids := make([]uuid.UUID, 0, len(rest))
 		for _, q := range rest {
 			ids = append(ids, q.id)
 		}
-		_, _ = s.a.DB.Exec(ctx, `UPDATE campana_destinatarios SET estado = 'pendiente', intentos = greatest(intentos - 1, 0), proximo_at = now() + $3::interval, detalle = $2, updated_at = now() WHERE id = ANY($1)`,
+		_, _ = s.a.DB.Exec(context.WithoutCancel(ctx), `UPDATE campana_destinatarios SET estado = 'pendiente', intentos = greatest(intentos - 1, 0), proximo_at = now() + $3::interval, detalle = $2, updated_at = now() WHERE id = ANY($1)`,
 			ids, detalle, fmt.Sprintf("%d seconds", max(int(en.Seconds()), 1)))
 	}
 	for i, p := range lote {
