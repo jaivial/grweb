@@ -79,6 +79,8 @@ export interface PadronEstado {
   estado: EstadoPadron;
   origen?: string;
   confianza?: number;
+  /** Campos que difieren con la fila del padrón (los mismos que marca la tabla del panel). */
+  campos?: string[];
 }
 
 /** Texto y color de cada estado: verde enlazado, ámbar parcial, gris sin coincidencia, rojo error de la IA. */
@@ -100,16 +102,26 @@ const CAMPOS: Record<string, string> = {
  * Etiqueta del estado. Un «parcial» no lleva un porcentaje suelto: dice qué hay que mirar (las diferencias que ha visto
  * el código, o la confianza baja de la IA), que es lo que explica por qué no se enlazó solo.
  */
-export function estadoPadron(e: { estado: EstadoPadron; origen?: string; confianza?: number; discrepancias?: { campo: string }[] }): { l: string; tone: GrTone } {
+export function estadoPadron(e: {
+  estado: EstadoPadron;
+  origen?: string;
+  confianza?: number;
+  discrepancias?: { campo: string }[];
+  /** La misma información ya resumida a nombres de campo (la que trae la ficha y la lista). */
+  campos?: string[];
+}): { l: string; tone: GrTone } {
   const p = PADRON[e.estado] ?? PADRON.sin;
   if (e.origen === 'error_ia' && (e.estado === 'parcial' || e.estado === 'manual')) return { l: 'Error IA · revisar', tone: 'danger' };
   const pct = e.confianza ? Math.round(e.confianza * 100) : 0;
   if (e.estado === 'parcial') {
-    const campos = [...new Set((e.discrepancias ?? []).map((d) => d.campo))].map((c) => CAMPOS[c] ?? c);
+    // Una sola fuente de verdad: los campos que difieren, vengan del detalle del panel o del resumen de la ficha.
+    const distintos = [...new Set(e.campos ?? (e.discrepancias ?? []).map((d) => d.campo))];
+    const campos = distintos.map((c) => CAMPOS[c] ?? c);
     if (campos.length === 1) return { l: `Parcial · revisa ${campos[0]}`, tone: 'warning' };
     if (campos.length > 1 && campos.length <= 2) return { l: `Parcial · revisa ${campos.join(' y ')}`, tone: 'warning' };
     if (campos.length > 2) return { l: `Parcial · revisa ${campos.length} diferencias`, tone: 'warning' };
-    if (pct) return { l: `Parcial · confianza baja (${pct} %)`, tone: 'warning' };
+    // «Confianza baja» solo si de verdad está por debajo del umbral automático (0,80).
+    if (pct && pct < 80) return { l: `Parcial · confianza baja (${pct} %)`, tone: 'warning' };
     return p;
   }
   if (!pct || (e.estado !== 'auto' && e.estado !== 'confirmada')) return p;

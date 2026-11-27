@@ -432,7 +432,8 @@ export class AtletaFichaPage {
   protected whatsapp = false;
 
   protected readonly canEdit = computed(() => this.auth.can(this.comps.current()?.id, 'atletas.editar'));
-  /** La coincidencia con el padrón AEP, para la etiqueta de la cabecera (la sección la lee entera). */
+  /** La coincidencia con el padrón AEP, para la etiqueta de la cabecera: la misma función y los mismos campos que la
+   * tarjeta de la pestaña «Competición» (una sola fuente de verdad para el texto del estado). */
   protected readonly padronTag = computed(() => estadoPadron(this.atleta()?.padron ?? { estado: 'sin' }));
   protected readonly persona = computed(() => {
     const a = this.atleta();

@@ -3,6 +3,7 @@ package athletes
 import (
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/mail"
@@ -101,18 +102,23 @@ type PadronEstado struct {
 	// Origen is where it came from: exacto · ia · error_ia · staff (empty when nothing matched).
 	Origen    string   `json:"origen,omitempty"`
 	Confianza *float64 `json:"confianza,omitempty"`
+	// Campos are the fields that differ between the athlete and the row (categoria, anio…): the label names them
+	// instead of a percentage that says nothing about why the match is only a proposal.
+	Campos []string `json:"campos,omitempty"`
 }
 
 // padronDe reads the coincidence of every athlete of the competition (or of one, when uno is given) in one query: a
 // row already linked in the roll wins (that link is the answer), then the last decision of the alta request the
 // athlete came from.
 func (s *Svc) padronDe(ctx context.Context, cid uuid.UUID, uno *uuid.UUID) (map[uuid.UUID]PadronEstado, error) {
-	rows, err := s.a.DB.Query(ctx, `SELECT a.id, COALESCE(l.enlace, ''), COALESCE(s.estado, ''), COALESCE(s.origen, ''), s.confianza::float8
+	rows, err := s.a.DB.Query(ctx, `SELECT a.id, COALESCE(l.enlace, ''), COALESCE(s.estado, ''), COALESCE(s.origen, ''), s.confianza::float8,
+			COALESCE(s.detalle, '{}'::jsonb)
 		FROM atletas a
 		LEFT JOIN LATERAL (SELECT estado_enlace AS enlace FROM inscripciones_aep i
 			WHERE i.competition_id = a.competition_id AND i.atleta_id = a.id AND i.estado_enlace <> 'rechazado'
 			ORDER BY (i.estado_enlace = 'auto') DESC, i.updated_at DESC LIMIT 1) l ON true
-		LEFT JOIN LATERAL (SELECT padron_estado AS estado, padron_origen AS origen, padron_confianza AS confianza FROM solicitudes_atleta so
+		LEFT JOIN LATERAL (SELECT padron_estado AS estado, padron_origen AS origen, padron_confianza AS confianza, padron_detalle AS detalle
+			FROM solicitudes_atleta so
 			WHERE so.competition_id = a.competition_id AND so.match_atleta_id = a.id AND so.tipo = 'alta' AND so.padron_estado <> ''
 			ORDER BY so.created_at DESC LIMIT 1) s ON true
 		WHERE a.competition_id = $1 AND ($2::uuid IS NULL OR a.id = $2)`, cid, uno)
@@ -125,15 +131,16 @@ func (s *Svc) padronDe(ctx context.Context, cid uuid.UUID, uno *uuid.UUID) (map[
 		var id uuid.UUID
 		var enlace, estado, origen string
 		var conf *float64
-		if err := rows.Scan(&id, &enlace, &estado, &origen, &conf); err != nil {
+		var det []byte
+		if err := rows.Scan(&id, &enlace, &estado, &origen, &conf, &det); err != nil {
 			return nil, err
 		}
-		p := PadronEstado{Estado: estado, Origen: origen, Confianza: conf}
+		p := PadronEstado{Estado: estado, Origen: origen, Confianza: conf, Campos: camposDetalle(det)}
 		switch enlace {
 		case "auto":
-			p = PadronEstado{Estado: "auto", Origen: "exacto"}
+			p = PadronEstado{Estado: "auto", Origen: "exacto", Campos: p.Campos}
 		case "manual":
-			p = PadronEstado{Estado: "confirmada", Origen: "staff"}
+			p = PadronEstado{Estado: "confirmada", Origen: "staff", Campos: p.Campos}
 		}
 		if p.Estado == "" {
 			p.Estado = "sin"
@@ -141,6 +148,19 @@ func (s *Svc) padronDe(ctx context.Context, cid uuid.UUID, uno *uuid.UUID) (map[
 		out[id] = p
 	}
 	return out, rows.Err()
+}
+
+// camposDetalle reads the fields that differ from the stored detail of a decision (the ones the panel's table marks).
+func camposDetalle(det []byte) []string {
+	var d DetalleEmparejamiento
+	if len(det) == 0 || json.Unmarshal(det, &d) != nil {
+		return nil
+	}
+	out := make([]string, 0, len(d.Discrepancias))
+	for _, x := range d.Discrepancias {
+		out = append(out, x.Campo)
+	}
+	return out
 }
 
 // padronCoincide is the «Coincidencia AEP» filter of the list (and of its CSV export).
