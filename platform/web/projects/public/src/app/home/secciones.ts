@@ -13,6 +13,7 @@ import { GrTelefono } from '../layout/telefono';
 import { DivisionPipe, I18n, LocPipe, divisionEn } from '../core/i18n';
 import { ANCHO, GLOW, GrCabecera, GrEyebrow, GrTitulo, SECCION, sinNumero, textoTitulo } from './bloques';
 import { GrInscripcionesCerradas } from '../core/inscripcion-aep';
+import { diaCorto } from './juegos';
 
 const str = (s: Seccion | undefined, k: string) => (s?.[k] as string | undefined) ?? '';
 const list = <T,>(s: Seccion | undefined, k: string) => ((s?.[k] as T[] | undefined) ?? []);
@@ -179,14 +180,14 @@ const TE = {
   es: {
     reserva: 'Reserva tu entrada gratis', horarios: 'Ver horarios', personas: (n: string) => n + ' personas ya tienen entrada',
     gratis: 'Entrada gratuita', puerta: 'Enséñalo en la puerta desde el móvil (no hace falta imprimirlo)', aforo: 'Aforo',
-    sesion: (x: string) => 'Sesión de ' + x, puertas: (a: string, b: string) => 'Puertas ' + a + ' · hasta las ' + b,
+    porConfirmar: 'Aforo por confirmar', puertas: (a: string, b: string) => 'Puertas ' + a + ' · hasta las ' + b,
     acomp: (n: number) => 'Tu nombre + ' + n + (n === 1 ? ' acompañante' : ' acompañantes'), agotadas: 'Agotadas: apúntate a la lista de espera',
     ultimas: (n: number) => '¡Últimas ' + n + ' entradas!', quedan: (n: string) => 'Quedan ' + n + ' entradas',
   },
   en: {
     reserva: 'Book your free ticket', horarios: 'See schedule', personas: (n: string) => n + ' people already have a ticket',
     gratis: 'Free ticket', puerta: 'Show it at the door on your phone (no need to print it)', aforo: 'Capacity',
-    sesion: (x: string) => x + ' session', puertas: (a: string, b: string) => 'Doors ' + a + ' · until ' + b,
+    porConfirmar: 'Capacity to be confirmed', puertas: (a: string, b: string) => 'Doors ' + a + ' · until ' + b,
     acomp: (n: number) => 'Your name + ' + n + (n === 1 ? ' guest' : ' guests'), agotadas: 'Sold out: join the waiting list',
     ultimas: (n: number) => 'Last ' + n + ' tickets!', quedan: (n: string) => n + ' tickets left',
   },
@@ -229,13 +230,42 @@ const TX = {
   },
 };
 
+interface DiaAforo { dia: string; texto: string; aforo: number; ocupadas: number; pct: number; nota: string; ultimas: boolean }
+/** The calendar day (Madrid) of a session, as «2026-12-18». */
+const diaMadrid = (iso: string) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(new Date(iso));
+
+/** One day of the event on the capacity meter (Figma «Aforo meter»): the day's sessions added up, with its note. */
+@Component({
+  selector: 'gr-aforo-dia',
+  imports: [GrIcon],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <div class="flex w-full max-w-[400px] flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card px-4 py-5">
+      <div class="flex items-center justify-between">
+        <span class="flex items-center gap-2 text-label-s"><gr-icon name="users" [size]="16" class="text-accent-text" />{{ te().aforo }} · {{ d().texto }}</span>
+        @if (d().aforo) { <span class="text-mono-s text-text-secondary">{{ d().ocupadas }} / {{ d().aforo }}</span> }
+      </div>
+      @if (d().aforo) {
+        <div role="meter" class="h-2 overflow-hidden rounded-[4px] bg-line-strong" [attr.aria-label]="te().aforo + ' · ' + d().texto" aria-valuemin="0" [attr.aria-valuemax]="d().aforo" [attr.aria-valuenow]="d().ocupadas" [attr.aria-valuetext]="d().ocupadas + ' / ' + d().aforo"><div class="h-full rounded-[4px] bg-[linear-gradient(120deg,#c42b3e,#6e1420)]" [style.width.%]="d().pct"></div></div>
+        <p class="flex items-center gap-1.5 text-body-s" [class]="d().ultimas ? 'text-accent-text' : 'text-text-secondary'"><gr-icon [name]="d().ultimas ? 'zap' : 'ticket'" [size]="14" />{{ d().nota }}</p>
+      } @else {
+        <p class="text-body-s text-text-secondary">{{ te().porConfirmar }}</p>
+      }
+    </div>
+  `,
+})
+export class GrAforoDia {
+  readonly d = input.required<DiaAforo>();
+  protected readonly te = inject(I18n).dict(TE);
+}
+
 /**
  * «Section / Entradas»: why to book (icons), the CTAs and live social proof, next to an example ticket (rotated −3°,
- * real QR) and the capacity meter of the fullest open session.
+ * real QR) listing the three dates and the capacity meter of each day.
  */
 @Component({
   selector: 'gr-sec-entradas',
-  imports: [RouterLink, GrButton, GrIcon, GrEyebrow, GrTitulo, LocPipe],
+  imports: [RouterLink, GrButton, GrIcon, GrEyebrow, GrTitulo, LocPipe, GrAforoDia],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: SECCION + ' bg-bg-deep' },
   template: `
@@ -274,6 +304,9 @@ const TX = {
               <span class="inline-flex h-6 items-center rounded-pill border border-white/25 bg-white/6 px-2.5 text-label-xs text-text-secondary">{{ te().gratis }}</span>
             </div>
             <p class="text-display-xs">{{ nombreTicket() }}</p>
+            <ul class="flex flex-wrap gap-1.5">
+              @for (f of dias(); track f.dia) { <li class="inline-flex h-7 items-center rounded-pill border border-accent/40 bg-accent/12 px-3 text-label-s text-accent-text">{{ f.texto }}</li> }
+            </ul>
             <ul class="flex flex-col gap-2 text-body-s text-text-secondary">
               @for (m of metaTicket(); track m.t) { <li class="flex items-center gap-2.5"><gr-icon [name]="m.i" [size]="15" class="text-accent-text" />{{ m.t }}</li> }
             </ul>
@@ -289,16 +322,7 @@ const TX = {
             <span class="text-body-xs text-text-tertiary">{{ te().puerta }}</span>
           </div>
         </div>
-        @if (aforo(); as a) {
-          <div class="flex w-full max-w-[400px] flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card px-4 py-5">
-            <div class="flex items-center justify-between">
-              <span class="flex items-center gap-2 text-label-s"><gr-icon name="users" [size]="16" class="text-accent-text" />{{ te().aforo }} · {{ a.s.nombre }}</span>
-              <span class="text-mono-s text-text-secondary">{{ a.s.ocupadas }} / {{ a.s.aforo }}</span>
-            </div>
-            <div class="h-2 overflow-hidden rounded-[4px] bg-line-strong"><div class="h-full rounded-[4px] bg-[linear-gradient(120deg,#c42b3e,#6e1420)]" [style.width.%]="a.pct"></div></div>
-            <p class="flex items-center gap-1.5 text-body-s" [class]="a.ultimas ? 'text-accent-text' : 'text-text-secondary'"><gr-icon [name]="a.ultimas ? 'zap' : 'ticket'" [size]="14" />{{ a.nota }}</p>
-          </div>
-        }
+        @for (d of dias(); track d.dia) { <gr-aforo-dia [d]="d" /> }
       </div>
     </div>
   `,
@@ -329,32 +353,29 @@ export class SecEntradas {
   protected readonly metaTicket = computed(() => {
     const s = this.primera(), c = this.comp();
     const out: { i: GrIconName; t: string }[] = [];
-    if (s) {
-      const d = new Intl.DateTimeFormat(this.i18n.locale(), { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).format(new Date(s.inicio)).replace(',', '').replace('.', '');
-      // «Viernes 18 · jornada» → «Jornada» (the day is already in the date); «Sábado mañana» → «Sesión de mañana»
-      const partes = s.nombre.split('·').map((x) => x.trim()).filter(Boolean);
-      const resto = s.nombre.replace(/^(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\s+/i, '');
-      const sesion = partes.length > 1
-        ? partes[partes.length - 1].replace(/^\p{L}/u, (c) => c.toUpperCase())
-        : resto === s.nombre ? s.nombre : this.te().sesion(resto);
-      out.push({ i: 'calendar', t: `${d.charAt(0).toUpperCase() + d.slice(1)} · ${sesion}` });
-      out.push({ i: 'clock', t: this.te().puertas(hora(s.puertas), hora(s.fin)) });
-    }
+    if (s) out.push({ i: 'clock', t: this.te().puertas(hora(s.puertas), hora(s.fin)) });
     if (c?.sede?.nombre) out.push({ i: 'map-pin', t: c.sede.nombre });
     // «Tu nombre + 3 acompañantes»: the guests of a full booking (maxPorReserva − 1), as the form allows
     out.push({ i: 'users', t: this.te().acomp(Math.max(1, (this.primera()?.maxPorReserva ?? 4) - 1)) });
     return out;
   });
-  /** The open session closest to selling out (Figma «Aforo meter / Últimas»). */
-  protected readonly aforo = computed(() => {
-    const ss = (this.entradas()?.sesiones ?? []).filter((s) => s.aforo > 0);
-    if (!ss.length) return null;
-    const vivas = ss.filter((s) => s.libres > 0);
-    // BIZ-169: same session as the example ticket above, so the label matches it
-    const s = vivas.find((v) => v.id === this.primera()?.id) ?? (vivas.length ? vivas : ss).reduce((a, b) => (b.libres < a.libres ? b : a));
-    const ultimas = s.libres > 0 && s.libres <= Math.max(10, s.aforo * 0.1);
-    const nota = s.libres <= 0 ? this.te().agotadas : ultimas ? this.te().ultimas(s.libres) : this.te().quedan(num(s.libres));
-    return { s, pct: Math.min(100, Math.round((s.ocupadas / s.aforo) * 100)), ultimas, nota };
+  /** One entry per day of the event (Madrid time) from the published sessions: the ticket lists the dates and each day gets its meter. */
+  protected readonly dias = computed<DiaAforo[]>(() => {
+    const grupos = new Map<string, SesionPub[]>();
+    for (const s of this.entradas()?.sesiones ?? []) {
+      const dia = diaMadrid(s.inicio);
+      grupos.set(dia, [...(grupos.get(dia) ?? []), s]);
+    }
+    const loc = this.i18n.locale();
+    return [...grupos].map(([dia, ss]) => {
+      const con = ss.filter((s) => s.aforo > 0);
+      const aforo = con.reduce((n, s) => n + s.aforo, 0);
+      const ocupadas = con.reduce((n, s) => n + s.ocupadas, 0);
+      const libres = con.reduce((n, s) => n + s.libres, 0);
+      const ultimas = libres > 0 && libres <= Math.max(10, aforo * 0.1);
+      const nota = !aforo ? '' : libres <= 0 ? this.te().agotadas : ultimas ? this.te().ultimas(libres) : this.te().quedan(num(libres));
+      return { dia, texto: diaCorto(dia, loc).replace(/^\p{L}/u, (c) => c.toUpperCase()), aforo, ocupadas, pct: aforo ? Math.min(100, Math.round((ocupadas / aforo) * 100)) : 0, nota, ultimas };
+    });
   });
   constructor() {
     const browser = isPlatformBrowser(inject(PLATFORM_ID));
