@@ -239,11 +239,12 @@ const diaMadrid = (iso: string) => new Intl.DateTimeFormat('en-CA', { timeZone: 
   selector: 'gr-aforo-dia',
   imports: [GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block w-full' },
   template: `
     <div class="flex w-full max-w-[400px] flex-col gap-2 rounded-lg border border-line-subtle bg-bg-card px-4 py-5">
-      <div class="flex items-center justify-between">
-        <span class="flex items-center gap-2 text-label-s"><gr-icon name="users" [size]="16" class="text-accent-text" />{{ te().aforo }} · {{ d().texto }}</span>
-        @if (d().aforo) { <span class="text-mono-s text-text-secondary">{{ d().ocupadas }} / {{ d().aforo }}</span> }
+      <div class="flex items-center justify-between gap-3">
+        <span class="flex min-w-0 items-center gap-2 text-label-s" [attr.title]="te().aforo + ' · ' + d().texto"><gr-icon name="users" [size]="16" class="shrink-0 text-accent-text" /><span class="truncate">{{ te().aforo }} · {{ d().texto }}</span></span>
+        @if (d().aforo) { <span class="shrink-0 text-mono-s text-text-secondary">{{ d().ocupadas }} / {{ d().aforo }}</span> }
       </div>
       @if (d().aforo) {
         <div role="meter" class="h-2 overflow-hidden rounded-[4px] bg-line-strong" [attr.aria-label]="te().aforo + ' · ' + d().texto" aria-valuemin="0" [attr.aria-valuemax]="d().aforo" [attr.aria-valuenow]="d().ocupadas" [attr.aria-valuetext]="d().ocupadas + ' / ' + d().aforo"><div class="h-full rounded-[4px] bg-[linear-gradient(120deg,#c42b3e,#6e1420)]" [style.width.%]="d().pct"></div></div>
@@ -322,8 +323,13 @@ export class GrAforoDia {
             <span class="text-body-xs text-text-tertiary">{{ te().puerta }}</span>
           </div>
         </div>
-        @for (d of dias(); track d.dia) { <gr-aforo-dia [d]="d" /> }
       </div>
+      @if (dias().length) {
+        <!-- one meter per day: 1 column on mobile, 3 equal columns from md; full width under both columns on desktop -->
+        <div class="row-start-3 grid w-full grid-cols-1 gap-3 md:grid-cols-3 md:gap-4 lg:col-span-2 lg:row-start-3">
+          @for (d of dias(); track d.dia) { <gr-aforo-dia [d]="d" /> }
+        </div>
+      }
     </div>
   `,
 })
