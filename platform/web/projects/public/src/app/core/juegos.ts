@@ -69,13 +69,6 @@ export interface AtletaEnDirecto {
   horaInicio: string;
 }
 
-export function nombreJornadaLoc(j: Pick<Jornada, 'nombre' | 'dia'>, locale: string): string {
-  const n = j.nombre.replace(/\s*\(.*\)$/, '');
-  if (!j.dia || locale.startsWith('es') || !/^(Domingo|Lunes|Martes|Miércoles|Jueves|Viernes|Sábado) \d{1,2}$/.test(n)) return n;
-  const s = new Date(j.dia.slice(0, 10) + 'T12:00:00Z').toLocaleDateString(locale, { weekday: 'long', day: 'numeric', timeZone: 'UTC' }).replace(',', '');
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
 export interface OpcionMercado {
   atletaId: string;
   nombre: string;
@@ -104,6 +97,8 @@ export interface Mercado {
   movimiento?: Mov;
   /** Nivel de la competición del mercado (AEP-2 / AEP-3). */
   prueba?: 'aep2' | 'aep3' | '';
+  /** La jornada del mercado: a ella van sus apuestas y su cartera (lo pone `Juegos.porraMercadosTodas`). */
+  jornadaId?: string;
   titulo: string;
   estado: EstadoMercado;
   opciones: OpcionMercado[];
@@ -590,6 +585,12 @@ export class Juegos {
     return this.get(`${this.base}/porra/mercados${this.q(jornadaId)}`);
   }
 
+  /** Los mercados de porra de todas las jornadas (cada uno con su jornada); sin nivel AEP (cerrados) no cuentan. */
+  async porraMercadosTodas(jornadas: Jornada[]): Promise<Mercado[]> {
+    const listas = await Promise.all(jornadas.map((j) => this.porraMercados(j.id).then((r) => (r.mercados ?? []).map((m) => ({ ...m, jornadaId: j.id })))));
+    return listas.flat().filter((m) => !!m.prueba);
+  }
+
   porraApostar(mercadoId: string, atletaId: string, importe: number, jornadaId?: string): Promise<{ apuestaId: string; saldo: number }> {
     return this.post(`${this.base}/porra/apuestas`, { mercadoId, atletaId, importe, jornada: jornadaId || undefined });
   }
@@ -828,7 +829,6 @@ export class JuegosEstado {
   readonly cerrados = computed(() => (this.vivo.activo() ?? this.config()?.activo) === false);
   /** ¿La jornada mostrada es de solo lectura (cerrada)? */
   readonly soloLectura = computed(() => this.jornada()?.estado === 'cerrada');
-  readonly saldoPorra = computed(() => this.cartera()?.porra ?? 0);
   readonly saldoFantasy = computed(() => this.cartera()?.fantasy ?? 0);
 
   /** Carga las jornadas una vez (el servidor las trae; el navegador las refresca) y los premios de la jornada. */
@@ -854,11 +854,6 @@ export class JuegosEstado {
     const c = await this.juegos.config().catch(() => null);
     if (c || !this.config()) this.config.set(c);
     if (c) this.vivo.activo.set(null); // the fresh config wins over an older live event
-  }
-
-  /** Elige la jornada (vacío = la activa). */
-  elegir(id: string): void {
-    this.jornadaId.set(id);
   }
 
   /** La jornada con la que se llaman al API: la elegida, la de la URL o la activa. */
@@ -1025,6 +1020,11 @@ export class JuegosEnVivo {
     if (!jornadaId) return;
     this.jornadaFoco.set(jornadaId);
     if (salaId !== undefined) this.salaFoco.set(salaId);
+  }
+
+  /** Quita el filtro de jornada: la porra sigue los mercados de todas las jornadas a la vez. */
+  sinFiltroJornada(): void {
+    this.jornadaFoco.set('');
   }
 
   /** Fija (o limpia con '') la sala que se está mirando. */
@@ -1347,9 +1347,11 @@ export class PorraStore {
 
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
+  /** Los mercados con nivel AEP de todas las jornadas visibles, cada uno con su jornada. */
   readonly mercados = signal<Mercado[]>([]);
-  readonly jornada = signal<Jornada | null>(null);
-  readonly premios = computed(() => this.estado.premios());
+  /** La cartera de cada jornada (id → cartera): el saldo de porra de un nivel es la de su jornada. */
+  readonly carteras = signal<Record<string, Cartera>>({});
+  readonly premios = signal<Premio[]>([]);
 
   readonly cargandoApuestas = signal(false);
   readonly apuestas = signal<Apuesta[]>([]);
@@ -1358,14 +1360,40 @@ export class PorraStore {
   readonly cargandoClas = signal(false);
   readonly clas = signal<{ top: FilaPorra[]; miPuesto: number; miSaldo: number } | null>(null);
 
-  /** Mercados y premios de la jornada elegida. */
+  /** La jornada de un nivel AEP (la de sus mercados): a ella van sus apuestas y su cartera. */
+  jornadaDe(prueba: 'aep2' | 'aep3'): string | undefined {
+    return this.mercados().find((m) => m.prueba === prueba)?.jornadaId;
+  }
+
+  /** La cartera del nivel (la de su jornada). */
+  carteraDe(prueba: 'aep2' | 'aep3'): Cartera | undefined {
+    const jid = this.jornadaDe(prueba);
+    return jid ? this.carteras()[jid] : undefined;
+  }
+
+  /** El saldo de porra del nivel (la cartera de su jornada). */
+  saldoDe(prueba: 'aep2' | 'aep3'): number {
+    return this.carteraDe(prueba)?.porra ?? 0;
+  }
+
+  /** Las apuestas del nivel: las de los mercados de su jornada. */
+  apuestasDe(prueba: 'aep2' | 'aep3'): Apuesta[] {
+    const jid = this.jornadaDe(prueba);
+    const ids = new Set(this.mercados().filter((m) => m.jornadaId === jid).map((m) => m.id));
+    return this.apuestas().filter((a) => ids.has(a.mercadoId));
+  }
+
+  /** Las jornadas visibles (carga la lista si aún no está). */
+  private async jornadasVisibles(): Promise<Jornada[]> {
+    if (!this.estado.jornadas().length) await this.estado.cargar();
+    return this.estado.jornadas();
+  }
+
+  /** Mercados de todas las jornadas visibles. */
   async cargar(): Promise<void> {
     this.cargando.set(true);
-    const jid = this.estado.jornadaActual();
     try {
-      const m = await this.juegos.porraMercados(jid);
-      this.mercados.set(m.mercados ?? []);
-      this.jornada.set(m.jornada ?? null);
+      this.mercados.set(await this.juegos.porraMercadosTodas(await this.jornadasVisibles()));
       this.error.set(null);
     } catch (e) {
       this.error.set(mensajeError(e));
@@ -1377,9 +1405,23 @@ export class PorraStore {
   /** Recarga solo los mercados (las cuotas cambian en vivo). */
   async recargarMercados(): Promise<void> {
     try {
-      const m = await this.juegos.porraMercados(this.estado.jornadaActual());
-      this.mercados.set(m.mercados ?? []);
+      this.mercados.set(await this.juegos.porraMercadosTodas(await this.jornadasVisibles()));
       this.error.set(null);
+    } catch {
+      /* se mantiene lo anterior */
+    }
+  }
+
+  /** La cartera de porra de cada jornada visible (con sesión). */
+  async cargarCarteras(): Promise<void> {
+    if (!this.fan.conSesion()) {
+      this.carteras.set({});
+      return;
+    }
+    try {
+      const jornadas = await this.jornadasVisibles();
+      const lista = await Promise.all(jornadas.map((j) => this.juegos.cartera(j.id).then((c) => [j.id, c] as const)));
+      this.carteras.set(Object.fromEntries(lista));
     } catch {
       /* se mantiene lo anterior */
     }
@@ -1395,7 +1437,7 @@ export class PorraStore {
     return !!copia;
   }
 
-  /** Mis apuestas (solo con sesión). */
+  /** Mis apuestas de todas las jornadas (solo con sesión). */
   async cargarApuestas(): Promise<void> {
     if (!this.fan.conSesion()) {
       this.apuestas.set([]);
@@ -1403,8 +1445,9 @@ export class PorraStore {
     }
     this.cargandoApuestas.set(true);
     try {
-      const r = await this.juegos.porraMisApuestas(this.estado.jornadaActual());
-      this.apuestas.set(r.apuestas ?? []);
+      const jornadas = await this.jornadasVisibles();
+      const listas = await Promise.all(jornadas.map((j) => this.juegos.porraMisApuestas(j.id)));
+      this.apuestas.set(listas.flatMap((r) => r.apuestas ?? []));
       this.errorApuestas.set(null);
     } catch (e) {
       this.errorApuestas.set(mensajeError(e));
@@ -1413,12 +1456,23 @@ export class PorraStore {
     }
   }
 
-  /** La clasificación de la porra (público; «mi puesto» si hay sesión). */
-  async cargarClasificacion(): Promise<void> {
+  /** La clasificación de la porra de un nivel AEP (pública; «mi puesto» si hay sesión) y los premios de su jornada. */
+  async cargarClasificacion(prueba: 'aep2' | 'aep3'): Promise<void> {
     this.cargandoClas.set(true);
     try {
-      const c = await this.juegos.porraClasificacion(this.estado.jornadaActual(), this.fan.conSesion());
+      if (!this.mercados().length) await this.cargar();
+      const jid = this.jornadaDe(prueba);
+      if (!jid) {
+        this.clas.set({ top: [], miPuesto: 0, miSaldo: 0 });
+        this.premios.set([]);
+        return;
+      }
+      const [c, premios] = await Promise.all([
+        this.juegos.porraClasificacion(jid, this.fan.conSesion()),
+        this.juegos.premios(jid).then((r) => r.premios ?? []).catch(() => [] as Premio[]),
+      ]);
       this.clas.set({ top: c.top ?? [], miPuesto: c.miPuesto ?? 0, miSaldo: c.miSaldo ?? 0 });
+      this.premios.set(premios);
     } catch {
       this.clas.set(null);
     } finally {

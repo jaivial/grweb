@@ -1,20 +1,22 @@
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 /**
- * porra/mis-apuestas.ts — /porra/mis-apuestas (Figma «71 · /porra» · Mis apuestas): el boleto de la jornada con lo que
- * sigue en juego, lo cobrado y lo perdido.
+ * porra/mis-apuestas.ts — /porra/mis-apuestas (Figma «71 · /porra» · Mis apuestas): el boleto del nivel elegido (AEP-2 /
+ * AEP-3) con lo que sigue en juego, lo cobrado y lo perdido.
  */
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { GrAlert, GrButton, GrIcon, type GrIconName, GrSkeleton } from '@grcup/ui';
 import { Cms } from '../../core/cms';
 import { FanSession } from '../../core/fan';
-import { JuegosEstado, PorraStore, type Apuesta, type Mercado, cuota as cuotaFmt, nombreJornadaLoc } from '../../core/juegos';
+import { JuegosEstado, PorraStore, type Apuesta, type Mercado, cuota as cuotaFmt } from '../../core/juegos';
 import { monedas } from './formato';
 import { I18n, LocPipe } from '../../core/i18n';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
 import { CoinBalance, PorraCabecera } from './componentes';
+import { PorraNivel, pruebaDeUrl, saldoNivelTxt } from './navegacion';
 
 type Filtro = 'todas' | 'abiertas' | 'ganadas' | 'devueltas' | 'perdidas';
 type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
@@ -22,7 +24,7 @@ type EstadoApuesta = 'Abierta' | 'Ganada' | 'Devuelta' | 'Perdida';
 const T = {
   es: {
     titulo: 'Mis apuestas',
-    desc: 'Tu boleto de la jornada: lo que sigue en juego, lo cobrado y lo perdido. Se liquida al publicarse los resultados.',
+    desc: 'Tu boleto del nivel elegido: lo que sigue en juego, lo cobrado y lo perdido. Se liquida al publicarse los resultados.',
     entraVer: 'Entra para ver tus apuestas',
     entraTxt: 'Con tu cuenta del directo recibes 100.000 monedas por jornada para apostar en la porra.',
     entrar: 'Entrar para jugar',
@@ -52,11 +54,11 @@ const T = {
     nDevueltas: (n: number) => `${n} ${n === 1 ? 'devuelta' : 'devueltas'}`,
     nPerdidas: (n: number) => `${n} sin acierto`,
     seoTitulo: 'Mis apuestas · Porra · GR Strength Cup',
-    seoDesc: 'Tus apuestas de porra de la jornada: lo que sigue en juego, lo cobrado, lo devuelto y lo perdido.',
+    seoDesc: 'Tus apuestas de porra: lo que sigue en juego, lo cobrado, lo devuelto y lo perdido.',
   },
   en: {
     titulo: 'My bets',
-    desc: 'Your slip for the day: what is still in play, what you have collected and what you have lost. It is settled when the results are published.',
+    desc: 'Your slip for the chosen level: what is still in play, what you have collected and what you have lost. It is settled when the results are published.',
     entraVer: 'Sign in to see your bets',
     entraTxt: 'With your live stream account you get 100,000 coins per day to bet in the pool.',
     entrar: 'Sign in to play',
@@ -86,20 +88,22 @@ const T = {
     nDevueltas: (n: number) => `${n} refunded`,
     nPerdidas: (n: number) => `${n} lost`,
     seoTitulo: 'My bets · Pool · GR Strength Cup',
-    seoDesc: 'Your betting pool bets for the day: what is still in play, collected, refunded and lost.',
+    seoDesc: 'Your betting pool bets: what is still in play, collected, refunded and lost.',
   },
 };
 
 @Component({
   selector: 'gr-mis-apuestas-page',
-  imports: [RouterLink, LocPipe, Page, GrAlert, GrButton, GrIcon, GrSkeleton, CoinBalance, PorraCabecera],
+  imports: [RouterLink, LocPipe, Page, GrAlert, GrButton, GrIcon, GrSkeleton, CoinBalance, PorraCabecera, PorraNivel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page [title]="t().titulo" [juego]="true">
-      <gr-porra-cabecera [titulo]="t().titulo + ' ' + jornadaTxt()" [tituloMovil]="t().titulo" [asideMovil]="true" [crumb]="t().titulo" activa="apuestas"
+      <gr-porra-cabecera [titulo]="t().titulo" [tituloMovil]="t().titulo" [asideMovil]="true" [crumb]="t().titulo" activa="apuestas"
         [descripcion]="t().desc">
-        <gr-coin-balance aside [valor]="saldo()" moneda="porra" motivo="porra" [etiquetaMovil]="false" />
+        <gr-coin-balance aside [valor]="saldo()" moneda="porra" motivo="porra" [etiqueta]="etiquetaSaldo()" [etiquetaMovil]="false" />
       </gr-porra-cabecera>
+
+      <gr-porra-nivel [prueba]="prueba()" ruta="/porra/mis-apuestas" />
 
       @if (!fan.conSesion()) {
         <div class="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line-strong bg-bg-card/40 px-6 py-14 text-center">
@@ -189,6 +193,7 @@ export class MisApuestasPage {
   protected readonly store = inject(PorraStore);
   protected readonly estado = inject(JuegosEstado);
   protected readonly fan = inject(FanSession);
+  private readonly route = inject(ActivatedRoute);
 
   protected readonly filtro = signal<Filtro>('todas');
   protected readonly filtros: { v: Filtro; n: () => number }[] = [
@@ -213,12 +218,12 @@ export class MisApuestasPage {
     ];
   });
 
-  protected readonly apuestas = computed(() => this.store.apuestas());
-  protected readonly saldo = computed(() => this.estado.saldoPorra());
-  protected readonly jornadaTxt = computed(() => {
-    const j = this.store.jornada() ?? this.estado.jornada();
-    return j ? '· ' + nombreJornadaLoc(j, this.i18n.locale()) : '';
-  });
+  protected readonly apuestas = computed(() => this.store.apuestasDe(this.prueba()));
+  /** El nivel elegido en ?prueba (AEP-2 por defecto): su jornada da el boleto y el saldo. */
+  private readonly qp = toSignal(this.route.queryParamMap, { initialValue: this.route.snapshot.queryParamMap });
+  protected readonly prueba = computed(() => pruebaDeUrl(this.qp().get('prueba')));
+  protected readonly saldo = computed(() => this.store.saldoDe(this.prueba()));
+  protected readonly etiquetaSaldo = computed(() => saldoNivelTxt(this.prueba(), this.i18n.lang()));
 
   /** El estado de cada apuesta, deducido del estado y el ganador de su mercado. */
   protected readonly estados = computed<Map<string, EstadoApuesta>>(() => {
@@ -275,7 +280,7 @@ export class MisApuestasPage {
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       void this.fan.cargar().then(() => {
         void this.store.cargarApuestas();
-        void this.estado.cargarCartera();
+        void this.store.cargarCarteras();
       });
       inject(DestroyRef).onDestroy(() => undefined);
     }

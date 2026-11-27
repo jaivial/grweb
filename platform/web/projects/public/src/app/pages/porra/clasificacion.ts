@@ -1,20 +1,22 @@
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 /**
- * porra/clasificacion.ts — /porra/clasificacion (Figma «71 · /porra» · Clasificación): el ranking de la jornada
- * (saldo de porra) con el puesto del usuario fijado y los premios como gancho.
+ * porra/clasificacion.ts — /porra/clasificacion (Figma «71 · /porra» · Clasificación): el ranking del nivel elegido
+ * (AEP-2 / AEP-3, saldo de porra de su jornada) con el puesto del usuario fijado y los premios como gancho.
  */
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, effect, inject, signal, untracked } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
 import { Cms } from '../../core/cms';
 import { FanSession } from '../../core/fan';
-import { JuegosEnVivo, JuegosEstado, PorraStore, nombreJornadaLoc } from '../../core/juegos';
+import { JuegosEnVivo, JuegosEstado, PorraStore } from '../../core/juegos';
 import { monedas } from './formato';
 import { I18n, LocPipe } from '../../core/i18n';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
 import { CoinBalance, LeaderboardRow, PorraCabecera, Podio, type PlazaPodio } from './componentes';
+import { PRUEBA_TXT, PorraNivel, pruebaDeUrl, saldoNivelTxt } from './navegacion';
 
 const T = {
   es: {
@@ -33,7 +35,6 @@ const T = {
     desde4: 'Clasificación desde el 4.º puesto',
     puestos: (a: number, b: string) => `· · · puestos ${a} a ${b} · · ·`,
     premios: (l: string) => `Premios: ${l} (monedas). El resto del bote se reparte entre los acertantes de cada mercado.`,
-    porra: 'Porra',
     seoTitulo: 'Clasificación de la porra · GR Strength Cup',
     seoDesc: 'Ranking de la porra de la jornada: saldo de monedas virtuales, premios y tu puesto.',
     tuPuesto: 'Tu puesto',
@@ -54,7 +55,6 @@ const T = {
     desde4: 'Leaderboard from 4th place',
     puestos: (a: number, b: string) => `· · · places ${a} to ${b} · · ·`,
     premios: (l: string) => `Prizes: ${l} (coins). The rest of the pot is shared among the winners of each market.`,
-    porra: 'Pool',
     seoTitulo: 'Betting pool leaderboard · GR Strength Cup',
     seoDesc: "The day's betting pool ranking: virtual coin balance, prizes and your place.",
     tuPuesto: 'Your place',
@@ -63,15 +63,15 @@ const T = {
 
 @Component({
   selector: 'gr-porra-clasificacion-page',
-  imports: [RouterLink, LocPipe, Page, GrButton, GrIcon, GrSkeleton, CoinBalance, LeaderboardRow, PorraCabecera, Podio],
+  imports: [RouterLink, LocPipe, Page, GrButton, GrIcon, GrSkeleton, CoinBalance, LeaderboardRow, PorraCabecera, Podio, PorraNivel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page [title]="t().titulo" [juego]="true">
-      <gr-porra-cabecera [titulo]="t().titulo + ' ' + jornadaTxt()" [crumb]="t().titulo" activa="clasificacion" [descMovil]="true"
+      <gr-porra-cabecera [titulo]="t().titulo + ' · ' + nivelTxt()" [crumb]="t().titulo" activa="clasificacion" [descMovil]="true"
         [descripcion]="t().desc">
         <section aside class="flex w-[340px] flex-col gap-2 rounded-lg border border-accent/45 bg-bg-card p-4 shadow-glow-deep" [attr.aria-label]="t().bote">
           <p class="flex items-center gap-2 text-mono-xs text-accent-text"><gr-icon name="trophy" [size]="14" />{{ t().primero }}</p>
-          <p class="text-ui-h5 text-text-primary">{{ t().bote }} {{ jornadaNombre() }}</p>
+          <p class="text-ui-h5 text-text-primary">{{ t().bote }} {{ nivelTxt() }}</p>
           <p class="flex items-baseline gap-1.5"><span class="font-mono text-[1.375rem] font-bold text-text-primary tabular-nums">{{ monedas(bote()) }}</span><span class="text-body-xs text-text-tertiary">{{ t().enJuego }}</span></p>
           @if (premios()[0]; as p) {
             <p class="text-body-xs text-text-secondary">{{ p.titulo }}@if (p.valorTexto) { · <span class="font-mono text-accent-text">{{ p.valorTexto }}</span> }</p>
@@ -81,7 +81,8 @@ const T = {
           }
         </section>
       </gr-porra-cabecera>
-      <gr-coin-balance class="self-start md:hidden" [valor]="saldo()" moneda="porra" motivo="porra" />
+      <gr-porra-nivel [prueba]="prueba()" ruta="/porra/clasificacion" />
+      <gr-coin-balance class="self-start md:hidden" [valor]="saldo()" moneda="porra" motivo="porra" [etiqueta]="etiquetaSaldo()" />
 
       <div>
         <div class="min-w-0">
@@ -130,6 +131,11 @@ export class PorraClasificacionPage {
   protected readonly fan = inject(FanSession);
   private readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(T);
+  private readonly route = inject(ActivatedRoute);
+  /** El nivel elegido en ?prueba (AEP-2 por defecto): su jornada da la clasificación, el bote y el saldo. */
+  private readonly qp = toSignal(this.route.queryParamMap, { initialValue: this.route.snapshot.queryParamMap });
+  protected readonly prueba = computed(() => pruebaDeUrl(this.qp().get('prueba')));
+  protected readonly nivelTxt = computed(() => PRUEBA_TXT[this.prueba()]);
 
   protected readonly visibles = computed(() => this.store.clas()?.top.slice(0, 7) ?? []);
   protected readonly miPuesto = computed(() => this.store.clas()?.miPuesto ?? 0);
@@ -157,11 +163,11 @@ export class PorraClasificacionPage {
     const m = this.miFila();
     return m && m.puesto > this.visibles().length ? m : null;
   });
-  protected readonly saldo = computed(() => this.estado.saldoPorra());
+  protected readonly saldo = computed(() => this.store.saldoDe(this.prueba()));
+  protected readonly etiquetaSaldo = computed(() => saldoNivelTxt(this.prueba(), this.i18n.lang()));
   protected readonly monedas = (v: number | null | undefined) => monedas(v, this.i18n.locale());
-  /** El bote total de la jornada (suma de los botes de sus mercados). */
-  protected readonly bote = computed(() => this.store.mercados().reduce((s, m) => s + m.bote, 0));
-  protected readonly jornadaNombre = computed(() => { const j = this.store.jornada() ?? this.estado.jornada(); return j ? nombreJornadaLoc(j, this.i18n.locale()) : ''; });
+  /** El bote total del nivel (suma de los botes de sus mercados). */
+  protected readonly bote = computed(() => this.store.mercados().filter((m) => m.prueba === this.prueba()).reduce((s, m) => s + m.bote, 0));
   protected readonly premios = computed(() => this.store.premios().filter((p) => p.ranking === 'porra'));
   /** La línea de premios del diseño. */
   protected readonly premiosTexto = computed(() => {
@@ -170,10 +176,6 @@ export class PorraClasificacionPage {
     const lista = l.map((p) => p.valorTexto || p.titulo).join(' · ');
     return this.t().premios(lista);
   });
-  protected readonly jornadaTxt = computed(() => {
-    const j = this.store.jornada() ?? this.estado.jornada();
-    return j ? '· ' + this.t().porra + ' ' + nombreJornadaLoc(j, this.i18n.locale()) : '· ' + this.t().porra;
-  });
 
   constructor() {
     const seo = inject(Seo);
@@ -181,19 +183,20 @@ export class PorraClasificacionPage {
     void inject(PendingTasks).run(async () => {
       await this.estado.cargar();
       await this.store.cargar();
-      await this.store.cargarClasificacion();
+      await this.store.cargarClasificacion(this.prueba());
       await applySeo(cms, seo, '/porra/clasificacion', this.t().seoTitulo, this.t().seoDesc);
     });
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       this.vivo.conectar();
-      // el ranking se actualiza en vivo (evento juegos.clasificacion)
+      // el ranking se actualiza en vivo (evento juegos.clasificacion) y al cambiar de nivel AEP
       effect(() => {
+        const p = this.prueba();
         this.vivo.podios();
-        untracked(() => void this.store.cargarClasificacion());
+        untracked(() => void this.store.cargarClasificacion(p));
       });
       void this.fan.cargar().then(() => {
-        void this.estado.cargarCartera();
-        void this.store.cargarClasificacion();
+        void this.store.cargarCarteras();
+        void this.store.cargarClasificacion(this.prueba());
       });
       inject(DestroyRef).onDestroy(() => this.vivo.desconectar());
     }
