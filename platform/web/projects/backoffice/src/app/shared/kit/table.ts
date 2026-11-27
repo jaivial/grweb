@@ -25,7 +25,7 @@ import { BoCheckbox } from './controls';
         <ng-content select="[filters]" />
         @if (filtered()) { <button grButton variant="ghost" (click)="reset.emit()">Limpiar filtros</button> }
         <div class="ml-auto flex items-center gap-2">
-          <p class="text-body-xs text-text-tertiary" aria-live="polite">{{ loading() ? 'Buscando…' : fmt(total()) + ' ' + (filtered() ? 'resultados' : noun()) }}</p>
+          <p class="text-body-xs text-text-tertiary" aria-live="polite">{{ loading() ? 'Buscando…' : fmt(total()) + ' ' + (filtered() ? fila() : noun()) }}</p>
           <ng-content select="[actions]" />
         </div>
       </div>
@@ -37,11 +37,14 @@ export class BoTableToolbar {
   readonly selected = input(0);
   readonly loading = input(false);
   readonly filtered = input(false);
-  /** Plural noun for the unfiltered counter («1.248 entradas»). */
+  /** Plural noun for the unfiltered counter («1.248 entradas»), with its singular for «1 atleta». */
   readonly noun = input('resultados');
+  readonly singular = input('resultado');
   readonly clear = output<void>();
   readonly reset = output<void>();
   protected fmt(n: number): string { return n.toLocaleString('es-ES'); }
+  /** «1 atleta» / «3 atletas»: the counter says what it counts, also when it is one. */
+  protected fila(): string { return this.total() === 1 ? this.singular() : this.noun(); }
 }
 
 /** Figma 49 «BO / Modal» Kind=Form: 520 px panel r20 card, p24, gap 20, title 20 SemiBold, fields projected, footer [modalActions] aligned right. */

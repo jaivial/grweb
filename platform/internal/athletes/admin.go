@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/mail"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -870,13 +871,17 @@ func (s *Svc) registerAdmin() {
 		for _, a := range list {
 			// Free-text columns (typed in the AEP list or by athletes) are neutralised against formulas.
 			h, ok := alc.Handling[a.ID]
-			rec := []string{csvSafe(a.Licencia), csvSafe(a.Nombre), csvSafe(a.Apellidos), a.Sexo, a.Categoria, DivisionNombre(a.Division), csvSafe(a.Club), a.Estado, a.Jornada, kg(a.PesoCorporal), strconv.Itoa(a.completo()), handlingCSV(h, ok), alc.Padron[a.ID].Estado}
+			padron := alc.Padron[a.ID].Estado
+			if padron == "" {
+				padron = "sin"
+			}
+			rec := []string{csvSafe(a.Licencia), csvSafe(a.Nombre), csvSafe(a.Apellidos), a.Sexo, a.Categoria, DivisionNombre(a.Division), csvSafe(a.Club), a.Estado, a.Jornada, kg(a.PesoCorporal), strconv.Itoa(a.completo()), handlingCSV(h, ok), padron}
 			if personal {
 				e := ""
 				if a.Email != nil {
 					e = *a.Email
 				}
-				rec = append(rec, csvSafe(e), csvSafe(a.Telefono))
+				rec = append(rec, csvSafe(e), csvTel(a.Telefono))
 			}
 			_ = cw.Write(rec)
 		}
@@ -902,6 +907,19 @@ func csvSafe(v string) string {
 		return "'" + v
 	}
 	return v
+}
+
+// reTelefono is a phone as the platform stores it: an optional «+» and then only digits and spaces. Nothing else can
+// follow that «+», so the cell cannot carry a formula (no operator, no reference, no DDE payload): the apostrophe that
+// csvSafe would add only breaks the number when the file is read back.
+var reTelefono = regexp.MustCompile(`^\+?[0-9 ]{6,20}$`)
+
+// csvTel exports a phone: clean when it is a phone and neutralised (with the apostrophe) when it is not.
+func csvTel(v string) string {
+	if reTelefono.MatchString(v) {
+		return v
+	}
+	return csvSafe(v)
 }
 
 // validMedio accepts media of the library (/api/medios/…) or https URLs.

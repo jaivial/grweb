@@ -10,6 +10,7 @@ package athletes
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -97,114 +98,210 @@ func conflictoEdicion(ifm string, version int) error {
 	return nil
 }
 
-// versionAtleta checks the If-Match of a record: a panel open on another version never links a row it did not see.
-func (s *Svc) versionAtleta(ctx context.Context, cid, atleta uuid.UUID, ifm string) error {
-	if ifm == "" {
-		return nil
-	}
-	var v int
-	switch err := s.a.DB.QueryRow(ctx, `SELECT version FROM atletas WHERE competition_id = $1 AND id = $2`, cid, atleta).Scan(&v); {
-	case errors.Is(err, pgx.ErrNoRows):
-		return problem.NotFound("Ese atleta no existe.")
-	case err != nil:
+// conflictoEdicionAtleta is the answer of a record already saved with another version (412, as the requests do).
+func conflictoEdicionAtleta() error {
+	return problem.New(http.StatusPreconditionFailed, "CONFLICTO_EDICION",
+		"Otra persona ha guardado esta ficha mientras la veías. Recarga para ver sus cambios.")
+}
+
+// bloqueaAtleta locks the record and checks the version the panel holds.
+func (s *Svc) bloqueaAtleta(ctx context.Context, tx pgx.Tx, cid, atleta uuid.UUID, ifm string) error {
+	r, err := s.lock(ctx, tx, cid, atleta, "")
+	if err != nil {
 		return err
 	}
-	if ifMatch(ifm) != v {
-		return problem.Conflict("CONFLICTO_EDICION", "Otra persona ha guardado esta ficha mientras la veías. Recarga para ver sus cambios.")
+	if ifm != "" && ifMatch(ifm) != r.Version {
+		return conflictoEdicionAtleta()
 	}
 	return nil
 }
 
-// confirmarPadron links the row the team confirms. A request still pending is approved exactly as an automatic match
-// would do; a closed one only takes the link on the athlete it produced.
-func (s *Svc) confirmarPadron(ctx context.Context, cid, solID, insc uuid.UUID, ifm, por string) error {
-	sol, err := s.cargarSolEmp(ctx, cid, solID)
-	if err != nil {
-		return err
-	}
-	if err := conflictoEdicion(ifm, sol.Version); err != nil {
-		return err
-	}
-	fila, err := s.filaPadron(ctx, insc)
-	if err != nil {
-		return problem.NotFound("Esa fila del padrón no existe: puede que se haya vuelto a importar la lista.")
-	}
+// panelRevision is where the answer of the team comes from: the review panel of a request (its If-Match) or the record
+// of an athlete (the record's If-Match). The request is always locked first, then the record, so two panels never take
+// the same two locks in a different order.
+type panelRevision struct {
+	// Atleta is the record the answer was made from (nil: the review panel of the request).
+	Atleta  *uuid.UUID
+	IfMatch string
+}
+
+// candidatura is the proposal the team is confirming: the row compared with the request, its differences and the
+// confidence of the matching that proposed it (the name score when nothing better was stored).
+func (s *Svc) candidatura(ctx context.Context, cid uuid.UUID, sol solEmp, fila *LifterPadron, prev *float64) (candidato, DetalleEmparejamiento, float64) {
 	cand := candidato{personaIA: personaIA{ID: fila.ID.String(), Nombre: fila.Nombre, Apellidos: fila.Apellidos, Sexo: fila.Sexo, Anio: fila.Anio,
 		Club: fila.Club, Division: fila.Division, Categoria: fila.Categoria, Nivel: fila.Nivel}, uuid: fila.ID, lifterID: fila.LifterID,
 		atletaID: fila.AtletaID, score: puntuar(sol.Nombre, sol.Apellidos, fila.Nombre, fila.Apellidos)}
 	det := DetalleEmparejamiento{Coincide: map[string]bool{}, NivelAEP: []string{fila.Nivel}, NotasIA: []string{},
-		Discrepancias: compararPadron(sol, cand, s.compYear(ctx, cid)), Motivo: "El equipo confirma que es la misma persona del padrón AEP."}
-	// The confidence of the proposal is kept: it says how sure the matching was before the team looked at it.
+		Discrepancias: compararPadron(sol, cand, s.compYear(ctx, cid))}
 	conf := cand.score
-	if prev, err := s.leerEmparejamiento(ctx, cid, solID); err == nil && prev.Confianza != nil {
-		conf = *prev.Confianza
+	if prev != nil {
+		conf = *prev
 	}
-	switch {
-	case sol.Estado == "pendiente" || sol.Estado == "revision":
-		if motivo := s.puedeAutoAprobar(sol, &cand); motivo != "" {
-			return problem.Unprocessable("NO_CONFIRMABLE", motivo)
-		}
-		if _, err := s.aplicarAuto(ctx, cid, sol, &cand, "manual", por, ifm); err != nil {
-			return err
-		}
-	case sol.MatchAtletaID != nil:
-		if err := s.enlazarPadron(ctx, cid, insc, *sol.MatchAtletaID, "manual", por); err != nil {
-			return err
-		}
-	default:
-		return problem.Unprocessable("SIN_ATLETA", "La solicitud no tiene atleta enlazado: aprueba primero el alta.")
-	}
-	return s.guardarDecision(ctx, cid, decisionEmparejamiento{Solicitud: sol, AtletaID: sol.MatchAtletaID, Candidato: &cand, Decision: "confirmada",
-		Origen: "staff", Confianza: &conf, Detalle: det, Entrada: map[string]any{"fila": insc}, Por: por})
+	return cand, det, conf
 }
 
-// descartarPadron says «no es esta persona»: the proposal is cleared, nothing is approved and the row goes back to the
-// queue of the roll.
-func (s *Svc) descartarPadron(ctx context.Context, cid, solID uuid.UUID, ifm, por string) error {
+// confirmarPadron links the row the team confirms. A request still pending is approved exactly as an automatic match
+// would do; a closed one takes the link on the athlete it produced. Both answer under the row lock of the request (and
+// of the record when the answer comes from the record): a second panel that read another version loses with 412.
+func (s *Svc) confirmarPadron(ctx context.Context, cid, solID, insc uuid.UUID, p panelRevision, por string) error {
 	sol, err := s.cargarSolEmp(ctx, cid, solID)
 	if err != nil {
 		return err
 	}
-	if err := conflictoEdicion(ifm, sol.Version); err != nil {
-		return err
-	}
-	prev, err := s.leerEmparejamiento(ctx, cid, solID)
-	if err != nil {
-		return err
-	}
-	prev.Detalle.Motivo = "El equipo ha descartado la coincidencia con el padrón."
-	if prev.Inscripcion != nil {
-		insc := prev.Inscripcion.ID
-		// The row returns to the queue of the roll (an automatic match is never undone from here).
-		if err := s.change(ctx, cid, "", nil, func(tx pgx.Tx) error {
-			_, err := tx.Exec(ctx, `UPDATE inscripciones_aep SET atleta_id = NULL, estado_enlace = 'pendiente', updated_at = now()
-				WHERE competition_id = $1 AND id = $2 AND estado_enlace <> 'auto'`, cid, insc)
-			return err
-		}); err != nil {
+	if sol.Estado == "pendiente" || sol.Estado == "revision" {
+		ifm := p.IfMatch
+		if p.Atleta != nil {
+			ifm = "" // the record's panel holds the record's version, not the request's
+		}
+		if err := conflictoEdicion(ifm, sol.Version); err != nil {
 			return err
 		}
+		fila, err := s.filaPadron(ctx, insc)
+		if err != nil {
+			return problem.NotFound("Esa fila del padrón no existe: puede que se haya vuelto a importar la lista.")
+		}
+		var prev *float64
+		if e, err := s.leerEmparejamiento(ctx, cid, solID); err == nil {
+			prev = e.Confianza
+		}
+		cand, det, conf := s.candidatura(ctx, cid, sol, fila, prev)
+		if motivo := s.puedeAutoAprobar(sol, &cand); motivo != "" {
+			return problem.Unprocessable("NO_CONFIRMABLE", motivo)
+		}
+		det.Motivo = motivoConfirmado(por, det)
+		// The approval locks the request and checks the If-Match on its own (apruebaSolicitud).
+		if _, err := s.aplicarAuto(ctx, cid, sol, &cand, "manual", por, ifm); err != nil {
+			return err
+		}
+		return s.guardarDecision(ctx, cid, decisionEmparejamiento{Solicitud: sol, AtletaID: sol.MatchAtletaID, Candidato: &cand, Decision: "confirmada",
+			Origen: "staff", Confianza: &conf, Detalle: det, Entrada: map[string]any{"fila": insc}, Por: por})
 	}
-	return s.guardarDecision(ctx, cid, decisionEmparejamiento{Solicitud: sol, AtletaID: sol.MatchAtletaID, Decision: "descartada", Origen: "staff",
-		Confianza: prev.Confianza, Detalle: prev.Detalle, Por: por})
+	return s.confirmarCerrada(ctx, cid, solID, insc, p, por)
 }
 
-// confirmarPadronAtleta answers «sí es esta fila» from the athlete record: the decision is written on the request that
-// produced the athlete, or on the athlete itself when it was added by hand.
-func (s *Svc) confirmarPadronAtleta(ctx context.Context, cid, atleta, insc uuid.UUID, ifm, por string) error {
-	if err := s.versionAtleta(ctx, cid, atleta, ifm); err != nil {
-		return err
-	}
-	solID, err := s.solicitudDeAtleta(ctx, cid, atleta)
+// confirmarCerrada confirms the row of a request that is already reviewed: one transaction takes the lock of the
+// request (and of the record, if the answer comes from the record), links the row and writes the decision.
+func (s *Svc) confirmarCerrada(ctx context.Context, cid, solID, insc uuid.UUID, p panelRevision, por string) error {
+	var nivel string
+	var lifter *int
+	var atleta uuid.UUID
+	err := s.change(ctx, cid, "", nil, func(tx pgx.Tx) error {
+		sol, err := s.bloqueaYLee(ctx, tx, cid, solID, p)
+		if err != nil {
+			return err
+		}
+		if sol.MatchAtletaID == nil {
+			return problem.Unprocessable("SIN_ATLETA", "La solicitud no tiene atleta enlazado: aprueba primero el alta.")
+		}
+		atleta = *sol.MatchAtletaID
+		fila, err := s.filaPadron(ctx, insc)
+		if err != nil {
+			return problem.NotFound("Esa fila del padrón no existe: puede que se haya vuelto a importar la lista.")
+		}
+		var prev *float64
+		if err := tx.QueryRow(ctx, `SELECT padron_confianza::float8 FROM solicitudes_atleta WHERE id = $1`, solID).Scan(&prev); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		cand, det, conf := s.candidatura(ctx, cid, sol, fila, prev)
+		det.Motivo = motivoConfirmado(por, det)
+		if nivel, lifter, err = enlazarPadronTx(ctx, tx, cid, insc, atleta, "manual", por); err != nil {
+			return err
+		}
+		return guardarDecisionTx(ctx, tx, cid, decisionEmparejamiento{Solicitud: sol, AtletaID: &atleta, Candidato: &cand, Decision: "confirmada",
+			Origen: "staff", Confianza: &conf, Detalle: det, Entrada: map[string]any{"fila": insc}, Por: por})
+	})
 	if err != nil {
 		return err
 	}
-	if solID != nil {
-		return s.confirmarPadron(ctx, cid, *solID, insc, "", por)
+	s.vinculoOpenLifter(ctx, cid, nivel, lifter, atleta, por)
+	return nil
+}
+
+// motivoConfirmado is the reason stored with a confirmation, naming who answered (the panel shows it as is).
+func motivoConfirmado(por string, det DetalleEmparejamiento) string {
+	if por == "" {
+		por = "El equipo"
+	}
+	m := "Confirmado por " + por + ": es la misma persona del padrón AEP."
+	if len(det.Discrepancias) > 0 {
+		m += " Diferencias: " + diferenciasTexto(det.Discrepancias) + "."
+	}
+	return m
+}
+
+// descartarPadron says «no es esta persona»: the proposal is cleared, nothing is approved and the row goes back to the
+// queue of the roll. It answers under the same locks as a confirmation.
+func (s *Svc) descartarPadron(ctx context.Context, cid, solID uuid.UUID, p panelRevision, por string) error {
+	return s.change(ctx, cid, "", nil, func(tx pgx.Tx) error {
+		sol, err := s.bloqueaYLee(ctx, tx, cid, solID, p)
+		if err != nil {
+			return err
+		}
+		var insc *uuid.UUID
+		var conf *float64
+		var det []byte
+		if err := tx.QueryRow(ctx, `SELECT padron_inscripcion_id, padron_confianza::float8, padron_detalle FROM solicitudes_atleta WHERE id = $1`,
+			solID).Scan(&insc, &conf, &det); err != nil {
+			return err
+		}
+		if insc != nil {
+			// The row returns to the queue of the roll (an automatic match is never undone from here).
+			if _, err := tx.Exec(ctx, `UPDATE inscripciones_aep SET atleta_id = NULL, estado_enlace = 'pendiente', updated_at = now()
+				WHERE competition_id = $1 AND id = $2 AND estado_enlace <> 'auto'`, cid, *insc); err != nil {
+				return err
+			}
+		}
+		var d DetalleEmparejamiento
+		_ = json.Unmarshal(det, &d)
+		d.Motivo = motivoDescartado(por)
+		return guardarDecisionTx(ctx, tx, cid, decisionEmparejamiento{Solicitud: sol, AtletaID: sol.MatchAtletaID, Decision: "descartada", Origen: "staff",
+			Confianza: conf, Detalle: d, Por: por})
+	})
+}
+
+// motivoDescartado is the reason stored with a discarded proposal.
+func motivoDescartado(por string) string {
+	if por == "" {
+		por = "El equipo"
+	}
+	return "Descartada por " + por + ": no es la misma persona del padrón."
+}
+
+// bloqueaYLee locks the request (checking the If-Match the panel holds) and, when the answer comes from a record, the
+// record too. The request always goes first: every path takes the two locks in the same order.
+func (s *Svc) bloqueaYLee(ctx context.Context, tx pgx.Tx, cid, solID uuid.UUID, p panelRevision) (solEmp, error) {
+	ifm := p.IfMatch
+	if p.Atleta != nil {
+		// The version the record's panel holds is not the request's: the record is the one checked.
+		ifm = ""
+	}
+	sol, err := s.lockSolicitud(ctx, tx, cid, solID, ifm)
+	if err != nil {
+		return solEmp{}, err
+	}
+	if p.Atleta != nil {
+		if sol.MatchAtletaID == nil || *sol.MatchAtletaID != *p.Atleta {
+			return solEmp{}, problem.Conflict("CONFLICTO_EDICION", "Esa ficha ya no es la de esta solicitud: recarga la ficha antes de contestar.")
+		}
+		if err := s.bloqueaAtleta(ctx, tx, cid, *p.Atleta, p.IfMatch); err != nil {
+			return solEmp{}, err
+		}
+	}
+	return solEmpDe(ctx, tx, sol)
+}
+
+// confirmarPadronAtleta answers «sí es esta fila» from the record: the decision is written on the request that produced
+// the athlete, or on the athlete itself when it was added by hand.
+func (s *Svc) confirmarPadronAtleta(ctx context.Context, cid, atleta, insc uuid.UUID, ifm, por string) error {
+	if solID, err := s.solicitudDeAtleta(ctx, cid, atleta); err != nil {
+		return err
+	} else if solID != nil {
+		return s.confirmarPadron(ctx, cid, *solID, insc, panelRevision{Atleta: &atleta, IfMatch: ifm}, por)
 	}
 	var nivel string
 	var lifter *int
-	err = s.change(ctx, cid, "athletes.atleta_actualizado", map[string]any{"id": atleta}, func(tx pgx.Tx) error {
-		if _, err := s.lock(ctx, tx, cid, atleta, ifm); err != nil {
+	err := s.change(ctx, cid, "athletes.atleta_actualizado", map[string]any{"id": atleta}, func(tx pgx.Tx) error {
+		if err := s.bloqueaAtleta(ctx, tx, cid, atleta, ifm); err != nil {
 			return err
 		}
 		var err error
@@ -223,16 +320,17 @@ func (s *Svc) confirmarPadronAtleta(ctx context.Context, cid, atleta, insc uuid.
 
 // descartarPadronAtleta clears the proposal of an athlete added by hand (the log is written on the athlete).
 func (s *Svc) descartarPadronAtleta(ctx context.Context, cid, atleta uuid.UUID, ifm, por string) error {
-	if err := s.versionAtleta(ctx, cid, atleta, ifm); err != nil {
-		return err
-	}
 	if solID, err := s.solicitudDeAtleta(ctx, cid, atleta); err != nil {
 		return err
 	} else if solID != nil {
-		return s.descartarPadron(ctx, cid, *solID, "", por)
+		return s.descartarPadron(ctx, cid, *solID, panelRevision{Atleta: &atleta, IfMatch: ifm}, por)
 	}
 	return s.change(ctx, cid, "athletes.atleta_actualizado", map[string]any{"id": atleta}, func(tx pgx.Tx) error {
-		if _, err := s.lock(ctx, tx, cid, atleta, ifm); err != nil {
+		if err := s.bloqueaAtleta(ctx, tx, cid, atleta, ifm); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE atletas SET version = version + 1, updated_at = now() WHERE competition_id = $1 AND id = $2`,
+			cid, atleta); err != nil {
 			return err
 		}
 		return logEmparejamiento(ctx, tx, cid, nil, &atleta, nil, "descartada", "staff", nil, []byte(`{}`), []byte(`{}`),
@@ -287,6 +385,8 @@ func (s *Svc) registerPadronEquipo() {
 			return &padronOut{Body: e}, err
 		})
 
+	// The confirmation carries the row the team chose; discarding carries nothing (a required body made the endpoint
+	// answer 422 «body es obligatorio» with an empty one, which is exactly what the button sends).
 	type padronIn struct {
 		CID     uuid.UUID `path:"cid"`
 		ID      uuid.UUID `path:"id"`
@@ -294,6 +394,11 @@ func (s *Svc) registerPadronEquipo() {
 		Body    struct {
 			InscripcionID uuid.UUID `json:"inscripcionId" doc:"Fila del padrón que se confirma"`
 		}
+	}
+	type padronSinCuerpoIn struct {
+		CID     uuid.UUID `path:"cid"`
+		ID      uuid.UUID `path:"id"`
+		IfMatch string    `header:"If-Match"`
 	}
 	huma.Register(api, huma.Operation{OperationID: "atleta-padron-confirmar", Method: http.MethodPost, Path: pbase + "/{id}/confirmar",
 		Summary: "Confirmar la fila del padrón AEP de un atleta (enlaza la fila y la entrada de OpenLifter)", Tags: tagAdmin, Security: bearer},
@@ -313,7 +418,7 @@ func (s *Svc) registerPadronEquipo() {
 
 	huma.Register(api, huma.Operation{OperationID: "atleta-padron-descartar", Method: http.MethodPost, Path: pbase + "/{id}/descartar",
 		Summary: "Descartar la coincidencia propuesta con el padrón AEP", Tags: tagAdmin, Security: bearer},
-		func(ctx context.Context, in *padronIn) (*padronOut, error) {
+		func(ctx context.Context, in *padronSinCuerpoIn) (*padronOut, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {
 				return nil, err
 			}
@@ -350,7 +455,7 @@ func (s *Svc) registerPadronEquipo() {
 			if in.Body.InscripcionID == uuid.Nil {
 				return nil, problem.Unprocessable("INSCRIPCION_OBLIGATORIA", "Elige la fila del padrón que corresponde a la solicitud.")
 			}
-			if err := s.confirmarPadron(ctx, in.CID, in.ID, in.Body.InscripcionID, in.IfMatch, actor(ctx)); err != nil {
+			if err := s.confirmarPadron(ctx, in.CID, in.ID, in.Body.InscripcionID, panelRevision{IfMatch: in.IfMatch}, actor(ctx)); err != nil {
 				return nil, err
 			}
 			e, err := s.leerEmparejamiento(ctx, in.CID, in.ID)
@@ -359,11 +464,11 @@ func (s *Svc) registerPadronEquipo() {
 
 	huma.Register(api, huma.Operation{OperationID: "solicitudes-atleta-padron-descartar", Method: http.MethodPost, Path: sbase + "/{id}/padron/descartar",
 		Summary: "Descartar la fila del padrón AEP propuesta a una solicitud", Tags: tagAdmin, Security: bearer},
-		func(ctx context.Context, in *padronIn) (*empOut, error) {
+		func(ctx context.Context, in *padronSinCuerpoIn) (*empOut, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {
 				return nil, err
 			}
-			if err := s.descartarPadron(ctx, in.CID, in.ID, in.IfMatch, actor(ctx)); err != nil {
+			if err := s.descartarPadron(ctx, in.CID, in.ID, panelRevision{IfMatch: in.IfMatch}, actor(ctx)); err != nil {
 				return nil, err
 			}
 			e, err := s.leerEmparejamiento(ctx, in.CID, in.ID)

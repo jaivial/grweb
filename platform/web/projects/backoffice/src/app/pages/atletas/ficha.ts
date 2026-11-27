@@ -40,8 +40,9 @@ const PUBLIC_WEB = webPublica();
               <span>{{ comps.current()?.nombreCorto }}</span><gr-icon name="chevron-right" [size]="12" /><span>Evento</span><gr-icon name="chevron-right" [size]="12" />
               <a routerLink=".." class="hover:text-text-primary">Atletas</a><gr-icon name="chevron-right" [size]="12" /><span class="text-text-secondary">{{ a.nombreCompleto }}</span>
             </nav>
-            <h1 class="mt-2 flex flex-wrap items-center gap-3 text-ui-h2">{{ a.nombreCompleto }} <gr-badge [tone]="estado[a.estado].tone">{{ estado[a.estado].label }}</gr-badge>
-              <gr-badge [tone]="padronTag().tone" [title]="'Padrón AEP'">{{ padronTag().l }}</gr-badge></h1>
+            <h1 class="mt-2 flex flex-wrap items-center gap-3 text-ui-h2">{{ a.nombreCompleto }}
+              <gr-badge [tone]="estado[a.estado].tone">{{ estado[a.estado].label }}</gr-badge>
+              <gr-badge [tone]="padronTag().tone" title="Coincidencia con la lista oficial de la AEP">Padrón AEP: {{ padronTag().l }}</gr-badge></h1>
             <p class="mt-1 text-body-s text-text-tertiary">{{ subtitulo() }}</p>
           </div>
           <div class="flex flex-wrap gap-2">

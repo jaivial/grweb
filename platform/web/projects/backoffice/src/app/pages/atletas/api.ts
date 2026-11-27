@@ -253,7 +253,7 @@ export class AtletasApi {
       { headers: new HttpHeaders({ 'If-Match': `W/"${version}"` }), context: sinTimeout() }));
   }
   descartarPadron(cid: string, id: string, version: number): Promise<EmparejamientoPadron> {
-    return firstValueFrom(this.http.post<EmparejamientoPadron>(`${this.base(cid)}/padron/${id}/descartar`, {},
+    return firstValueFrom(this.http.post<EmparejamientoPadron>(`${this.base(cid)}/padron/${id}/descartar`, null,
       { headers: new HttpHeaders({ 'If-Match': `W/"${version}"` }) }));
   }
   /** Vuelve a emparejar con la IA el alta de la que salió el atleta (tarda: sin tiempo límite en el cliente). */

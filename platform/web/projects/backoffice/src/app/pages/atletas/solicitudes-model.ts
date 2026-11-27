@@ -35,7 +35,7 @@ export const CONSENTIMIENTOS: { clave: string; texto: string; etiqueta: string }
 ];
 
 /** Text and tone of the match badge of a row. */
-export const MATCH: Record<TipoMatch, string> = { licencia: 'Licencia', email: 'Email', nombre: 'Sugerida', manual: 'Enlazado', '': 'Sin coincidencia' };
+export const MATCH: Record<TipoMatch, string> = { licencia: 'Por licencia', email: 'Por email', nombre: 'Sugerida', manual: 'Enlazada', '': 'Sin ficha' };
 export const MATCH_TONE: Record<TipoMatch, GrTone> = { licencia: 'success', email: 'info', nombre: 'warning', manual: 'info', '': 'neutral' };
 
 /** Badge of the request type: a profile change is reviewed differently from a sign-up. */
