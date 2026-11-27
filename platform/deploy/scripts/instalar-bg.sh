@@ -24,6 +24,8 @@ colores_init "$ENTORNO"
 [ "$ENTORNO" = qa ] && [ "$PARAR_QA" = 1 ] && die "--parar-qa solo aplica a producción"
 colores_gates_prod
 colores_bloquear
+SWITCHED=0
+trap 'rc=$?; if [ "$rc" -ne 0 ] && [ "$SWITCHED" -eq 0 ]; then log "fallo antes de conmutar: apago blue (sin estado, el legado sigue)"; colores_apagar blue || true; fi; colores_salir; exit "$rc"' EXIT
 colores_memoria
 
 [ -z "$(colores_estado_leer)" ] || die "ya hay estado en $NS_COMP (ya migrado): usa desplegar-bg.sh"
@@ -62,6 +64,7 @@ if ! colores_upstream blue || ! colores_borde; then
   colores_upstream legado || true
   die "migración parada: el stack antiguo sigue sirviendo"
 fi
+SWITCHED=1
 
 log "5/6 drenaje ${DRAIN_SECONDS}s y retirada del stack antiguo (sus sin estado)"
 sleep "$DRAIN_SECONDS"
