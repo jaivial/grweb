@@ -219,7 +219,7 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
                 </div>
                 <!-- Prompt bar (Neural «PromptBar»: one surface, autosized field, model chip and round send) -->
                 <form class="mt-3 rounded-[14px] border border-line-strong bg-bg-raised p-2 shadow-card transition-colors focus-within:border-text-tertiary" (ngSubmit)="pedirIA()">
-                  <textarea name="ia" rows="1" class="block max-h-[120px] min-h-[44px] w-full resize-none bg-transparent px-1.5 py-1 text-[14px] leading-5 text-text-primary outline-none [field-sizing:content] placeholder:text-text-tertiary" [(ngModel)]="iaTexto" placeholder="Pide un cambio a la campaña…" aria-label="Petición a la IA" (keydown.enter)="enter($any($event))"></textarea>
+                  <textarea name="ia" rows="1" class="block max-h-[120px] min-h-[44px] w-full resize-none bg-transparent px-1.5 py-1 text-[16px] leading-6 text-text-primary outline-none [field-sizing:content] placeholder:text-text-tertiary" [(ngModel)]="iaTexto" placeholder="Pide un cambio a la campaña…" aria-label="Petición a la IA" (keydown.enter)="enter($any($event))"></textarea>
                   <div class="mt-1 flex items-center gap-1">
                     @if (modelos().length > 1) { <gr-select tipo="filtro" name="modelo" aria-label="Modelo de IA" [(ngModel)]="modelo">@for (m of modelos(); track m.id) { <option [value]="m.id">{{ m.nombre }}</option> }</gr-select> }
                     @else { <span class="flex h-7 items-center gap-1 px-1.5 text-[12px] font-medium text-text-tertiary">{{ modelos()[0]?.id ?? 'IA no disponible' }}</span> }
@@ -514,7 +514,7 @@ const md = (s = '', vars: Record<string, string> = {}) => esc(s).replace(/\*\*(.
         <form class="flex max-h-[90dvh] w-full flex-col gap-3 overflow-y-auto rounded-t-[20px] border-t border-line-strong bg-bg-raised p-5 pb-[max(20px,env(safe-area-inset-bottom))] shadow-card sm:max-w-xl sm:rounded-lg sm:border" role="dialog" aria-modal="true" aria-label="WhatsApp desde HTML" (click)="$event.stopPropagation()" (ngSubmit)="convertirHTML()">
           <div class="flex items-start gap-3"><div class="flex-1"><h2 class="text-ui-h5">WhatsApp desde HTML</h2><p class="text-body-xs text-text-tertiary">Pega un email o cualquier HTML: los títulos pasan a *negrita*, la primera foto va como imagen y los botones como botones de enlace.</p></div>
             <button type="button" class="-mt-1 -mr-2 flex size-10 items-center justify-center rounded-sm text-text-tertiary hover:text-text-primary" aria-label="Cerrar" (click)="htmlOpen.set(false)"><gr-icon name="x" [size]="20" /></button></div>
-          <textarea grInput name="html" rows="10" class="font-mono text-[12px]" placeholder="<html>…" aria-label="HTML" [(ngModel)]="htmlTexto"></textarea>
+          <textarea grInput name="html" rows="10" class="font-mono text-[16px]" placeholder="<html>…" aria-label="HTML" [(ngModel)]="htmlTexto"></textarea>
           <div class="flex justify-end gap-2"><button type="button" grButton variant="ghost" (click)="htmlOpen.set(false)">Cancelar</button><button type="submit" grButton variant="primary" [loading]="convirtiendo()" [disabled]="!htmlTexto.trim()">Convertir</button></div>
         </form>
       </div>

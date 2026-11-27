@@ -124,7 +124,7 @@ function turnosDe(inicio?: string, fin?: string): string[] {
                   <div class="flex flex-col gap-1">
                     <h2 class="text-[18px] leading-6 font-semibold">{{ c.nombre }}</h2>
                     <p class="flex items-center gap-1.5 text-body-xs text-text-tertiary">Cobertura {{ c.miembros.length }} /
-                      <input type="number" min="0" max="200" class="h-6 w-12 rounded-xs border border-transparent bg-transparent px-1 text-body-xs text-text-tertiary hover:border-line-strong focus:border-line-strong focus:text-text-primary" [attr.aria-label]="'Personas que necesita ' + c.nombre" [value]="c.objetivo" (change)="objetivo(c.rol, $any($event.target).value)" /></p>
+                      <input type="number" min="0" max="200" class="h-7 w-14 rounded-xs border border-transparent bg-transparent px-1 text-[16px] leading-5 text-text-tertiary hover:border-line-strong focus:border-line-strong focus:text-text-primary" [attr.aria-label]="'Personas que necesita ' + c.nombre" [value]="c.objetivo" (change)="objetivo(c.rol, $any($event.target).value)" /></p>
                   </div>
                   <gr-badge class="self-start" [tone]="c.miembros.length >= c.objetivo ? 'success' : c.miembros.length ? 'warning' : 'danger'">{{ c.miembros.length >= c.objetivo ? 'Cubierto' : c.miembros.length ? 'Faltan' : 'Sin cubrir' }}</gr-badge>
                   <ul class="flex flex-col">

@@ -81,7 +81,7 @@ const TEXTO = new Set<FieldDef['tipo']>(['texto', 'area', 'markdown', 'lista']);
                     @if (preview()) {
                       <div class="prose-gr min-h-40 rounded-sm border border-line-strong bg-bg-field p-3 text-body-s" [innerHTML]="md(str(f.clave))"></div>
                     } @else {
-                      <textarea grInput [id]="id" rows="10" class="h-auto! py-2 font-mono text-[13px]" [placeholder]="ph" [value]="str(f.clave)" (input)="set(f.clave, $any($event.target).value)"></textarea>
+                      <textarea grInput [id]="id" rows="10" class="h-auto! py-2 font-mono text-[16px]" [placeholder]="ph" [value]="str(f.clave)" (input)="set(f.clave, $any($event.target).value)"></textarea>
                     }
                   </div>
                 }
