@@ -2,6 +2,7 @@ import { errorEn } from './errores';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 import { COMPETITION_SLUG, FalloApi } from './competition';
 import { idiomaActual, type Lang } from './i18n';
 
@@ -38,14 +39,15 @@ export class EntradasPublic {
       return null;
     }
   }
-  reservar(b: ReservaIn): Promise<{ codigo: string; token: string }> { return firstValueFrom(this.http.post<{ codigo: string; token: string }>(base, b)); }
+  /** Creates the reservation (+ e-mail): long and not repeatable, so no 12 s cut. */
+  reservar(b: ReservaIn): Promise<{ codigo: string; token: string }> { return firstValueFrom(this.http.post<{ codigo: string; token: string }>(base, b, { context: sinTimeout() })); }
   espera(b: { sesionId: string; email: string; nombre?: string; personas: number; aceptaPrivacidad: boolean }): Promise<void> { return firstValueFrom(this.http.post<void>(`${base}/espera`, b)); }
   oferta(t: string): Promise<Oferta> { return firstValueFrom(this.http.get<Oferta>(`${base}/oferta`, { params: { t } })); }
-  aceptar(t: string): Promise<{ codigo: string; token: string }> { return firstValueFrom(this.http.post<{ codigo: string; token: string }>(`${base}/oferta`, { token: t })); }
-  enlace(email: string): Promise<void> { return firstValueFrom(this.http.post<void>(`${base}/enlace`, { email })); }
+  aceptar(t: string): Promise<{ codigo: string; token: string }> { return firstValueFrom(this.http.post<{ codigo: string; token: string }>(`${base}/oferta`, { token: t }, { context: sinTimeout() })); }
+  enlace(email: string): Promise<void> { return firstValueFrom(this.http.post<void>(`${base}/enlace`, { email }, { context: sinTimeout() })); }
   mia(t: string): Promise<MiEntrada> { return firstValueFrom(this.http.get<MiEntrada>('/api/mi-entrada', { params: { t } })); }
   personas(t: string, personas: number): Promise<MiEntrada> { return firstValueFrom(this.http.put<MiEntrada>('/api/mi-entrada', { token: t, personas })); }
-  reenviar(t: string): Promise<void> { return firstValueFrom(this.http.post<void>('/api/mi-entrada/reenviar', { token: t })); }
+  reenviar(t: string): Promise<void> { return firstValueFrom(this.http.post<void>('/api/mi-entrada/reenviar', { token: t }, { context: sinTimeout() })); }
   anular(t: string): Promise<MiEntrada> { return firstValueFrom(this.http.post<MiEntrada>('/api/mi-entrada/anular', { token: t })); }
   avisame(t: string, acepta: boolean): Promise<MiEntrada> { return firstValueFrom(this.http.post<MiEntrada>('/api/mi-entrada/avisame', { token: t, acepta })); }
   ics(t: string): string { return `/api/mi-entrada/calendario.ics?t=${encodeURIComponent(t)}`; }

@@ -1,7 +1,7 @@
 import { RouterLink } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, signal } from '@angular/core';
-import { GrButton, GrIcon, type GrIconName } from '@grcup/ui';
+import { GrButton, GrIcon, esConReanudacion, type GrIconName } from '@grcup/ui';
 import { Cms, type MapaAcceso } from '../core/cms';
 import { COMPETITION_SLUG, Competition } from '../core/competition';
 import { I18n, LocPipe } from '../core/i18n';
@@ -137,16 +137,20 @@ export class MapaAccesosPage {
     });
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
       // Live: reload when the staff uploads, edits, sorts or deletes a map (public SSE, no personal data).
-      const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
       let t: ReturnType<typeof setTimeout> | undefined;
-      es.addEventListener('web.mapas', () => {
-        clearTimeout(t);
-        t = setTimeout(async () => {
-          const l = await this.cms.mapas();
-          if (l) this.mapas.set(l);
-        }, 400);
+      // Reopened on every come-back: iOS Safari leaves the stream dead after a freeze.
+      const cerrar = esConReanudacion(() => {
+        const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
+        es.addEventListener('web.mapas', () => {
+          clearTimeout(t);
+          t = setTimeout(async () => {
+            const l = await this.cms.mapas();
+            if (l) this.mapas.set(l);
+          }, 400);
+        });
+        return es;
       });
-      inject(DestroyRef).onDestroy(() => { clearTimeout(t); es.close(); });
+      inject(DestroyRef).onDestroy(() => { clearTimeout(t); cerrar(); });
     }
   }
 

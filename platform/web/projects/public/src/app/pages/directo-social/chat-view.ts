@@ -2,7 +2,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, ElementRef, PLATFORM_ID, computed, effect, inject, output, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GrButton, GrIcon } from '@grcup/ui';
-import { ChatService, MAX_TEXTO, sinIds, type ChatItem } from '../../core/chat';
+import { ChatService, MAX_TEXTO, diaAnterior, diaDeFecha, sinIds, type ChatItem } from '../../core/chat';
 import { FanSession } from '../../core/fan';
 import { I18n } from '../../core/i18n';
 import { GrChatAvatar, GrCoin, colorAlias } from './ui';
@@ -19,6 +19,7 @@ const AVISO_TEXTO = 240;
 const T = {
   es: {
     sugerencias: SUGERENCIAS,
+    hoy: 'Hoy', ayer: 'Ayer',
     durmiendo: 'El chat está durmiendo', despertara: 'Se despertará cuando vuelva el directo.',
     reconectando: 'Reconectando… recuperaremos los mensajes que te pierdas', mensajes: 'Mensajes del chat',
     calma: 'El chat está en calma', rompe: 'Rompe el hielo: anima a los atletas y gana monedas cada 5 mensajes.',
@@ -38,6 +39,7 @@ const T = {
   },
   en: {
     sugerencias: ['💪 Come on!', '🔥 What a level', '👏 Bravo'],
+    hoy: 'Today', ayer: 'Yesterday',
     durmiendo: 'The chat is asleep', despertara: 'It will wake up when the live stream returns.',
     reconectando: 'Reconnecting… we will recover the messages you miss', mensajes: 'Chat messages',
     calma: 'The chat is quiet', rompe: 'Break the ice: cheer on the athletes and earn coins every 5 messages.',
@@ -61,6 +63,8 @@ const T = {
 interface Fila {
   it: ChatItem;
   cont: boolean;
+  /** Label of the day separator printed before this item (the item opens a new day), null otherwise. */
+  separador: string | null;
 }
 
 /**
@@ -120,6 +124,14 @@ interface Fila {
         }
         <ul class="flex flex-col">
           @for (f of filas(); track f.it.id + f.it.kind) {
+            @if (f.separador; as sep) {
+              <!-- day separator (WhatsApp-like): a rendered line, not a message; labelled, not announced as content -->
+              <li class="flex items-center gap-3 px-4 py-3" role="separator" [attr.aria-label]="sep">
+                <span class="h-px flex-1 bg-line-subtle" aria-hidden="true"></span>
+                <span class="rounded-pill border border-line-subtle bg-bg-raised px-3 py-0.5 text-body-xs text-text-tertiary" aria-hidden="true">{{ sep }}</span>
+                <span class="h-px flex-1 bg-line-subtle" aria-hidden="true"></span>
+              </li>
+            }
             @let it = f.it;
             @switch (it.kind) {
               @case ('msg') {
@@ -314,24 +326,26 @@ export class ChatView {
   protected readonly emojisLista = EMOJIS;
   /** New messages that arrived while the user was not at the bottom. */
   protected readonly noLeido = signal(0);
-  /** True when the list is scrolled to the bottom (the autoscroll follows it). */
-  private readonly pegado = signal(true);
+  /** Key of the first and the last item seen by the list (tells an older page from a new message). */
+  private primeroVisto = '';
+  private ultimoVisto = '';
 
   private readonly lista = viewChild<ElementRef<HTMLElement>>('lista');
   private readonly caja = viewChild<ElementRef<HTMLTextAreaElement>>('caja');
   private readonly composer = viewChild<ElementRef<HTMLElement>>('composer');
 
-  /** Items with their grouping: consecutive messages of the same author (≤ 3 min) share one header. */
+  /** Items with their grouping: consecutive messages of the same author (≤ 3 min) share one header. A new day starts a new group. */
   protected readonly filas = computed<Fila[]>(() => {
     const out: Fila[] = [];
     let prev: ChatItem | undefined;
     for (const it of this.chat.items()) {
-      // closed live room (antes/finalizado): no «Te has unido al chat», only the closing notice
-      if (it.id.startsWith('hola-') && this.chat.cerrado() && !this.chat.soloLectura()) continue;
+      // closed live room (finalizado): no «Te has unido al chat», only the closing notice
+      if (it.id.startsWith('hola-') && this.chat.cerrado()) continue;
+      const nuevoDia = !prev || diaDeFecha(prev.ts) !== diaDeFecha(it.ts);
       const cont =
-        it.kind === 'msg' && !it.borrado && prev?.kind === 'msg' && !prev.borrado &&
+        !nuevoDia && it.kind === 'msg' && !it.borrado && prev?.kind === 'msg' && !prev.borrado &&
         prev.alias === it.alias && prev.mio === it.mio && prev.atleta === it.atleta && it.ts - prev.ts < VENTANA_GRUPO_MS;
-      out.push({ it, cont });
+      out.push({ it, cont, separador: nuevoDia ? this.etiquetaDia(diaDeFecha(it.ts)) : null });
       prev = it;
     }
     return out;
@@ -343,14 +357,22 @@ export class ChatView {
   );
 
   constructor() {
+    // A new view starts at the bottom (the store cuts the oldest items only while the reader follows the live end).
+    this.chat.siguiendoFinal.set(true);
     effect(() => {
       // The list element is read inside the effect: the first run can happen before the view exists.
-      const n = this.chat.items().length;
+      const items = this.chat.items();
       const el = this.lista()?.nativeElement;
-      if (!n || !el) return;
+      if (!items.length || !el) return;
+      const primero = items[0].kind + items[0].id;
+      const ultimo = items[items.length - 1].kind + items[items.length - 1].id;
+      // an older page is added in front: it keeps the reading position and is not a new message
+      const antepuesto = primero !== this.primeroVisto && ultimo === this.ultimoVisto;
+      this.primeroVisto = primero;
+      this.ultimoVisto = ultimo;
       untracked(() => {
-        if (this.pegado()) this.bajar();
-        else this.noLeido.update((v) => v + 1);
+        if (this.chat.siguiendoFinal()) this.bajar();
+        else if (!antepuesto) this.noLeido.update((v) => v + 1);
       });
     });
   }
@@ -404,12 +426,28 @@ export class ChatView {
 
   protected alScroll(e: Event): void {
     const el = e.target as HTMLElement;
-    this.pegado.set(el.scrollTop + el.clientHeight >= el.scrollHeight - 48);
-    if (this.pegado()) this.noLeido.set(0);
+    this.chat.siguiendoFinal.set(el.scrollTop + el.clientHeight >= el.scrollHeight - 48);
+    if (this.chat.siguiendoFinal()) this.noLeido.set(0);
+    if (el.scrollTop < 96) this.cargarAnteriores(el);
+  }
+
+  /** Scrolled to the top: the older messages (of any day) come in front and the reading position is kept. */
+  private cargarAnteriores(el: HTMLElement): void {
+    const alto = el.scrollHeight;
+    void this.chat.cargarAnteriores().then((n) => {
+      if (n > 0) requestAnimationFrame(() => (el.scrollTop += el.scrollHeight - alto));
+    });
+  }
+
+  /** «Hoy», «Ayer» or the date of the day («martes, 25 de noviembre»). */
+  private etiquetaDia(dia: string): string {
+    if (dia === this.chat.hoy()) return this.t().hoy;
+    if (dia === diaAnterior(this.chat.hoy())) return this.t().ayer;
+    return new Intl.DateTimeFormat(this.i18n.locale(), { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(dia + 'T12:00:00Z'));
   }
 
   protected irAlFinal(): void {
-    this.pegado.set(true);
+    this.chat.siguiendoFinal.set(true);
     this.noLeido.set(0);
     this.bajar();
   }

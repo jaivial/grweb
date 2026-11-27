@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, PLATFORM_ID, PendingTas
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { GrAlert, GrButton, GrIcon, GrSkeleton, GrSelect } from '@grcup/ui';
+import { GrAlert, GrButton, GrIcon, GrSkeleton, GrSelect, esConReanudacion } from '@grcup/ui';
 import { AtletasPublic, Favoritos, cat, hora, iniciales, kg, type AtletaPub, type FichaPub, type ListaPub, type Participantes } from '../core/atletas';
 import { Cms } from '../core/cms';
 import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
@@ -301,14 +301,18 @@ export class AtletasPage {
     });
     if (browser) {
       // Live: a published schedule changes flights and start times (public SSE).
-      const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
       let t: ReturnType<typeof setTimeout> | undefined;
       const recargar = () => {
         clearTimeout(t);
         t = setTimeout(async () => { const l = await this.api.lista(true); if (l) this.lista.set(l); }, 400);
       };
-      for (const ev of EVENTOS_HORARIOS) es.addEventListener(ev, recargar);
-      inject(DestroyRef).onDestroy(() => { clearTimeout(t); es.close(); });
+      // Reopened on every come-back: iOS Safari leaves the stream dead after a freeze.
+      const cerrar = esConReanudacion(() => {
+        const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
+        for (const ev of EVENTOS_HORARIOS) es.addEventListener(ev, recargar);
+        return es;
+      });
+      inject(DestroyRef).onDestroy(() => { clearTimeout(t); cerrar(); });
     }
   }
 

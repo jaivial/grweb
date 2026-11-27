@@ -121,6 +121,7 @@ type solicitud struct {
 	Instagram         string     `db:"instagram"`
 	Entrenador        string     `db:"entrenador"`
 	Prueba            string     `db:"prueba"`
+	Categoria         string     `db:"categoria"`
 	Historial         string     `db:"historial"`
 	MarcaSQ           *float64   `db:"marca_sq"`
 	MarcaBP           *float64   `db:"marca_bp"`
@@ -128,6 +129,7 @@ type solicitud struct {
 	FocalX            int16      `db:"focal_x"`
 	FocalY            int16      `db:"focal_y"`
 	EsMenor           bool       `db:"es_menor"`
+	Handler           bool       `db:"handler"` // el alta pidió handler gratis (al aprobarla se crea la solicitud)
 	FotoClave         string     `db:"foto_clave"`
 	FotoSHA256        string     `db:"foto_sha256"`
 	AutorizacionClave string     `db:"autorizacion_clave"`
@@ -178,7 +180,7 @@ const selSolicitud = `SELECT id, competition_id, tipo, cambios::text AS cambios,
 	marca_sq::float8 AS marca_sq, marca_bp::float8 AS marca_bp, marca_dl::float8 AS marca_dl,
 	focal_x, focal_y, es_menor, foto_clave, foto_sha256, autorizacion_clave, estado, notas, motivo_rechazo,
 	revisado_at, revisado_por, consentimientos::text AS consentimientos, consentimiento_at, ip, user_agent,
-	version, created_at, updated_at, prueba FROM solicitudes_atleta`
+	version, created_at, updated_at, prueba, categoria, handler FROM solicitudes_atleta`
 
 // getSolicitud reads a request of the competition.
 func getSolicitud(ctx context.Context, q querier, cid, id uuid.UUID) (solicitud, error) {
@@ -208,9 +210,9 @@ type DatosAlta struct {
 	Club            string          `json:"club"`
 	Ciudad          string          `json:"ciudad"`
 	Entrenador      string          `json:"entrenador"`
-	AsignarHandler  bool            `json:"asignarHandler"` // «No tengo handler / Asignadme uno»: notified as a handler request
+	Handler         bool            `json:"handler"` // «¿Necesitas handler?»: al aprobar el alta se crea la solicitud de handling
 	Prueba          string          `json:"prueba"`
-	Categoria       string          `json:"categoria"` // optional weight class (BIZ-211: compared with the AEP roll)
+	Categoria       string          `json:"categoria"` // weight class, required by the public form (BIZ-211: compared with the AEP roll)
 	Frase           string          `json:"frase"`
 	Bio             string          `json:"bio"`
 	Instagram       string          `json:"instagram"`
@@ -710,11 +712,11 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 		}
 		_, err := tx.Exec(ctx, `INSERT INTO solicitudes_atleta (id, competition_id, match_atleta_id, match_tipo, licencia, nombre, apellidos, email, telefono, sexo,
 			fecha_nacimiento, club, ciudad, frase, bio, instagram, entrenador, historial, marca_sq, marca_bp, marca_dl, focal_x, focal_y, es_menor,
-			foto_clave, foto_sha256, estado, consentimientos, consentimiento_at, ip, user_agent, prueba, categoria, tipo)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,'pendiente',$27,now(),$28,$29,$30,$31,'alta')`,
+			foto_clave, foto_sha256, estado, consentimientos, consentimiento_at, ip, user_agent, prueba, categoria, tipo, handler)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,'pendiente',$27,now(),$28,$29,$30,$31,'alta',$32)`,
 			id, c.ID, matchID, matchTipo, d.Licencia, d.Nombre, d.Apellidos, d.Email, d.Telefono, d.Sexo, fecha(d.FechaNacimiento),
 			d.Club, d.Ciudad, d.Frase, d.Bio, d.Instagram, d.Entrenador, d.Historial, d.MarcaSQ, d.MarcaBP, d.MarcaDL, d.FocalX, d.FocalY, menor,
-			fotoClave, fotoSHA, string(consJSON), anonIP(ip), ua, d.Prueba, d.Categoria)
+			fotoClave, fotoSHA, string(consJSON), anonIP(ip), ua, d.Prueba, d.Categoria, d.Handler)
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -762,16 +764,7 @@ func (s *Svc) crearSolicitud(ctx context.Context, slug string, form multipart.Fo
 		if err := whatsapp(ctx, tx, c.ID, "", true, "atleta-solicitud-nueva", s.varsWANueva(d, matchTipo, menor, c.Slug, id), fotoURL); err != nil {
 			return err
 		}
-		// «Asignadme un handler»: the same email and WhatsApp as a handler request, so it is all in one place.
-		if d.AsignarHandler {
-			v := varsHandler(d, menor)
-			if err := email(ctx, tx, c.ID, handlerEmail, "handler-solicitud", v); err != nil {
-				return err
-			}
-			if err := whatsapp(ctx, tx, c.ID, handlerWhatsApp, false, "handler-solicitud", v, ""); err != nil {
-				return err
-			}
-		}
+		// «¿Necesitas handler?»: la solicitud de handling se crea al aprobar el alta (el atleta aún no existe).
 		return nil
 	})
 	if err != nil {
@@ -1111,7 +1104,9 @@ func (s *Svc) validaDatos(d DatosAlta) []*huma.ErrorDetail {
 	if !pruebaValida(d.Prueba) {
 		add("prueba", "Elige AEP-2, AEP-3 o «Aún no lo sé».")
 	}
-	if d.Categoria != "" && (d.Sexo != "F" && d.Sexo != "M" || !categoriaValida(d.Sexo, d.Categoria)) {
+	if d.Categoria == "" {
+		add("categoria", "Elige tu categoría de peso.")
+	} else if d.Sexo != "F" && d.Sexo != "M" || !categoriaValida(d.Sexo, d.Categoria) {
 		add("categoria", "Elige una categoría de peso de tu sexo (por ejemplo -63 o +84).")
 	}
 	if len([]rune(d.Frase)) > 80 {
@@ -1622,16 +1617,19 @@ const (
 	handlerWhatsApp = "+34644179395"
 )
 
-// varsHandler are the variables of the handler request sent from the athlete sign-up form.
-func varsHandler(d DatosAlta, menor bool) map[string]string {
-	entrenador := d.Entrenador
+// varsHandler are the variables of the team notice of a handling request (the same template for the area and the alta).
+func varsHandler(r row, origen string) map[string]string {
+	entrenador := r.Entrenador
 	if entrenador == "" {
 		entrenador = "No"
 	}
+	edad := ""
+	if r.FechaNacimiento != nil {
+		edad = strconv.Itoa(Edad(*r.FechaNacimiento, time.Now())) + " años"
+	}
 	return map[string]string{
-		"nombre": d.Nombre, "apellidos": d.Apellidos, "email": d.Email, "telefono": telTexto(d.Telefono),
-		"edad": edadAnios(d.FechaNacimiento, menor), "prueba": pruebaTexto(d.Prueba), "entrenador": entrenador,
-		"origen": "Alta de atleta (casilla «No tengo handler / Asignadme uno»)",
+		"nombre": r.Nombre, "apellidos": r.Apellidos, "email": emailDe(r), "telefono": telTexto(r.Telefono),
+		"edad": edad, "prueba": pruebaTexto(r.Prueba), "entrenador": entrenador, "origen": origen,
 	}
 }
 

@@ -156,7 +156,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerInscripcion()
 	s.registerInscripcionAdmin()
 	s.registerAltaAtleta()
-	s.registerHandlerGratis()
+	s.registerAreaHandling()
 	s.registerAltaAtletaAdmin()
 	s.registerAutorizacion()
 	s.registerEmparejamiento()

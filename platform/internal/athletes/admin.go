@@ -60,6 +60,45 @@ type ItemLista struct {
 	Avisos         []Incidencia `json:"avisos" doc:"Detalle de las incidencias"`
 	Edad           *int         `json:"edad,omitempty"`
 	Pesaje         string       `json:"pesaje"`
+	// Handling is the latest «handling gratis» request of the athlete (nil: never asked).
+	Handling *HandlingAtleta `json:"handling,omitempty"`
+}
+
+// filtrosAtletas are the filters of the list and of the CSV export: both work on the same scope.
+type filtrosAtletas struct {
+	Pestana   string
+	Sexo      string
+	Categoria string
+	Jornada   string
+	Perfil    string
+	// Handling: solicitado (pendiente o en revisión) · aprobado · rechazado · vacío (cualquiera).
+	Handling string
+	Q        string
+	Orden    string
+	Dir      string
+}
+
+// alcanceLista is the filtered scope of «Atletas»: every row that matches (all pages, not only the visible one),
+// its counters and KPIs, and the latest handling request of each athlete. The list paginates it; the CSV export
+// writes all of it.
+type alcanceLista struct {
+	Filas    []row
+	Lista    Lista
+	Handling map[uuid.UUID]HandlingAtleta
+	Fecha    time.Time
+}
+
+// handlingCoincide is the «Handling» filter of the list: only the athletes with a request in that state.
+func handlingCoincide(h HandlingAtleta, ok bool, filtro string) bool {
+	switch filtro {
+	case "solicitado":
+		return ok && h.vivo()
+	case "aprobado":
+		return ok && h.Estado == "aprobada"
+	case "rechazado":
+		return ok && h.Estado == "rechazada"
+	}
+	return true
 }
 
 // Lista is the backoffice list with tab counts and KPI cards (Figma «Atletas · lista»).
@@ -68,7 +107,7 @@ type Lista struct {
 	Total      int            `json:"total"`
 	Pagina     int            `json:"pagina"`
 	Por        int            `json:"por"`
-	Pestanas   map[string]int `json:"pestanas" doc:"todos · confirmados · reserva · bajas · incidencias"`
+	Pestanas   map[string]int `json:"pestanas" doc:"todos · confirmados · reserva · bajas · incidencias · handling"`
 	KPIs       KPIs           `json:"kpis"`
 	Categorias []string       `json:"categorias"`
 	Jornadas   []string       `json:"jornadas" doc:"Fechas con atletas publicados"`
@@ -86,6 +125,124 @@ type KPIs struct {
 	MenoresPendientes  int `json:"menoresPendientes"`
 	Seguimientos       int `json:"seguimientos"`
 	SeguimientosSemana int `json:"seguimientosSemana"`
+}
+
+// alcance applies the tabs, the filters and the order of «Atletas» over the whole competition: the list paginates
+// its rows and the CSV export writes them all (one scope, no duplicated filtering).
+func (s *Svc) alcance(ctx context.Context, cid uuid.UUID, f filtrosAtletas) (alcanceLista, error) {
+	out := alcanceLista{Fecha: s.compDate(ctx, cid), Handling: handlingPor(ctx, s.a.DB, cid),
+		Lista: Lista{Pestanas: map[string]int{"todos": 0, "confirmados": 0, "reserva": 0, "bajas": 0, "incidencias": 0, "handling": 0},
+			Pruebas: map[string]int{"aep2": 0, "aep3": 0, "sin": 0}, Items: []ItemLista{}}}
+	all, err := listRows(ctx, s.a.DB, `a.competition_id = $1`, cid)
+	if err != nil {
+		return out, err
+	}
+	// The tab «Handling» is the athletes with a request waiting for the team (the filter can narrow it).
+	if f.Pestana == "handling" && f.Handling == "" {
+		f.Handling = "solicitado"
+	}
+	cats, jornadas := map[string]bool{}, map[string]bool{}
+	q := fold(f.Q)
+	for _, r := range all {
+		inc := len(r.incidencias(out.Fecha))
+		h, tieneHandling := out.Handling[r.ID]
+		out.Lista.Pestanas["todos"]++
+		switch r.Estado {
+		case "confirmado":
+			out.Lista.Pestanas["confirmados"]++
+			if r.Prueba == "" {
+				out.Lista.Pruebas["sin"]++
+			} else {
+				out.Lista.Pruebas[r.Prueba]++
+			}
+		case "reserva":
+			out.Lista.Pestanas["reserva"]++
+		case "baja":
+			out.Lista.Pestanas["bajas"]++
+		}
+		if inc > 0 {
+			out.Lista.Pestanas["incidencias"]++
+		}
+		if tieneHandling && h.vivo() {
+			out.Lista.Pestanas["handling"]++
+		}
+		if r.Estado != "baja" {
+			c := r.completo()
+			if c >= 70 {
+				out.Lista.KPIs.PerfilesCompletos++
+			}
+			if r.FotoURL == "" {
+				out.Lista.KPIs.SinFoto++
+			}
+			switch imagenEstado(r, out.Fecha) {
+			case "si":
+				out.Lista.KPIs.ConImagen++
+			case "pendiente":
+				out.Lista.KPIs.ImagenPendiente++
+			case "menor":
+				out.Lista.KPIs.MenoresPendientes++
+			}
+			out.Lista.KPIs.Seguimientos += r.Seguidores
+		}
+		if r.Categoria != "" {
+			cats[r.Sexo+" "+r.Categoria] = true
+		}
+		if r.Jornada != "" {
+			jornadas[r.Jornada] = true
+		}
+		switch f.Pestana {
+		case "confirmados":
+			if r.Estado != "confirmado" {
+				continue
+			}
+		case "reserva":
+			if r.Estado != "reserva" {
+				continue
+			}
+		case "bajas":
+			if r.Estado != "baja" {
+				continue
+			}
+		case "incidencias":
+			if inc == 0 {
+				continue
+			}
+		}
+		if f.Sexo != "" && r.Sexo != f.Sexo {
+			continue
+		}
+		if f.Categoria != "" && r.Categoria != f.Categoria && r.Sexo+" "+r.Categoria != f.Categoria {
+			continue
+		}
+		if f.Jornada != "" && r.Jornada != f.Jornada {
+			continue
+		}
+		if f.Perfil == "incompleto" && r.completo() >= 70 || f.Perfil == "sin_foto" && r.FotoURL != "" {
+			continue
+		}
+		if !handlingCoincide(h, tieneHandling, f.Handling) {
+			continue
+		}
+		if q != "" && !strings.Contains(fold(r.nombreCompleto()+" "+r.Club+" "+r.Licencia), q) {
+			continue
+		}
+		out.Filas = append(out.Filas, r)
+	}
+	if n := out.Lista.Pestanas["todos"] - out.Lista.Pestanas["bajas"]; n > 0 {
+		out.Lista.KPIs.PctCompletos = out.Lista.KPIs.PerfilesCompletos * 100 / n
+	}
+	_ = s.a.DB.QueryRow(ctx, `SELECT count(*) FROM seguimientos WHERE competition_id = $1 AND confirmado_at > now() - interval '7 days' AND baja_at IS NULL`, cid).Scan(&out.Lista.KPIs.SeguimientosSemana)
+	var imp *time.Time
+	_ = s.a.DB.QueryRow(ctx, `SELECT max(updated_at) FROM importaciones WHERE competition_id = $1 AND estado = 'confirmada'`, cid).Scan(&imp)
+	out.Lista.Importado = imp
+	sortRows(out.Filas, f.Orden)
+	if f.Dir == "desc" {
+		slices.Reverse(out.Filas)
+	}
+	out.Lista.Total = len(out.Filas)
+	out.Lista.Categorias = keys(cats)
+	out.Lista.Jornadas = keys(jornadas)
+	return out, nil
 }
 
 func imagenEstado(r row, d time.Time) string {
@@ -106,11 +263,12 @@ func (s *Svc) registerAdmin() {
 
 	type listIn struct {
 		CID       uuid.UUID `path:"cid"`
-		Pestana   string    `query:"pestana" enum:"todos,confirmados,reserva,bajas,incidencias" default:"todos"`
+		Pestana   string    `query:"pestana" enum:"todos,confirmados,reserva,bajas,incidencias,handling" default:"todos"`
 		Sexo      string    `query:"sexo" enum:"F,M,"`
 		Categoria string    `query:"categoria"`
 		Jornada   string    `query:"jornada" doc:"Fecha (YYYY-MM-DD)"`
 		Perfil    string    `query:"perfil" enum:"incompleto,sin_foto,"`
+		Handling  string    `query:"handling" enum:"solicitado,aprobado,rechazado," doc:"Solicitudes de handling gratis"`
 		Q         string    `query:"q" maxLength:"80"`
 		Orden     string    `query:"orden" enum:"nombre,categoria,completo,reserva" default:"nombre"`
 		Dir       string    `query:"dir" enum:"asc,desc" default:"asc"`
@@ -123,114 +281,25 @@ func (s *Svc) registerAdmin() {
 			if _, err := requireAny(ctx, in.CID, readPerms...); err != nil {
 				return nil, err
 			}
-			d := s.compDate(ctx, in.CID)
-			all, err := listRows(ctx, s.a.DB, `a.competition_id = $1`, in.CID)
+			a, err := s.alcance(ctx, in.CID, filtrosAtletas{Pestana: in.Pestana, Sexo: in.Sexo, Categoria: in.Categoria, Jornada: in.Jornada,
+				Perfil: in.Perfil, Handling: in.Handling, Q: in.Q, Orden: in.Orden, Dir: in.Dir})
 			if err != nil {
 				return nil, err
 			}
-			out := Lista{Pagina: in.Pagina, Por: in.Por, Pestanas: map[string]int{"todos": 0, "confirmados": 0, "reserva": 0, "bajas": 0, "incidencias": 0}, Pruebas: map[string]int{"aep2": 0, "aep3": 0, "sin": 0}, Items: []ItemLista{}}
-			cats, jornadas := map[string]bool{}, map[string]bool{}
-			var filtered []row
-			q := fold(in.Q)
-			for _, r := range all {
-				inc := len(r.incidencias(d))
-				out.Pestanas["todos"]++
-				switch r.Estado {
-				case "confirmado":
-					out.Pestanas["confirmados"]++
-					if r.Prueba == "" {
-						out.Pruebas["sin"]++
-					} else {
-						out.Pruebas[r.Prueba]++
-					}
-				case "reserva":
-					out.Pestanas["reserva"]++
-				case "baja":
-					out.Pestanas["bajas"]++
-				}
-				if inc > 0 {
-					out.Pestanas["incidencias"]++
-				}
-				if r.Estado != "baja" {
-					c := r.completo()
-					if c >= 70 {
-						out.KPIs.PerfilesCompletos++
-					}
-					if r.FotoURL == "" {
-						out.KPIs.SinFoto++
-					}
-					switch imagenEstado(r, d) {
-					case "si":
-						out.KPIs.ConImagen++
-					case "pendiente":
-						out.KPIs.ImagenPendiente++
-					case "menor":
-						out.KPIs.MenoresPendientes++
-					}
-					out.KPIs.Seguimientos += r.Seguidores
-				}
-				if r.Categoria != "" {
-					cats[r.Sexo+" "+r.Categoria] = true
-				}
-				if r.Jornada != "" {
-					jornadas[r.Jornada] = true
-				}
-				switch in.Pestana {
-				case "confirmados":
-					if r.Estado != "confirmado" {
-						continue
-					}
-				case "reserva":
-					if r.Estado != "reserva" {
-						continue
-					}
-				case "bajas":
-					if r.Estado != "baja" {
-						continue
-					}
-				case "incidencias":
-					if inc == 0 {
-						continue
-					}
-				}
-				if in.Sexo != "" && r.Sexo != in.Sexo {
-					continue
-				}
-				if in.Categoria != "" && r.Categoria != in.Categoria && r.Sexo+" "+r.Categoria != in.Categoria {
-					continue
-				}
-				if in.Jornada != "" && r.Jornada != in.Jornada {
-					continue
-				}
-				if in.Perfil == "incompleto" && r.completo() >= 70 || in.Perfil == "sin_foto" && r.FotoURL != "" {
-					continue
-				}
-				if q != "" && !strings.Contains(fold(r.nombreCompleto()+" "+r.Club+" "+r.Licencia), q) {
-					continue
-				}
-				filtered = append(filtered, r)
-			}
-			if n := out.Pestanas["todos"] - out.Pestanas["bajas"]; n > 0 {
-				out.KPIs.PctCompletos = out.KPIs.PerfilesCompletos * 100 / n
-			}
-			_ = s.a.DB.QueryRow(ctx, `SELECT count(*) FROM seguimientos WHERE competition_id = $1 AND confirmado_at > now() - interval '7 days' AND baja_at IS NULL`, in.CID).Scan(&out.KPIs.SeguimientosSemana)
-			var imp *time.Time
-			_ = s.a.DB.QueryRow(ctx, `SELECT max(updated_at) FROM importaciones WHERE competition_id = $1 AND estado = 'confirmada'`, in.CID).Scan(&imp)
-			out.Importado = imp
-			sortRows(filtered, in.Orden)
-			if in.Dir == "desc" {
-				slices.Reverse(filtered)
-			}
-			out.Total = len(filtered)
+			out := a.Lista
+			out.Pagina, out.Por = in.Pagina, in.Por
 			from, to := (in.Pagina-1)*in.Por, in.Pagina*in.Por
-			for i := from; i < to && i < len(filtered); i++ {
-				r := filtered[i]
-				out.Items = append(out.Items, ItemLista{ID: r.ID, NombreCompleto: r.nombreCompleto(), Licencia: r.Licencia, Club: r.Club, Sexo: r.Sexo, Categoria: r.Categoria,
+			for i := from; i < to && i < len(a.Filas); i++ {
+				r := a.Filas[i]
+				it := ItemLista{ID: r.ID, NombreCompleto: r.nombreCompleto(), Licencia: r.Licencia, Club: r.Club, Sexo: r.Sexo, Categoria: r.Categoria,
 					DivisionNombre: DivisionNombre(r.Division), Jornada: r.Jornada, Prueba: r.Prueba, Estado: r.Estado, OrdenReserva: r.OrdenReserva, Completo: r.completo(),
-					Imagen: imagenEstado(r, d), FotoURL: r.FotoURL, Seguidores: r.Seguidores, Incidencias: len(r.incidencias(d)), Avisos: r.incidencias(d), Edad: r.edad(d), Pesaje: r.PesajeEstado})
+					Imagen: imagenEstado(r, a.Fecha), FotoURL: r.FotoURL, Seguidores: r.Seguidores, Incidencias: len(r.incidencias(a.Fecha)), Avisos: r.incidencias(a.Fecha),
+					Edad: r.edad(a.Fecha), Pesaje: r.PesajeEstado}
+				if h, ok := a.Handling[r.ID]; ok {
+					it.Handling = &h
+				}
+				out.Items = append(out.Items, it)
 			}
-			out.Categorias = keys(cats)
-			out.Jornadas = keys(jornadas)
 			return &listOut{Body: out}, nil
 		})
 
@@ -677,13 +746,28 @@ func (s *Svc) registerAdmin() {
 			return
 		}
 		personal := p.Can(cid.String(), "contactos.exportar")
-		list, err := listRows(r.Context(), s.a.DB, `a.competition_id = $1 ORDER BY a.estado, a.sexo, a.categoria, a.apellidos, a.nombre`, cid)
+		// The export repeats the tab, the filters, the search, the order and the direction of the list: what the team
+		// sees is exactly what the file has (all pages, no pagination).
+		q := r.URL.Query()
+		f := filtrosAtletas{Pestana: q.Get("pestana"), Sexo: q.Get("sexo"), Categoria: q.Get("categoria"), Jornada: q.Get("jornada"),
+			Perfil: q.Get("perfil"), Handling: q.Get("handling"), Q: q.Get("q"), Orden: q.Get("orden"), Dir: q.Get("dir")}
+		if f.Pestana == "" {
+			f.Pestana = "todos"
+		}
+		if f.Orden == "" {
+			f.Orden = "nombre"
+		}
+		if f.Dir == "" {
+			f.Dir = "asc"
+		}
+		alc, err := s.alcance(r.Context(), cid, f)
 		if err != nil {
 			problem.Write(w, problem.Internal())
 			return
 		}
+		list := alc.Filas
 		// ?ids=a,b,c exports only the rows selected in the table (bulk action).
-		if raw := r.URL.Query().Get("ids"); raw != "" {
+		if raw := q.Get("ids"); raw != "" {
 			sel := map[uuid.UUID]bool{}
 			for _, x := range strings.Split(raw, ",") {
 				if id, err := uuid.Parse(strings.TrimSpace(x)); err == nil {
@@ -698,14 +782,15 @@ func (s *Svc) registerAdmin() {
 		_, _ = w.Write([]byte("\ufeff")) // Excel-friendly UTF-8
 		cw := csv.NewWriter(w)
 		cw.Comma = ';'
-		head := []string{"Licencia", "Nombre", "Apellidos", "Sexo", "Categoría", "División", "Club", "Estado", "Fecha", "Peso", "Perfil %"}
+		head := []string{"Licencia", "Nombre", "Apellidos", "Sexo", "Categoría", "División", "Club", "Estado", "Fecha", "Peso", "Perfil %", "Handling"}
 		if personal {
 			head = append(head, "Email", "Teléfono")
 		}
 		_ = cw.Write(head)
 		for _, a := range list {
 			// Free-text columns (typed in the AEP list or by athletes) are neutralised against formulas.
-			rec := []string{csvSafe(a.Licencia), csvSafe(a.Nombre), csvSafe(a.Apellidos), a.Sexo, a.Categoria, DivisionNombre(a.Division), csvSafe(a.Club), a.Estado, a.Jornada, kg(a.PesoCorporal), strconv.Itoa(a.completo())}
+			h, ok := alc.Handling[a.ID]
+			rec := []string{csvSafe(a.Licencia), csvSafe(a.Nombre), csvSafe(a.Apellidos), a.Sexo, a.Categoria, DivisionNombre(a.Division), csvSafe(a.Club), a.Estado, a.Jornada, kg(a.PesoCorporal), strconv.Itoa(a.completo()), handlingCSV(h, ok)}
 			if personal {
 				e := ""
 				if a.Email != nil {
@@ -717,6 +802,18 @@ func (s *Svc) registerAdmin() {
 		}
 		cw.Flush()
 	})
+}
+
+// handlingCSV is the cell of the export: «SÍ · pendiente» / «SÍ · aprobada» / «SÍ · rechazada», or «–» without a request.
+func handlingCSV(h HandlingAtleta, ok bool) string {
+	if !ok {
+		return "–"
+	}
+	estado := h.Estado
+	if estado == "revision" {
+		estado = "pendiente"
+	}
+	return "SÍ · " + estado
 }
 
 // csvSafe neutralises spreadsheet formulas (CSV injection): club and city can be typed by athletes.
@@ -987,6 +1084,8 @@ type Ficha struct {
 	Autorizacion AutorizacionEstado `json:"autorizacion"`
 	// Whatsapp is the consent to the WhatsApp notices (on the record or from the box of the alta); nil without it.
 	Whatsapp *ConsentimientoWA `json:"whatsapp,omitempty"`
+	// Handling is the latest «handling gratis» request of the athlete (nil: never asked).
+	Handling *HandlingAtleta `json:"handling,omitempty"`
 }
 
 // ConsentimientoWA is the recorded consent to the WhatsApp notices.
@@ -1042,6 +1141,7 @@ func (s *Svc) ficha(ctx context.Context, cid, id uuid.UUID) (Ficha, error) {
 	f.Area.EnlaceUsado = used != nil
 	f.Autorizacion = s.estadoAutorizacion(ctx, r)
 	f.Whatsapp = consentimientoWA(ctx, s.a.DB, cid, id)
+	f.Handling = handlingDe(ctx, s.a.DB, cid, id)
 	return f, nil
 }
 

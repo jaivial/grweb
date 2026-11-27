@@ -1,7 +1,8 @@
 import { telefonoTexto, type GrTone } from '@grcup/ui';
+import { cat } from './api';
 import type { EstadoSolicitud, TipoMatch, TipoSolicitud } from './solicitudes-api';
 
-/** The 18 fields of the public form, in the order of the review panel. */
+/** The 19 fields of the public form, in the order of the review panel. */
 export const CAMPOS: { clave: string; etiqueta: string }[] = [
   { clave: 'nombre', etiqueta: 'Nombre' },
   { clave: 'apellidos', etiqueta: 'Apellidos' },
@@ -9,6 +10,7 @@ export const CAMPOS: { clave: string; etiqueta: string }[] = [
   { clave: 'telefono', etiqueta: 'Teléfono móvil' },
   { clave: 'sexo', etiqueta: 'Sexo' },
   { clave: 'fechaNacimiento', etiqueta: 'Fecha de nacimiento' },
+  { clave: 'categoria', etiqueta: 'Categoría de peso' },
   { clave: 'licencia', etiqueta: 'Licencia AEP' },
   { clave: 'club', etiqueta: 'Club' },
   { clave: 'ciudad', etiqueta: 'Ciudad' },
@@ -37,10 +39,10 @@ export const MATCH: Record<TipoMatch, string> = { licencia: 'Licencia', email: '
 export const MATCH_TONE: Record<TipoMatch, GrTone> = { licencia: 'success', email: 'info', nombre: 'warning', manual: 'info', '': 'neutral' };
 
 /** Badge of the request type: a profile change is reviewed differently from a sign-up. */
-export const TIPO: Record<TipoSolicitud, string> = { alta: 'Alta', cambio_perfil: 'Cambio de perfil', autorizacion: 'Autorización de tutor' };
-export const TIPO_TONE: Record<TipoSolicitud, GrTone> = { alta: 'neutral', cambio_perfil: 'info', autorizacion: 'accent' };
+export const TIPO: Record<TipoSolicitud, string> = { alta: 'Alta', cambio_perfil: 'Cambio de perfil', autorizacion: 'Autorización de tutor', handling: 'Handling' };
+export const TIPO_TONE: Record<TipoSolicitud, GrTone> = { alta: 'neutral', cambio_perfil: 'info', autorizacion: 'accent', handling: 'success' };
 
-/** The 18 fields of the form, with the value declared by the athlete and the difference with the linked athlete. */
+/** The 19 fields of the form, with the value declared by the athlete and the difference with the linked athlete. */
 export interface FilaCampo {
   clave: string;
   etiqueta: string;
@@ -66,9 +68,11 @@ export function nombreCompleto(s: { nombre: string; apellidos: string }): string
   return [s.nombre, s.apellidos].filter(Boolean).join(' ');
 }
 
-/** Value of a field ready to read: a phone goes out as «+34 600 000 009» (display only, the API keeps E.164). */
+/** Value of a field ready to read: a phone goes out as «+34 600 000 009» and a weight class as «−63 kg» (display only). */
 export function valorTexto(clave: string, v: string): string {
-  return clave === 'telefono' ? telefonoTexto(v) : v;
+  if (clave === 'telefono') return telefonoTexto(v);
+  if (clave === 'categoria') return v ? `${cat(v)} kg` : '';
+  return v;
 }
 
 /** Status badge of a request (an unauthorised minor wins over the stored status). */

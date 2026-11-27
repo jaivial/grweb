@@ -1,6 +1,7 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 
 export type Mov = 'sq' | 'bp' | 'dl';
 export type ResultadoIntento = 'pendiente' | 'valido' | 'nulo' | 'renuncia';
@@ -87,12 +88,12 @@ export class DirectoApi {
     return firstValueFrom(this.http.put<ResultadosAdmin>(`/api/admin/competiciones/${cid}/resultados/programar`, at ? { at } : {}));
   }
   publicar(cid: string, categorias: string[], avisar: boolean): Promise<{ publicadas: string[] }> {
-    return firstValueFrom(this.http.post<{ publicadas: string[] }>(`/api/admin/competiciones/${cid}/resultados/publicar`, { categorias, avisar }));
+    return firstValueFrom(this.http.post<{ publicadas: string[] }>(`/api/admin/competiciones/${cid}/resultados/publicar`, { categorias, avisar }, { context: sinTimeout() }));
   }
   retirar(cid: string, categoria: string): Promise<void> {
     return firstValueFrom(this.http.post<void>(`/api/admin/competiciones/${cid}/resultados/retirar`, { categoria }));
   }
   acta(cid: string): Promise<Blob> {
-    return firstValueFrom(this.http.get(`/api/admin/competiciones/${cid}/resultados/acta.csv`, { responseType: 'blob' }));
+    return firstValueFrom(this.http.get(`/api/admin/competiciones/${cid}/resultados/acta.csv`, { responseType: 'blob', context: sinTimeout() }));
   }
 }

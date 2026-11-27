@@ -1,11 +1,12 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 
 /** Estado of an «alta de atleta» request (athletes service). */
 export type EstadoSolicitud = 'pendiente' | 'revision' | 'aprobada' | 'rechazada';
 /** Type of request: the public sign-up form or the profile changes asked from the athlete area. */
-export type TipoSolicitud = 'alta' | 'cambio_perfil' | 'autorizacion';
+export type TipoSolicitud = 'alta' | 'cambio_perfil' | 'autorizacion' | 'handling';
 /** How the request was matched against the athletes' list: licence, e-mail, name suggestion, by hand or nothing. */
 export type TipoMatch = '' | 'licencia' | 'email' | 'nombre' | 'manual';
 export type TipoDiferencia = 'igual' | 'distinto' | 'nuevo';
@@ -26,7 +27,7 @@ export interface Kpis {
 
 export interface SolicitudItem {
   id: string;
-  /** alta = formulario público; cambio_perfil = cambios pedidos desde el área de atleta. */
+  /** alta = formulario público; cambio_perfil / autorizacion / handling = pedidos desde el área de atleta. */
   tipo: TipoSolicitud;
   nombre: string;
   apellidos: string;
@@ -102,6 +103,8 @@ export interface SolicitudDetalle extends SolicitudItem {
   entrenador: string;
   /** aep2, aep3 o vacío («Aún no lo sé»). */
   prueba: string;
+  /** Weight class chosen in the sign-up form (e.g. «-63»), empty in a profile change. */
+  categoria: string;
   frase: string;
   bio: string;
   instagram: string;
@@ -184,7 +187,7 @@ export class SolicitudesApi {
   }
   /** Private photo (the session travels in the header, so it comes as a blob). */
   foto(cid: string, id: string): Promise<Blob> {
-    return firstValueFrom(this.http.get(`${this.base(cid)}/${id}/foto`, { responseType: 'blob' }));
+    return firstValueFrom(this.http.get(`${this.base(cid)}/${id}/foto`, { responseType: 'blob', context: sinTimeout() }));
   }
   marcar(cid: string, id: string, version: number, estado: 'revision'): Promise<SolicitudDetalle> {
     return firstValueFrom(this.http.post<SolicitudDetalle>(`${this.base(cid)}/${id}/estado`, { estado }, { headers: this.cab(version) }));
@@ -193,19 +196,19 @@ export class SolicitudesApi {
     return firstValueFrom(this.http.post<SolicitudDetalle>(`${this.base(cid)}/${id}/enlazar`, cuerpo, { headers: this.cab(version) }));
   }
   aprobar(cid: string, id: string, version: number, cuerpo: AprobarIn): Promise<{ atletaId: string; slug: string; publica: boolean; foto: boolean }> {
-    return firstValueFrom(this.http.post<{ atletaId: string; slug: string; publica: boolean; foto: boolean }>(`${this.base(cid)}/${id}/aprobar`, cuerpo, { headers: this.cab(version) }));
+    return firstValueFrom(this.http.post<{ atletaId: string; slug: string; publica: boolean; foto: boolean }>(`${this.base(cid)}/${id}/aprobar`, cuerpo, { headers: this.cab(version), context: sinTimeout() }));
   }
   rechazar(cid: string, id: string, version: number, cuerpo: RechazarIn): Promise<SolicitudDetalle> {
-    return firstValueFrom(this.http.post<SolicitudDetalle>(`${this.base(cid)}/${id}/rechazar`, cuerpo, { headers: this.cab(version) }));
+    return firstValueFrom(this.http.post<SolicitudDetalle>(`${this.base(cid)}/${id}/rechazar`, cuerpo, { headers: this.cab(version), context: sinTimeout() }));
   }
   /** Signed authorisation of the guardian (minors): private file, never published. */
   subirAutorizacion(cid: string, id: string, file: File): Promise<unknown> {
     const fd = new FormData();
     fd.append('archivo', file);
-    return firstValueFrom(this.http.post(`${this.base(cid)}/${id}/autorizacion`, fd));
+    return firstValueFrom(this.http.post(`${this.base(cid)}/${id}/autorizacion`, fd, { context: sinTimeout() }));
   }
   autorizacion(cid: string, id: string): Promise<Blob> {
-    return firstValueFrom(this.http.get(`${this.base(cid)}/${id}/autorizacion`, { responseType: 'blob' }));
+    return firstValueFrom(this.http.get(`${this.base(cid)}/${id}/autorizacion`, { responseType: 'blob', context: sinTimeout() }));
   }
   borrar(cid: string, id: string): Promise<void> {
     return firstValueFrom(this.http.delete<void>(`${this.base(cid)}/${id}`));

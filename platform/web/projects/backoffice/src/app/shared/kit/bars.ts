@@ -13,7 +13,7 @@ const RING = 'focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230
     <div class="flex h-11 items-center gap-2 rounded-md border border-line-strong bg-bg-field px-3 transition-colors focus-within:border-accent hover:border-line-hover md:h-10 motion-reduce:transition-none">
       <gr-icon name="search" [size]="16" class="text-text-tertiary" />
       <input type="search" [placeholder]="placeholder()" [attr.aria-label]="placeholder()" [value]="value()" (input)="value.set($any($event.target).value)"
-        class="min-w-0 flex-1 bg-transparent text-body-s text-text-primary placeholder:text-text-muted focus:outline-none [&::-webkit-search-cancel-button]:hidden" />
+        class="min-w-0 flex-1 bg-transparent text-[16px] text-text-primary placeholder:text-text-muted focus:outline-none [&::-webkit-search-cancel-button]:hidden" />
       @if (loading()) {
         <gr-icon name="loader" [size]="16" class="text-text-secondary motion-safe:animate-spin" label="Buscando" />
       } @else if (value()) {

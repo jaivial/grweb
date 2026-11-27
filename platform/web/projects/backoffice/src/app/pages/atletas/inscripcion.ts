@@ -4,7 +4,7 @@ import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { GrAlert, GrAvatar, GrBadge, GrButton, GrIconButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSegmented, GrSkeleton, GrToasts, type GrTone, GrSelect } from '@grcup/ui';
+import { GrAlert, GrAvatar, GrBadge, GrButton, GrIconButton, GrEmpty, GrField, GrIcon, GrInput, GrKpi, GrSegmented, GrSkeleton, GrToasts, sinTimeout, type GrTone, GrSelect } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import { Auth } from '../../core/auth';
 import { Competitions } from '../../core/competitions';
@@ -709,7 +709,7 @@ export class InscripcionPage {
     if (!(await this.confirm.ask({ title: `¿Reembolsar ${euros(imp)} a ${x.atleta}?`, text: `Se devuelve a la tarjeta del pago original.${this.reBaja ? ' Además pasará a «Baja» y liberará su plaza.' : ' La inscripción sigue activa.'}`, confirm: 'Reembolsar' }))) return;
     this.guardando.set(true);
     try {
-      this.pagoSel.set(await firstValueFrom(this.http.post<Pago>(`${this.base}/pagos/${x.id}/reembolso`, { importe: imp, darDeBaja: this.reBaja })));
+      this.pagoSel.set(await firstValueFrom(this.http.post<Pago>(`${this.base}/pagos/${x.id}/reembolso`, { importe: imp, darDeBaja: this.reBaja }, { context: sinTimeout() })));
       this.pagos.set(await firstValueFrom(this.http.get<Pagos>(`${this.base}/pagos`)));
       this.toasts.success('Reembolso hecho', euros(imp));
     } catch (e) {

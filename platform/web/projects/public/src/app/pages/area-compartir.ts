@@ -1,5 +1,6 @@
 import { textoError } from '../core/errores';
 import { HttpClient, HttpErrorResponse, HttpEventType } from '@angular/common/http';
+import { sinTimeout } from '@grcup/ui';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, computed, effect, inject, signal, untracked } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -10,11 +11,11 @@ import { COMPETITION_SLUG, Competition } from '../core/competition';
 import { I18n, LocPipe } from '../core/i18n';
 import { Seo } from '../core/seo';
 import { Footer, INSTAGRAM, Navbar } from '../layout/layout';
-import { StoryMovil, StoryRecorte, type Recorte } from './area-compartir-ui';
+import { StoryMovil, StoryRecorte, StoryZoom, type Recorte } from './area-compartir-ui';
 import { StoryDatos, cargarImagen, componer, diasHasta, textoStory } from './compartir-story';
 
 interface PanelStory {
-  atleta: { nombreCompleto: string; sexo: 'F' | 'M'; categoria: string; perfil: { fotoUrl: string; focalX: number; focalY: number } };
+  atleta: { nombreCompleto: string; sexo: 'F' | 'M'; categoria: string; perfil: { fotoUrl: string; focalX: number; focalY: number; instagram?: string } };
   prueba?: { elegida: string; opciones: { codigo: string; nombre: string; fecha: string; nivel?: string }[] };
 }
 interface Config { estado: 'acceso' | 'pendiente' | 'editor' | 'finalizada'; motivo?: string; panel?: PanelStory }
@@ -56,7 +57,8 @@ const T = {
     paso2: 'En Instagram crea tu historia con la foto o el vídeo que quieras.', paso3: 'Toca Stickers › Foto de la galería, elige el PNG y colócalo donde quieras.',
     ayudaPng: 'Si compartes el PNG directamente a Historias, Instagram le pone un fondo de color: para verlo sobre tu foto usa el sticker de galería.',
     tusDatos: 'Tus datos de inscripción', salen: 'Salen de tu inscripción y no se pueden editar aquí. ¿Algo no cuadra? Edita tu perfil →',
-    ejemploSticker: 'Ejemplo: tu foto + sticker en Instagram', vistaPrevia: 'Vista previa · así se verá en tu story', asiQuedara: 'Así quedará tu story',
+    ejemploSticker: 'Ejemplo: tu foto + sticker en Instagram', vistaPrevia: 'Vista previa', asiQuedara: 'Así quedará tu story',
+    ampliar: 'Ver la story a tamaño completo', cerrar: 'Cerrar',
     pngTransp: 'PNG TRANSPARENTE', compSticker: 'Compartir sticker', compIg: 'Compartir en Instagram', descPng: 'Descargar PNG', descImg: 'Descargar imagen', siguenos: 'Síguenos en Instagram',
     cuentaAtras: 'Cuenta atrás', fecha: 'Fecha', conFoto: 'Con tu foto', soloSticker: 'Solo sticker (PNG)', izq: 'Izquierda', centro: 'Centro', der: 'Derecha', coma: ',',
     competicion: 'Competición', categoria: 'Categoría de peso', sexo: 'Sexo', fem: 'Femenino', masc: 'Masculino', ciudad: 'Ciudad', puertas: 'PUERTAS ',
@@ -109,7 +111,8 @@ const T = {
     paso2: 'In Instagram, create your story with any photo or video you like.', paso3: 'Tap Stickers › Photo from gallery, choose the PNG and place it wherever you like.',
     ayudaPng: 'If you share the PNG straight to Stories, Instagram adds a coloured background: to see it over your photo, use the gallery sticker.',
     tusDatos: 'Your entry details', salen: "They come from your entry and can't be edited here. Something wrong? Edit your profile →",
-    ejemploSticker: 'Example: your photo + sticker on Instagram', vistaPrevia: 'Preview · how it will look in your story', asiQuedara: 'How your story will look',
+    ejemploSticker: 'Example: your photo + sticker on Instagram', vistaPrevia: 'Preview', asiQuedara: 'How your story will look',
+    ampliar: 'View the story full size', cerrar: 'Close',
     pngTransp: 'TRANSPARENT PNG', compSticker: 'Share sticker', compIg: 'Share on Instagram', descPng: 'Download PNG', descImg: 'Download image', siguenos: 'Follow us on Instagram',
     cuentaAtras: 'Countdown', fecha: 'Date', conFoto: 'With your photo', soloSticker: 'Sticker only (PNG)', izq: 'Left', centro: 'Centre', der: 'Right', coma: '.',
     competicion: 'Competition', categoria: 'Weight class', sexo: 'Sex', fem: 'Female', masc: 'Male', ciudad: 'City', puertas: 'DOORS ',
@@ -134,7 +137,7 @@ const T = {
 /** /area-atleta/compartir (Figma 83): «Comparte tu cuenta atrás». Only for confirmed athletes (area session). */
 @Component({
   selector: 'gr-area-compartir',
-  imports: [CdnPipe, RouterLink, LocPipe, FormsModule, Navbar, Footer, GrAlert, GrButton, GrIcon, GrSkeleton, StoryMovil, StoryRecorte],
+  imports: [CdnPipe, RouterLink, LocPipe, FormsModule, Navbar, Footer, GrAlert, GrButton, GrIcon, GrSkeleton, StoryMovil, StoryRecorte, StoryZoom],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `.seg{display:flex;gap:4px;border-radius:8px;border:1px solid var(--color-line-subtle);background:var(--color-bg-field);padding:4px}
     .seg button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:4px 8px;white-space:normal;text-align:center;line-height:1.2;border-radius:6px;font-size:14px;font-weight:600;color:var(--color-text-tertiary);transition:color .15s,background .15s}
@@ -272,16 +275,20 @@ const T = {
             <div class="flex flex-col gap-3 md:sticky md:top-28">
               <div class="card px-4! py-8! sm:px-6!">
                 <p class="flex flex-wrap items-center justify-center gap-2 text-center font-mono text-[11px] tracking-[0.12em] text-text-tertiary uppercase"><gr-icon name="eye" [size]="14" />{{ vista() === 'listo' ? (formato() === 'sticker' ? t().ejemploSticker : t().vistaPrevia) : t().asiQuedara }}</p>
-                <div class="mt-5 flex items-end justify-center gap-4">
-                  @if (vista() === 'listo') {
-                    @if (formato() === 'sticker') {
-                      <gr-story-movil [src]="url()" [alt]="alt()" [fondo]="fotoSrc() || '/img/edicion-2025/foto-1.webp'" />
-                      <div class="hidden flex-col items-center gap-2 sm:flex md:hidden xl:flex"><img [src]="url()" alt="Vista previa del sticker" class="ajedrez aspect-[9/16] w-[118px] rounded-xs" /><span class="text-[11px] font-semibold tracking-[0.06em] text-text-tertiary">{{ t().pngTransp }}</span></div>
+                <div class="mt-5 flex flex-wrap items-end justify-center gap-4">
+                  <button type="button" class="block shrink-0 cursor-zoom-in rounded-lg disabled:cursor-default" [disabled]="!url()" [attr.aria-label]="t().ampliar" (click)="ampliando.set(true)">
+                    @if (vista() === 'listo') {
+                      @if (formato() === 'sticker') {
+                        <gr-story-movil [src]="url()" [alt]="alt()" [sticker]="true" [cargando]="renderizando()" [usuario]="usuarioIg()" [avatar]="fotoSrc()" [avatarFoco]="foco()" [nombre]="p()?.atleta?.nombreCompleto || ''" />
+                      } @else {
+                        <gr-story-movil [src]="url()" [alt]="alt()" [hueco]="!foto()" [cargando]="renderizando()" [usuario]="usuarioIg()" [avatar]="fotoSrc()" [avatarFoco]="foco()" [nombre]="p()?.atleta?.nombreCompleto || ''" />
+                      }
                     } @else {
-                      <gr-story-movil [src]="url()" [alt]="alt()" [hueco]="!foto()" />
+                      <gr-story-movil [src]="'/img/edicion-2025/foto-1.webp' | cdn" alt="Foto de la edición 2025 de la GRS Cup" [borroso]="true" [usuario]="usuarioIg()" />
                     }
-                  } @else {
-                    <gr-story-movil [src]="'/img/edicion-2025/foto-1.webp' | cdn" alt="Foto de la edición 2025 de la GRS Cup" [borroso]="true" />
+                  </button>
+                  @if (vista() === 'listo' && formato() === 'sticker') {
+                    <div class="flex flex-col items-center gap-2"><img [src]="url()" alt="Vista previa del sticker" class="ajedrez aspect-[9/16] w-full max-w-[200px] rounded-xs sm:w-[150px] xl:w-[160px]" /><span class="text-[11px] font-semibold tracking-[0.06em] text-text-tertiary">{{ t().pngTransp }}</span></div>
                   }
                 </div>
                 <p class="mt-4 text-center text-[12px] text-text-tertiary">{{ pie() }}</p>
@@ -301,6 +308,9 @@ const T = {
               }
             </div>
           </div>
+          @if (ampliando() && url()) {
+            <gr-story-zoom [src]="url()" [alt]="alt()" [titulo]="t().ampliar" [cerrarTxt]="t().cerrar" (cerrar)="ampliando.set(false)" />
+          }
           @if (recortando() && fotoSrc() && foto(); as f) {
             <gr-story-recorte [src]="fotoSrc()" [ancho]="f.naturalWidth" [alto]="f.naturalHeight" [inicial]="rec()" (aplicar)="aplicarRecorte($event)" (cancelar)="recortando.set(false)" />
           }
@@ -335,6 +345,8 @@ export class AreaCompartirPage {
   protected readonly errorFoto = signal('');
   protected readonly arrastrando = signal(false);
   protected readonly recortando = signal(false);
+  protected readonly ampliando = signal(false);
+  protected readonly renderizando = signal(false);
   protected readonly rec = signal<Recorte>({ focalX: 50, focalY: 35, zoom: 1 });
   protected readonly modo = signal<StoryDatos['modo']>('cuenta_atras');
   protected readonly formato = signal<StoryDatos['formato']>('story');
@@ -365,6 +377,8 @@ export class AreaCompartirPage {
   /** Competition day (Figma 83 · 12): only the date can be shared. */
   protected readonly enDirecto = computed(() => this.dias() <= 0);
   protected readonly zoomTxt = computed(() => this.rec().zoom.toFixed(1).replace('.', this.t().coma) + '×');
+  /** Encuadre del perfil (`focalX`/`focalY`) para el avatar de la cabecera. */
+  protected readonly foco = computed(() => `${this.rec().focalX}% ${this.rec().focalY}%`);
   /** The story needs a photo; the sticker does not. */
   protected readonly listo = computed(() => !!this.url() && (this.formato() === 'sticker' || !!this.foto()));
   protected readonly filas = computed(() => {
@@ -373,6 +387,13 @@ export class AreaCompartirPage {
     const pr = this.prueba();
     const t = this.t();
     return [[t.competicion, pr ? [pr.nombre, pr.nivel].filter(Boolean).join(' · ') : '—'], [t.categoria, peso(a.categoria)], [t.sexo, a.sexo === 'F' ? t.fem : t.masc], [t.ciudad, 'Almussafes · Valencia'], [t.fecha, fechaLarga(this.fechaISO(), this.i18n.locale())]];
+  });
+  /** Header of the story preview: the athlete's Instagram handle, else their first name. */
+  protected readonly usuarioIg = computed(() => {
+    const a = this.p()?.atleta;
+    if (!a) return '';
+    const ig = (a.perfil.instagram || '').trim().replace(/^@/, '');
+    return ig ? '@' + ig : a.nombreCompleto.split(/\s+/)[0];
   });
   protected readonly pie = computed(() => {
     if (this.vista() === 'acceso') return this.t().pieAcceso;
@@ -484,7 +505,7 @@ export class AreaCompartirPage {
     fd.append('file', f);
     this.fichero.set(f.name);
     this.subida.set(0);
-    this.http.post<PanelStory>(api + '/foto', fd, { reportProgress: true, observe: 'events' }).subscribe({
+    this.http.post<PanelStory>(api + '/foto', fd, { reportProgress: true, observe: 'events', context: sinTimeout() }).subscribe({
       next: async (ev) => {
         if (ev.type === HttpEventType.UploadProgress) this.subida.set(Math.round((100 * ev.loaded) / (ev.total || f.size)));
         if (ev.type !== HttpEventType.Response || !ev.body) return;
@@ -513,6 +534,7 @@ export class AreaCompartirPage {
   private async render(d: StoryDatos) {
     this.ultimo = d;
     this.fallo.set('');
+    this.renderizando.set(true);
     this.anuncio.set(this.t().generando);
     try {
       const c = await componer(d);
@@ -527,6 +549,8 @@ export class AreaCompartirPage {
     } catch {
       this.fallo.set(this.t().noGenerar);
       this.anuncio.set('');
+    } finally {
+      if (d === this.ultimo) this.renderizando.set(false);
     }
   }
 

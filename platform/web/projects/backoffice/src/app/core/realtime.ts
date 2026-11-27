@@ -83,6 +83,20 @@ export class Realtime {
     void this.run();
   }
 
+  /**
+   * Back from a frozen tab (iOS Safari): the stream died with the tab. Reopens it from the last event received, so nothing
+   * published meanwhile is lost, and only when a screen still wants it.
+   */
+  reanudar(): void {
+    if (!this.cid || !this.activo()) return;
+    this.ctrl?.abort();
+    this.ctrl = null;
+    this.wake?.();
+    this.connected.set(false);
+    this.fallos.set(0);
+    void this.run();
+  }
+
   private async run(): Promise<void> {
     const ctrl = new AbortController();
     this.ctrl = ctrl;

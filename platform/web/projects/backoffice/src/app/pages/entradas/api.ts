@@ -1,6 +1,7 @@
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 
 export type EstadoSesion = 'disponible' | 'ultimas' | 'agotada' | 'cerrada' | 'proximamente';
 export interface Sesion {
@@ -59,17 +60,17 @@ export class EntradasApi {
   exportar(cid: string, f: { sesion?: string; estado?: string; q?: string }): Promise<Blob> {
     let p = new HttpParams();
     for (const [k, v] of Object.entries(f)) if (v) p = p.set(k, String(v));
-    return firstValueFrom(this.http.get(`${this.b(cid)}/export.csv`, { params: p, responseType: 'blob' }));
+    return firstValueFrom(this.http.get(`${this.b(cid)}/export.csv`, { params: p, responseType: 'blob', context: sinTimeout() }));
   }
   detalle(cid: string, id: string): Promise<Detalle> { return firstValueFrom(this.http.get<Detalle>(`${this.b(cid)}/${id}`)); }
   manual(cid: string, b: { sesionId: string; nombre: string; apellidos?: string; email?: string; telefono?: string; personas: number; nota?: string; enviar: boolean; forzar: boolean }): Promise<Detalle> {
     return firstValueFrom(this.http.post<Detalle>(this.b(cid), b));
   }
   bulk(cid: string, ids: string[], accion: 'anular' | 'reenviar' | 'mover', extra: { sesionId?: string; motivo?: string; avisar?: boolean } = {}): Promise<{ afectadas: number; personas: number }> {
-    return firstValueFrom(this.http.post<{ afectadas: number; personas: number }>(`${this.b(cid)}/bulk`, { ids, accion, ...extra }));
+    return firstValueFrom(this.http.post<{ afectadas: number; personas: number }>(`${this.b(cid)}/bulk`, { ids, accion, ...extra }, { context: sinTimeout() }));
   }
   espera(cid: string): Promise<Espera> { return firstValueFrom(this.http.get<Espera>(`${this.b(cid)}/espera`)); }
-  ofrecer(cid: string, id: string): Promise<Espera> { return firstValueFrom(this.http.post<Espera>(`${this.b(cid)}/espera/${id}/ofrecer`, {})); }
+  ofrecer(cid: string, id: string): Promise<Espera> { return firstValueFrom(this.http.post<Espera>(`${this.b(cid)}/espera/${id}/ofrecer`, {}, { context: sinTimeout() })); }
   retirar(cid: string, id: string): Promise<Espera> { return firstValueFrom(this.http.delete<Espera>(`${this.b(cid)}/espera/${id}`)); }
   ajustes(cid: string, a: Ajustes): Promise<Espera> { return firstValueFrom(this.http.put<Espera>(`${this.b(cid)}/ajustes`, a)); }
   bootstrap(cid: string): Promise<Bootstrap> { return firstValueFrom(this.http.get<Bootstrap>(`${this.c(cid)}/bootstrap`)); }

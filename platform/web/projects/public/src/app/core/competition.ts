@@ -122,7 +122,20 @@ export class Competition {
   /** Loaded once per render (concurrent callers share the request); with SSR the response is transferred to the browser. */
   load(): Promise<CompeticionPublica | null> {
     if (this.data()) return Promise.resolve(this.data());
-    return (this.pending ??= this.fetch());
+    if (!this.pending) {
+      const p = this.fetch();
+      this.pending = p;
+      // Only the current request clears itself: a dropped one (the tab came back) must not free the next one.
+      void p.finally(() => {
+        if (this.pending === p) this.pending = undefined;
+      });
+    }
+    return this.pending;
+  }
+
+  /** A frozen tab (iOS Safari) leaves a request that never settles: stop sharing it so the next page asks again. */
+  olvidar(): void {
+    this.pending = undefined;
   }
 
   private async fetch(): Promise<CompeticionPublica | null> {
@@ -133,8 +146,6 @@ export class Competition {
     } catch {
       this.failed.set(true);
       return null;
-    } finally {
-      this.pending = undefined;
     }
   }
 }

@@ -1,6 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 
 /** Fans service (contrato §3). Admin: C/fans/* con permiso «directo.operar». */
 
@@ -65,7 +66,7 @@ export class FansApi {
   }
 
   resetContrasena(cid: string, fanId: string): Promise<void> {
-    return firstValueFrom(this.http.post<void>(`${this.b(cid)}/${fanId}/reset-contrasena`, {}));
+    return firstValueFrom(this.http.post<void>(`${this.b(cid)}/${fanId}/reset-contrasena`, {}, { context: sinTimeout() }));
   }
 
   desbanear(cid: string, fanId: string): Promise<void> {

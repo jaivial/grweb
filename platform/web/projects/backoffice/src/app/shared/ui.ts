@@ -5,7 +5,7 @@ import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive } f
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs/operators';
 import { firstValueFrom } from 'rxjs';
-import { GrBadge, GrButton, GrIcon, GrIconButton, GrSelect, type GrTone } from '@grcup/ui';
+import { GrBadge, GrButton, GrIcon, GrIconButton, GrSelect, sinTimeout, type GrTone } from '@grcup/ui';
 import { Competitions } from '../core/competitions';
 import { problemOf } from '../core/api';
 
@@ -342,7 +342,7 @@ export class Confirm {
           @if (r.word) {
             <label class="flex flex-col gap-2">
               <span class="text-label-s text-text-secondary">Escribe {{ r.word }} para confirmar</span>
-              <input #w class="h-10 rounded-sm border border-line-strong bg-bg-field px-3 text-body-s text-text-primary focus:border-accent focus:outline-none" autocomplete="off" (input)="c.typed.set(w.value)" />
+              <input #w class="h-10 rounded-sm border border-line-strong bg-bg-field px-3 text-[16px] text-text-primary focus:border-accent focus:outline-none" autocomplete="off" (input)="c.typed.set(w.value)" />
               <span class="text-body-xs text-text-tertiary">Esta acción queda en el registro de auditoría</span>
             </label>
           }
@@ -369,7 +369,7 @@ export class Media {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('alt', alt);
-    const r = await firstValueFrom(this.http.post<{ url: string }>(`/api/admin/competiciones/${this.comps.current()?.id}${ruta}`, fd));
+    const r = await firstValueFrom(this.http.post<{ url: string }>(`/api/admin/competiciones/${this.comps.current()?.id}${ruta}`, fd, { context: sinTimeout() }));
     return r.url;
   }
 }

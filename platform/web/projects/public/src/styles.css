@@ -78,6 +78,10 @@ html {
   .gr-h1-movil { font-size: clamp(2rem, 11vw, 2.75rem); }
 }
 
+/* gr-icon whose size is set on its host (cqw units of the Instagram preview, area-compartir-ui.ts): the inline svg
+   fills it instead of keeping its px size. */
+.gr-icono-fluido svg { width: 100%; height: 100%; }
+
 /* Mobile menu open (layout.ts): the page behind the opaque menu is not painted (iOS stuttered over the hero video). */
 html.gr-menu-abierto main { visibility: hidden; }
 html.gr-menu-abierto #menu-movil { visibility: visible; } /* a navbar inside <main> (styleguide demo) */

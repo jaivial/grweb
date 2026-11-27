@@ -4,13 +4,14 @@ import { MARCAS_PERFIL, MAX_BIO, MAX_FRASE, MAX_MARCA, esMenorDe, pruebaEnFoco, 
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { GrButton, GrIcon, GrSkeleton, GrTelefono } from '@grcup/ui';
+import { GrButton, GrIcon, GrSelect, GrSkeleton, GrSwitch, GrTelefono } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import { AltchaConfig } from '../core/altcha';
 import { Cms } from '../core/cms';
 import { Competition, COMPETITION_SLUG } from '../core/competition';
 import { Seo } from '../core/seo';
 import { errorEn } from '../core/errores';
+import { CATEGORIAS_IPF, cat } from '../core/atletas';
 import { I18n, LocPipe, idiomaActual } from '../core/i18n';
 import { Page } from '../layout/page';
 import { Community, Related, type RelatedLink } from './landings';
@@ -19,7 +20,6 @@ import { AltaFoto, type FotoAlta } from './alta-atleta-foto';
 import { AltaExito } from './alta-atleta-exito';
 import { AltaAviso } from './alta-atleta-aviso';
 import { AltaFaq, FAQS } from './alta-atleta-faq';
-import { HandlerGratis } from './handler-gratis';
 
 /** Configuración del alta (CONTRATOS §1): módulo, textos legales, reto antibots y token de tiempo. */
 interface ConfigAlta {
@@ -41,7 +41,7 @@ interface ConfigAlta {
 
 /** Los datos del formulario (los mismos que viajan al servicio). */
 interface DatosAlta {
-  nombre: string; apellidos: string; email: string; telefono: string; sexo: '' | 'F' | 'M'; fechaNacimiento: string;
+  nombre: string; apellidos: string; email: string; telefono: string; sexo: '' | 'F' | 'M'; fechaNacimiento: string; categoria: string;
   licencia: string; prueba: string; club: string; ciudad: string; entrenador: string; frase: string; bio: string; instagram: string;
   historial: string; marcaSQ: string | number; marcaBP: string | number; marcaDL: string | number; web: string;
 }
@@ -61,7 +61,7 @@ const BORRADOR = 'grcup:alta-atleta:borrador';
  */
 @Component({
   selector: 'gr-alta-atleta-page',
-  imports: [Page, FormsModule, GrButton, GrIcon, GrSkeleton, GrTelefono, Related, Community, GrAltcha, AltaFoto, AltaExito, AltaAviso, AltaFaq, HandlerGratis, LocPipe],
+  imports: [Page, FormsModule, GrButton, GrIcon, GrSelect, GrSkeleton, GrTelefono, Related, Community, GrAltcha, AltaFoto, AltaExito, AltaAviso, AltaFaq, GrSwitch, LocPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page
@@ -156,10 +156,10 @@ const BORRADOR = 'grcup:alta-atleta:borrador';
                       <div class="flex min-w-0 flex-col gap-2">
                         <span class="text-label-s" id="l-sexo">{{ t().sexo }}</span>
                         <div id="c-sexo" tabindex="-1" class="flex gap-2 scroll-mt-28 outline-none" role="radiogroup" aria-labelledby="l-sexo" aria-required="true" [attr.aria-invalid]="err()['sexo'] ? true : null" [attr.aria-describedby]="err()['sexo'] ? 'e-sexo' : null">
-                          <button type="button" role="radio" [attr.aria-checked]="d.sexo === 'F'" (click)="d.sexo = 'F'; revalidar()"
+                          <button type="button" role="radio" [attr.aria-checked]="d.sexo === 'F'" (click)="sexoCambia('F')"
                             class="inline-flex h-12 flex-1 items-center justify-center rounded-[10px] border px-4 text-label-m transition-colors"
                             [class]="d.sexo === 'F' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : (err()['sexo'] ? 'border-accent-text' : 'border-line-strong') + ' text-text-secondary hover:text-text-primary'">{{ t().mujer }}</button>
-                          <button type="button" role="radio" [attr.aria-checked]="d.sexo === 'M'" (click)="d.sexo = 'M'; revalidar()"
+                          <button type="button" role="radio" [attr.aria-checked]="d.sexo === 'M'" (click)="sexoCambia('M')"
                             class="inline-flex h-12 flex-1 items-center justify-center rounded-[10px] border px-4 text-label-m transition-colors"
                             [class]="d.sexo === 'M' ? 'border-accent-text bg-accent-deep/30 text-text-primary' : (err()['sexo'] ? 'border-accent-text' : 'border-line-strong') + ' text-text-secondary hover:text-text-primary'">{{ t().hombre }}</button>
                         </div>
@@ -174,6 +174,16 @@ const BORRADOR = 'grcup:alta-atleta:borrador';
                           [attr.aria-invalid]="!!err()['fechaNacimiento']" [attr.aria-describedby]="err()['fechaNacimiento'] ? 'e-nacimiento h-nacimiento' : 'h-nacimiento'" />
                         <p id="h-nacimiento" class="text-body-s text-text-tertiary">{{ t().fechaAyuda }}</p>
                         @if (err()['fechaNacimiento']; as e) { <p id="e-nacimiento" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
+                      </div>
+                      <div class="flex min-w-0 flex-col gap-2">
+                        <label class="text-label-s" for="c-categoria">{{ t().categoria }}</label>
+                        <gr-select id="c-categoria" tipo="campo" tam="l" name="categoria" [(ngModel)]="d.categoria" (ngModelChange)="revalidar()"
+                          [disabled]="!d.sexo" [invalido]="!!err()['categoria']" [aria-describedby]="err()['categoria'] ? 'e-categoria' : ''">
+                          <option value="" hidden>{{ t().selCat }}</option>
+                          @for (k of categorias(); track k) { <option [value]="k">{{ cat(k) }} kg</option> }
+                        </gr-select>
+                        <p id="h-categoria" class="text-body-s text-text-tertiary">{{ d.sexo ? t().catNota : t().catSexo }}</p>
+                        @if (err()['categoria']; as e) { <p id="e-categoria" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
                       @if (esMenor()) {
                         <p class="flex items-start gap-3 rounded-md border border-warning/40 bg-warning/8 p-4 text-body-s text-text-secondary">
@@ -236,14 +246,12 @@ const BORRADOR = 'grcup:alta-atleta:borrador';
                           [attr.aria-invalid]="!!err()['entrenador']" [attr.aria-describedby]="err()['entrenador'] ? 'e-entrenador' : null" />
                         @if (err()['entrenador']; as e) { <p id="e-entrenador" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
-                      <label class="flex min-h-11 items-start gap-2.5 py-1 text-body-s text-text-secondary">
-                        <span class="relative -mt-px flex size-6 shrink-0 items-center justify-center">
-                          <input type="checkbox" name="asignarHandler" [(ngModel)]="asignarHandler"
-                            class="peer size-[22px] cursor-pointer appearance-none rounded-[5px] border border-line-strong bg-bg-base checked:border-accent checked:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-text" />
-                          @if (asignarHandler) { <gr-icon name="check" [size]="14" class="pointer-events-none absolute text-white" /> }
-                        </span>
-                        <span>{{ t().asignarHandler }}</span>
-                      </label>
+                      <div class="flex min-w-0 flex-col gap-2">
+                        <span class="text-label-s">{{ t().handlerTitulo }}</span>
+                        <gr-switch [(checked)]="handler" [label]="t().handlerTitulo" describedBy="handler-txt">
+                          <span id="handler-txt" class="block text-body-s text-text-tertiary">{{ t().handlerTxt }}</span>
+                        </gr-switch>
+                      </div>
                     </fieldset>
 
                     <!-- Tu foto -->
@@ -376,7 +384,6 @@ const BORRADOR = 'grcup:alta-atleta:borrador';
         </div>
 
         <!-- Preguntas frecuentes -->
-        <gr-handler-gratis />
         <gr-alta-faq />
         <div class="mt-18 flex flex-col gap-18 md:mt-24 md:gap-24">
           <gr-related nivel="h3" [items]="t().relacionados" />
@@ -451,7 +458,7 @@ export class AltaAtletaPage {
   }
 
   protected readonly d: DatosAlta = {
-    nombre: '', apellidos: '', email: '', telefono: '', sexo: '', fechaNacimiento: '',
+    nombre: '', apellidos: '', email: '', telefono: '', sexo: '', fechaNacimiento: '', categoria: '',
     licencia: '', prueba: '', club: '', ciudad: '', entrenador: '', frase: '', bio: '', instagram: '', historial: '',
     marcaSQ: '', marcaBP: '', marcaDL: '', web: '',
   };
@@ -459,7 +466,7 @@ export class AltaAtletaPage {
     terminos: false, privacidad: false, imagen: false, novedades: false, whatsapp: false,
   };
   protected foto: FotoAlta | null = null;
-  protected asignarHandler = false;
+  protected handler = false;
   private intentado = false;
   /** Momento en el que se pidió la configuración (el token de tiempo debe tener al menos 3 s). */
   private configEn = 0;
@@ -495,6 +502,20 @@ export class AltaAtletaPage {
   protected esMenor(): boolean {
     return esMenorDe(this.d.fechaNacimiento);
   }
+
+  /** El sexo cambió: una categoría del otro sexo ya no vale (las listas no comparten clases). */
+  protected sexoCambia(s: 'F' | 'M'): void {
+    if (this.d.sexo !== s) this.d.categoria = '';
+    this.d.sexo = s;
+    this.revalidar();
+  }
+
+  /** Las categorías de peso del sexo elegido (vacías hasta elegirlo). */
+  protected categorias(): string[] {
+    return this.d.sexo ? CATEGORIAS_IPF[this.d.sexo] : [];
+  }
+
+  protected readonly cat = cat;
 
   /** Una marca (o null si está vacía). Los campos numéricos dan número: se normaliza a texto. */
   protected marca(k: 'marcaSQ' | 'marcaBP' | 'marcaDL'): string | null {
@@ -534,6 +555,7 @@ export class AltaAtletaPage {
     add('telefono', 'Teléfono');
     add('sexo', 'Sexo');
     add('fechaNacimiento', 'Fecha de nacimiento');
+    add('categoria', 'Categoría de peso');
     add('prueba', 'Competición');
     add('frase', 'Frase');
     add('bio', 'Sobre ti');
@@ -650,7 +672,8 @@ export class AltaAtletaPage {
   private validar(): Record<string, string> {
     // The profile fields are validated with the same rules as «Editar mi perfil» of the athlete area.
     const e = validarPerfil(this.d, this.t().v, { fechaTexto: this.fechaTexto, esMenor: this.esMenor(), whatsapp: this.acepta.whatsapp });
-    // What only the public form asks: the competition and the consent boxes.
+    // What only the public form asks: the weight class, the competition and the consent boxes.
+    if (!this.d.categoria) e['categoria'] = this.t().v.categoria;
     if (this.cfg()?.pruebas?.length && !this.d.prueba) e['prueba'] = this.t().v.prueba;
     if (!this.acepta.terminos || !this.acepta.privacidad) e['consentimiento'] = this.t().v.acepta;
     return e;
@@ -686,12 +709,13 @@ export class AltaAtletaPage {
       telefono: this.telefono(),
       sexo: this.d.sexo,
       fechaNacimiento: this.d.fechaNacimiento,
+      categoria: this.d.categoria,
       licencia: '',
       prueba: this.d.prueba,
       club: this.d.club.trim(),
       ciudad: this.d.ciudad.trim(),
       entrenador: this.d.entrenador.trim(),
-      asignarHandler: this.asignarHandler,
+      handler: this.handler,
       frase: this.d.frase.trim(),
       bio: this.d.bio.trim(),
       instagram: this.esMenor() ? '' : this.d.instagram.trim(),
@@ -959,8 +983,11 @@ const T_ES = {
   telefono: 'Teléfono móvil', telAyuda: 'Elige el país y escribe el número completo.', telWhatsapp: ' Obligatorio solo si marcas los avisos por WhatsApp.',
   sexo: 'Sexo *', mujer: 'Mujer', hombre: 'Hombre', nacimiento: 'Fecha de nacimiento *', fechaPh: 'dd/mm/aaaa', fechaAyuda: 'Formato dd/mm/aaaa. De 14 a 90 años.',
   menor: 'Como has nacido antes de los 18, necesitaremos la autorización firmada de tu madre, padre o tutor. Te la pediremos por email antes de publicar tu ficha.',
+  categoria: 'Categoría de peso *', selCat: 'Seleccionar categoría', catSexo: 'Elige primero tu sexo para ver las categorías.',
+  catNota: 'Las categorías −43 kg (mujeres) y −53 kg (hombres) son solo para sub-júnior y júnior.',
   competicion: 'Competición', queCompeticion: '¿En qué competición compites?', completa: 'Completa · sin plazas',
-  clubPh: 'Escribe tu club', ciudad: 'Ciudad', entrenador: 'Entrenador/a (opcional)', entrenadorPh: 'Tu entrenador/a', asignarHandler: 'No tengo handler / Asignadme uno',
+  clubPh: 'Escribe tu club', ciudad: 'Ciudad', entrenador: 'Entrenador/a (opcional)', entrenadorPh: 'Tu entrenador/a', handlerTitulo: '¿Necesitas handler?',
+  handlerTxt: 'Activa el interruptor para solicitar handler gratuito por el equipo de GR Strength.',
   tuFoto: 'Tu foto', tuPerfil: 'Tu perfil', frase: 'Frase de presentación (opcional)', frasePh: 'Una frase para tu ficha',
   bio: 'Sobre ti (opcional)', bioPh: 'Cuéntale a la gente quién eres en dos líneas', instagram: 'Instagram (opcional)', instagramPh: '@tuusuario',
   instagramMenor: 'A los menores de 18 no les pedimos Instagram: el campo se oculta y no se publica nunca.',
@@ -976,14 +1003,14 @@ const T_ES = {
   red: 'No hemos podido enviar tu solicitud (conexión o servicio ocupado).', pulsa: 'pulsa «Reintentar».', reintentar: 'Reintentar', enviar: 'Enviar mi alta',
   alEnviar: 'Al enviar, aceptas los términos de uso y la política de privacidad. Te escribimos para confirmar que hemos recibido tu solicitud.',
   tiempo: (s: number) => s < 60 ? (s === 1 ? '1 segundo' : s + ' segundos') : Math.ceil(s / 60) === 1 ? '1 minuto' : Math.ceil(s / 60) + ' minutos',
-  campos: { nombre: 'Nombre', apellidos: 'Apellidos', email: 'Email', telefono: 'Teléfono', sexo: 'Sexo', fechaNacimiento: 'Fecha de nacimiento', prueba: 'Competición', frase: 'Frase', bio: 'Sobre ti', instagram: 'Instagram', club: 'Club', ciudad: 'Ciudad', entrenador: 'Entrenador', marcaSQ: 'Sentadilla', marcaBP: 'Press de banca', marcaDL: 'Peso muerto', consentimiento: 'Consentimientos' },
+  campos: { nombre: 'Nombre', apellidos: 'Apellidos', email: 'Email', telefono: 'Teléfono', sexo: 'Sexo', fechaNacimiento: 'Fecha de nacimiento', categoria: 'Categoría de peso', prueba: 'Competición', frase: 'Frase', bio: 'Sobre ti', instagram: 'Instagram', club: 'Club', ciudad: 'Ciudad', entrenador: 'Entrenador', marcaSQ: 'Sentadilla', marcaBP: 'Press de banca', marcaDL: 'Peso muerto', consentimiento: 'Consentimientos' },
   v: {
     oblig: 'Es obligatorio.', nombreLetras: 'El nombre debe contener letras.', largo60: 'Es demasiado largo (60 caracteres como máximo).', obligPl: 'Son obligatorios.',
     apellidosLetras: 'Los apellidos deben contener letras.', largos60: 'Son demasiado largos (60 caracteres como máximo).', email: 'Introduce un email válido.',
     waTel: 'Si pides avisos por WhatsApp, necesitas tu teléfono.', opcion: 'Elige una opción.', anio: 'Escribe el año con 4 cifras (dd/mm/aaaa).', fecha: 'Elige una fecha válida.',
     edad: 'Esa fecha no parece correcta (debe estar entre los 14 y los 90 años).', largo: 'Es demasiado largo.', larga: 'Es demasiado larga.',
     larga80: 'Es demasiado larga (80 caracteres como máximo).', largo280: 'Es demasiado largo (280 caracteres como máximo).',
-    ig: 'Solo letras, números, puntos y guiones bajos (30 como máximo).', prueba: 'Elige una competición.', marca: 'La marca debe estar entre 0 y 600 kg.',
+    ig: 'Solo letras, números, puntos y guiones bajos (30 como máximo).', categoria: 'Elige tu categoría de peso.', prueba: 'Elige una competición.', marca: 'La marca debe estar entre 0 y 600 kg.',
     paso: 'Las marcas van en pasos de 0,5 kg.', acepta: 'Acepta los términos de uso y la política de privacidad.', telCorto: 'El número de teléfono no está completo.',
     reto: 'No hemos podido pedir una verificación nueva. Vuelve a intentarlo en unos segundos.', robot: 'Marca la casilla «No soy un robot» antes de enviar.',
     persona: 'No hemos podido verificar que eres una persona.', campo: 'Revisa este campo.', marcados: 'Revisa los campos marcados.', completa: 'La competición está completa.', envio: 'No hemos podido enviar tu solicitud.',
@@ -1014,8 +1041,11 @@ const T = {
     telefono: 'Mobile phone', telAyuda: 'Pick the country and type the full number.', telWhatsapp: ' Only required if you tick WhatsApp notifications.',
     sexo: 'Sex *', mujer: 'Female', hombre: 'Male', nacimiento: 'Date of birth *', fechaPh: 'dd/mm/yyyy', fechaAyuda: 'Format dd/mm/yyyy. Aged 14 to 90.',
     menor: "As you're under 18, we'll need a consent form signed by your mother, father or guardian. We'll ask for it by email before publishing your profile.",
+    categoria: 'Weight class *', selCat: 'Select weight class', catSexo: 'Choose your sex first to see the weight classes.',
+    catNota: 'The −43 kg (women) and −53 kg (men) classes are for sub-juniors and juniors only.',
     competicion: 'Competition', queCompeticion: 'Which competition are you entering?', completa: 'Full · no places left',
-    clubPh: 'Enter your club', ciudad: 'City', entrenador: 'Coach (optional)', entrenadorPh: 'Your coach', asignarHandler: "I don't have a handler / Assign me one",
+    clubPh: 'Enter your club', ciudad: 'City', entrenador: 'Coach (optional)', entrenadorPh: 'Your coach', handlerTitulo: 'Do you need a handler?',
+    handlerTxt: 'Turn on the switch to ask for a free handler from the GR Strength team.',
     tuFoto: 'Your photo', tuPerfil: 'Your profile', frase: 'Tagline (optional)', frasePh: 'A line for your profile',
     bio: 'About you (optional)', bioPh: 'Tell people who you are in two lines', instagram: 'Instagram (optional)', instagramPh: '@yourusername',
     instagramMenor: "We don't ask under-18s for Instagram: the field is hidden and never published.",
@@ -1031,14 +1061,14 @@ const T = {
     red: "We couldn't send your request (connection problem or service busy).", pulsa: 'press “Retry”.', reintentar: 'Retry', enviar: 'Send my sign-up',
     alEnviar: "By sending, you accept the terms of use and the privacy policy. We'll email you to confirm we've received your request.",
     tiempo: (s: number) => s < 60 ? (s === 1 ? '1 second' : s + ' seconds') : Math.ceil(s / 60) === 1 ? '1 minute' : Math.ceil(s / 60) + ' minutes',
-    campos: { nombre: 'First name', apellidos: 'Surname', email: 'Email', telefono: 'Phone', sexo: 'Sex', fechaNacimiento: 'Date of birth', prueba: 'Competition', frase: 'Tagline', bio: 'About you', instagram: 'Instagram', club: 'Club', ciudad: 'City', entrenador: 'Coach', marcaSQ: 'Squat', marcaBP: 'Bench press', marcaDL: 'Deadlift', consentimiento: 'Consents' },
+    campos: { nombre: 'First name', apellidos: 'Surname', email: 'Email', telefono: 'Phone', sexo: 'Sex', fechaNacimiento: 'Date of birth', categoria: 'Weight class', prueba: 'Competition', frase: 'Tagline', bio: 'About you', instagram: 'Instagram', club: 'Club', ciudad: 'City', entrenador: 'Coach', marcaSQ: 'Squat', marcaBP: 'Bench press', marcaDL: 'Deadlift', consentimiento: 'Consents' },
     v: {
       oblig: 'This is required.', nombreLetras: 'Your first name must contain letters.', largo60: 'It is too long (60 characters max).', obligPl: 'This is required.',
       apellidosLetras: 'Your surname must contain letters.', largos60: 'It is too long (60 characters max).', email: 'Enter a valid email.',
       waTel: 'If you ask for WhatsApp notifications, we need your phone number.', opcion: 'Choose an option.', anio: 'Write the year with 4 digits (dd/mm/yyyy).', fecha: 'Choose a valid date.',
       edad: "That date doesn't look right (you must be between 14 and 90).", largo: 'It is too long.', larga: 'It is too long.',
       larga80: 'It is too long (80 characters max).', largo280: 'It is too long (280 characters max).',
-      ig: 'Only letters, numbers, full stops and underscores (30 max).', prueba: 'Choose a competition.', marca: 'The lift must be between 0 and 600 kg.',
+      ig: 'Only letters, numbers, full stops and underscores (30 max).', categoria: 'Choose your weight class.', prueba: 'Choose a competition.', marca: 'The lift must be between 0 and 600 kg.',
       paso: 'Lifts go in steps of 0.5 kg.', acepta: 'Accept the terms of use and the privacy policy.', telCorto: 'The phone number is not complete.',
       reto: "We couldn't request a new verification. Try again in a few seconds.", robot: 'Tick the “I am not a robot” box before sending.',
       persona: "We couldn't verify that you are a person.", campo: 'Check this field.', marcados: 'Check the highlighted fields.', completa: 'The competition is full.', envio: "We couldn't send your request.",

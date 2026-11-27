@@ -1,7 +1,7 @@
 import { RouterLink } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, signal, type WritableSignal } from '@angular/core';
-import { GrButton, GrIcon, type GrIconName } from '@grcup/ui';
+import { GrButton, GrIcon, esConReanudacion, type GrIconName } from '@grcup/ui';
 import { Cms, type Sitio } from '../core/cms';
 import { COMPETITION_SLUG } from '../core/competition';
 import { I18n, LocPipe, type Lang } from '../core/i18n';
@@ -37,19 +37,23 @@ export function sitiosDelCms() {
   const hoteles = signal<Sitio[] | null>(null);
   const gimnasios = signal<Sitio[] | null>(null);
   if (isPlatformBrowser(inject(PLATFORM_ID))) {
-    const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
     const timers: ReturnType<typeof setTimeout>[] = [];
-    const seguir = (ev: string, i: number, get: () => Promise<Sitio[] | null>, lista: WritableSignal<Sitio[] | null>) =>
-      es.addEventListener(ev, () => {
-        clearTimeout(timers[i]);
-        timers[i] = setTimeout(async () => {
-          const l = await get();
-          if (l) lista.set(l);
-        }, 400);
-      });
-    seguir('web.hoteles_restaurantes', 0, () => cms.hotelesRestaurantes(), hoteles);
-    seguir('web.gimnasios', 1, () => cms.gimnasios(), gimnasios);
-    inject(DestroyRef).onDestroy(() => { timers.forEach(clearTimeout); es.close(); });
+    // Reopened on every come-back: iOS Safari leaves the stream dead after a freeze.
+    const cerrar = esConReanudacion(() => {
+      const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
+      const seguir = (ev: string, i: number, get: () => Promise<Sitio[] | null>, lista: WritableSignal<Sitio[] | null>) =>
+        es.addEventListener(ev, () => {
+          clearTimeout(timers[i]);
+          timers[i] = setTimeout(async () => {
+            const l = await get();
+            if (l) lista.set(l);
+          }, 400);
+        });
+      seguir('web.hoteles_restaurantes', 0, () => cms.hotelesRestaurantes(), hoteles);
+      seguir('web.gimnasios', 1, () => cms.gimnasios(), gimnasios);
+      return es;
+    });
+    inject(DestroyRef).onDestroy(() => { timers.forEach(clearTimeout); cerrar(); });
   }
   return {
     hoteles: hoteles.asReadonly(),

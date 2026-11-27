@@ -10,6 +10,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { DestroyRef, Injectable, PLATFORM_ID, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { alReanudar } from '@grcup/ui';
 import { COMPETITION_SLUG } from './competition';
 import { EVENTOS_HORARIOS } from './horarios';
 import { FanSession, codigoError, detalleError } from './fan';
@@ -968,6 +969,10 @@ export class JuegosEnVivo {
   private espera: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
+    // iOS Safari freezes the tab and the stream dies with it: when the user comes back, reopen from the last event.
+    alReanudar(() => {
+      if (this.es) this.abrir();
+    });
     // cambiar de ámbito reabre el stream desde el último evento recibido (sin perder ninguno)
     effect(() => {
       const f = this.foco();
