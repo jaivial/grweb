@@ -14,7 +14,14 @@ function reanudar(): void {
   // visible + pageshow + online arrive together after a freeze: one notice.
   if (ahora - reanudadoEn < 1000) return;
   reanudadoEn = ahora;
-  for (const f of oyentes) f();
+  for (const f of oyentes) {
+    // One service failing to rebuild its connection must not leave the others waiting.
+    try {
+      f();
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 if (typeof document !== 'undefined' && typeof window !== 'undefined') {

@@ -20,8 +20,9 @@ export const appConfig: ApplicationConfig = {
       const realtime = inject(Realtime);
       alReanudar(() => {
         auth.verificarSesion();
-        if (auth.isLoggedIn()) void auth.freshToken();
-        if (realtime.status() !== 'paused') realtime.reconnect();
+        // Also while bootstrapping: a resume can drop that first refresh before it restores the session.
+        if (auth.isLoggedIn() || !auth.ready()) void auth.freshToken();
+        realtime.reanudar();
       });
     }),
   ],
