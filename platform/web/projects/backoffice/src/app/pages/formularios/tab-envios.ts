@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { GrAlert, GrButton, GrEmpty, GrIcon, GrSkeleton } from '@grcup/ui';
+import { GrAlert, GrButton, GrEmpty, GrIcon, GrSkeleton, GrToasts } from '@grcup/ui';
 import { Competitions } from '../../core/competitions';
-import { BoTablaMovil } from '../../shared/ui';
-import { FormulariosApi, type CanalFormulario, type Envio, type Formulario } from './api';
+import { BoTablaMovil, Confirm, errText } from '../../shared/ui';
+import { FormulariosApi, type CanalFormulario, type Envio, type Formulario, type Programado } from './api';
 import { BoEntregasBarra } from './entregas-barra';
 import { CANAL, fechaHora } from './formato';
 import { BoEnvioDialogo } from './envio-dialogo';
@@ -11,6 +11,13 @@ import { FormularioStore } from './store';
 
 /** While any message waits in the queue the table refreshes on this rhythm (stopped on destroy). */
 const REFRESCO_MS = 10_000;
+const ESTADO_PROG: Record<Programado['estado'], { label: string; cls: string }> = {
+  pendiente: { label: 'Pendiente', cls: 'border-info/50 bg-info/10 text-info' },
+  enviando: { label: 'Enviando', cls: 'border-info/50 bg-info/10 text-info' },
+  enviado: { label: 'Enviado', cls: 'border-success/50 bg-success/10 text-success' },
+  fallido: { label: 'Fallido', cls: 'border-danger/50 bg-danger/10 text-danger' },
+  cancelado: { label: 'Cancelado', cls: 'border-line-strong text-text-tertiary' },
+};
 
 /**
  * «Envíos» tab: the sends of the form (channels, totals and per-channel delivery) and the «Nuevo envío» dialog. A send
@@ -31,6 +38,28 @@ const REFRESCO_MS = 10_000;
       </div>
 
       @if (error()) { <gr-alert tone="danger" title="No hemos podido cargar los envíos"><button grButton size="s" (click)="cargar()">Reintentar</button></gr-alert> }
+
+      @if (programados().length) {
+        <section class="flex flex-col gap-2" aria-labelledby="programados-titulo">
+          <h3 id="programados-titulo" class="text-label-s text-text-secondary">Envíos programados</h3>
+          <ul class="divide-y divide-line-subtle rounded-lg border border-line-subtle bg-bg-card" data-programados>
+            @for (p of programados(); track p.id) {
+              <li class="flex flex-wrap items-center gap-3 px-4 py-3">
+                <gr-icon name="clock" [size]="16" class="shrink-0 text-text-tertiary" />
+                <div class="min-w-0 flex-1 basis-56">
+                  <span class="block text-label-m">{{ fecha(p.programadoAt) }}</span>
+                  <span class="block text-body-xs text-text-tertiary">{{ canalesTxt(p) }}{{ p.creadoPor ? ' · ' + p.creadoPor : '' }}</span>
+                  @if (p.estado === 'fallido' && p.error) { <span class="block text-body-xs text-danger">{{ p.error }}</span> }
+                </div>
+                <span class="inline-flex h-7 items-center rounded-full border px-2.5 text-label-s" [class]="estadoProg(p).cls">{{ estadoProg(p).label }}</span>
+                @if (p.estado === 'pendiente') {
+                  <button type="button" grButton variant="ghost" size="s" icon="x" [loading]="cancelando() === p.id" (click)="cancelar(p)">Cancelar</button>
+                }
+              </li>
+            }
+          </ul>
+        </section>
+      }
       @if (lista(); as l) {
         @if (!l.length) {
           <gr-empty icon="send" title="Aún no hay envíos" text="Envía el formulario a los atletas por email o WhatsApp. Los mensajes salen al ritmo anti-spam.">
@@ -84,7 +113,7 @@ const REFRESCO_MS = 10_000;
     </div>
 
     @if (dialogo()) {
-      <bo-envio-dialogo [formulario]="formulario()" (cerrar)="dialogo.set(false)" (enviado)="alEnviar()" />
+      <bo-envio-dialogo [formulario]="formulario()" (cerrar)="dialogo.set(false)" (enviado)="alEnviar()" (programado)="alProgramar()" />
     }
   `,
 })
@@ -93,6 +122,8 @@ export class BoFormEnvios {
   protected readonly comps = inject(Competitions);
   private readonly api = inject(FormulariosApi);
   private readonly store = inject(FormularioStore);
+  private readonly confirm = inject(Confirm);
+  private readonly toasts = inject(GrToasts);
   protected readonly n = (v: number) => v.toLocaleString('es-ES');
   protected readonly fecha = fechaHora;
   protected readonly etiqueta = (c: CanalFormulario) => CANAL[c].label;
@@ -100,11 +131,17 @@ export class BoFormEnvios {
   protected readonly lista = signal<Envio[] | null | undefined>(undefined);
   protected readonly error = signal(false);
   protected readonly dialogo = signal(false);
+  protected readonly programados = signal<Programado[]>([]);
+  protected readonly cancelando = signal('');
+  protected readonly estadoProg = (p: Programado) => ESTADO_PROG[p.estado];
+  protected readonly canalesTxt = (p: Programado) => p.canales.map((c) => CANAL[c].label).join(' · ');
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
   /** Tracks the form id only: saves and status changes of the same form do not reload the tab. */
   private readonly formularioId = computed(() => this.formulario().id);
   /** Some channel still has messages waiting: the table keeps refreshing. */
   protected readonly enCola = computed(() => (this.lista() ?? []).some((e) => e.email.enCola > 0 || e.whatsapp.enCola > 0));
+  /** A scheduled send is pending or running: keep refreshing so it turns into a send on its own. */
+  private readonly hayProgramados = computed(() => this.programados().some((p) => p.estado === 'pendiente' || p.estado === 'enviando'));
   private refresco: ReturnType<typeof setTimeout> | undefined;
   /** Number of the latest load: the answer of an older, overlapped load is dropped. */
   private turno = 0;
@@ -130,9 +167,13 @@ export class BoFormEnvios {
     const mine = ++this.turno;
     clearTimeout(this.refresco);
     try {
-      const lista = await this.api.envios(this.cid(), this.formularioId());
+      const [lista, programados] = await Promise.all([
+        this.api.envios(this.cid(), this.formularioId()),
+        this.api.programados(this.cid(), this.formularioId()).catch(() => this.programados()),
+      ]);
       if (this.obsoleta(mine)) return;
       this.lista.set(lista);
+      this.programados.set(programados);
       this.error.set(false);
     } catch {
       if (this.obsoleta(mine)) return;
@@ -140,6 +181,27 @@ export class BoFormEnvios {
       if (!this.lista()) this.lista.set(null);
     }
     if (this.enCola()) this.refresco = setTimeout(() => void this.cargar(), REFRESCO_MS);
+    else if (this.hayProgramados()) this.refresco = setTimeout(() => void this.cargar(), 30_000);
+  }
+
+  protected async alProgramar(): Promise<void> {
+    this.dialogo.set(false);
+    await this.cargar();
+  }
+
+  protected async cancelar(p: Programado): Promise<void> {
+    const ok = await this.confirm.ask({ title: '¿Cancelar el envío programado?', text: `No se enviará el ${this.fecha(p.programadoAt)}.`, confirm: 'Cancelar envío' });
+    if (!ok) return;
+    this.cancelando.set(p.id);
+    try {
+      await this.api.cancelarProgramado(this.cid(), this.formularioId(), p.id);
+      this.toasts.success('Envío programado cancelado', '');
+    } catch (e) {
+      this.toasts.error('No se pudo cancelar', errText(e, 'Vuelve a intentarlo.'));
+    } finally {
+      this.cancelando.set('');
+    }
+    await this.cargar();
   }
 
   private obsoleta(mine: number): boolean {

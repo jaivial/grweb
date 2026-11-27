@@ -206,6 +206,7 @@ func (s *Svc) registerFormularios() {
 	s.registerFormulariosPublico()
 	s.registerFormulariosPrevia()
 	s.registerFormulariosEnvios()
+	s.registerFormulariosProgramados()
 	s.registerFormulariosEstadisticas()
 }
 
