@@ -39,8 +39,8 @@ export const MATCH: Record<TipoMatch, string> = { licencia: 'Licencia', email: '
 export const MATCH_TONE: Record<TipoMatch, GrTone> = { licencia: 'success', email: 'info', nombre: 'warning', manual: 'info', '': 'neutral' };
 
 /** Badge of the request type: a profile change is reviewed differently from a sign-up. */
-export const TIPO: Record<TipoSolicitud, string> = { alta: 'Alta', cambio_perfil: 'Cambio de perfil', autorizacion: 'Autorización de tutor' };
-export const TIPO_TONE: Record<TipoSolicitud, GrTone> = { alta: 'neutral', cambio_perfil: 'info', autorizacion: 'accent' };
+export const TIPO: Record<TipoSolicitud, string> = { alta: 'Alta', cambio_perfil: 'Cambio de perfil', autorizacion: 'Autorización de tutor', handling: 'Handling' };
+export const TIPO_TONE: Record<TipoSolicitud, GrTone> = { alta: 'neutral', cambio_perfil: 'info', autorizacion: 'accent', handling: 'success' };
 
 /** The 19 fields of the form, with the value declared by the athlete and the difference with the linked athlete. */
 export interface FilaCampo {

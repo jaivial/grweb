@@ -12,6 +12,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 import { GrButton, GrEmpty, GrIcon, GrPopover, GrSkeleton, GrToasts } from '@grcup/ui';
 import { Competitions } from '../../core/competitions';
 import { Realtime } from '../../core/realtime';
@@ -537,7 +538,7 @@ export class AuditoriaPage {
     try {
       const p = this.params().delete('limite');
       const blob = await firstValueFrom(
-        this.http.get(`${this.url()}/exportar.csv`, { params: p, responseType: 'blob' }),
+        this.http.get(`${this.url()}/exportar.csv`, { params: p, responseType: 'blob', context: sinTimeout() }),
       );
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);

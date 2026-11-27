@@ -41,8 +41,8 @@ export interface Panel {
 }
 
 /** Subpáginas del área: `/area-atleta?vista=…` (sin `vista`, el panel con los accesos rápidos). */
-export type AreaVista = 'perfil' | 'horarios' | 'post' | 'acreditacion' | 'pesaje';
-export const AREA_VISTAS: readonly AreaVista[] = ['perfil', 'horarios', 'post', 'acreditacion', 'pesaje'];
+export type AreaVista = 'perfil' | 'horarios' | 'post' | 'acreditacion' | 'pesaje' | 'handling';
+export const AREA_VISTAS: readonly AreaVista[] = ['perfil', 'horarios', 'post', 'acreditacion', 'pesaje', 'handling'];
 export const esVista = (v: string | null | undefined): v is AreaVista => !!v && (AREA_VISTAS as readonly string[]).includes(v);
 
 export const AREA_API = '/api/area-atleta';

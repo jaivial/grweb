@@ -3,7 +3,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrButton, GrIcon, GrRaffleItem, GrSkeleton, type GrIconName } from '@grcup/ui';
+import { GrButton, GrIcon, GrRaffleItem, GrSkeleton, esConReanudacion, type GrIconName } from '@grcup/ui';
 import { Cms } from '../core/cms';
 import { COMPETITION_SLUG, FalloApi } from '../core/competition';
 import type { Horarios } from '../core/horarios';
@@ -251,14 +251,18 @@ export class SorteoPage {
       await applySeo(cms, seo, '/sorteo', t.seoTitulo, r ? t.seoDesc(this.euros(r.precioBoletoEfectivoCents)) : t.seoDef);
     });
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
-      const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
       const datos = (e: Event) => { try { return JSON.parse((e as MessageEvent).data)?.datos; } catch { return undefined; } };
-      es.addEventListener('rifa.items_actualizados', (e) => { const d = datos(e); if (Array.isArray(d?.items)) this.items.set(d.items); });
-      es.addEventListener('rifa.config_actualizada', (e) => {
-        const d = datos(e);
-        if (d && d.visible === false) { this.rifa.set(null); this.noPublicada.set(true); } else if (d) this.rifa.set(d);
+      // Reopened on every come-back: iOS Safari leaves the stream dead after a freeze.
+      const cerrar = esConReanudacion(() => {
+        const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
+        es.addEventListener('rifa.items_actualizados', (e) => { const d = datos(e); if (Array.isArray(d?.items)) this.items.set(d.items); });
+        es.addEventListener('rifa.config_actualizada', (e) => {
+          const d = datos(e);
+          if (d && d.visible === false) { this.rifa.set(null); this.noPublicada.set(true); } else if (d) this.rifa.set(d);
+        });
+        return es;
       });
-      inject(DestroyRef).onDestroy(() => es.close());
+      inject(DestroyRef).onDestroy(() => cerrar());
     }
   }
 }

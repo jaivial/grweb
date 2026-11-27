@@ -3,6 +3,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { alReanudar } from '@grcup/ui';
 import { visitante } from './visitante';
 import { COMPETITION_SLUG } from './competition';
 import { FanSession } from './fan';
@@ -275,6 +276,14 @@ export class ChatService {
   private cursor = '';
   private sinMas = false;
   private cargandoAnteriores = false;
+
+  constructor() {
+    // iOS Safari freezes the tab and the socket dies with it: when the user comes back, reopen from the last message
+    // (no reload: the list and the cursor stay as they were).
+    alReanudar(() => {
+      if (this.vivo) this.abrirWs();
+    });
+  }
 
   /** Opens (or reopens) the live room of today. Browser only. */
   conectar(): void {

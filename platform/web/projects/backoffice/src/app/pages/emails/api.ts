@@ -1,6 +1,7 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 
 export interface SMTPEstado { conocido: boolean; ok: boolean; servidor: string; error?: string; ultimoEnvio?: string; desde?: string; propio: boolean }
 export interface Resumen { enviados7d: number; enviadosPrev: number; entregados: number; rebotes7d: number; enCola: number; ritmo: number; smtp: SMTPEstado; serie: number[]; serieRebotes: number[]; enviadosHoy: number; reintentando: number }
@@ -51,7 +52,7 @@ export class EmailsApi {
     return firstValueFrom(this.http.post<Render>(`${this.b(cid)}/plantillas/${clave}/previsualizar`, { contenido }));
   }
   prueba(cid: string, clave: string, destino: string): Promise<Mensaje> {
-    return firstValueFrom(this.http.post<Mensaje>(`${this.b(cid)}/plantillas/${clave}/prueba`, { destino }));
+    return firstValueFrom(this.http.post<Mensaje>(`${this.b(cid)}/plantillas/${clave}/prueba`, { destino }, { context: sinTimeout() }));
   }
   salida(cid: string, estado: string, q: string, pagina: number, canal = '', destinos: string[] = []): Promise<Salida> {
     const params: { [k: string]: string | string[] } = { pagina: String(pagina) };
@@ -69,7 +70,7 @@ export class EmailsApi {
     return firstValueFrom(this.http.get<Mensaje & { html: string; texto: string }>(`${this.b(cid)}/salida/${id}`));
   }
   bulk(cid: string, ids: string[], accion: 'reintentar' | 'cancelar'): Promise<{ afectados: number }> {
-    return firstValueFrom(this.http.post<{ afectados: number }>(`${this.b(cid)}/salida/bulk`, { ids, accion }));
+    return firstValueFrom(this.http.post<{ afectados: number }>(`${this.b(cid)}/salida/bulk`, { ids, accion }, { context: sinTimeout() }));
   }
   autos(cid: string): Promise<Autos> {
     return firstValueFrom(this.http.get<Autos>(`${this.b(cid)}/automatizaciones`));

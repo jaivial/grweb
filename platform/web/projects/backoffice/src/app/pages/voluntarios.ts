@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, injec
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, GrSkeleton, GrToasts, type GrTone, fmtAgo } from '@grcup/ui';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
@@ -400,7 +401,7 @@ export class VoluntariosPage {
       // private file in cms (not the public media library): it holds a minor's and their guardian's data
       const fd = new FormData();
       fd.append('file', f);
-      await firstValueFrom(this.http.post(`${this.base}/${v.id}/autorizacion`, fd));
+      await firstValueFrom(this.http.post(`${this.base}/${v.id}/autorizacion`, fd, { context: sinTimeout() }));
       this.asig.autorizacionUrl = `${this.base}/${v.id}/autorizacion`;
       this.toasts.success('Autorización subida');
       await this.cargar();
@@ -418,7 +419,7 @@ export class VoluntariosPage {
     if (!v) return;
     const ventana = window.open('', '_blank');
     try {
-      const blob = await firstValueFrom(this.http.get(`${this.base}/${v.id}/autorizacion`, { responseType: 'blob' }));
+      const blob = await firstValueFrom(this.http.get(`${this.base}/${v.id}/autorizacion`, { responseType: 'blob', context: sinTimeout() }));
       const url = URL.createObjectURL(blob);
       if (ventana) ventana.location.href = url; else window.open(url, '_blank');
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
@@ -435,7 +436,7 @@ export class VoluntariosPage {
     this.error.set('');
     try {
       const avisar = v.estado !== 'confirmado' && this.asig.avisar;
-      await firstValueFrom(this.http.post(`${this.base}/${v.id}/aceptar`, { puesto: this.asig.puesto, turno: this.asig.turno, responsable: this.asig.responsable.trim(), notas: this.asig.notas.trim(), avisar }));
+      await firstValueFrom(this.http.post(`${this.base}/${v.id}/aceptar`, { puesto: this.asig.puesto, turno: this.asig.turno, responsable: this.asig.responsable.trim(), notas: this.asig.notas.trim(), avisar }, { context: sinTimeout() }));
       this.abierto.set(false);
       this.toasts.success(v.estado === 'confirmado' ? 'Asignación guardada' : `${v.nombre} ya está en el equipo`, avisar ? `Le hemos escrito a ${v.email}.` : '');
       await this.cargar();
@@ -453,7 +454,7 @@ export class VoluntariosPage {
     this.ocupado.set(true);
     this.error.set('');
     try {
-      await firstValueFrom(this.http.post(`${this.base}/${v.id}/rechazar`, { motivo: this.re.motivo.trim(), avisar: this.re.avisar }));
+      await firstValueFrom(this.http.post(`${this.base}/${v.id}/rechazar`, { motivo: this.re.motivo.trim(), avisar: this.re.avisar }, { context: sinTimeout() }));
       this.abierto.set(false);
       this.toasts.success('Solicitud rechazada', this.re.avisar ? `Le hemos escrito a ${v.email}.` : '');
       await this.cargar();
@@ -524,7 +525,7 @@ export class VoluntariosPage {
     this.ocupado.set(true);
     this.error.set('');
     try {
-      const r = await firstValueFrom(this.http.post<{ enviados: number }>(`${this.base}/escribir`, { rol: this.msg.rol, asunto: this.msg.asunto.trim(), mensaje: this.msg.mensaje.trim() }));
+      const r = await firstValueFrom(this.http.post<{ enviados: number }>(`${this.base}/escribir`, { rol: this.msg.rol, asunto: this.msg.asunto.trim(), mensaje: this.msg.mensaje.trim() }, { context: sinTimeout() }));
       this.escribiendo.set(false);
       this.toasts.success(r.enviados === 1 ? 'Email enviado a 1 persona' : `Email enviado a ${r.enviados} personas`);
     } catch (e) {

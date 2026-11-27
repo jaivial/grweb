@@ -1,4 +1,5 @@
 import { HttpClient, HttpErrorResponse, HttpEventType } from '@angular/common/http';
+import { sinTimeout } from '@grcup/ui';
 import { ChangeDetectionStrategy, Component, PLATFORM_ID, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -274,7 +275,7 @@ export class AutorizacionPage {
     fd.append('file', f);
     this.fichero.set(f.name);
     this.subida.set(0);
-    this.http.post<Autorizacion>(this.url, fd, { reportProgress: true, observe: 'events' }).subscribe({
+    this.http.post<Autorizacion>(this.url, fd, { reportProgress: true, observe: 'events', context: sinTimeout() }).subscribe({
       next: (ev) => {
         if (ev.type === HttpEventType.UploadProgress) this.subida.set(Math.round((100 * ev.loaded) / (ev.total || f.size)));
         if (ev.type !== HttpEventType.Response || !ev.body) return;

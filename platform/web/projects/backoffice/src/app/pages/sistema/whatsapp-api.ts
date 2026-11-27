@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 
 /** State of the WhatsApp service of the competition (messaging). */
 export type EstadoWa = 'sin_instancia' | 'conectando' | 'conectado' | 'desconectado' | 'error';
@@ -75,7 +76,7 @@ export class WhatsAppApi {
     return firstValueFrom(this.http.put<AvisosWa>(`${this.base(cid)}/avisos`, body));
   }
   prueba(cid: string): Promise<PruebaWa> {
-    return firstValueFrom(this.http.post<PruebaWa>(`${this.base(cid)}/avisos/prueba`, {}));
+    return firstValueFrom(this.http.post<PruebaWa>(`${this.base(cid)}/avisos/prueba`, {}, { context: sinTimeout() }));
   }
   grupos(cid: string): Promise<GrupoWa[]> {
     return firstValueFrom(this.http.get<GrupoWa[]>(`${this.base(cid)}/grupos`));

@@ -166,6 +166,8 @@ type DetalleSolicitud struct {
 	AutorizacionURL string `json:"autorizacionUrl,omitempty" doc:"Autorización firmada subida por el tutor (tipo autorizacion)"`
 	// Anteriores: the earlier rejected authorisations of the same athlete (tipo autorizacion), newest first.
 	Anteriores []AutorizacionAnterior `json:"anteriores,omitempty"`
+	// Handler: the alta asked for free handling (approving it creates the «handling» request).
+	Handler bool `json:"handler"`
 }
 
 // AutorizacionAnterior is an earlier rejected authorisation: when and why.
@@ -202,7 +204,7 @@ type AprobarOut struct {
 type FiltrosLista struct {
 	CID    uuid.UUID `path:"cid"`
 	Estado string    `query:"estado" enum:"pendiente,revision,menor,aprobada,rechazada,todas" default:"todas"`
-	Tipo   string    `query:"tipo" enum:"todas,alta,cambio_perfil,autorizacion" default:"todas"`
+	Tipo   string    `query:"tipo" enum:"todas,alta,cambio_perfil,autorizacion,handling" default:"todas"`
 	Match  string    `query:"match" enum:"licencia,email,nombre,manual,ninguna" default:""`
 	Menor  string    `query:"menor" enum:"si,no" default:""`
 	Q      string    `query:"q" maxLength:"80"`
@@ -352,6 +354,8 @@ func (s *Svc) registerAltaAtletaAdmin() {
 				return s.apruebaCambioPerfil(ctx, in.CID, in.ID, in.IfMatch, in.Body.AvisarEmail, in.Body.AvisarWhatsApp, pr.Name)
 			} else if err == nil && pre.Tipo == "autorizacion" {
 				return s.apruebaAutorizacion(ctx, in.CID, in.ID, in.IfMatch, in.Body.AvisarEmail, in.Body.AvisarWhatsApp, pr.Name)
+			} else if err == nil && pre.Tipo == "handling" {
+				return s.apruebaHandling(ctx, in.CID, in.ID, in.IfMatch, in.Body.AvisarEmail, in.Body.AvisarWhatsApp, pr.Name)
 			}
 			return s.apruebaSolicitud(ctx, in.CID, in.ID, in.IfMatch, in.Body.AtletaID, in.Body.Nuevo, cambios,
 				in.Body.AvisarEmail, in.Body.AvisarWhatsApp, pr.Name)
@@ -502,6 +506,8 @@ func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, tipo, match string, menor 
 		where = append(where, "tipo = 'cambio_perfil'")
 	case "autorizacion":
 		where = append(where, "tipo = 'autorizacion'")
+	case "handling":
+		where = append(where, "tipo = 'handling'")
 	}
 	switch estado {
 	case "pendiente":
@@ -586,7 +592,7 @@ func (s *Svc) detalleSolicitud(ctx context.Context, cid, id uuid.UUID) (DetalleS
 		MarcaSQ: sol.MarcaSQ, MarcaBP: sol.MarcaBP, MarcaDL: sol.MarcaDL,
 		FocalX: int(sol.FocalX), FocalY: int(sol.FocalY),
 		MotivoRechazo: sol.MotivoRechazo, RevisadoAt: sol.RevisadoAt, RevisadoPor: sol.RevisadoPor,
-		Diferencias: []Diferencia{}, Cambios: cambiosDeSolicitud(sol), Consentimientos: []ConsentimientoItem{},
+		Diferencias: []Diferencia{}, Cambios: cambiosDeSolicitud(sol), Consentimientos: []ConsentimientoItem{}, Handler: sol.Handler,
 	}
 	if sol.FechaNacimiento != nil {
 		d.FechaNacimiento = sol.FechaNacimiento.Format("2006-01-02")
@@ -735,14 +741,8 @@ func (s *Svc) candidatos(ctx context.Context, cid uuid.UUID, q string) (*Candida
 
 // lockSolicitud reads a request with a row lock and checks the version of the client.
 func (s *Svc) lockSolicitud(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, ifm string) (solicitud, error) {
-	var sol solicitud
-	err := tx.QueryRow(ctx, selSolicitud+` WHERE competition_id = $1 AND id = $2 FOR UPDATE`, cid, id).
-		Scan(&sol.ID, &sol.CompetitionID, &sol.Tipo, &sol.Cambios, &sol.MatchAtletaID, &sol.MatchTipo, &sol.Licencia, &sol.Nombre, &sol.Apellidos, &sol.Email,
-			&sol.Telefono, &sol.Sexo, &sol.FechaNacimiento, &sol.Club, &sol.Ciudad, &sol.Frase, &sol.Bio, &sol.Instagram,
-			&sol.Entrenador, &sol.Historial, &sol.MarcaSQ, &sol.MarcaBP, &sol.MarcaDL, &sol.FocalX, &sol.FocalY, &sol.EsMenor,
-			&sol.FotoClave, &sol.FotoSHA256, &sol.AutorizacionClave, &sol.Estado, &sol.Notas, &sol.MotivoRechazo, &sol.RevisadoAt,
-			&sol.RevisadoPor, &sol.Consentimientos, &sol.ConsentimientoAt, &sol.IP, &sol.UserAgent, &sol.Version, &sol.CreatedAt, &sol.UpdatedAt, &sol.Prueba, &sol.Categoria)
-	if err == pgx.ErrNoRows {
+	sol, err := collectSolicitud(tx.Query(ctx, selSolicitud+` WHERE competition_id = $1 AND id = $2 FOR UPDATE`, cid, id))
+	if errors.Is(err, pgx.ErrNoRows) {
 		return sol, problem.NotFound("Esa solicitud no existe.")
 	}
 	if err != nil {
@@ -982,6 +982,25 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 			revisado_at = now(), revisado_por = $4, version = version + 1, updated_at = now() WHERE competition_id = $1 AND id = $2`,
 			cid, id, destino, por); err != nil {
 			return err
+		}
+		// «¿Necesitas handler?» del alta: la solicitud de handling del atleta, en la misma transacción. Si ya la
+		// pidió antes (o se la aprobaron), no se duplica; tras un rechazo sí puede volver a pedirla.
+		if sol.Handler {
+			if h := handlingDe(ctx, tx, cid, *destino); h == nil || h.Estado == "rechazada" {
+				r, err := getRow(ctx, tx, cid, *destino)
+				if err != nil {
+					return err
+				}
+				origen := "Alta de atleta (interruptor «¿Necesitas handler?»)"
+				if _, err := s.creaHandling(ctx, tx, cid, r, origen); err != nil {
+					// Una solicitud viva (o una carrera con el área) nunca tumba el alta: la pide el atleta desde su área.
+					var pe *problem.Error
+					if !errors.As(err, &pe) || pe.Code != "HANDLING_EN_CURSO" {
+						return err
+					}
+					s.a.Log.Warn("alta aprobada sin crear la solicitud de handling", "atleta", destino.String(), "err", err)
+				}
+			}
 		}
 		// The contact and its consents (crm).
 		if err := contacto(ctx, tx, cid, s.eventoContactoSolicitud(sol, cons)); err != nil {
@@ -1319,6 +1338,16 @@ func (s *Svc) rechazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm, moti
 				}
 			}
 			archivoRechazado = urlAutorizacion(sol)
+		case "handling":
+			para, tel = contactoActual(ctx, tx, sol)
+			plantilla = "handling-rechazada"
+			vars["urlArea"] = s.webURL + "/area-atleta?vista=handling"
+			waConsentido = sol.MatchAtletaID != nil && waAceptado(ctx, tx, cid, *sol.MatchAtletaID)
+			if sol.MatchAtletaID != nil {
+				if err := hist(ctx, tx, *sol.MatchAtletaID, "Solicitud de handling rechazada", "Motivo: "+motivo); err != nil {
+					return err
+				}
+			}
 		default:
 			vars["urlAlta"] = urlAviso
 		}

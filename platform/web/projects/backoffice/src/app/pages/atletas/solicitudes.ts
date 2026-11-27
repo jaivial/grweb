@@ -10,6 +10,7 @@ import { Realtime } from '../../core/realtime';
 import { problemOf } from '../../core/api';
 import { BoPageHeader, BoTabs, errText, type BoTab } from '../../shared/ui';
 import { BoSheet } from '../../shared/kit';
+import { tabEnUrl } from '../../shared/tab-url';
 import { SolicitudesContador } from '../../core/solicitudes';
 import {
   SolicitudesApi,
@@ -103,8 +104,8 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
           @if (!visibles().length) {
             <section class="mx-auto w-full max-w-2xl rounded-lg border border-line-subtle bg-bg-card p-8 text-center">
               <span class="mx-auto flex size-12 items-center justify-center rounded-md bg-accent-deep/40 text-accent-text"><gr-icon name="user" [size]="22" /></span>
-              <h2 class="mt-4 text-ui-h4">{{ l.total ? 'Ninguna solicitud con esos filtros' : 'Aún no hay solicitudes de atleta' }}</h2>
-              <p class="mt-2 text-body-s text-text-tertiary">{{ l.total ? 'Prueba con otro filtro o con otra búsqueda.' : 'Cuando alguien envíe su alta desde el formulario público aparecerá aquí en vivo, con su foto y su coincidencia.' }}</p>
+              <h2 class="mt-4 text-ui-h4">{{ l.total || pestana() !== 'todas' ? 'Ninguna solicitud con esos filtros' : 'Aún no hay solicitudes de atleta' }}</h2>
+              <p class="mt-2 text-body-s text-text-tertiary">{{ l.total || pestana() !== 'todas' ? 'Prueba con otro filtro o con otra búsqueda.' : 'Cuando alguien envíe su alta desde el formulario público aparecerá aquí en vivo, con su foto y su coincidencia.' }}</p>
             </section>
           } @else {
             <bo-solicitudes-lista [items]="visibles()" [total]="l.total" [desde]="desde()" [hasta]="hasta()" [pagina]="pagina()" [paginas]="paginas()"
@@ -138,6 +139,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
         <option value="alta">Altas de atleta</option>
         <option value="cambio_perfil">Cambios de perfil</option>
         <option value="autorizacion">Autorizaciones de tutor</option>
+        <option value="handling">Handling gratis</option>
       </gr-select>
       <gr-select tipo="campo" [ngModel]="fMatch()" (ngModelChange)="fMatch.set($event); recargar(1)" aria-label="Coincidencia">
         <option value="">Coincidencia: todas</option>
@@ -181,7 +183,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
       <div class="flex-1 overflow-y-auto px-4 pb-6 sm:px-6">
       @if (detalle(); as d) {
         <div class="flex flex-col gap-5">
-          <p class="hidden text-body-s text-text-tertiary sm:block">Solicitud @if (esAutorizacion()) { de autorización del tutor subida {{ hace(d.createdAt) }} desde el enlace enviado al atleta } @else if (esCambio()) { de cambio de perfil enviada {{ hace(d.createdAt) }} desde el área de atleta } @else { recibida {{ hace(d.createdAt) }} desde el formulario de alta }</p>
+          <p class="hidden text-body-s text-text-tertiary sm:block">Solicitud @if (esAutorizacion()) { de autorización del tutor subida {{ hace(d.createdAt) }} desde el enlace enviado al atleta } @else if (esCambio()) { de cambio de perfil enviada {{ hace(d.createdAt) }} desde el área de atleta } @else if (esHandling()) { de handling gratis pedida {{ hace(d.createdAt) }} desde el área de atleta } @else { recibida {{ hace(d.createdAt) }} desde el formulario de alta }</p>
           <p class="truncate text-body-s text-text-tertiary sm:hidden">{{ d.email }}</p>
 
           <div class="-mt-2 flex flex-wrap gap-1">
@@ -192,6 +194,40 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
               <gr-badge [tone]="matchTone(d.match)">{{ match(d.match) }}</gr-badge>
             }
           </div>
+
+          @if (esHandling()) {
+            <!-- ===== Handling gratis: el atleta, su contacto y desde cuándo espera ===== -->
+            @if (d.estado === 'aprobada') {
+              <gr-alert tone="success" title="Handling aprobado">El equipo de GR Strength se encarga de {{ nombreCompleto(d) }}{{ avisarEmail() ? ' · se le ha avisado por email' : '' }}.</gr-alert>
+            }
+            @if (d.estado === 'rechazada') {
+              <gr-alert tone="danger" title="Handling rechazado">Motivo: {{ d.motivoRechazo || 'sin motivo' }}</gr-alert>
+            }
+            <section>
+              <h3 class="text-label-xs text-text-muted uppercase">Solicitud de handling</h3>
+              <dl class="mt-2 flex flex-col">
+                <div class="flex items-start justify-between gap-3 border-b border-line-subtle py-2">
+                  <dt class="w-28 shrink-0 text-body-xs text-text-tertiary">Solicitada</dt>
+                  <dd class="min-w-0 flex-1 text-body-s">{{ fechaHora(d.createdAt) }}</dd>
+                </div>
+                <div class="flex items-start justify-between gap-3 border-b border-line-subtle py-2">
+                  <dt class="w-28 shrink-0 text-body-xs text-text-tertiary">Atleta</dt>
+                  <dd class="min-w-0 flex-1 text-body-s">{{ nombreCompleto(d) }}@if (d.atleta) { · {{ d.atleta.licencia || 'sin licencia' }} · {{ d.atleta.club || 'sin club' }} }</dd>
+                </div>
+                <div class="flex items-start justify-between gap-3 border-b border-line-subtle py-2">
+                  <dt class="w-28 shrink-0 text-body-xs text-text-tertiary">Email</dt>
+                  <dd class="min-w-0 flex-1 text-body-s break-words">{{ d.email || '—' }}</dd>
+                </div>
+                <div class="flex items-start justify-between gap-3 py-2">
+                  <dt class="w-28 shrink-0 text-body-xs text-text-tertiary">Teléfono</dt>
+                  <dd class="min-w-0 flex-1 text-body-s">{{ d.telefono ? valorTexto('telefono', d.telefono) : '—' }}</dd>
+                </div>
+              </dl>
+              @if (d.atletaId) {
+                <a class="mt-2 inline-flex h-11 items-center gap-1 text-label-s text-accent-text" [routerLink]="['/', comps.current()?.slug, 'atletas', d.atletaId]">Ver ficha del atleta <gr-icon name="arrow-right" [size]="14" /></a>
+              }
+            </section>
+          }
 
           @if (esAutorizacion()) {
             <!-- ===== Autorización del tutor: el documento subido, el atleta y su contacto ===== -->
@@ -399,6 +435,11 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
           @if (esAlta()) {
           <section>
             <h3 class="text-label-xs text-text-muted uppercase">Datos declarados vs atleta enlazado</h3>
+            <p class="mt-2 flex items-start gap-2 rounded-sm px-3 py-2 text-body-s" [class]="d.handler ? 'bg-success/8 text-text-primary' : 'bg-bg-raised text-text-tertiary'">
+              <gr-icon [name]="d.handler ? 'user-plus' : 'minus'" [size]="16" class="mt-0.5 shrink-0" [class.text-success]="d.handler" />
+              @if (d.handler) { <span><strong class="font-semibold">Handler gratis · solicitado:</strong> el atleta ha pedido handler. Al aprobar el alta se crea la solicitud de Handling para el equipo de GR Strength.</span> }
+              @else { <span>Handler gratis · no lo ha pedido.</span> }
+            </p>
             @if (!verTodos()) {
               <dl class="mt-2 flex flex-col gap-1.5">
                 @for (f of resumen(); track f.clave) {
@@ -552,7 +593,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
             <button grButton variant="danger" [disabled]="ocupado()" (click)="dialogo.set('borrar')">Borrar…</button>
           } @else {
             <!-- Mobile: Approve full width on top, the other two below; desktop: the three on one row. -->
-            <button grButton variant="primary" class="order-first w-full sm:order-last sm:w-auto" [disabled]="ocupado() || bloqueadoAprobar()" (click)="dialogo.set('aprobar')">{{ esAutorizacion() ? 'Aprobar autorización' : esCambio() ? 'Aprobar cambios' : 'Aprobar (ficha privada)' }}</button>
+            <button grButton variant="primary" class="order-first w-full sm:order-last sm:w-auto" [disabled]="ocupado() || bloqueadoAprobar()" (click)="dialogo.set('aprobar')">{{ esAutorizacion() ? 'Aprobar autorización' : esCambio() ? 'Aprobar cambios' : esHandling() ? 'Aprobar handling' : 'Aprobar (ficha privada)' }}</button>
             <button grButton class="flex-1 sm:flex-none" [disabled]="ocupado()" (click)="marcarRevision()">Marcar en revisión</button>
             <button grButton variant="danger" class="flex-1 sm:flex-none" [disabled]="ocupado()" (click)="dialogo.set('rechazar')">Rechazar…</button>
           }
@@ -573,7 +614,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
     }
 
     @if (dialogo(); as dl) {
-      <bo-solicitudes-dialogo [tipo]="dl" [nombre]="detalle() ? nombreCompleto(detalle()!) : ''" [imagenAceptada]="imagenAceptada()" [cambio]="esCambio()" [autorizacion]="esAutorizacion()" [cambiaEmail]="cambiaEmail()"
+      <bo-solicitudes-dialogo [tipo]="dl" [nombre]="detalle() ? nombreCompleto(detalle()!) : ''" [imagenAceptada]="imagenAceptada()" [cambio]="esCambio()" [autorizacion]="esAutorizacion()" [handling]="esHandling()" [cambiaEmail]="cambiaEmail()"
         [destino]="destinoAprueba().texto" [ocupado]="ocupado()" [(avisarEmail)]="avisarEmail" [(avisarWhatsApp)]="avisarWhatsApp"
         (cerrar)="dialogo.set(null)" (aprobar)="aprobar()" (rechazar)="rechazar($event)" (borrar)="borrar()" />
     }
@@ -602,7 +643,13 @@ export class SolicitudesPage {
   protected readonly lista = signal<SolicitudLista | null | undefined>(undefined);
   protected readonly detalle = signal<SolicitudDetalle | null>(null);
   protected readonly abierto = signal(false);
-  protected readonly pestana = signal<Pestana>('todas');
+  protected readonly pestanas: { k: Pestana; l: string }[] = [
+    { k: 'todas', l: 'Todas' }, { k: 'pendiente', l: 'Nuevas' }, { k: 'revision', l: 'En revisión' },
+    { k: 'menor', l: 'Menor · sin autorización' }, { k: 'aprobada', l: 'Aprobadas' }, { k: 'rechazada', l: 'Rechazadas' },
+  ];
+  /** «Nuevas» on arrival; an explicit `?estado=` (also `todas`) wins and stays in the URL. */
+  protected readonly pestana = signal<Pestana>(((p) => (this.pestanas.some((t) => t.k === p) ? p : 'pendiente') as Pestana)(this.route.snapshot.queryParamMap.get('estado')));
+  private readonly estadoUrl = tabEnUrl(this.pestana, () => this.pestanas.map((t) => t.k), 'estado');
   protected readonly q = signal('');
   protected readonly fMatch = signal('');
   protected readonly fTipo = signal('');
@@ -639,18 +686,14 @@ export class SolicitudesPage {
   protected readonly por = signal(6);
   protected cambios = { frase: '', bio: '', instagram: '', club: '', ciudad: '', entrenador: '', marcaSQ: null as number | null, marcaBP: null as number | null, marcaDL: null as number | null };
 
-  protected readonly pestanas: { k: Pestana; l: string }[] = [
-    { k: 'todas', l: 'Todas' }, { k: 'pendiente', l: 'Nuevas' }, { k: 'revision', l: 'En revisión' },
-    { k: 'menor', l: 'Menor · sin autorización' }, { k: 'aprobada', l: 'Aprobadas' }, { k: 'rechazada', l: 'Rechazadas' },
-  ];
   /** BIZ-194: status, search and filters live in the «Filtros» panel; Exportar in the «⋯» panel. */
   protected readonly filtros = signal(false);
   protected readonly acciones = signal(false);
   protected readonly pestanaActual = computed(() => this.pestanas.find((t) => t.k === this.pestana())?.l ?? '');
-  protected readonly nFiltros = computed(() => [this.pestana() !== 'todas', this.q(), this.fMatch(), this.fTipo(), this.fMenor(), this.fRecibida()].filter(Boolean).length);
+  protected readonly nFiltros = computed(() => [this.pestana() !== 'pendiente', this.q(), this.fMatch(), this.fTipo(), this.fMenor(), this.fRecibida()].filter(Boolean).length);
   protected limpiar(): void {
     this.q.set(''); this.fMatch.set(''); this.fTipo.set(''); this.fMenor.set(''); this.fRecibida.set('');
-    this.irPestana('todas');
+    this.irPestana('pendiente');
   }
   protected readonly kpiEtiquetas = [{ l: 'Pendientes de revisar' }, { l: 'En revisión' }, { l: 'Aprobadas' }, { l: 'Rechazadas' }];
   protected readonly hace = fmtAgo;
@@ -699,8 +742,10 @@ export class SolicitudesPage {
   protected readonly esCambio = computed(() => (this.detalle()?.tipo ?? this.tipoPendiente()) === 'cambio_perfil');
   /** The open request is a guardian authorisation uploaded from the public link. */
   protected readonly esAutorizacion = computed(() => (this.detalle()?.tipo ?? this.tipoPendiente()) === 'autorizacion');
+  /** A «handling gratis» request asked from the athlete area (or from the alta toggle). */
+  protected readonly esHandling = computed(() => (this.detalle()?.tipo ?? this.tipoPendiente()) === 'handling');
   /** A sign-up from the public form (photo, fields, match, consents, edits). */
-  protected readonly esAlta = computed(() => !this.esCambio() && !this.esAutorizacion());
+  protected readonly esAlta = computed(() => !this.esCambio() && !this.esAutorizacion() && !this.esHandling());
   protected readonly valorTexto = valorTexto;
   protected esPdf(url: string): boolean {
     return /\.pdf($|[?#])/i.test(url);
@@ -718,6 +763,7 @@ export class SolicitudesPage {
     if (tipo === 'alta') return 'Altas enviadas desde el formulario público · se revisan a mano antes de publicar';
     if (tipo === 'cambio_perfil') return 'Cambios de perfil enviados desde el área de atleta · se revisan a mano antes de aprobarlos';
     if (tipo === 'autorizacion') return 'Autorizaciones firmadas por el tutor de atletas menores · se revisan a mano antes de publicar su perfil';
+    if (tipo === 'handling') return 'Solicitudes de handling gratis pedidas desde el área de atleta o en el alta · el equipo de GR Strength se encarga';
     return 'Altas enviadas desde el formulario público y cambios de perfil enviados desde el área de atleta · se revisan a mano antes de publicar';
   });
 
@@ -784,6 +830,11 @@ export class SolicitudesPage {
 
   private urlLista(): string {
     return `/${this.comps.current()?.slug ?? this.route.snapshot.paramMap.get('comp') ?? ''}/atletas/solicitudes`;
+  }
+
+  /** The review lives in the URL without the filter: keep «Todas» (or any other status) linkable when closing it. */
+  private urlConEstado(path: string): string {
+    return this.pestana() === 'pendiente' ? path : `${path}?estado=${this.pestana()}`;
   }
 
   /** «3 de 12» in the mobile header: place of the open request in the current list. */
@@ -918,7 +969,7 @@ export class SolicitudesPage {
   }
 
   protected async revisar(s: { id: string }, push = true): Promise<void> {
-    if (push && this.idDeUrl(this.location.path()) !== s.id) this.location.go(`${this.urlLista()}/${s.id}`);
+    if (push && this.idDeUrl(this.location.path()) !== s.id) this.location.go(this.urlConEstado(`${this.urlLista()}/${s.id}`));
     this.abierto.set(true);
     this.pendienteId.set(s.id);
     this.nuevas.update((n) => {
@@ -993,7 +1044,7 @@ export class SolicitudesPage {
   });
 
   protected cerrar(push = true): void {
-    if (push && this.idDeUrl(this.location.path())) this.location.go(this.urlLista());
+    if (push && this.idDeUrl(this.location.path())) this.location.go(this.urlConEstado(this.urlLista()));
     this.abierto.set(false);
     this.detalle.set(null);
     this.dialogo.set(null);
@@ -1143,7 +1194,9 @@ export class SolicitudesPage {
         ...destino.cuerpo, cambios, avisarEmail: this.avisarEmail(), avisarWhatsApp: this.avisarWhatsApp(),
       });
       this.dialogo.set(null);
-      if (d.tipo === 'autorizacion') {
+      if (d.tipo === 'handling') {
+        this.toasts.success('Handling aprobado', this.avisarEmail() ? `Le hemos escrito a ${d.email}.` : '');
+      } else if (d.tipo === 'autorizacion') {
         this.toasts.success('Autorización aprobada', 'Su perfil ya se muestra en la web.');
       } else if (d.tipo === 'cambio_perfil') {
         this.toasts.success('Cambios aplicados', this.avisarEmail() ? `Le hemos escrito a ${d.atleta?.email || d.email}.` : 'Su ficha ya tiene los datos nuevos.');
@@ -1164,6 +1217,7 @@ export class SolicitudesPage {
   protected destinoAprueba(): { texto: string; cuerpo: { atletaId?: string; nuevo?: boolean } } {
     const d = this.detalle();
     if (d?.tipo === 'autorizacion') return { texto: `Se guardará la autorización en la ficha de ${nombreCompleto(d)}`, cuerpo: {} };
+    if (d?.tipo === 'handling') return { texto: `Se marcará el handling de ${nombreCompleto(d)} como aprobado: el equipo de GR Strength se encarga`, cuerpo: {} };
     // A change request does not create or link anything: it writes the snapshot on the athlete it belongs to.
     if (d?.tipo === 'cambio_perfil') {
       const quien = d.atleta ? `${d.atleta.nombre}${d.atleta.licencia ? ' · ' + d.atleta.licencia : ''}` : nombreCompleto(d);
@@ -1191,7 +1245,7 @@ export class SolicitudesPage {
   /** Only the fields the reviewer actually changed. */
   private cambiosCorregidos(d: SolicitudDetalle): Record<string, string | number | null> {
     const out: Record<string, string | number | null> = {};
-    if (d.tipo === 'cambio_perfil' || d.tipo === 'autorizacion') return out; // the request carries its own snapshot: the reviewer approves or rejects
+    if (d.tipo === 'cambio_perfil' || d.tipo === 'autorizacion' || d.tipo === 'handling') return out; // the request carries its own snapshot: the reviewer approves or rejects
     const pares: [string, string | number | null, string | number | null][] = [
       ['frase', this.cambios.frase, d.frase], ['bio', this.cambios.bio, d.bio], ['instagram', this.cambios.instagram, d.instagram],
       ['club', this.cambios.club, d.club], ['ciudad', this.cambios.ciudad, d.ciudad], ['entrenador', this.cambios.entrenador, d.entrenador],
@@ -1218,7 +1272,10 @@ export class SolicitudesPage {
       await this.cargar();
       await this.recargarDetalle();
     } catch (e) {
+      // The alert of the conflict (412) and of the reason (422) lives in the panel: the dialog has to go, or the
+      // message stays behind the overlay and the rejection looks like it hung.
       this.gestionarError(e);
+      this.dialogo.set(null);
     } finally {
       this.ocupado.set(false);
     }

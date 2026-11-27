@@ -59,45 +59,45 @@ func nivelMesa(mesa string) string {
 	return ""
 }
 
-// mesaDeNivel is the desk of a level in the competition ("" when there is none yet) and the OpenLifter day of the
-// level in it (0: every day of the desk is that level). A meet with the level on one of its days wins (the
+// mesaDeNivel is the desk of a level in the competition ("" when there is none yet) and the OpenLifter days of the
+// level in it (none: every day of the desk is that level). A meet with the level on one of its days wins (the
 // predetermined one first); else the most recently synchronised desk whose key is of that level.
-func (s *Svc) mesaDeNivel(ctx context.Context, cid uuid.UUID, nivel string) (string, int, error) {
+func (s *Svc) mesaDeNivel(ctx context.Context, cid uuid.UUID, nivel string) (string, []int, error) {
 	rows, err := s.a.DB.Query(ctx, `SELECT mesa, niveles FROM meets WHERE competition_id = $1 AND niveles <> '{}'::jsonb ORDER BY predeterminada DESC, updated_at DESC`, cid)
 	if err != nil {
-		return "", 0, err
+		return "", nil, err
 	}
 	for rows.Next() {
 		var m string
 		var raw map[string]string
 		if err := rows.Scan(&m, &raw); err != nil {
 			rows.Close()
-			return "", 0, err
+			return "", nil, err
 		}
-		if d := leerNiveles(raw).dia(nivel); d > 0 {
+		if ds := leerNiveles(raw).dias(nivel); len(ds) > 0 {
 			rows.Close()
-			return m, d, nil
+			return m, ds, nil
 		}
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
-		return "", 0, err
+		return "", nil, err
 	}
 	rows, err = s.a.DB.Query(ctx, `SELECT mesa FROM entradas WHERE competition_id = $1 GROUP BY mesa ORDER BY max(updated_at) DESC`, cid)
 	if err != nil {
-		return "", 0, err
+		return "", nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var m string
 		if err := rows.Scan(&m); err != nil {
-			return "", 0, err
+			return "", nil, err
 		}
 		if nivelMesa(m) == nivel {
-			return m, 0, nil
+			return m, nil, nil
 		}
 	}
-	return "", 0, rows.Err()
+	return "", nil, rows.Err()
 }
 
 func (s *Svc) padron(ctx context.Context, cid uuid.UUID, nivel string) ([]lifterPadron, error) {
@@ -140,11 +140,15 @@ func (s *Svc) registerPadron() {
 			}
 			o := &padOut{}
 			o.Body.Enlaces = make([]enlace, 0, len(in.Body.Lifters))
-			mesa, dia, err := s.mesaDeNivel(ctx, in.CID, in.Body.Nivel)
+			mesa, dias, err := s.mesaDeNivel(ctx, in.CID, in.Body.Nivel)
 			if err != nil {
 				return nil, err
 			}
 			o.Body.Mesa = mesa
+			enDia := map[int]bool{} // the days of the level: an entry of another level's day is not of this roll
+			for _, d := range dias {
+				enDia[d] = true
+			}
 			var filas []*fila
 			if mesa != "" {
 				if filas, err = cargar(ctx, s.a.DB, in.CID, mesa); err != nil {
@@ -154,7 +158,7 @@ func (s *Svc) registerPadron() {
 			porID := map[int]*fila{}
 			porNombre := map[string][]*fila{}
 			for _, f := range filas {
-				if dia > 0 && f.Datos.Day != dia {
+				if len(enDia) > 0 && !enDia[f.Datos.Day] {
 					continue // an entry of the other level's day
 				}
 				porID[f.EntryID] = f

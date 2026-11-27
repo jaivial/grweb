@@ -52,17 +52,27 @@ func (n niveles) de(day int, mesa string) string {
 	return nivelMesa(mesa)
 }
 
-// dia is the day of a level in the meet (0 when the level is not in it).
-func (n niveles) dia(nivel string) int {
+// dias are the days of a level in the meet, in order (AEP 2 on 18 and 19 December: 1, 2).
+func (n niveles) dias(nivel string) []int {
+	var ds []int
 	for d, v := range n {
 		if v == nivel && nivel != "" {
-			return d
+			ds = append(ds, d)
 		}
+	}
+	sort.Ints(ds)
+	return ds
+}
+
+// dia is the day of a level in the meet (the lowest one when the level is on several days; 0 when it is not in it).
+func (n niveles) dia(nivel string) int {
+	if ds := n.dias(nivel); len(ds) > 0 {
+		return ds[0]
 	}
 	return 0
 }
 
-// todos are the levels of the desk, in day order (one level for a desk of one level, none for any other).
+// todos are the levels of the desk, in day order and once each (one level for a desk of one level, none for any other).
 func (n niveles) todos(mesa string) []string {
 	if len(n) == 0 {
 		if x := nivelMesa(mesa); x != "" {
@@ -76,7 +86,12 @@ func (n niveles) todos(mesa string) []string {
 	}
 	sort.Ints(dias)
 	out := make([]string, 0, len(dias))
+	vistos := map[string]bool{}
 	for _, d := range dias {
+		if vistos[n[d]] {
+			continue
+		}
+		vistos[n[d]] = true
 		out = append(out, n[d])
 	}
 	return out

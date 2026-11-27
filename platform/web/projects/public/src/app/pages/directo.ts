@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrAlert, GrButton, GrIcon, GrLogo, GrSkeleton, GrSelect, type GrLiveEstado, cdn, CdnPipe } from '@grcup/ui';
+import { GrAlert, GrButton, GrIcon, GrLogo, GrSkeleton, GrSelect, esConReanudacion, type GrLiveEstado, cdn, CdnPipe } from '@grcup/ui';
 import { Cms, type Album, type Patrocinador } from '../core/cms';
 import { COMPETITION_SLUG, FalloApi, type CompeticionPublica } from '../core/competition';
 import { DirectoPublic, MOV, MOV_EN, ORD, ORD_EN, catCorta, catLarga, embed, gl, kg, pesoIntento, type Categoria, type Directo, type Edicion, type EnPlataforma, type Fila, type Pantalla, type ResultadosPublicos } from '../core/directo';
@@ -82,22 +82,26 @@ const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u
  * `espectador`: the stream carries the browser id (?v=), so this page counts once per browser in «espectadores».
  */
 function escuchar(tipos: string[], recargar: () => void, estado?: (e: GrLiveEstado) => void, chatEstado?: () => void, espectador = false): () => void {
-  const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream${espectador ? '?v=' + visitante() : ''}`);
-  if (estado) {
-    es.onopen = () => estado('en-directo');
-    es.onerror = () => estado(es.readyState === EventSource.CLOSED ? 'sin-conexion' : 'reconectando');
-  }
   let t: ReturnType<typeof setTimeout> | undefined;
   const fn = () => {
     clearTimeout(t);
     t = setTimeout(recargar, 300);
   };
-  for (const ev of tipos) es.addEventListener(ev, fn);
-  // chat switched on/off by the organisation: the event carries `{ chat_enabled }`; re-read the room state
-  if (chatEstado) es.addEventListener('chat.estado', chatEstado);
+  // Reopened on every come-back: iOS Safari leaves the stream dead after a freeze.
+  const cerrar = esConReanudacion(() => {
+    const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream${espectador ? '?v=' + visitante() : ''}`);
+    if (estado) {
+      es.onopen = () => estado('en-directo');
+      es.onerror = () => estado(es.readyState === EventSource.CLOSED ? 'sin-conexion' : 'reconectando');
+    }
+    for (const ev of tipos) es.addEventListener(ev, fn);
+    // chat switched on/off by the organisation: the event carries `{ chat_enabled }`; re-read the room state
+    if (chatEstado) es.addEventListener('chat.estado', chatEstado);
+    return es;
+  });
   return () => {
     clearTimeout(t);
-    es.close();
+    cerrar();
   };
 }
 const EVENTOS = ['directo.estado', 'directo.intento', 'directo.veredicto', 'directo.correccion', 'resultados.publicados', 'resultados.retirados', 'reconectar'];

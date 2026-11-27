@@ -1,6 +1,23 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
+import type { GrTone } from '@grcup/ui';
+
+/** Latest «handling gratis» request of an athlete (null without one). */
+export interface HandlingAtleta {
+  id: string;
+  estado: 'pendiente' | 'revision' | 'aprobada' | 'rechazada';
+  fecha: string;
+  motivo?: string;
+}
+/** Text and tone of the handling state (list column, filter and ficha). */
+export const HANDLING: Record<HandlingAtleta['estado'], { l: string; tone: GrTone }> = {
+  pendiente: { l: 'Pendiente', tone: 'warning' },
+  revision: { l: 'En revisión', tone: 'warning' },
+  aprobada: { l: 'Aprobada', tone: 'success' },
+  rechazada: { l: 'Rechazada', tone: 'danger' },
+};
 
 export interface Marcas {
   sq?: number;
@@ -31,13 +48,14 @@ export interface ItemLista {
   avisos: Incidencia[];
   edad?: number;
   pesaje: string;
+  handling?: HandlingAtleta;
 }
 export interface Lista {
   items: ItemLista[];
   total: number;
   pagina: number;
   por: number;
-  pestanas: Record<'todos' | 'confirmados' | 'reserva' | 'bajas' | 'incidencias', number>;
+  pestanas: Record<'todos' | 'confirmados' | 'reserva' | 'bajas' | 'incidencias' | 'handling', number>;
   kpis: { perfilesCompletos: number; pctCompletos: number; sinFoto: number; conImagen: number; imagenPendiente: number; menoresPendientes: number; seguimientos: number; seguimientosSemana: number };
   categorias: string[];
   jornadas: string[];
@@ -104,6 +122,8 @@ export interface Atleta {
   autorizacion?: EstadoAutorizacion;
   /** Consentimiento de los avisos por WhatsApp (en la ficha o por la casilla del alta); sin él no se envían. */
   whatsapp?: { at: string; version: string; origen: string };
+  /** Latest «handling gratis» request (null: never asked). */
+  handling?: HandlingAtleta;
 }
 export interface EstadoAutorizacion {
   estado: 'sin_pedir' | 'enviada' | 'revision' | 'rechazada' | 'aprobada';
@@ -201,18 +221,18 @@ export class AtletasApi {
     return firstValueFrom(this.http.put<Atleta>(`${this.base(cid)}/${a.id}/perfil`, body, { headers: new HttpHeaders({ 'If-Match': `W/"${a.version}"` }) }));
   }
   crear(cid: string, body: unknown): Promise<Atleta> { return firstValueFrom(this.http.post<Atleta>(this.base(cid), body)); }
-  promocionar(cid: string, id: string, avisar: boolean): Promise<Atleta> { return firstValueFrom(this.http.post<Atleta>(`${this.base(cid)}/${id}/promocionar`, { avisar })); }
+  promocionar(cid: string, id: string, avisar: boolean): Promise<Atleta> { return firstValueFrom(this.http.post<Atleta>(`${this.base(cid)}/${id}/promocionar`, { avisar }, { context: sinTimeout() })); }
   pesaje(cid: string, id: string, body: unknown): Promise<{ categoriaOk: boolean; sugerencia: string; atleta: Atleta }> {
     return firstValueFrom(this.http.post<{ categoriaOk: boolean; sugerencia: string; atleta: Atleta }>(`${this.base(cid)}/${id}/pesaje`, body));
   }
   decidir(cid: string, id: string, accion: 'cambiar_categoria' | 'no_compite'): Promise<Atleta> { return firstValueFrom(this.http.post<Atleta>(`${this.base(cid)}/${id}/pesaje/decision`, { accion })); }
-  enlace(cid: string, id: string): Promise<{ enviado: boolean; caduca: string }> { return firstValueFrom(this.http.post<{ enviado: boolean; caduca: string }>(`${this.base(cid)}/${id}/enlace-area`, {})); }
+  enlace(cid: string, id: string): Promise<{ enviado: boolean; caduca: string }> { return firstValueFrom(this.http.post<{ enviado: boolean; caduca: string }>(`${this.base(cid)}/${id}/enlace-area`, {}, { context: sinTimeout() })); }
   /** Email + WhatsApp al menor con el formulario y el enlace para subir la autorización firmada. */
   pedirAutorizacion(cid: string, id: string): Promise<AutorizacionPedida> {
     return firstValueFrom(this.http.post<AutorizacionPedida>(`${this.base(cid)}/${id}/autorizacion/solicitar`, {}));
   }
   accionNecesaria(cid: string, body: { ids: string[]; accion: string; detalle: string; fecha: string; enlace: string }): Promise<{ emails: number; whatsapps: number; sinEmail: number }> {
-    return firstValueFrom(this.http.post<{ emails: number; whatsapps: number; sinEmail: number }>(`${this.base(cid)}/accion-necesaria`, body));
+    return firstValueFrom(this.http.post<{ emails: number; whatsapps: number; sinEmail: number }>(`${this.base(cid)}/accion-necesaria`, body, { context: sinTimeout() }));
   }
   /** «Tu perfil de atleta ya existe»: new initial password per athlete + email (and WhatsApp if asked). simular = only count. */
   perfilExiste(cid: string, body: PerfilExisteIn): Promise<PerfilExisteOut> {
@@ -223,25 +243,34 @@ export class AtletasApi {
   subirActa(cid: string, file: File): Promise<Importacion> {
     const fd = new FormData();
     fd.append('file', file);
-    return firstValueFrom(this.http.post<Importacion>(`${this.base(cid)}/importaciones`, fd));
+    return firstValueFrom(this.http.post<Importacion>(`${this.base(cid)}/importaciones`, fd, { context: sinTimeout() }));
   }
   importacion(cid: string, id: string): Promise<Importacion> { return firstValueFrom(this.http.get<Importacion>(`${this.base(cid)}/importaciones/${id}/estado`)); }
   mapear(cid: string, id: string, mapeo: Record<string, string>): Promise<Importacion> {
     return firstValueFrom(this.http.put<Importacion>(`${this.base(cid)}/importaciones/${id}/mapeo`, { mapeo }));
   }
-  confirmar(cid: string, id: string): Promise<Importacion> { return firstValueFrom(this.http.post<Importacion>(`${this.base(cid)}/importaciones/${id}/confirmar`, {})); }
+  confirmar(cid: string, id: string): Promise<Importacion> { return firstValueFrom(this.http.post<Importacion>(`${this.base(cid)}/importaciones/${id}/confirmar`, {}, { context: sinTimeout() })); }
 
   /** Downloads a protected file (CSV export, list template) with the bearer token. */
   async descargar(url: string, nombre: string): Promise<void> {
-    const blob = await firstValueFrom(this.http.get(url, { responseType: 'blob' }));
+    const blob = await firstValueFrom(this.http.get(url, { responseType: 'blob', context: sinTimeout() }));
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = nombre;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
-  /** Whole list, or only `ids` (bulk «Exportar selección»). */
-  exportar(cid: string, ids: string[] = []): Promise<void> { return this.descargar(`${this.base(cid)}/exportar.csv` + (ids.length ? '?ids=' + ids.join(',') : ''), 'atletas.csv'); }
+  /**
+   * The scope the team is seeing (tab, filters, search, order) or only `ids` (bulk «Exportar selección»):
+   * the service applies the same filters as the list, so the file has every matching athlete, not one page.
+   */
+  exportar(cid: string, ids: string[] = [], filtros: Record<string, string> = {}): Promise<void> {
+    const p = new URLSearchParams();
+    if (ids.length) p.set('ids', ids.join(','));
+    else for (const [k, v] of Object.entries(filtros)) if (v) p.set(k, v);
+    const qs = p.toString();
+    return this.descargar(`${this.base(cid)}/exportar.csv` + (qs ? '?' + qs : ''), 'atletas.csv');
+  }
   plantilla(cid: string): Promise<void> { return this.descargar(`${this.base(cid)}/importaciones/plantilla.xlsx`, 'plantilla-acta-aep.xlsx'); }
 }
 

@@ -11,12 +11,12 @@ import { Realtime } from '../../core/realtime';
 import { BO_ROW, BoCheckbox, BoEmptyState, BoSheet, BoPagination, BoSearch, BoSkeleton, BoSortHeader, BoTableToolbar, BoToggleRow } from '../../shared/kit';
 import { BoPageHeader, BoToggle, errText, BoTabsMovil, BoTabs, type BoTab } from '../../shared/ui';
 import { SolicitudesContador } from '../../core/solicitudes';
-import { AtletasApi, cat, diaFecha, type ItemLista, type Lista } from './api';
+import { AtletasApi, HANDLING, cat, diaFecha, type ItemLista, type Lista } from './api';
 import { AccionNecesariaDialogo } from './accion-necesaria';
 import { PerfilExisteDialogo } from './perfil-existe';
 import { tabEnUrl } from '../../shared/tab-url';
 
-type Pestana = 'todos' | 'confirmados' | 'reserva' | 'bajas' | 'incidencias';
+type Pestana = 'todos' | 'confirmados' | 'reserva' | 'bajas' | 'incidencias' | 'handling';
 
 export const ESTADO: Record<ItemLista['estado'], { label: string; tone: GrTone }> = {
   confirmado: { label: 'Confirmado', tone: 'success' },
@@ -46,7 +46,12 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
         <gr-alert tone="warning" [title]="'Cupo superado: ' + s.confirmados + ' confirmados para ' + s.plazas + ' plazas'">Sobran {{ s.confirmados - s.plazas }}. Revisa el cupo de la AEP en Inscripción o da de baja a quien no tenga plaza.</gr-alert>
       }
 
-      @if (l && l.pestanas.todos === 0 && !cargando()) {
+      @if (error(); as e) {
+        <gr-alert tone="danger" title="No se pudieron cargar los atletas">
+          {{ e }} La tabla está vacía a propósito: los datos que se veían eran de otro alcance.
+          <span alertAction class="mt-3 flex"><button grButton [loading]="cargando()" (click)="recargar(pagina())">Reintentar</button></span>
+        </gr-alert>
+      } @else if (l && l.pestanas.todos === 0 && !cargando()) {
         <div class="grid gap-4 lg:grid-cols-2">
           <div class="flex flex-col items-center justify-center rounded-lg border border-line-subtle bg-bg-card p-8 text-center">
             <span class="flex size-12 items-center justify-center rounded-md bg-accent-deep/40 text-accent-text"><gr-icon name="sparkles" [size]="22" /></span>
@@ -122,6 +127,12 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                 </gr-select>
               }
               <bo-toggle-row label="Perfil incompleto" description="Solo atletas con el perfil público sin completar" [value]="incompletos()" (changed)="incompletos.set($event); recargar(1)" />
+              <gr-select tipo="campo" [ngModel]="handling()" (ngModelChange)="handling.set($event); recargar(1)" aria-label="Handling">
+                <option value="">Handling: cualquiera</option>
+                <option value="solicitado">Handling solicitado (pendiente)</option>
+                <option value="aprobado">Handling aprobado</option>
+                <option value="rechazado">Handling rechazado</option>
+              </gr-select>
             </bo-sheet>
           } @else {
             <div class="mt-2 flex items-center gap-3">
@@ -144,6 +155,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                     <th class="w-32 px-3 py-3 font-normal">Estado AEP</th>
                     @if (pestana() === 'incidencias') { <th class="w-40 px-3 py-3 font-normal">Perfil público</th> } @else { <th boSort class="w-40 py-3" [sort]="sortDe('completo')" (toggle)="ordenar('completo')">Perfil público</th> }
                     <th class="w-24 px-3 py-3 font-normal">Imagen</th>
+                    <th class="w-24 px-3 py-3 font-normal">Handling</th>
                     <th class="w-24 px-3 py-3 text-right font-normal">Seguidores</th>
                     <th [class]="pestana() === 'incidencias' ? 'w-36' : 'w-12'"><span class="sr-only">Acciones</span></th>
                   </tr>
@@ -169,6 +181,10 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                       </td>
                       <td class="px-3 py-3"><span class="flex items-center gap-2"><span class="h-1.5 flex-1 rounded-pill bg-bg-raised"><span class="block h-full rounded-pill" [class]="a.completo >= 70 ? 'bg-success' : 'bg-warning'" [style.width.%]="a.completo"></span></span><span class="w-10 text-right text-mono-xs text-text-secondary">{{ a.completo }} %</span></span></td>
                       <td class="px-3 py-3 text-body-s" [class]="imagen[a.imagen].cls">{{ imagen[a.imagen].label }}</td>
+                      <td class="px-3 py-3">
+                        @if (a.handling; as h) { <gr-badge [tone]="HANDLING[h.estado].tone" [title]="'Handling ' + HANDLING[h.estado].l"><span class="sr-only">Handling </span>SÍ</gr-badge> }
+                        @else { <span class="text-text-muted">–</span> }
+                      </td>
                       <td class="px-3 py-3 text-right text-mono-s">{{ a.seguidores || '–' }}</td>
                       <td class="px-2 py-3">
                         @if (pestana() === 'incidencias' && a.estado === 'reserva' && canEdit()) {
@@ -177,8 +193,8 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                       </td>
                     </tr>
                   } @empty {
-                    @if (cargando()) { <tr><td colspan="11"><bo-skeleton class="[&>div]:rounded-none [&>div]:border-0" /></td></tr> }
-                    @else { <tr><td colspan="11" class="p-4"><bo-empty-state class="border-0" [kind]="filtrado() ? 'no-results' : 'no-data'" [title]="filtrado() ? 'Ningún atleta coincide con estos filtros' : 'Todavía no hay atletas'" [text]="filtrado() ? 'Prueba con otro nombre o limpia los filtros.' : 'Importa el acta de la AEP para empezar.'" /></td></tr> }
+                    @if (cargando()) { <tr><td colspan="12"><bo-skeleton class="[&>div]:rounded-none [&>div]:border-0" /></td></tr> }
+                    @else { <tr><td colspan="12" class="p-4"><bo-empty-state class="border-0" [kind]="filtrado() ? 'no-results' : 'no-data'" [title]="filtrado() ? 'Ningún atleta coincide con estos filtros' : 'Todavía no hay atletas'" [text]="filtrado() ? 'Prueba con otro nombre o limpia los filtros.' : 'Importa el acta de la AEP para empezar.'" /></td></tr> }
                   }
                 </tbody>
               </table>
@@ -192,7 +208,10 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                       <span class="block truncate text-label-s">{{ a.nombreCompleto }}</span>
                       <span class="block truncate text-body-xs text-text-tertiary">{{ a.sexo }} {{ cat(a.categoria) }} · {{ a.club || 'Independiente' }}{{ a.jornada ? ' · ' + diaFecha(a.jornada) : '' }}</span>
                     </span>
-                    @if (a.incidencias && a.estado !== 'baja') { <gr-badge tone="warning">Revisar</gr-badge> } @else { <gr-badge [tone]="estado[a.estado].tone">{{ estado[a.estado].label }}</gr-badge> }
+                    <span class="flex shrink-0 flex-col items-end gap-1">
+                      @if (a.handling; as h) { <gr-badge [tone]="HANDLING[h.estado].tone" [title]="'Handling ' + HANDLING[h.estado].l">Handling</gr-badge> }
+                      @if (a.incidencias && a.estado !== 'baja') { <gr-badge tone="warning">Revisar</gr-badge> } @else { <gr-badge [tone]="estado[a.estado].tone">{{ estado[a.estado].label }}</gr-badge> }
+                    </span>
                   </a>
                   @if (pestana() === 'incidencias' && a.estado === 'reserva' && canEdit()) {
                     <div class="px-4 pb-3"><button grButton size="s" [block]="true" (click)="promocionar(a)">Promocionar (reserva {{ a.ordenReserva }})</button></div>
@@ -276,12 +295,15 @@ export class AtletasPage {
   protected readonly fmtNumber = fmtNumber;
   protected sinCategoria(a: ItemLista): boolean { return a.avisos?.some((i) => i.tipo === 'categoria_invalida') ?? false; }
   protected readonly tabs: { key: Pestana; label: string }[] = [
-    { key: 'todos', label: 'Todos' }, { key: 'confirmados', label: 'Confirmados' }, { key: 'reserva', label: 'Reserva' }, { key: 'bajas', label: 'Bajas' }, { key: 'incidencias', label: 'Con incidencias' },
+    { key: 'todos', label: 'Todos' }, { key: 'confirmados', label: 'Confirmados' }, { key: 'reserva', label: 'Reserva' }, { key: 'bajas', label: 'Bajas' },
+    { key: 'handling', label: 'Handling' }, { key: 'incidencias', label: 'Con incidencias' },
   ];
   protected readonly lista = signal<Lista | null>(null);
   protected readonly reservas = signal<ItemLista[]>([]);
   protected readonly incidenciasDe = signal<{ id: string; tono: GrTone; titulo: string; texto: string; accion: string }[]>([]);
   protected readonly cargando = signal(true);
+  /** The last load failed: the table is cleared and a persistent «Reintentar» stays on screen. */
+  protected readonly error = signal('');
   protected readonly exporting = signal(false);
   protected readonly pestana = signal<Pestana>(((p) => (this.tabs.some((t) => t.key === p) ? p : 'todos') as Pestana)(this.route.snapshot.queryParamMap.get('tab')));
   private readonly tabUrl = tabEnUrl(this.pestana, () => this.tabs.map((t) => t.key));
@@ -291,15 +313,18 @@ export class AtletasPage {
   protected readonly jornada = signal('');
   protected readonly diaFecha = diaFecha;
   protected readonly incompletos = signal(false);
+  /** «Handling» filter: solicitado · aprobado · rechazado · cualquiera (empty). */
+  protected readonly handling = signal('');
+  protected readonly HANDLING = HANDLING;
   protected readonly row = BO_ROW;
   protected readonly filtrado = computed(() => this.nFiltros() > 0);
   /** BIZ-194: filters live in a side/bottom sheet opened from «Filtros». */
   protected readonly filtros = signal(false);
   /** Exportar / Importar live in the «⋯» panel. */
   protected readonly acciones = signal(false);
-  protected readonly nFiltros = computed(() => [this.q(), this.sexo(), this.categoria(), this.jornada(), this.incompletos()].filter(Boolean).length);
+  protected readonly nFiltros = computed(() => [this.q(), this.sexo(), this.categoria(), this.jornada(), this.incompletos(), this.handling()].filter(Boolean).length);
   protected limpiar(): void {
-    this.q.set(''); this.sexo.set(''); this.categoria.set(''); this.jornada.set(''); this.incompletos.set(false);
+    this.q.set(''); this.sexo.set(''); this.categoria.set(''); this.jornada.set(''); this.incompletos.set(false); this.handling.set('');
     void this.router.navigate([], { relativeTo: this.route, queryParams: { q: null }, queryParamsHandling: 'merge', replaceUrl: true });
     this.recargar(1);
   }
@@ -410,6 +435,7 @@ export class AtletasPage {
     this.pagina.set(pagina);
     if (!silencioso) this.sel.set(new Set());
     if (!silencioso) this.cargando.set(true);
+    this.error.set('');
     try {
       if (this.pestana() === 'incidencias') {
         const [inc, res] = await Promise.all([
@@ -427,11 +453,16 @@ export class AtletasPage {
         }))));
       } else {
         this.lista.set(await this.api.lista(cid, {
-          pestana: this.pestana(), q: this.q(), sexo: this.sexo(), categoria: this.categoria(), jornada: this.jornada(), perfil: this.incompletos() ? 'incompleto' : '', orden: this.orden(), dir: this.dir(), pagina, por: this.por,
+          pestana: this.pestana(), q: this.q(), sexo: this.sexo(), categoria: this.categoria(), jornada: this.jornada(), perfil: this.incompletos() ? 'incompleto' : '',
+          handling: this.handling(), orden: this.orden(), dir: this.dir(), pagina, por: this.por,
         }));
       }
     } catch (e) {
-      this.toasts.error('No se pudieron cargar los atletas', errText(e, 'Inténtalo de nuevo.'));
+      // Stale data from another tab/filter is worse than no data: clear it and keep the error with «Reintentar».
+      this.lista.set(null);
+      this.reservas.set([]);
+      this.incidenciasDe.set([]);
+      this.error.set(errText(e, 'Inténtalo de nuevo.'));
     } finally {
       this.cargando.set(false);
     }
@@ -468,7 +499,10 @@ export class AtletasPage {
     if (!cid) return;
     this.exporting.set(true);
     try {
-      await this.api.exportar(cid, ids);
+      // The file repeats exactly what the table shows: tab, filters, search and order (or only the selection).
+      const filtros = { pestana: this.pestana(), q: this.q().trim(), sexo: this.sexo(), categoria: this.categoria(), jornada: this.jornada(),
+        perfil: this.incompletos() ? 'incompleto' : '', handling: this.handling(), orden: this.orden(), dir: this.dir() };
+      await this.api.exportar(cid, ids, ids.length ? {} : filtros);
     } catch (e) {
       this.toasts.error('No se pudo exportar', errText(e));
     } finally {

@@ -1,6 +1,7 @@
 import { HttpClient, HttpHeaders, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 
 export interface Dia { fecha: string; inicio: string; fin: string; puertas?: string; pausaInicio?: string; pausaFin?: string; notas?: string[] }
 export interface Config { maxPorSesion: number; minPorAtleta: number; descansoMin: number; pesajeAntesMin: number; pesajeDuracionMin: number; mesasPesaje: number; dias: Dia[] }
@@ -67,7 +68,7 @@ export class HorariosApi {
     return this.take(firstValueFrom(this.http.delete<Borrador>(`${this.base(cid)}/dias/${dia}`, this.opts())));
   }
   generar(cid: string, competicion?: string): Promise<Borrador> {
-    return this.take(firstValueFrom(this.http.post<Borrador>(`${this.base(cid)}/generar`, competicion ? { competicion } : {}, this.opts())));
+    return this.take(firstValueFrom(this.http.post<Borrador>(`${this.base(cid)}/generar`, competicion ? { competicion } : {}, { ...this.opts(), context: sinTimeout() })));
   }
   crearSesion(cid: string, b: SesionEdit): Promise<Borrador> {
     return this.take(firstValueFrom(this.http.post<Borrador>(`${this.base(cid)}/sesiones`, b, this.opts())));
@@ -91,7 +92,7 @@ export class HorariosApi {
     return firstValueFrom(this.http.get<Diff>(`${this.base(cid)}/diff`));
   }
   publicar(cid: string, avisarAtletas: boolean, avisarSeguidores: boolean): Promise<Publicado> {
-    return firstValueFrom(this.http.post<Publicado>(`${this.base(cid)}/publicar`, { avisarAtletas, avisarSeguidores }, { headers: this.h() }));
+    return firstValueFrom(this.http.post<Publicado>(`${this.base(cid)}/publicar`, { avisarAtletas, avisarSeguidores }, { headers: this.h(), context: sinTimeout() }));
   }
   /** «Publicar horarios»: show or hide the published version on the web (no new version, no notices). */
   visibilidad(cid: string, visible: boolean): Promise<void> {

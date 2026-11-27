@@ -197,7 +197,7 @@ func (s *Svc) registerArea() {
 		Body struct {
 			Competicion string `json:"competicion" pattern:"^[a-z0-9-]{2,41}$" doc:"Slug de la competición"`
 			Email       string `json:"email" format:"email" maxLength:"254"`
-			Next        string `json:"next,omitempty" pattern:"^(/area-atleta/compartir|/area-atleta\\?vista=(perfil|horarios|acreditacion|pesaje|post))?$" doc:"Página a la que vuelve el enlace"`
+			Next        string `json:"next,omitempty" pattern:"^(/area-atleta/compartir|/area-atleta\\?vista=(perfil|horarios|acreditacion|pesaje|post|handling))?$" doc:"Página a la que vuelve el enlace"`
 			Motivo      string `json:"motivo,omitempty" enum:"acceso,contrasena" doc:"contrasena = «¿Has olvidado tu contraseña?» (mismo enlace, email para cambiarla)"`
 		}
 	}

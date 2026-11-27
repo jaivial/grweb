@@ -1,6 +1,7 @@
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 
 export type EstadoEmail = 'confirmado' | 'pendiente' | 'no' | 'revocado' | 'rebotado' | 'no_valido';
 export type EstadoWA = 'aceptado' | 'no' | 'baja' | 'no_valido' | '';
@@ -42,7 +43,7 @@ export class ContactosApi {
     return `${this.b(cid)}/contactos/export.csv?${this.params(f).toString()}`;
   }
   async exportar(cid: string, f: Filtros): Promise<Blob> {
-    return firstValueFrom(this.http.get(this.exportUrl(cid, f), { responseType: 'blob' }));
+    return firstValueFrom(this.http.get(this.exportUrl(cid, f), { responseType: 'blob', context: sinTimeout() }));
   }
   ficha(cid: string, id: string): Promise<Ficha> {
     return firstValueFrom(this.http.get<Ficha>(`${this.b(cid)}/contactos/${id}`));
@@ -51,7 +52,7 @@ export class ContactosApi {
     return firstValueFrom(this.http.put<Ficha>(`${this.b(cid)}/contactos/${f.id}`, b, { headers: new HttpHeaders({ 'If-Match': `W/"${f.version}"` }) }));
   }
   acceso(cid: string, id: string): Promise<Blob> {
-    return firstValueFrom(this.http.get(`${this.b(cid)}/contactos/${id}/rgpd/acceso`, { responseType: 'blob' }));
+    return firstValueFrom(this.http.get(`${this.b(cid)}/contactos/${id}/rgpd/acceso`, { responseType: 'blob', context: sinTimeout() }));
   }
   suprimir(cid: string, id: string): Promise<{ seguimientos: number; voluntarios: number; atleta: boolean }> {
     return firstValueFrom(this.http.post<{ seguimientos: number; voluntarios: number; atleta: boolean }>(`${this.b(cid)}/contactos/${id}/rgpd/supresion`, {}));
@@ -85,7 +86,7 @@ export class ContactosApi {
     return firstValueFrom(this.http.get<AvisosEvento>(`${this.b(cid)}/avisos-evento`, { params: this.params(f) }));
   }
   crearAviso(cid: string, a: { evento: string; email: string; nombre: string }): Promise<AvisoEvento> {
-    return firstValueFrom(this.http.post<AvisoEvento>(`${this.b(cid)}/avisos-evento`, a));
+    return firstValueFrom(this.http.post<AvisoEvento>(`${this.b(cid)}/avisos-evento`, a, { context: sinTimeout() }));
   }
   editarAviso(cid: string, id: string, a: { email?: string; nombre?: string }): Promise<AvisoEvento> {
     return firstValueFrom(this.http.patch<AvisoEvento>(`${this.b(cid)}/avisos-evento/${id}`, a));

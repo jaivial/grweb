@@ -98,9 +98,11 @@ func flightDe(n int) string {
 
 // asignarHorario gives the linked entries of the published sessions of this meet the day, platform 1, the flight
 // (one letter per session of the day, in start order) and the lot of the schedule. A meet with a level per day takes
-// the sessions of each level, whatever their date, on that level's day (a session without a level, on the meet day
-// of its date). A desk of one level (AEP 2 / AEP 3 key) takes the sessions of its level, whatever their date (its
-// days are the session dates in order); any other desk takes the sessions that fall on the meet's days.
+// the sessions of each level on the level's day; a level on several days (AEP 2 on 18 and 19 December) takes its
+// sessions by date, the k-th date on the k-th day of the level (extra dates on the last one), and a session without a
+// level on the meet day of its date. A desk of one level (AEP 2 / AEP 3 key) takes the sessions of its level,
+// whatever their date (its days are the session dates in order); any other desk takes the sessions that fall on the
+// meet's days.
 func asignarHorario(meet map[string]any, entradas []map[string]any, links map[int]uuid.UUID, sn *horarioPublicado, niv niveles, mesa string) Horario {
 	const mantener = ": se mantienen el día, la plataforma y el flight de la inscripción."
 	if sn == nil {
@@ -131,7 +133,8 @@ func asignarHorario(meet map[string]any, entradas []map[string]any, links map[in
 	}
 	type ses struct {
 		fecha  string
-		dia    int // OpenLifter day; 0: by the order of its date (desk of one level)
+		dia    int    // OpenLifter day; 0: by the order of its date (desk of one level, or a level on several days)
+		nivel  string // level on several days: its sessions go to its days by date
 		inicio time.Time
 		ats    []map[string]any
 		lotes  []int
@@ -145,13 +148,21 @@ func asignarHorario(meet map[string]any, entradas []map[string]any, links map[in
 		n := int(f.Sub(inicio).Hours()/24) + 1
 		porFecha := errFecha == nil && n >= 1 && n <= dias
 		for _, x := range d.Sesiones {
-			dia := 0
+			dia, vario := 0, ""
 			switch {
 			case len(niv) > 0:
-				if dia = niv.dia(x.Prueba); dia == 0 && porFecha && niv[n] == "" {
+				ds := niv.dias(x.Prueba)
+				switch {
+				case len(ds) > 1:
+					vario = x.Prueba // a level on several days: by date, further down
+				case len(ds) == 1:
+					dia = ds[0]
+				case porFecha && niv[n] == "":
 					dia = n // a session without a level (or of a level not in the meet) on a meet day without a level
+				default:
+					continue
 				}
-				if dia == 0 || dia > dias {
+				if dia > dias {
 					continue
 				}
 			case nivel != "":
@@ -164,7 +175,7 @@ func asignarHorario(meet map[string]any, entradas []map[string]any, links map[in
 				}
 				dia = n
 			}
-			s := ses{fecha: d.Fecha, dia: dia, inicio: x.Inicio}
+			s := ses{fecha: d.Fecha, dia: dia, nivel: vario, inicio: x.Inicio}
 			for _, a := range x.Atletas {
 				if e := porAtleta[a.ID]; e != nil {
 					s.ats, s.lotes = append(s.ats, e), append(s.lotes, a.Lote)
@@ -181,12 +192,22 @@ func asignarHorario(meet map[string]any, entradas []map[string]any, links map[in
 		}
 		return lista[i].inicio.Before(lista[j].inicio)
 	})
-	diaFecha := map[string]int{} // desk of one level: session date → OpenLifter day (extra dates go to the last day)
+	diaFecha := map[string]int{} // by date: OpenLifter day of a session (desk of one level, or a level on several days)
+	cuenta := map[string]int{}   // level on several days: dates seen
 	letras := map[int]int{}
 	enSesion := map[int]bool{}
 	for _, s := range lista {
 		d := s.dia
-		if d == 0 {
+		switch {
+		case s.nivel != "":
+			k := s.nivel + "|" + s.fecha
+			if _, ok := diaFecha[k]; !ok {
+				ds := niv.dias(s.nivel)
+				cuenta[s.nivel]++
+				diaFecha[k] = ds[min(cuenta[s.nivel], len(ds))-1] // extra dates go to the last day of the level
+			}
+			d = diaFecha[k]
+		case d == 0:
 			if _, ok := diaFecha[s.fecha]; !ok {
 				diaFecha[s.fecha] = min(len(diaFecha)+1, dias)
 			}
@@ -338,11 +359,8 @@ func (s *Svc) registerPreparadas() {
 					}
 				}
 			}
-			var sn *horarioPublicado
-			// a slow schedule must not hold the desk: 3 s, then the meet opens with its own flights
-			hctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-			defer cancel()
-			if err := s.schedule.Do(hctx, http.MethodGet, "/internal/competiciones/"+in.CID.String()+"/horarios/publicados", nil, &sn); err != nil {
+			sn, err := s.horarioDe(ctx, in.CID)
+			if err != nil {
 				s.a.Log.Warn("horarios publicados", "err", err)
 				m.Horario = Horario{Aviso: "No se pudieron leer los horarios: se mantienen el día, la plataforma y el flight de la inscripción."}
 			} else {
