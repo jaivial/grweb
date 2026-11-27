@@ -70,13 +70,6 @@ const T = {
     sq: 'Mayor sentadilla',
     bp: 'Mayor press de banca',
     dl: 'Mayor peso muerto',
-    desc: {
-      categoria: 'Acierta quién gana su categoría de peso.',
-      gl: 'Acierta quién logra el mejor total IPF GL.',
-      sq: 'Acierta quién levanta la sentadilla más pesada.',
-      bp: 'Acierta quién levanta el press de banca más pesado.',
-      dl: 'Acierta quién levanta el peso muerto más pesado.',
-    },
   },
   en: {
     sexo: 'Sex',
@@ -91,17 +84,16 @@ const T = {
     sq: 'Heaviest squat',
     bp: 'Heaviest bench press',
     dl: 'Heaviest deadlift',
-    desc: {
-      categoria: 'Pick who wins their weight class.',
-      gl: 'Pick who scores the best IPF GL total.',
-      sq: 'Pick who squats the heaviest.',
-      bp: 'Pick who benches the heaviest.',
-      dl: 'Pick who deadlifts the heaviest.',
-    },
   },
 };
 
-const ICONOS: Record<Grupo, GrIconName> = { categoria: 'trophy', gl: 'gauge', sq: 'person-standing', bp: 'biceps-flexed', dl: 'weight' };
+const ICONOS: Partial<Record<Grupo, GrIconName>> = { categoria: 'trophy', gl: 'gauge' };
+/** Dibujos de línea (223 × 193 px, fondo transparente) de las tres pruebas de fuerza. */
+const IMAGENES: Partial<Record<Grupo, string>> = {
+  sq: 'https://jaimedigitalstudio.b-cdn.net/fer/media/icons/squat.webp',
+  bp: 'https://jaimedigitalstudio.b-cdn.net/fer/media/icons/benchpress.webp',
+  dl: 'https://jaimedigitalstudio.b-cdn.net/fer/media/icons/deadlift.webp',
+};
 /** Duración de cada mitad del cambio de paso (salida y entrada). */
 const PASO_MS = 150;
 
@@ -130,7 +122,7 @@ export class PorraNivel {
 }
 
 /**
- * Navegación de la porra en dos pasos. Paso 1: las cinco categorías (icono, título y una línea). Paso 2 (con ?grupo):
+ * Navegación de la porra en dos pasos. Paso 1: las cinco categorías (icono y título). Paso 2 (con ?grupo):
  * migas con «← Categorías», sexo, nivel y categorías de peso, y debajo el contenido proyectado. El cambio de paso se
  * desvanece (salida y entrada de 150 ms, sin animación con reducción de movimiento) y el foco va al título del paso
  * nuevo, o a la primera categoría al volver.
@@ -184,12 +176,15 @@ export class PorraNivel {
         <nav class="grid gap-2" [class]="dosColumnas() ? 'grid-cols-2' : 'grid-cols-1 @[28rem]:grid-cols-2 @[40rem]:grid-cols-6'" [attr.aria-label]="t().mercados">
           @for (g of grupos(); track g.v) {
             <a #tarjeta [routerLink]="ruta() | loc" [queryParams]="{ grupo: g.v, sexo: null, prueba: null, peso: null }" queryParamsHandling="merge"
-              class="flex min-h-32 flex-col justify-between gap-4 rounded-md border border-line-subtle bg-bg-card p-4 transition-colors hover:border-line-strong" [class]="g.clase">
-              <gr-icon [name]="g.icono" [size]="20" class="text-text-secondary" />
-              <span class="flex flex-col gap-1">
-                <span class="text-label-m text-text-primary">{{ g.l }}</span>
-                <span class="text-body-xs text-text-tertiary">{{ g.d }}</span>
+              class="flex min-h-32 flex-col items-center justify-center gap-3 rounded-md border border-line-subtle bg-bg-card p-4 text-center transition-colors hover:border-line-strong" [class]="g.clase">
+              <span class="flex h-[42px] w-12 items-center justify-center md:h-14 md:w-16">
+                @if (g.imagen; as src) {
+                  <img [src]="src" alt="" width="223" height="193" loading="lazy" decoding="async" class="h-full w-full object-contain" />
+                } @else if (g.icono; as nombre) {
+                  <gr-icon [name]="nombre" [size]="36" [stroke]="1.5" class="text-text-secondary [&>svg]:size-9 md:[&>svg]:size-11" />
+                }
               </span>
+              <span class="block min-h-[2lh] text-label-m text-text-primary">{{ g.l }}</span>
             </a>
           }
         </nav>
@@ -231,7 +226,7 @@ export class PorraNavegacion {
     { v: 'F' as Sexo, l: this.t().femenino },
     { v: 'M' as Sexo, l: this.t().masculino },
   ]);
-  protected readonly grupos = computed(() => GRUPOS.map((v, i) => ({ v, l: this.t()[v], d: this.t().desc[v], icono: ICONOS[v], clase: this.claseTarjeta(i) })));
+  protected readonly grupos = computed(() => GRUPOS.map((v, i) => ({ v, l: this.t()[v], icono: ICONOS[v] ?? null, imagen: IMAGENES[v] ?? null, clase: this.claseTarjeta(i) })));
   protected readonly categorias = computed(() => mercadosDe(this.mercados(), this.sexo(), 'categoria', this.prueba()));
   protected readonly activa = computed<Mercado | undefined>(() => this.categorias().find((m) => m.categoria === this.peso()) ?? this.categorias()[0]);
 
