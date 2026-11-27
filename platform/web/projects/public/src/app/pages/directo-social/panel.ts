@@ -150,8 +150,11 @@ export class PanelSocial {
 
   /** Connected and live: the audience shows (no red dot, Figma 393:120125). */
   protected readonly vivo = computed(() => this.chat.estado() === 'conectado' && !this.chat.cerrado() && this.chat.conectados() > 0);
-  /** No messages yet: on phones the chat is not given a full screen height (it pushed the live cards down). */
-  protected readonly chatVacio = computed(() => this.chat.items().length === 0);
+  /**
+   * No messages yet: on phones the chat is not given a full screen height (it pushed the live cards down).
+   * `conectar()` always adds a `sistema` item («Te has unido al chat»), so that one does not count as content.
+   */
+  protected readonly chatVacio = computed(() => !this.chat.items().some((i) => i.kind !== 'sistema'));
   protected readonly conectados = computed(() => new Intl.NumberFormat(this.i18n.locale()).format(this.chat.conectados()));
 
   constructor() {
