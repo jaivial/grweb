@@ -1,24 +1,27 @@
 #!/usr/bin/env bash
-# Blue/green de k8s (QA en kraken): lo común de desplegar-bg.sh, rollback-bg.sh, estado-bg.sh e instalar-bg.sh.
-# Se carga desde platform/ con: . deploy/scripts/lib/colores.sh; luego colores_init <qa>.
+# Blue/green de k8s (QA en kraken y producción): lo común de desplegar-bg.sh, rollback-bg.sh, estado-bg.sh e
+# instalar-bg.sh. Se carga desde platform/ con: . deploy/scripts/lib/colores.sh; luego colores_init <qa|prod>.
 #
-# Modelo: una capa compartida (namespace NS_COMP = grcup-qa: Postgres, Redis-puente, Mailpit, evo-weai y
-# juegos-worker, con estado o singleton) y dos colores (NS[blue], NS[green]) con los servicios sin estado. Dentro de
-# un color los nombres son los de siempre (http://identity:8080…). La capa compartida llega a Postgres/Redis/Mailpit/
-# evo-weai por Services ExternalName (colores/qa/comun/enlaces.yaml); los servicios que la capa llama (webhook de
-# evo-weai → messaging, juegos-worker → competition…) son ExternalName de NS_COMP que apuntan al color VIVO. El edge
-# (nginx del host) apunta a las IPs fijas del color vivo. El estado es el ConfigMap grcup-colores de NS_COMP.
+# Modelo: una capa compartida (namespace NS_COMP: Postgres, Redis-puente, evo-weai, juegos-worker y, en QA, Mailpit;
+# con estado o singleton) y dos colores (NS[blue], NS[green]) con los servicios sin estado. Dentro de un color los
+# nombres son los de siempre (http://identity:8080…). La capa compartida llega a Postgres/Redis/evo-weai por Services
+# ExternalName (colores/<env>/comun/enlaces.yaml); los servicios que la capa llama (juegos-worker → competition…) son
+# ExternalName de NS_COMP que apuntan al color VIVO. El edge (nginx del host) apunta a las IPs fijas del color vivo.
+# El estado es el ConfigMap grcup-colores de NS_COMP. En producción, el webhook de evo-weai es la URL pública (el edge),
+# así que no apunta a ningún color.
 
 KRAKEN="${KRAKEN:-kraken}"
 DRAIN_SECONDS="${DRAIN_SECONDS:-60}"
-UPSTREAM=/etc/nginx/conf.d/grcup-qa-upstream.conf
-UPSTREAM_TPL=deploy/nginx/grcup-qa-upstream.conf.tpl
-KUST_IMAGENES="deploy/k8s/colores/qa/comun/kustomization.yaml deploy/k8s/colores/qa/compartido/kustomization.yaml"
-# Servicios sin estado: en NS_COMP son ExternalName hacia el color vivo (mismo nombre en cada color). Debe coincidir
-# con los Services de colores/qa/blue (menos los de la capa compartida); lo comprueba instalar-bg.sh.
-SERVICIOS_COLOR="ai athletes audit backoffice chat chat-ws cms competition crm donaciones fans gateway identity juegos live messaging openlifter patrocinio raffle realtime schedule ticketing web"
+PARAR_QA="${PARAR_QA:-0}"
+QA_PAUSADO=0
+LOCK_PROPIO=0
+# Servicios sin estado (la lista de los Services ExternalName y de la limpieza del legado): en NS_COMP son
+# ExternalName hacia el color vivo, con el mismo nombre en cada color.
+SERVICIOS_BASE="ai athletes audit backoffice cms competition crm donaciones fans gateway identity juegos live messaging openlifter patrocinio raffle realtime schedule ticketing web"
 # Rutas que el SSR pide en su primera pantalla: deben estar calientes (pools, caché) antes de recibir tráfico.
 WARM_PATHS=(/api/competiciones/grcup/web /api/competiciones/grcup/entradas /api/competiciones/grcup/juegos/fantasy/resumen /api/competiciones/grcup/horarios /api/competiciones/grcup/atletas /api/competiciones/grcup/seo)
+# Secrets que la capa compartida debe tener antes de un despliegue de producción (como desplegar.sh prod).
+SECRETOS_PROD="grcup-db grcup-redis grcup-internal grcup-crypto grcup-root grcup-jwt grcup-weai grcup-ssr"
 
 colores_init() {
   ENTORNO=${1:-}
@@ -26,36 +29,67 @@ colores_init() {
     qa)
       NS_COMP=grcup-qa
       declare -gA NS=([blue]=grcup-qa-blue [green]=grcup-qa-green)
-      # legado: el stack único anterior de grcup-qa (solo para volver atrás durante instalar-bg.sh).
+      # legado: el stack único anterior (solo para volver atrás durante instalar-bg.sh).
       declare -gA IP_GW=([blue]=10.43.238.10 [green]=10.43.237.10 [legado]=10.43.240.10)
       declare -gA IP_WEB=([blue]=10.43.238.11 [green]=10.43.237.11 [legado]=10.43.240.11)
       declare -gA IP_BO=([blue]=10.43.238.12 [green]=10.43.237.12 [legado]=10.43.240.12)
       declare -gA IP_CHAT=([blue]=10.43.238.13 [green]=10.43.237.13 [legado]=10.43.240.13)
+      UP_PLACEHOLDERS=(GW WEB BO CHAT)
+      UPSTREAM=/etc/nginx/conf.d/grcup-qa-upstream.conf
+      UPSTREAM_TPL=deploy/nginx/grcup-qa-upstream.conf.tpl
       PUBLIC_HOST=grcup-qa.menustudioai.com
       EDGE_IP=100.66.235.72
+      SERVICIOS_COLOR="$SERVICIOS_BASE chat chat-ws"
       ;;
-    prod) echo "✗ prod sigue en el stack único (deploy/scripts/desplegar.sh prod): aún no está en colores" >&2; exit 2 ;;
-    *) echo "uso: $0 <qa>" >&2; exit 2 ;;
+    prod)
+      NS_COMP=grcup
+      declare -gA NS=([blue]=grcup-blue [green]=grcup-green)
+      declare -gA IP_GW=([blue]=10.43.242.10 [green]=10.43.241.10 [legado]=10.43.241.10)
+      declare -gA IP_WEB=([blue]=10.43.242.11 [green]=10.43.241.11 [legado]=10.43.241.11)
+      declare -gA IP_BO=([blue]=10.43.242.12 [green]=10.43.241.12 [legado]=10.43.241.12)
+      UP_PLACEHOLDERS=(GW WEB BO)
+      UPSTREAM=/etc/nginx/conf.d/grcup-prod-upstream.conf
+      UPSTREAM_TPL=deploy/nginx/grcup-prod-upstream.conf.tpl
+      PUBLIC_HOST=grscup.com
+      EDGE_IP=65.109.100.94
+      SERVICIOS_COLOR="$SERVICIOS_BASE chat"
+      ;;
+    *) echo "uso: $0 <qa|prod>" >&2; exit 2 ;;
   esac
+  COLORES_DIR=colores/$ENTORNO
+  KUST_IMAGENES="deploy/k8s/$COLORES_DIR/comun/kustomization.yaml deploy/k8s/$COLORES_DIR/compartido/kustomization.yaml"
 }
 
 log() { printf '%s %s\n' "$(date '+%H:%M:%S')" "$*"; }
 die() { log "ABORT: $*" >&2; exit 1; }
 otro() { if [ "$1" = blue ]; then echo green; else echo blue; fi; }
 
-# Un solo despliegue o rollback a la vez, también desde otra sesión: un flock en kraken que se mantiene mientras
-# este proceso vive (el ssh lee de una FIFO; al salir se cierra y el lock remoto se libera).
+# Producción: confirmación explícita y gates de configuración (los mismos que desplegar.sh prod).
+colores_gates_prod() {
+  [ "$ENTORNO" = prod ] || return 0
+  [ "${CONFIRMO:-0}" = 1 ] || die "producción necesita --confirmo-produccion (y la aprobación del organizador)"
+  grep -qE '^\s*DOMINIOS_CONFIRMADOS: "?si"?' "deploy/k8s/$COLORES_DIR/componentes/prod/config.yaml" \
+    || die "los dominios de producción no están confirmados (DOMINIOS_CONFIRMADOS en componentes/prod/config.yaml)"
+  local faltan
+  faltan=$(ssh "$KRAKEN" "for s in $SECRETOS_PROD; do sudo k3s kubectl -n $NS_COMP get secret \$s >/dev/null 2>&1 || echo \$s; done")
+  [ -z "$faltan" ] || die "faltan Secrets en $NS_COMP: $faltan (deploy/scripts/secretos.sh prod)"
+  log "producción: confirmada y con sus Secrets"
+}
+
+# Un solo despliegue o rollback a la vez, también desde otra sesión: un flock en kraken que se mantiene mientras existe
+# el fichero de marca $HOME/.grcup-colores-<entorno>.run (lo crea este proceso y lo borra colores_liberar al salir).
 colores_bloquear() {
   ssh -o BatchMode=yes "$KRAKEN" "flock -n \$HOME/.grcup-colores-$ENTORNO.lock -c 'touch \$HOME/.grcup-colores-$ENTORNO.run; while [ -e \$HOME/.grcup-colores-$ENTORNO.run ]; do sleep 2; done'" >/dev/null 2>&1 &
   local pid=$!
   sleep 3
   kill -0 "$pid" 2>/dev/null || die "otro despliegue o rollback de $ENTORNO está en marcha (lock en kraken)"
   LOCK_PROPIO=1
-  trap colores_liberar EXIT
+  trap colores_salir EXIT
 }
 
-# Borra la marca (suelta el flock remoto). Solo si este proceso la creó.
-colores_liberar() {
+# Al salir: restaura QA si --parar-qa la paró, y suelta el lock remoto (solo si este proceso lo creó).
+colores_salir() {
+  colores_qa_reanudar || true
   [ "${LOCK_PROPIO:-0}" = 1 ] || return 0
   ssh "$KRAKEN" "rm -f \$HOME/.grcup-colores-$ENTORNO.run" || true
   LOCK_PROPIO=0
@@ -82,8 +116,8 @@ rm -rf \$tmp"
   log "aplicado $overlay (versión $version)"
 }
 
-colores_compartido() { # <versión>: capa compartida (grcup-qa) y su Postgres listo
-  colores_aplicar colores/qa/compartido "$1" "$NS_COMP"
+colores_compartido() { # <versión>: capa compartida y su Postgres listo
+  colores_aplicar "$COLORES_DIR/compartido" "$1" "$NS_COMP"
   ssh "$KRAKEN" "sudo k3s kubectl -n $NS_COMP rollout status statefulset/postgres --timeout=180s >/dev/null"
 }
 
@@ -96,22 +130,10 @@ echo "secretos copiados a $2"
 SH
 }
 
-# Pone las réplicas anotadas (grcup.dev/replicas-antes) a cada Deployment del color; 1 si nunca se anotaron.
-colores_encender() { # <color>
-  ssh "$KRAKEN" bash -s -- "${NS[$1]}" <<'SH'
-set -euo pipefail
-ns=$1
-sudo k3s kubectl -n "$ns" get deploy -o json | jq -r '.items[] | "\(.metadata.name) \(.metadata.annotations["grcup.dev/replicas-antes"] // "1")"' | while read -r d n; do
-  sudo k3s kubectl -n "$ns" scale deploy "$d" --replicas="$n" >/dev/null
-done
-SH
-  log "color $1 encendido"
-}
-
-# Anota las réplicas de cada Deployment (grcup.dev/replicas-antes) y lo deja en 0. Los objetos se conservan: así
-# rollback-bg.sh lo vuelve a encender sin construir nada.
-colores_apagar() { # <color>
-  ssh "$KRAKEN" bash -s -- "${NS[$1]}" <<'SH'
+# Escalado por namespace: apagar anota las réplicas (grcup.dev/replicas-antes) y deja 0 (los objetos se conservan);
+# encender vuelve a esas réplicas (1 si nunca se anotaron).
+escalar_apagar_ns() { # <namespace>
+  ssh "$KRAKEN" bash -s -- "$1" <<'SH'
 set -euo pipefail
 ns=$1
 sudo k3s kubectl -n "$ns" get deploy -o json | jq -r '.items[] | "\(.metadata.name) \(.spec.replicas // 0)"' | while read -r d n; do
@@ -119,15 +141,122 @@ sudo k3s kubectl -n "$ns" get deploy -o json | jq -r '.items[] | "\(.metadata.na
   sudo k3s kubectl -n "$ns" scale deploy "$d" --replicas=0 >/dev/null
 done
 SH
-  log "color $1 apagado (objetos conservados)"
 }
 
-colores_esperar() { # <namespace>: rollout de cada Deployment y de los Jobs (seeds, bootstrap)
+escalar_encender_ns() { # <namespace>
   ssh "$KRAKEN" bash -s -- "$1" <<'SH'
 set -euo pipefail
 ns=$1
-for d in $(sudo k3s kubectl -n "$ns" get deploy -o name); do sudo k3s kubectl -n "$ns" rollout status "$d" --timeout=300s; done
-if [ -n "$(sudo k3s kubectl -n "$ns" get jobs -o name)" ]; then sudo k3s kubectl -n "$ns" wait --for=condition=complete job --all --timeout=300s; fi
+sudo k3s kubectl -n "$ns" get deploy -o json | jq -r '.items[] | "\(.metadata.name) \(.metadata.annotations["grcup.dev/replicas-antes"] // "1")"' | while read -r d n; do
+  sudo k3s kubectl -n "$ns" scale deploy "$d" --replicas="$n" >/dev/null
+done
+SH
+}
+
+colores_encender() { # <color>
+  escalar_encender_ns "${NS[$1]}"
+  log "color $1 encendido"
+}
+
+colores_apagar() { # <color>
+  escalar_apagar_ns "${NS[$1]}"
+  log "color $1 apagado (objetos conservados)"
+}
+
+# QA cede su sitio en la ventana de producción (--parar-qa): escala a 0 el color vivo de QA y espera a que sus pods se
+# vayan; colores_qa_reanudar lo vuelve a encender (también desde la trampa de salida).
+colores_qa_pausar() {
+  local vivo ns
+  vivo=$(ssh "$KRAKEN" "sudo k3s kubectl -n grcup-qa get configmap grcup-colores -o jsonpath='{.data.vivo}' 2>/dev/null || true")
+  [ -n "$vivo" ] || { log "QA sin estado: nada que parar"; return 0; }
+  QA_NS=grcup-qa-$vivo
+  escalar_apagar_ns "$QA_NS"
+  QA_PAUSADO=1
+  ssh "$KRAKEN" bash -s -- "$QA_NS" <<'SH'
+fin=$((SECONDS + 180))
+until [ -z "$(sudo k3s kubectl -n "$1" get pods --field-selector status.phase!=Succeeded,status.phase!=Failed -o name)" ]; do
+  [ "$SECONDS" -lt "$fin" ] || { echo "QA: pods aún presentes tras 180 s" >&2; exit 1; }
+  sleep 3
+done
+SH
+  log "QA parado: $QA_NS a 0 (--parar-qa, se restaura al final)"
+}
+
+colores_qa_reanudar() {
+  [ "${QA_PAUSADO:-0}" = 1 ] || return 0
+  escalar_encender_ns "$QA_NS"
+  QA_PAUSADO=0
+  log "QA restaurado: $QA_NS"
+}
+
+# Pods del nodo (cap de kubelet, 110 en kraken). El color necesita sus réplicas mínimas (HPA minReplicas, o 1) más 5 de
+# margen para los surges del rollout. Si no cabe: lo dice y ofrece --parar-qa (salvo que ya se haya parado).
+colores_holgura_pods() { # <color>
+  local need need_ok
+  need=$(kubectl kustomize "deploy/k8s/$COLORES_DIR/$1" 2>/dev/null | python3 -c '
+import sys,re
+deps=[];mins={}
+for d in sys.stdin.read().split("\n---\n"):
+    k=re.search(r"^kind: (\S+)",d,re.M); n=re.search(r"^metadata:\n(?:  [^\n]*\n)*?  name: (\S+)",d,re.M)
+    if not (k and n): continue
+    if k.group(1)=="Deployment": deps.append(n.group(1))
+    if k.group(1)=="HorizontalPodAutoscaler":
+        m=re.search(r"minReplicas: (\d+)",d); mins[n.group(1)]=int(m.group(1)) if m else 1
+print(sum(mins.get(x,1) for x in deps))
+') || die "no se pudo calcular la huella de $1 (kubectl kustomize)"
+  [ -n "$need" ] || die "huella vacía para $1"
+  need_ok=$(ssh "$KRAKEN" bash -s -- "$need" <<'SH' || true
+set -euo pipefail
+need=$(( $1 + 5 ))
+nodo=$(sudo k3s kubectl get node -o jsonpath='{.items[0].metadata.name}')
+cap=$(sudo k3s kubectl get node "$nodo" -o jsonpath='{.status.capacity.pods}')
+usados=$(sudo k3s kubectl get pods -A --field-selector "spec.nodeName=$nodo,status.phase!=Succeeded,status.phase!=Failed" --no-headers | wc -l)
+echo "pods en $nodo: $usados de $cap · el color necesita ~$need (réplicas mínimas + 5)" >&2
+if [ $((cap - usados)) -ge "$need" ]; then echo ok; else echo no; fi
+SH
+)
+  if [ "$need_ok" = ok ]; then
+    return 0
+  fi
+  if [ "$ENTORNO" = prod ] && [ "$PARAR_QA" != 1 ] && [ "${QA_PAUSADO:-0}" != 1 ]; then
+    die "no caben los pods de $1 en el nodo. Vuelve a lanzar con --parar-qa (QA cede su color vivo durante la ventana y se restaura al final)"
+  fi
+  if [ "$ENTORNO" = prod ] && [ "$PARAR_QA" = 1 ] && [ "${QA_PAUSADO:-0}" != 1 ]; then
+    colores_qa_pausar
+    colores_holgura_pods "$1"
+    return
+  fi
+  die "no caben los pods de $1 en el nodo: baja réplicas de QA o sube max-pods de kubelet"
+}
+
+# Espera a los rollouts de un namespace. Un Deployment sin progreso (updated/available/spec sin cambios) durante 90 s
+# para: imprime sus pods, eventos y logs, y falla ya. Tope total de 600 s por Deployment.
+colores_esperar() { # <namespace>
+  ssh "$KRAKEN" bash -s -- "$1" <<'SH'
+set -uo pipefail
+ns=$1
+k="sudo k3s kubectl -n $ns"
+diagnostico() { # <app>
+  echo "--- diagnóstico de $1" >&2
+  $k get pods -l "app.kubernetes.io/name=$1" -o wide >&2
+  $k describe pod -l "app.kubernetes.io/name=$1" 2>&1 | grep -A14 "^Events:" | tail -40 >&2
+  $k logs -l "app.kubernetes.io/name=$1" --all-containers --tail=40 --prefix 2>&1 | tail -60 >&2
+}
+for d in $($k get deploy -o name); do
+  name=${d#deployment.apps/}
+  fin=$((SECONDS + 600)); prev=""; cambio=$SECONDS
+  until $k rollout status "$d" --timeout=5s >/dev/null 2>&1; do
+    estado=$($k get "$d" -o jsonpath='{.status.updatedReplicas}/{.status.availableReplicas}/{.spec.replicas}' 2>/dev/null)
+    [ "$estado" = "$prev" ] || { prev=$estado; cambio=$SECONDS; }
+    if [ $((SECONDS - cambio)) -ge 90 ] || [ "$SECONDS" -ge "$fin" ]; then
+      echo "FALLA: $name sin progreso (updated/available/spec: $estado)"
+      diagnostico "$name"
+      exit 1
+    fi
+  done
+  echo "ok: $name"
+done
+if [ -n "$($k get jobs -o name)" ]; then $k wait --for=condition=complete job --all --timeout=300s; fi
 SH
   log "rollouts y jobs de $1 listos"
 }
@@ -162,21 +291,6 @@ SH
 }
 
 # Postgres: conexiones libres para un color más (~150 = ~30 pods × DB_POOL 5).
-# Pods del nodo (cap de kubelet, 110 en kraken): el scheduler no admite más, y un color que no cabe deja pods en
-# Pending a mitad de la conmutación. Exige un pod por Deployment del color más 5 de margen (surges de rollout).
-colores_holgura_pods() { # <color>
-  ssh "$KRAKEN" bash -s -- "${NS[$1]}" <<'SH'
-set -euo pipefail
-ns=$1
-nodo=$(sudo k3s kubectl get node -o jsonpath='{.items[0].metadata.name}')
-cap=$(sudo k3s kubectl get node "$nodo" -o jsonpath='{.status.capacity.pods}')
-usados=$(sudo k3s kubectl get pods -A --field-selector "spec.nodeName=$nodo,status.phase!=Succeeded,status.phase!=Failed" --no-headers | wc -l)
-need=$(( $(sudo k3s kubectl -n "$ns" get deploy --no-headers | wc -l) + 5 ))
-echo "pods en $nodo: $usados de $cap · el color necesita ~$need"
-[ $((cap - usados)) -ge "$need" ] || { echo "sin pods libres para $ns: baja réplicas de QA o sube max-pods de kubelet" >&2; exit 1; }
-SH
-}
-
 colores_holgura() {
   ssh "$KRAKEN" bash -s -- "$NS_COMP" <<'SH'
 set -euo pipefail
@@ -189,9 +303,13 @@ SH
 
 # Edge: nginx apunta a las IPs del color y se recarga; si nginx rechaza la config, vuelve la anterior.
 colores_upstream() { # <color>
-  local c=$1 previo
+  local c=$1 previo sed_args=() k
+  for k in "${UP_PLACEHOLDERS[@]}"; do
+    local -n ip="IP_$k"
+    sed_args+=(-e "s/@$k@/${ip[$c]}/")
+  done
   previo=$(ssh "$KRAKEN" "sudo cat $UPSTREAM 2>/dev/null" || true)
-  if ! sed -e "s/@GW@/${IP_GW[$c]}/" -e "s/@WEB@/${IP_WEB[$c]}/" -e "s/@BO@/${IP_BO[$c]}/" -e "s/@CHAT@/${IP_CHAT[$c]}/" "$UPSTREAM_TPL" \
+  if ! sed "${sed_args[@]}" "$UPSTREAM_TPL" \
     | ssh "$KRAKEN" "sudo tee $UPSTREAM.nuevo >/dev/null && sudo mv $UPSTREAM.nuevo $UPSTREAM && sudo nginx -t >/dev/null 2>&1 && sudo systemctl reload nginx"; then
     log "nginx rechaza $c: restauro el upstream anterior"
     if [ -n "$previo" ]; then
@@ -199,10 +317,10 @@ colores_upstream() { # <color>
     fi
     return 1
   fi
-  log "nginx: upstream → $c (gateway ${IP_GW[$c]}, web ${IP_WEB[$c]}, bo ${IP_BO[$c]}, chat ${IP_CHAT[$c]})"
+  log "nginx: upstream → $c (gateway ${IP_GW[$c]}, web ${IP_WEB[$c]}, bo ${IP_BO[$c]})"
 }
 
-# Capa compartida: los ExternalName de NS_COMP apuntan al color (webhooks de evo-weai, juegos-worker).
+# Capa compartida: los ExternalName de NS_COMP apuntan al color (juegos-worker → servicios del color).
 colores_enlaces() { # <color>
   ssh "$KRAKEN" bash -s -- "$NS_COMP" "${NS[$1]}" $SERVICIOS_COLOR <<'SH'
 set -euo pipefail
@@ -219,7 +337,7 @@ colores_conmutar() { # <color>: edge + enlaces. Si el edge falla, no se tocan lo
   colores_upstream "$1" && colores_enlaces "$1"
 }
 
-# Borde público desde kraken por el tailnet (--resolve): / y /api/competiciones/grcup deben responder 200.
+# Borde público desde kraken por el tailnet o la IP pública (--resolve): / y /api/competiciones/grcup deben dar 200.
 colores_borde() {
   ssh "$KRAKEN" bash -s -- "$PUBLIC_HOST" "$EDGE_IP" <<'SH'
 host=$1 ip=$2
@@ -241,7 +359,8 @@ colores_estado_escribir() { # <vivo> <previo>
   ssh "$KRAKEN" "sudo k3s kubectl -n $NS_COMP create configmap grcup-colores --from-literal=vivo=$1 --from-literal=previo=$2 --dry-run=client -o yaml | sudo k3s kubectl apply -f - >/dev/null"
 }
 
-# Solo instalar-bg.sh: los Services ExternalName no pueden convivir con los del stack antiguo con el mismo nombre.
+# Solo instalar-bg.sh: quita del namespace compartido el stack antiguo de los servicios sin estado (sus Services con las
+# IPs fijas, Deployments, HPA, PDB, Jobs y políticas), para poder crear en su lugar los ExternalName.
 colores_borrar_legado() {
   ssh "$KRAKEN" bash -s -- "$NS_COMP" $SERVICIOS_COLOR <<'SH'
 set -uo pipefail

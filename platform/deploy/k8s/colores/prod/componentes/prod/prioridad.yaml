@@ -1,0 +1,11 @@
+# Producción por encima de QA (-100) y del resto de cargas sin clase (0). preemptionPolicy Never: no desaloja pods
+# de otros namespaces (Villa Carmen…) para entrar; gana en el orden de la cola del scheduler y el kubelet desaloja
+# antes a QA ante presión de memoria.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: grcup-prod
+value: 1000
+preemptionPolicy: Never
+globalDefault: false
+description: "GRS Cup produccion: por encima de grcup-qa-low; nunca desaloja a otros pods"

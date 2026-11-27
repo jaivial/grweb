@@ -1,0 +1,149 @@
+# Producción · lo común de los colores grcup-blue y grcup-green (el namespace y las IPs los pone cada color).
+# Valores de overlays/prod: HPA y PDB intactos (no se bajan mínimos de producción), recursos y chat como en prod.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../color
+  - enlaces.yaml # Services ExternalName: postgres, redis, evo-weai → capa compartida (grcup)
+components:
+  - ../componentes/prod
+patches:
+  # Producción no tiene Mailpit: su política (de base/common/guardrails.yaml) sale del namespace.
+  - target: { kind: NetworkPolicy, name: allow-mailpit-smtp }
+    patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata: { name: allow-mailpit-smtp }
+  - target: { kind: Job, name: competition-seed }
+    patch: |-
+      $patch: delete
+      apiVersion: batch/v1
+      kind: Job
+      metadata: { name: competition-seed }
+  - target: { kind: Job, name: cms-seed }
+    patch: |-
+      $patch: delete
+      apiVersion: batch/v1
+      kind: Job
+      metadata: { name: cms-seed }
+  - target: { kind: Job, name: athletes-seed }
+    patch: |-
+      $patch: delete
+      apiVersion: batch/v1
+      kind: Job
+      metadata: { name: athletes-seed }
+  - target: { kind: Job, name: schedule-seed }
+    patch: |-
+      $patch: delete
+      apiVersion: batch/v1
+      kind: Job
+      metadata: { name: schedule-seed }
+  - target: { kind: Job, name: crm-seed }
+    patch: |-
+      $patch: delete
+      apiVersion: batch/v1
+      kind: Job
+      metadata: { name: crm-seed }
+  - target: { kind: Job, name: ticketing-seed }
+    patch: |-
+      $patch: delete
+      apiVersion: batch/v1
+      kind: Job
+      metadata: { name: ticketing-seed }
+  - target: { kind: Job, name: live-seed }
+    patch: |-
+      $patch: delete
+      apiVersion: batch/v1
+      kind: Job
+      metadata: { name: live-seed }
+  - target: { kind: Job, name: raffle-seed }
+    patch: |-
+      $patch: delete
+      apiVersion: batch/v1
+      kind: Job
+      metadata: { name: raffle-seed }
+  - path: recursos.yaml
+  - path: chat-memoria.yaml
+  - path: chat-origenes.yaml
+  - target: { kind: HorizontalPodAutoscaler, name: web }
+    patch: |-
+      - { op: replace, path: /spec/maxReplicas, value: 4 }
+  - target: { kind: HorizontalPodAutoscaler, name: gateway }
+    patch: |-
+      - { op: replace, path: /spec/minReplicas, value: 2 }
+      - { op: replace, path: /spec/maxReplicas, value: 4 }
+  - target: { kind: HorizontalPodAutoscaler, name: juegos }
+    patch: |-
+      - { op: replace, path: /spec/minReplicas, value: 2 }
+      - { op: replace, path: /spec/maxReplicas, value: 4 }
+  - target: { kind: HorizontalPodAutoscaler, name: realtime }
+    patch: |-
+      - { op: replace, path: /spec/minReplicas, value: 2 }
+      - { op: replace, path: /spec/maxReplicas, value: 3 }
+  - target: { kind: HorizontalPodAutoscaler, name: chat }
+    patch: |-
+      - { op: replace, path: /spec/maxReplicas, value: 4 }
+  - target: { kind: Deployment, name: chat }
+    patch: |-
+      - { op: replace, path: /spec/template/spec/containers/0/resources/limits/memory, value: 512Mi }
+  - target: { kind: Deployment, name: cms }
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/volumes/0/hostPath/path
+        value: /var/lib/grcup/medios
+  # The private files of the public form of athletes (the processed photo of a request).
+  - target: { kind: Deployment, name: athletes }
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/volumes/0/hostPath/path
+        value: /var/lib/grcup/atletas
+  # Google OAuth client of production (Gmail of the competitions): competition runs the OAuth flow, messaging refreshes
+  # the tokens to send. Optional: without the Secret the backoffice says «Google OAuth sin configurar».
+  - target: { kind: Deployment, name: "(competition|messaging)" }
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/envFrom/-
+        value: { secretRef: { name: grcup-google, optional: true } }
+  # WhatsApp managed by the platform (BIZ-214): messaging reaches the shared evo-weai through its ExternalName shim.
+  - target: { kind: Deployment, name: messaging }
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: EVO_WEAI_URL, value: "http://evo-weai:8080" }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: EVO_WEAI_API_KEY, valueFrom: { secretKeyRef: { name: grcup-weai, key: WEAI_API_KEY } } }
+replacements:
+  - source: { kind: ConfigMap, name: grcup-config, fieldPath: data.WEB_HOST }
+    targets:
+      - select: { kind: Deployment, name: web }
+        fieldPaths: ["spec.template.spec.containers.[name=web].env.[name=NG_ALLOWED_HOSTS].value"]
+  - source: { kind: ConfigMap, name: grcup-config, fieldPath: data.PUBLIC_WEB_URL }
+    targets:
+      - select: { kind: Deployment, name: web }
+        fieldPaths: ["spec.template.spec.containers.[name=web].env.[name=PUBLIC_ORIGIN].value"]
+# The deploy script replaces TAG with the commit being deployed.
+images:
+  - { name: grcup/ai, newTag: TAG }
+  - { name: grcup/athletes, newTag: TAG }
+  - { name: grcup/audit, newTag: TAG }
+  - { name: grcup/backoffice, newTag: TAG }
+  - { name: grcup/chat, newTag: TAG }
+  - { name: grcup/cms, newTag: TAG }
+  - { name: grcup/competition, newTag: TAG }
+  - { name: grcup/crm, newTag: TAG }
+  - { name: grcup/donaciones, newTag: TAG }
+  - { name: grcup/fans, newTag: TAG }
+  - { name: grcup/gateway, newTag: TAG }
+  - { name: grcup/identity, newTag: TAG }
+  - { name: grcup/juegos, newTag: TAG }
+  - { name: grcup/live, newTag: TAG }
+  - { name: grcup/messaging, newTag: TAG }
+  - { name: grcup/openlifter, newTag: TAG }
+  - { name: grcup/patrocinio, newTag: TAG }
+  - { name: grcup/raffle, newTag: TAG }
+  - { name: grcup/realtime, newTag: TAG }
+  - { name: grcup/schedule, newTag: TAG }
+  - { name: grcup/ticketing, newTag: TAG }
+  - { name: grcup/web, newTag: TAG }

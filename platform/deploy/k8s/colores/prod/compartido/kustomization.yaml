@@ -1,0 +1,66 @@
+# Producción · capa compartida (namespace grcup): Postgres, Redis-puente, evo-weai, juegos-worker, copias. Sin color.
+# Son singletons o guardan estado: los dos colores llegan a ellos por ExternalName (comun/enlaces.yaml).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: grcup
+resources:
+  - namespace.yaml
+  - ../../compartido
+components:
+  - ../componentes/prod
+patches:
+  # Producción no tiene Mailpit: su política (de base/common/guardrails.yaml) sale del namespace.
+  - target: { kind: NetworkPolicy, name: allow-mailpit-smtp }
+    patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata: { name: allow-mailpit-smtp }
+  - path: recursos.yaml
+  - target: { kind: StatefulSet, name: postgres }
+    patch: |-
+      - { op: add, path: /spec/template/spec/priorityClassName, value: grcup-prod }
+      - op: replace
+        path: /spec/template/spec/volumes/0/hostPath/path
+        value: /var/lib/grcup/postgres
+  - target: { kind: DaemonSet, name: redis-puente }
+    patch: |-
+      - { op: add, path: /spec/template/spec/priorityClassName, value: grcup-prod }
+      - op: replace
+        path: /spec/template/spec/containers/0/args/1
+        value: TCP-LISTEN:16380,bind=10.42.0.1,fork,reuseaddr,max-children=512
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/tcpSocket/port
+        value: 16380
+  - target: { kind: Service, name: redis }
+    patch: |-
+      - op: replace
+        path: /spec/ports/0/port
+        value: 16380
+      - op: replace
+        path: /spec/ports/0/targetPort
+        value: 16380
+  - target: { kind: EndpointSlice, name: redis-host }
+    patch: |-
+      - op: replace
+        path: /ports/0/port
+        value: 16380
+  - target: { kind: Deployment, name: evo-weai }
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/volumes/0/hostPath/path
+        value: /var/lib/grcup/evo-weai
+      - op: replace
+        path: /spec/template/spec/containers/0/env/6/value
+        value: "false"
+  - target: { kind: CronJob, name: copias-postgres }
+    patch: |-
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/volumes/0/hostPath/path
+        value: /var/lib/grcup/copias
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/volumes/2/hostPath/path
+        value: /var/lib/grcup/medios
+# The deploy script replaces TAG with the commit being deployed.
+images:
+  - { name: grcup/juegos, newTag: TAG }

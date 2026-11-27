@@ -1,0 +1,14 @@
+# prod-20261115 (§9 del informe perf-20261115): presupuesto de producción. Cuenta: deploy/k8s/presupuesto.py.
+# 20261125: el techo cubre el máximo de los HPA (presupuesto.py: limits 26.5 CPU / 25.9Gi, requests 5.37 CPU /
+# 5.9Gi). Con 15Gi un despliegue (un pod de surge por Deployment, +~7Gi de limits) se quedaba sin cuota a medias.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: grcup-quota
+spec:
+  hard:
+    requests.cpu: "5500m"
+    requests.memory: 6Gi
+    limits.cpu: "27"
+    limits.memory: 26Gi
+    pods: "60"

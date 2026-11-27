@@ -20,6 +20,12 @@ OVERLAY=deploy/k8s/overlays/$ENTORNO
 if [ "$ENTORNO" = prod ]; then
   [ "${2:-}" = "--confirmo-produccion" ] || { echo "✗ producción necesita --confirmo-produccion (y la aprobación del organizador)" >&2; exit 1; }
   grep -qE '^\s*DOMINIOS_CONFIRMADOS: "si"' "$OVERLAY/config.yaml" || { echo "✗ los dominios de $OVERLAY/config.yaml no están confirmados (DOMINIOS_CONFIRMADOS)" >&2; exit 1; }
+  # Producción ya en colores (blue/green): el stack único volvería a crear los servicios sin estado en el namespace
+  # compartido y chocaría con sus ExternalName. Desde la migración solo vale desplegar-bg.sh.
+  if ssh "$KRAKEN" "sudo k3s kubectl -n $NS get configmap grcup-colores >/dev/null 2>&1"; then
+    echo "✗ producción ya está en colores (blue/green): usa deploy/scripts/desplegar-bg.sh prod --confirmo-produccion" >&2
+    exit 1
+  fi
   # Mail goes through Google OAuth (Secret grcup-google, optional until the client exists): the legacy SMTP is not
   # required (Jaime 15/11 20:46).
   faltan=$(ssh "$KRAKEN" "for s in grcup-db grcup-redis grcup-internal grcup-crypto grcup-root grcup-jwt grcup-weai grcup-ssr; do sudo k3s kubectl -n $NS get secret \$s >/dev/null 2>&1 || echo \$s; done")
