@@ -106,6 +106,31 @@ export class GrSegmented {
   readonly label = input('');
 }
 
+/** Switch (Figma «Toggle»): a 44 px target and its label. Bind with [(checked)]. */
+@Component({
+  selector: 'gr-switch',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'flex items-start gap-3' },
+  template: `
+    <button type="button" role="switch" [attr.aria-checked]="checked()" [attr.aria-label]="label() || null" [attr.aria-describedby]="describedBy() || null" [disabled]="disabled()"
+      class="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-text disabled:opacity-40"
+      (click)="checked.set(!checked())">
+      <span class="relative h-6 w-10 rounded-pill transition-colors motion-reduce:transition-none" [class]="checked() ? 'bg-accent' : 'bg-line-strong'">
+        <span class="absolute top-0.5 size-5 rounded-full bg-white shadow transition-[left] motion-reduce:transition-none" [style.left.px]="checked() ? 18 : 2"></span>
+      </span>
+    </button>
+    <span class="min-w-0 flex-1 py-2.5"><ng-content /></span>
+  `,
+})
+export class GrSwitch {
+  readonly checked = model(false);
+  readonly disabled = input(false);
+  /** Accessible name of the switch (the visible title stays outside, so it can wrap or sit anywhere). */
+  readonly label = input('');
+  /** id of the text that explains the switch (aria-describedby). */
+  readonly describedBy = input('');
+}
+
 /** KPI tile (Figma «BO / KPI»): label, value, optional delta and sparkline. Value `null` = no data yet. */
 @Component({
   selector: 'gr-kpi',
