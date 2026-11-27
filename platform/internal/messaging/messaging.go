@@ -79,6 +79,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	a.Go(s.worker)
 	a.Go(s.campanasWorker)
 	s.registerAdmin()
+	s.registerCola()
 	s.registerCampanas()
 	s.registerWhatsApp()
 	s.registerWAPlantillas()
@@ -131,10 +132,17 @@ func (s *Svc) handleEmail(ctx context.Context, e events.Event) error {
 		d.Vars = map[string]string{}
 	}
 	return s.tx(ctx, func(tx pgx.Tx) error {
+		id := uuid.Must(uuid.NewV7())
 		tag, err := tx.Exec(ctx, `INSERT INTO mensajes (id, competition_id, evento_id, plantilla, destino, vars, estado, detalle) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (evento_id) DO NOTHING`,
-			uuid.Must(uuid.NewV7()), cid, e.ID, d.Plantilla, para, d.Vars, estado, detalle)
-		if err != nil || tag.RowsAffected() == 0 || detalle != "Email no válido" || cid == uuid.Nil {
+			id, cid, e.ID, d.Plantilla, para, d.Vars, estado, detalle)
+		if err != nil || tag.RowsAffected() == 0 {
 			return err
+		}
+		if err := eventoCola(ctx, tx, cid, id, estado, d.Plantilla); err != nil {
+			return err
+		}
+		if detalle != "Email no válido" || cid == uuid.Nil {
+			return nil
 		}
 		return events.Enqueue(ctx, tx, events.New(ctx, "messaging.rebote", map[string]any{"para": para, "tipo": "email_invalido", "motivo": "Dirección mal formada"},
 			events.Competition(cid.String()), events.Audience(events.Internal)))

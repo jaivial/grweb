@@ -77,9 +77,16 @@ func (s *Svc) handleWhatsapp(ctx context.Context, e events.Event) error {
 			}
 			// The id is derived from the event and the recipient: a redelivery does not duplicate the message.
 			id := uuid.NewSHA1(e.ID, []byte(num))
-			if _, err := tx.Exec(ctx, `INSERT INTO mensajes (id, competition_id, evento_id, canal, plantilla, destino, vars, estado)
+			tag, err := tx.Exec(ctx, `INSERT INTO mensajes (id, competition_id, evento_id, canal, plantilla, destino, vars, estado)
 				VALUES ($1,$2,$3,'whatsapp',$4,$5,$6,'en_cola') ON CONFLICT (evento_id) DO NOTHING`,
-				id, cid, id, d.Plantilla, num, vars); err != nil {
+				id, cid, id, d.Plantilla, num, vars)
+			if err != nil {
+				return err
+			}
+			if tag.RowsAffected() == 0 {
+				continue
+			}
+			if err := eventoCola(ctx, tx, cid, id, "en_cola", d.Plantilla); err != nil {
 				return err
 			}
 		}
