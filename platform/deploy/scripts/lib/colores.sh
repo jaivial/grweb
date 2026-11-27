@@ -205,12 +205,13 @@ for d in sys.stdin.read().split("\n---\n"):
 print(sum(mins.get(x,1) for x in deps))
 ') || die "no se pudo calcular la huella de $1 (kubectl kustomize)"
   [ -n "$need" ] || die "huella vacía para $1"
-  need_ok=$(ssh "$KRAKEN" bash -s -- "$need" <<'SH' || true
+  need_ok=$(ssh "$KRAKEN" bash -s -- "$need" "${NS[$1]}" <<'SH' || true
 set -euo pipefail
 need=$(( $1 + 5 ))
 nodo=$(sudo k3s kubectl get node -o jsonpath='{.items[0].metadata.name}')
 cap=$(sudo k3s kubectl get node "$nodo" -o jsonpath='{.status.capacity.pods}')
-usados=$(sudo k3s kubectl get pods -A --field-selector "spec.nodeName=$nodo,status.phase!=Succeeded,status.phase!=Failed" --no-headers | wc -l)
+# Solo pods activos (Pending/Running/Unknown) y sin el color que se va a aplicar: sus pods se reemplazan, no suman.
+usados=$(sudo k3s kubectl get pods -A --field-selector "spec.nodeName=$nodo" --no-headers -o custom-columns=NS:.metadata.namespace,PHASE:.status.phase | awk -v ex="$2" '$2 ~ /^(Pending|Running|Unknown)$/ && $1 != ex' | wc -l)
 echo "pods en $nodo: $usados de $cap · el color necesita ~$need (réplicas mínimas + 5)" >&2
 if [ $((cap - usados)) -ge "$need" ]; then echo ok; else echo no; fi
 SH

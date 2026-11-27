@@ -27,6 +27,8 @@ colores_bloquear
 colores_memoria
 
 [ -z "$(colores_estado_leer)" ] || die "ya hay estado en $NS_COMP (ya migrado): usa desplegar-bg.sh"
+SWITCHED=0
+trap 'rc=$?; if [ "$rc" -ne 0 ] && [ "$SWITCHED" -eq 0 ]; then log "fallo antes de conmutar: apago blue (sin estado, el legado sigue)"; colores_apagar blue || true; fi; colores_salir; exit "$rc"' EXIT
 gw_antigua=$(ssh "$KRAKEN" "sudo k3s kubectl -n $NS_COMP get svc gateway -o jsonpath='{.spec.clusterIP}'")
 [ "$gw_antigua" = "${IP_GW[legado]}" ] || die "el gateway de $NS_COMP tiene IP $gw_antigua, no ${IP_GW[legado]}: revisa antes de migrar"
 ssh "$KRAKEN" "systemctl is-active --quiet nginx" || die "nginx de kraken no está activo bajo systemd"
@@ -62,6 +64,7 @@ if ! colores_upstream blue || ! colores_borde; then
   colores_upstream legado || true
   die "migración parada: el stack antiguo sigue sirviendo"
 fi
+SWITCHED=1
 
 log "5/6 drenaje ${DRAIN_SECONDS}s y retirada del stack antiguo (sus sin estado)"
 sleep "$DRAIN_SECONDS"
