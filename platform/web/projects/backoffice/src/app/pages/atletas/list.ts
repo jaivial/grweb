@@ -131,6 +131,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
               <gr-select tipo="campo" [ngModel]="padronFiltro()" (ngModelChange)="padronFiltro.set($event); recargar(1)" aria-label="Coincidencia con el padrón AEP">
                 <option value="">Padrón AEP: cualquiera</option>
                 <option value="parcial">Parcial · revisar</option>
+                <option value="duplicado">Posible duplicado</option>
                 <option value="sin">Sin coincidencia</option>
                 <option value="error">Error de la IA</option>
               </gr-select>
@@ -221,7 +222,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                     </span>
                     <span class="flex shrink-0 flex-col items-end gap-1">
                       @if (a.handling; as h) { <gr-badge [tone]="HANDLING[h.estado].tone" [title]="'Handling ' + HANDLING[h.estado].l">Handling</gr-badge> }
-                      @if (a.padron.estado === 'parcial' || a.padron.origen === 'error_ia') { <gr-badge [tone]="padron(a).tone" title="Padrón AEP">Padrón: {{ padron(a).l }}</gr-badge> }
+                      @if (a.padron.estado === 'parcial' || a.padron.estado === 'duplicado' || a.padron.origen === 'error_ia') { <gr-badge [tone]="padron(a).tone" title="Padrón AEP">Padrón: {{ padron(a).l }}</gr-badge> }
                       @if (a.incidencias && a.estado !== 'baja') { <gr-badge tone="warning">Revisar</gr-badge> } @else { <gr-badge [tone]="estado[a.estado].tone">{{ estado[a.estado].label }}</gr-badge> }
                     </span>
                   </a>

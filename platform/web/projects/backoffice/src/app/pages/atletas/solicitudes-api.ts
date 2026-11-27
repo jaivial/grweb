@@ -9,7 +9,7 @@ export type EstadoSolicitud = 'pendiente' | 'revision' | 'aprobada' | 'rechazada
 /** Type of request: the public sign-up form or the profile changes asked from the athlete area. */
 export type TipoSolicitud = 'alta' | 'cambio_perfil' | 'autorizacion' | 'handling';
 /** How the request was matched against the athletes' list: licence, e-mail, name suggestion, by hand or nothing. */
-export type TipoMatch = '' | 'licencia' | 'email' | 'nombre' | 'manual';
+export type TipoMatch = '' | 'licencia' | 'email' | 'telefono' | 'nacimiento' | 'nombre' | 'manual';
 export type TipoDiferencia = 'igual' | 'distinto' | 'nuevo';
 
 export interface Contadores {

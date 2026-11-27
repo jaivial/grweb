@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { GrBadge, GrButton, GrInput, GrSkeleton, GrToasts, fmtShortDate } from '@grcup/ui';
+import { RouterLink } from '@angular/router';
+import { GrBadge, GrButton, GrIcon, GrInput, GrSkeleton, GrToasts, fmtShortDate } from '@grcup/ui';
 import { problemOf } from '../../core/api';
+import { Competitions } from '../../core/competitions';
 import { Confirm, errText } from '../../shared/ui';
 import { AtletasApi } from './api';
 import { SolicitudesApi } from './solicitudes-api';
@@ -26,7 +28,7 @@ interface FilaComparada {
  */
 @Component({
   selector: 'bo-padron-match',
-  imports: [FormsModule, GrBadge, GrButton, GrInput, GrSkeleton],
+  imports: [FormsModule, RouterLink, GrBadge, GrButton, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="flex flex-col gap-3">
@@ -62,6 +64,14 @@ interface FilaComparada {
           @if (f.estadoEnlace === 'sugerido') {
             <p class="text-body-xs text-text-tertiary">Esta fila está reservada como propuesta: nadie la ha enlazado todavía.</p>
           }
+        } @else if (e.estado === 'duplicado') {
+          <!-- Nadie libre en el padrón, pero una fila con este mismo nombre ya es de otra ficha: probablemente un duplicado. -->
+          <p class="rounded-md border border-dashed border-warning/60 bg-warning/8 px-3 py-3 text-body-s text-text-secondary">
+            Hay una fila del padrón con el nombre, el sexo y el año de {{ persona().nombre }} ya enlazada a otra ficha. Revisa si esta ficha es un duplicado.
+            @if (e.detalle.duplicado; as d) {
+              <a class="mt-1 flex items-center gap-1 text-label-s text-accent-text hover:underline" [routerLink]="['/', comps.current()?.slug, 'atletas', d.id]">Ver la otra ficha · {{ d.nombre }} <gr-icon name="arrow-right" [size]="14" /></a>
+            }
+          </p>
         } @else if (e.estado === 'manual') {
           <!-- Solo aquí se comparó y no había nadie: en «sin comparar» o «descartada» no hay búsqueda que contar. -->
           <p class="rounded-md border border-dashed border-line-strong px-3 py-4 text-center text-body-s text-text-tertiary">
@@ -159,6 +169,7 @@ export class PadronMatch {
   private readonly solicitudesApi = inject(SolicitudesApi);
   private readonly toasts = inject(GrToasts);
   private readonly confirmSvc = inject(Confirm);
+  protected readonly comps = inject(Competitions);
 
   protected readonly emp = signal<EmparejamientoPadron | null>(null);
   protected readonly cargando = signal(true);
