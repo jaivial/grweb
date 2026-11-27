@@ -44,7 +44,7 @@ const (
 	empCandidatos  = 5
 	porEmparejador = "Emparejamiento automático"
 	// motivoSinIA is the reason of a match left half done: the team sees it and decides.
-	motivoSinIA = "Revisa la fila propuesta del padrón y confírmala o elige otra."
+	motivoSinIA = "Se propone la fila del padrón con el mismo nombre, sexo, año y nivel: revísala y confírmala, o elige otra."
 )
 
 // personaIA is the public data of a request or a roll row: the only fields that ever reach the model. It has no
@@ -329,7 +329,7 @@ func (s *Svc) emparejar(ctx context.Context, cid, id uuid.UUID, reintentar bool)
 			respuesta = map[string]any{"error": mensajeErr(err)}
 			if c := candidatoFuerte(sol, cands); c != nil {
 				elegido, confianza = c, c.score
-				det.Motivo += " Se propone la fila con el mismo nombre, sexo, año y nivel: " + motivoSinIA
+				det.Motivo += " " + motivoSinIA
 			}
 			break
 		}
@@ -427,7 +427,7 @@ func mensajeErr(err error) string {
 // motivoIA says why the model did not answer: a timeout of the model service (30 s) is not the same as an outage.
 func motivoIA(err error) string {
 	var p *problem.Error
-	if errors.As(err, &p) && p.Code == "IA_TIEMPO" || errors.Is(err, context.DeadlineExceeded) {
+	if (errors.As(err, &p) && p.Code == "IA_TIEMPO") || errors.Is(err, context.DeadlineExceeded) {
 		return "La IA tardó demasiado (30 s) en responder."
 	}
 	return "La IA no ha podido responder."

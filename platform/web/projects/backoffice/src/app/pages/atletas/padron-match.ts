@@ -5,7 +5,7 @@ import { Confirm, errText } from '../../shared/ui';
 import { AtletasApi } from './api';
 import { SolicitudesApi } from './solicitudes-api';
 import {
-  DECISION, ORIGEN, categoriaTexto, estadoPadron, nivelTexto,
+  DECISION, ORIGEN, categoriaTexto, estadoPadron, nivelTexto, normTexto,
   type EmparejamientoPadron, type FilaPadron, type PersonaPadron,
 } from './padron-model';
 
@@ -30,7 +30,7 @@ interface FilaComparada {
   template: `
     <section class="flex flex-col gap-3">
       <div class="flex flex-wrap items-center gap-2">
-        <h3 class="text-label-xs text-text-muted uppercase">Padrón AEP</h3>
+        <h3 [class]="solicitudId() ? 'text-label-xs text-text-muted uppercase' : 'text-ui-h5'">Padrón AEP</h3>
         @if (emp()) { <gr-badge [tone]="estado().tone">{{ estado().l }}</gr-badge> }
       </div>
 
@@ -203,8 +203,9 @@ export class PadronMatch {
   protected filas(f: FilaPadron): FilaComparada[] {
     const p = this.persona();
     const dif = new Set<string>((this.emp()?.detalle?.discrepancias ?? []).map((d) => d.campo));
+    // Lo que cambia es el dato, no la tilde ni la mayúscula: se compara normalizado.
     const c = (clave: string, etiqueta: string, a: string, z: string): FilaComparada =>
-      ({ clave, etiqueta, a, p: z, distinto: dif.has(clave) || (!!a && !!z && a.trim().toLowerCase() !== z.trim().toLowerCase()) });
+      ({ clave, etiqueta, a, p: z, distinto: dif.has(clave) || (!!a && !!z && normTexto(a) !== normTexto(z)) });
     return [
       c('nombre', 'Nombre', p.nombre, f.nombre),
       c('apellidos', 'Apellidos', p.apellidos, f.apellidos),

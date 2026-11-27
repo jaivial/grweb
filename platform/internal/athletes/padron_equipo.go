@@ -97,6 +97,21 @@ func conflictoEdicion(ifm string, version int) error {
 	return nil
 }
 
+// versionAtleta checks the If-Match of a record: a panel open on another version never links a row it did not see.
+func (s *Svc) versionAtleta(ctx context.Context, cid, atleta uuid.UUID, ifm string) error {
+	if ifm == "" {
+		return nil
+	}
+	var v int
+	if err := s.a.DB.QueryRow(ctx, `SELECT version FROM atletas WHERE competition_id = $1 AND id = $2`, cid, atleta).Scan(&v); err != nil {
+		return problem.NotFound("Ese atleta no existe.")
+	}
+	if ifMatch(ifm) != v {
+		return problem.Conflict("CONFLICTO_EDICION", "Otra persona ha guardado esta ficha mientras la veías. Recarga para ver sus cambios.")
+	}
+	return nil
+}
+
 // confirmarPadron links the row the team confirms. A request still pending is approved exactly as an automatic match
 // would do; a closed one only takes the link on the athlete it produced.
 func (s *Svc) confirmarPadron(ctx context.Context, cid, solID, insc uuid.UUID, ifm, por string) error {
@@ -173,6 +188,9 @@ func (s *Svc) descartarPadron(ctx context.Context, cid, solID uuid.UUID, ifm, po
 // confirmarPadronAtleta answers «sí es esta fila» from the athlete record: the decision is written on the request that
 // produced the athlete, or on the athlete itself when it was added by hand.
 func (s *Svc) confirmarPadronAtleta(ctx context.Context, cid, atleta, insc uuid.UUID, ifm, por string) error {
+	if err := s.versionAtleta(ctx, cid, atleta, ifm); err != nil {
+		return err
+	}
 	solID, err := s.solicitudDeAtleta(ctx, cid, atleta)
 	if err != nil {
 		return err
@@ -202,6 +220,9 @@ func (s *Svc) confirmarPadronAtleta(ctx context.Context, cid, atleta, insc uuid.
 
 // descartarPadronAtleta clears the proposal of an athlete added by hand (the log is written on the athlete).
 func (s *Svc) descartarPadronAtleta(ctx context.Context, cid, atleta uuid.UUID, ifm, por string) error {
+	if err := s.versionAtleta(ctx, cid, atleta, ifm); err != nil {
+		return err
+	}
 	if solID, err := s.solicitudDeAtleta(ctx, cid, atleta); err != nil {
 		return err
 	} else if solID != nil {

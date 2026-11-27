@@ -87,7 +87,7 @@ export const PADRON: Record<EstadoPadron, { l: string; tone: GrTone }> = {
   confirmada: { l: 'Confirmado', tone: 'success' },
   parcial: { l: 'Parcial · revisar', tone: 'warning' },
   manual: { l: 'Sin coincidencia', tone: 'neutral' },
-  descartada: { l: 'Descartada · revisar', tone: 'neutral' },
+  descartada: { l: 'Descartada', tone: 'neutral' },
   sin: { l: 'Sin coincidencia', tone: 'neutral' },
 };
 
@@ -129,6 +129,9 @@ export function personaDeAtleta(a: Atleta): PersonaPadron {
   return { nombre: a.nombre, apellidos: a.apellidos, sexo: a.sexo, anio: anio(a.fechaNacimiento), club: a.club,
     categoria: a.categoria, division: a.division, nivel: a.prueba };
 }
+
+/** Texto para comparar: sin tildes, sin mayúsculas y sin espacios de más («Lucía» es «lucia»). */
+export const normTexto = (v: string) => v.normalize('NFD').replace(/\p{Mn}/gu, '').toLowerCase().replace(/\s+/g, ' ').trim();
 
 /** «−63» o «AEP-2» listos para leer. */
 export const nivelTexto = (n: string) => (n ? n.toUpperCase().replace('AEP', 'AEP-') : '—');
