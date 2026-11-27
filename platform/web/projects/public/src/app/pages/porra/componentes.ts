@@ -410,14 +410,14 @@ export class GrupoChips<T extends string = string> {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block w-full' },
   template: `
-    <button type="button" class="group flex w-full max-w-[336px] flex-col gap-2 rounded-md pt-1.5 pb-2 text-left transition-[transform,background-color] duration-100 enabled:active:scale-[.98] enabled:active:bg-white/5 disabled:cursor-default max-md:max-w-none motion-reduce:enabled:active:scale-100" [disabled]="!activo()" (click)="elegir.emit()"
+    <button type="button" class="group mx-auto flex w-full max-w-[336px] flex-col gap-2 rounded-md pt-1.5 pb-2 text-left transition-[transform,background-color] duration-100 enabled:active:scale-[.98] enabled:active:bg-white/5 disabled:cursor-default max-md:max-w-none motion-reduce:enabled:active:scale-100" [disabled]="!activo()" (click)="elegir.emit()"
       [attr.aria-label]="(activo() ? t().apostarPor : '') + t().cuotaAria(opcion().nombre, cuotaTxt(), apostado())">
       <span class="flex w-full items-center gap-3">
         <span class="flex size-9 shrink-0 items-center justify-center rounded-full border font-display text-[0.8125rem] tracking-[0.1em]"
           [class]="lider() ? 'border-accent bg-accent-deep text-accent-text' : 'border-line-strong bg-bg-raised text-text-secondary'">{{ ini() }}</span>
         <span class="flex min-w-0 flex-1 flex-col gap-0.5">
           <span class="truncate text-body-s text-text-primary">{{ opcion().nombre }}</span>
-          <span class="truncate text-body-xs text-text-secondary">{{ opcion().sexoTxt }}@if (opcion().categoria) { · {{ opcion().categoria }}}</span>
+          <span class="truncate text-body-xs text-text-secondary">@if (mostrarSub()) {{{ opcion().sexoTxt }}@if (opcion().categoria) { · {{ opcion().categoria }}}}</span>
         </span>
         <span class="flex shrink-0 flex-col items-center rounded-sm border px-3 py-1 font-mono tabular-nums transition-colors"
           [class]="lider() && cuotaNum() > 0 ? 'border-accent bg-accent-deep text-white group-enabled:group-hover:bg-accent-deep/80' : cuotaNum() > 0 ? 'border-line-strong bg-bg-raised text-text-primary group-enabled:group-hover:border-text-muted' : 'border-line-subtle bg-bg-surface text-text-muted'">
@@ -437,6 +437,8 @@ export class OddsRow {
   readonly total = input(0);
   /** La opción con más apostado del mercado. */
   readonly lider = input(false);
+  /** Muestra la línea «sexo · categoría» bajo el nombre (la resumen la omite: el título del mercado ya la dice). */
+  readonly mostrarSub = input(true);
   /** Se puede apostar (mercado abierto y jornada en juego). */
   readonly activo = input(true);
   readonly elegir = output<void>();
