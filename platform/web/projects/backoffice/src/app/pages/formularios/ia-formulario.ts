@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, output, signal, untracked, computed } from '@angular/core';
 import { GrButton, GrToasts } from '@grcup/ui';
+import { TimeoutError } from 'rxjs';
 import { Competitions } from '../../core/competitions';
 import { BoIaChat, type ChatAplicada, type ChatMensaje } from '../../shared/ia-chat';
 import { errText } from '../../shared/ui';
@@ -141,7 +142,9 @@ export class BoIaFormulario {
         this.responder(r.respuesta || 'La IA ha terminado.');
       }
     } catch (e) {
-      const msg = errText(e, 'La IA no ha podido editar el formulario. Inténtalo de nuevo.');
+      const msg = e instanceof TimeoutError
+        ? 'La IA ha tardado más de 90 s y no ha respondido. No se ha cambiado nada: inténtalo de nuevo.'
+        : errText(e, 'La IA no ha podido editar el formulario. Inténtalo de nuevo.');
       this.responder(msg);
       this.toasts.error('No se ha aplicado el cambio', msg);
     } finally {
