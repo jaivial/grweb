@@ -1,4 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { sinTimeout } from '@grcup/ui';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -137,7 +138,7 @@ export class AreaPerfilPage implements OnInit {
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const p = await firstValueFrom(this.http.post<Panel & { fotoPendiente?: boolean }>(`${AREA_API}/foto`, fd));
+      const p = await firstValueFrom(this.http.post<Panel & { fotoPendiente?: boolean }>(`${AREA_API}/foto`, fd, { context: sinTimeout() }));
       this.fotoPendiente.set(!!p.fotoPendiente);
       this.fx = p.atleta.perfil.focalX;
       this.fy = p.atleta.perfil.focalY;

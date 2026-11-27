@@ -1,8 +1,11 @@
 import { HttpClient, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, firstValueFrom, from, switchMap, throwError } from 'rxjs';
+import { catchError, firstValueFrom, from, switchMap, throwError, timeout } from 'rxjs';
 import type { Sesion, Usuario } from './api';
+
+/** A frozen tab (iOS) leaves the refresh on a dead socket: it has to give up and let the next try ask again. */
+const ESPERA_REFRESCO = 15_000;
 
 /**
  * Session of the backoffice. The access token lives only in memory; the refresh token is an httpOnly
@@ -13,6 +16,8 @@ export class Auth {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private refreshing: Promise<boolean> | null = null;
+  /** Bath of the current refresh: a superseded attempt (tab resumed) must not clear or apply over the new one. */
+  private intento = 0;
   private expiresAt = 0;
 
   readonly user = signal<Usuario | null>(null);
@@ -39,17 +44,33 @@ export class Auth {
 
   /** Single-flight refresh: concurrent 401s share one request (the server also tolerates races). */
   refresh(): Promise<boolean> {
-    this.refreshing ??= firstValueFrom(this.http.post<Sesion>('/api/auth/refresh', {}))
+    if (this.refreshing) return this.refreshing;
+    const intento = this.intento;
+    const p: Promise<boolean> = firstValueFrom(this.http.post<Sesion>('/api/auth/refresh', {}).pipe(timeout(ESPERA_REFRESCO)))
       .then((s) => {
-        this.apply(s);
+        if (intento === this.intento) this.apply(s);
         return true;
       })
       .catch(() => {
+        // A superseded attempt (tab resumed) says nothing about the session: the newer one decides.
+        if (intento !== this.intento) return this.token() !== null;
         this.clear();
         return false;
       })
-      .finally(() => (this.refreshing = null));
-    return this.refreshing;
+      .finally(() => {
+        if (this.refreshing === p) this.refreshing = null;
+      });
+    this.refreshing = p;
+    return p;
+  }
+
+  /**
+   * A tab frozen in the background (iOS Safari) can hold a refresh that never settles: whoever awaits it — the 401 retry,
+   * the live stream — waits forever. Drop it so the next call asks again; a late answer of the dropped one is ignored.
+   */
+  verificarSesion(): void {
+    this.intento++;
+    this.refreshing = null;
   }
 
   /** Fresh token for long-lived requests (SSE): refreshes when it expires in < 60 s. */

@@ -93,9 +93,15 @@ export class FanSession {
     if (this.pendiente && !forzar) return this.pendiente;
     this.pendiente = firstValueFrom(this.http.get<Fan>(`${this.base}/yo`))
       .then((f) => (this.yo.set(f ?? null), f ?? null))
-      .catch(() => (this.yo.set(null), null))
+      // A failed ask is not an answer: it must not be shared (a frozen tab left the old one hanging forever).
+      .catch(() => (this.yo.set(null), this.pendiente = null, null))
       .finally(() => this.cargada.set(true));
     return this.pendiente;
+  }
+
+  /** A frozen tab (iOS Safari) leaves the session request hanging: drop it so the next one asks again. */
+  reanudar(): void {
+    this.pendiente = null;
   }
 
   abrirAcceso(motivo: string | null = null, volverA: string | null = null, email = ''): void {

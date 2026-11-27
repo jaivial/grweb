@@ -4,7 +4,7 @@ import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { GrAlert, GrButton, GrCheckbox, GrIcon, GrRaffleNotice, GrSkeleton, type GrIconName, GrSelect, GrTelefono, telefonoValido, CdnPipe, LOGO, LOGO_SRCSET } from '@grcup/ui';
+import { GrAlert, GrButton, GrCheckbox, GrIcon, GrRaffleNotice, GrSkeleton, esConReanudacion, type GrIconName, GrSelect, GrTelefono, telefonoValido, CdnPipe, LOGO, LOGO_SRCSET } from '@grcup/ui';
 import { Cms, type Faq } from '../core/cms';
 import { renderMarkdown } from '../core/markdown';
 import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
@@ -998,9 +998,13 @@ export class EntradasPage {
         const onScroll = () => this.bajoHero.set(window.scrollY > 560);
         window.addEventListener('scroll', onScroll, { passive: true });
         // live capacity (arch 37): the public stream announces every change of a session
-        const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
-        es.addEventListener('aforo.actualizado', () => void this.api.sesiones().then((x) => { if (x) this.data.set(x); }));
-        destroy.onDestroy(() => { io.disconnect(); window.removeEventListener('scroll', onScroll); es.close(); });
+        // (reopened on every come-back: iOS Safari leaves it dead after a freeze)
+        const cerrar = esConReanudacion(() => {
+          const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
+          es.addEventListener('aforo.actualizado', () => void this.api.sesiones().then((x) => { if (x) this.data.set(x); }));
+          return es;
+        });
+        destroy.onDestroy(() => { io.disconnect(); window.removeEventListener('scroll', onScroll); cerrar(); });
       });
     }
   }

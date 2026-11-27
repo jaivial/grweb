@@ -125,6 +125,11 @@ export class Competition {
     return (this.pending ??= this.fetch());
   }
 
+  /** A frozen tab (iOS Safari) leaves a request that never settles: stop sharing it so the next page asks again. */
+  olvidar(): void {
+    this.pending = undefined;
+  }
+
   private async fetch(): Promise<CompeticionPublica | null> {
     try {
       const c = await firstValueFrom(this.http.get<CompeticionPublica>(`/api/competiciones/${COMPETITION_SLUG}`));

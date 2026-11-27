@@ -5,7 +5,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, P
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { GrAlert, GrButton, GrIcon, GrSkeleton, GrSelect, GrTelefono, telefonoValido } from '@grcup/ui';
+import { GrAlert, GrButton, GrIcon, GrSkeleton, GrSelect, GrTelefono, esConReanudacion, telefonoValido } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import { CATEGORIAS_IPF, cat } from '../core/atletas';
 import { COMPETITION_SLUG, Competition, type CompeticionPublica } from '../core/competition';
@@ -664,14 +664,18 @@ export class InscripcionPage {
     if (this.browser) {
       void this.fan.cargar();
       // Live place counter (SSE inscripcion.plazas_actualizadas): no polling of GET …/inscripcion.
-      const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
-      es.addEventListener('inscripcion.plazas_actualizadas', (ev) => {
-        try {
-          const d = JSON.parse((ev as MessageEvent).data).datos as Pick<ConfigPub, 'plazas' | 'ocupadas' | 'estado' | 'reserva'>;
-          this.cfg.update((c) => (c ? { ...c, plazas: d.plazas, ocupadas: d.ocupadas, estado: d.estado, reserva: d.reserva } : c));
-        } catch { /* malformed event: keep the last state */ }
+      // Reopened on every come-back: iOS Safari leaves the stream dead after a freeze.
+      const cerrar = esConReanudacion(() => {
+        const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
+        es.addEventListener('inscripcion.plazas_actualizadas', (ev) => {
+          try {
+            const d = JSON.parse((ev as MessageEvent).data).datos as Pick<ConfigPub, 'plazas' | 'ocupadas' | 'estado' | 'reserva'>;
+            this.cfg.update((c) => (c ? { ...c, plazas: d.plazas, ocupadas: d.ocupadas, estado: d.estado, reserva: d.reserva } : c));
+          } catch { /* malformed event: keep the last state */ }
+        });
+        return es;
       });
-      inject(DestroyRef).onDestroy(() => es.close());
+      inject(DestroyRef).onDestroy(() => cerrar());
       const p = new URLSearchParams(location.search);
       const ref = p.get('ref');
       if (ref) this.referido = ref; // shared link …/inscripcion?ref=LAURA412

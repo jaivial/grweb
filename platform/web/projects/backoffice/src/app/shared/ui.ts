@@ -5,7 +5,7 @@ import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive } f
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs/operators';
 import { firstValueFrom } from 'rxjs';
-import { GrBadge, GrButton, GrIcon, GrIconButton, GrSelect, type GrTone } from '@grcup/ui';
+import { GrBadge, GrButton, GrIcon, GrIconButton, GrSelect, sinTimeout, type GrTone } from '@grcup/ui';
 import { Competitions } from '../core/competitions';
 import { problemOf } from '../core/api';
 
@@ -369,7 +369,7 @@ export class Media {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('alt', alt);
-    const r = await firstValueFrom(this.http.post<{ url: string }>(`/api/admin/competiciones/${this.comps.current()?.id}${ruta}`, fd));
+    const r = await firstValueFrom(this.http.post<{ url: string }>(`/api/admin/competiciones/${this.comps.current()?.id}${ruta}`, fd, { context: sinTimeout() }));
     return r.url;
   }
 }
