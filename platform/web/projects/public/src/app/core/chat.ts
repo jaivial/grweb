@@ -159,8 +159,12 @@ export interface ChatHistorial {
   mensajes: ChatFrame[];
 }
 
-/** Maximum number of items kept in memory. */
+/** Maximum number of items kept in memory: the oldest are cut only while the reader follows the live end. */
 const MAX_ITEMS = 300;
+/** Upper bound while the reader is scrolled up (older pages loaded): the list only grows until here. */
+const MAX_ITEMS_LEYENDO = 5000;
+/** Without the echo of the server after this time, the message is sent once more over REST (the server ignores a repeated cid for 60 s). */
+const ESPERA_ECO_MS = 8000;
 /** Messages per history page (`GET /chat/mensajes?todos=1`). */
 const LOTE_HISTORIAL = 50;
 /** Maximum length of a message (runas, like the backend). */
@@ -237,6 +241,8 @@ export class ChatService {
   readonly dia = signal<string>(diaDeHoy());
   /** Today (Europe/Madrid) as the page sees it: the day separators of the list are relative to it. */
   readonly hoy = signal<string>(diaDeHoy());
+  /** The reader is at the bottom of the list (set by the chat view): only then the oldest items are cut. */
+  readonly siguiendoFinal = signal(true);
   /** Phase of the live (set by /en-directo): once it has finished the room is read-only. */
   readonly fase = signal<'antes' | 'en_directo' | 'finalizado'>('en_directo');
   /** No sending: after the live (before it the room is open: BIZ-203). */
@@ -309,7 +315,6 @@ export class ChatService {
     clearTimeout(this.temporizador);
     clearInterval(this.ping);
     clearInterval(this.cuentaAtras);
-    clearInterval(this.vigilante);
     this.estado.set('sin-conexion');
   }
 
@@ -361,19 +366,26 @@ export class ChatService {
   }
 
   /**
-   * Midnight (Europe/Madrid) while the page is open: the live connection moves to the room of the new day and the
-   * list stays as it is (the separators of the days tell them apart). No reload.
+   * Midnight (Europe/Madrid) while the page is open: `dia` and `hoy` move to the new day and the live connection (when
+   * it is open) moves to the room of the new day. The list stays as it is (the separators of the days tell them apart).
+   * No reload. The social panel starts it and stops it: it outlives the chat tab, the donors tab reads `hoy`.
    */
-  private vigilarDia(): void {
+  vigilarDia(): void {
     clearInterval(this.vigilante);
     this.vigilante = setInterval(() => {
       const d = diaDeHoy();
-      if (d === this.dia()) return;
+      if (d === this.hoy()) return;
       this.dia.set(d);
       this.hoy.set(d);
+      if (!this.vivo) return;
       this.ultimoId = '';
       this.abrirWs();
     }, 30000);
+  }
+
+  /** Stops the midnight watch (the social panel leaves the page). */
+  pararVigilanciaDia(): void {
+    clearInterval(this.vigilante);
   }
 
   /** Public state of the room (`GET /chat/estado`). */
@@ -581,17 +593,38 @@ export class ChatService {
     if (es) es.close();
   }
 
-  /** Publishes a message: WebSocket when it is open, REST otherwise (SSE mode). */
+  /**
+   * Publishes a message: WebSocket when it is open, REST otherwise (SSE mode or socket down). On the WebSocket the echo
+   * of the server confirms it; without that echo (the socket died with the frame in flight) it is sent once over REST.
+   */
   private async publicar(texto: string, cid: string, mio: ChatMsg): Promise<boolean> {
     if (this.transporte() === 'ws' && this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ t: 'msg', texto, cid }));
+      this.vigilarEco(texto, cid);
       return true;
     }
+    return this.publicarRest(texto, cid);
+  }
+
+  /** The server answers a cid it already has as a duplicate (it is not published twice), so the resend is safe. */
+  private vigilarEco(texto: string, cid: string): void {
+    setTimeout(() => {
+      if (this.vivo && this.pendiente(cid)) void this.publicarRest(texto, cid);
+    }, ESPERA_ECO_MS);
+  }
+
+  private pendiente(cid: string): boolean {
+    return this.items().some((i) => i.kind === 'msg' && i.cid === cid && i.estado === 'pendiente');
+  }
+
+  private async publicarRest(texto: string, cid: string): Promise<boolean> {
     try {
       await firstValueFrom(this.http.post(`${this.base}/mensajes`, { texto, cid }));
       this.marcarEnviado(cid);
       return true;
     } catch (e) {
+      // the echo may have come meanwhile: then the message is in the room and there is nothing to report
+      if (!this.pendiente(cid)) return false;
       const detalle = e instanceof HttpErrorResponse ? textoError(e, this.t().noEnviado) : this.t().noEnviado;
       this.errorEnvio.set(detalle);
       this.items.update((l) => l.map((i) => (i.kind === 'msg' && i.cid === cid ? { ...i, estado: 'error', error: detalle } : i)));
@@ -741,10 +774,14 @@ export class ChatService {
     }
   }
 
-  /** Adds items to the list (removing duplicates and keeping the last 300). */
+  /**
+   * Adds items to the list (removing duplicates). The oldest are cut only while the reader follows the live end: when
+   * it is reading older messages the list only grows (up to MAX_ITEMS_LEYENDO), so the view does not jump.
+   */
   private anadir(nuevos: ChatItem[]): void {
     if (!nuevos.length) return;
-    this.items.update((l) => this.dedup([...l, ...nuevos]).slice(-MAX_ITEMS));
+    const max = this.siguiendoFinal() ? MAX_ITEMS : MAX_ITEMS_LEYENDO;
+    this.items.update((l) => this.dedup([...l, ...nuevos]).slice(-max));
   }
 
   /**
