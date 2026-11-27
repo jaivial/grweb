@@ -231,6 +231,11 @@ type DatosAlta struct {
 	Altcha          string          `json:"altcha"`
 	Tiempo          string          `json:"tiempo"`
 	Web             string          `json:"web"`
+
+	// AsignarHandler is the key the previous bundle sent for the «¿Necesitas handler?» switch. It is still read for one
+	// release so a cached form (or one open during the deploy) does not lose the request silently; normalizaDatos
+	// folds it into Handler.
+	AsignarHandler bool `json:"asignarHandler,omitempty"`
 }
 
 // AltchaCfg is the challenge the widget has to solve.
@@ -1006,6 +1011,9 @@ func historialRuta(p string) (string, bool) {
 
 // normalizaDatos trims and normalises what the athlete wrote.
 func (s *Svc) normalizaDatos(d DatosAlta) DatosAlta {
+	if d.AsignarHandler { // the key of the previous bundle, still accepted (see DatosAlta)
+		d.Handler = true
+	}
 	d.Nombre = strings.TrimSpace(sinControl(d.Nombre))
 	d.Apellidos = strings.TrimSpace(sinControl(d.Apellidos))
 	d.Email = strings.ToLower(strings.TrimSpace(d.Email))
