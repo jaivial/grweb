@@ -52,7 +52,7 @@ const T = {
     monedas: ' monedas',
     sinSaldo: (n: string) => `No tienes monedas suficientes: tu saldo es ${n}. Gana más escribiendo en el chat del directo.`,
     saldoTras: (n: string) => `Saldo tras la porra: ${n} monedas · puedes sumar más mientras el mercado siga abierto.`,
-    recibiras: (a: string, b: string) => `Apuestas ${a} monedas, recibirías ${b} monedas`,
+    recibiras: (a: string, b: string, na: number, nb: number) => `Apuestas ${a} ${na === 1 ? 'moneda' : 'monedas'}, recibirías ${b} ${nb === 1 ? 'moneda' : 'monedas'}`,
     estimacion: 'estimación: la cuota cambia hasta el cierre',
     enviando: 'Enviando…',
     confirmar: (n: string) => 'Confirmar porra · ' + n,
@@ -94,7 +94,7 @@ const T = {
     monedas: ' coins',
     sinSaldo: (n: string) => `You don't have enough coins: your balance is ${n}. Earn more by writing in the live stream chat.`,
     saldoTras: (n: string) => `Balance after your pick: ${n} coins · you can add more while the market stays open.`,
-    recibiras: (a: string, b: string) => `You bet ${a} coins, you would get ${b} coins`,
+    recibiras: (a: string, b: string, na: number, nb: number) => `You bet ${a} ${na === 1 ? 'coin' : 'coins'}, you would get ${b} ${nb === 1 ? 'coin' : 'coins'}`,
     estimacion: 'estimate: the odds change until closing',
     enviando: 'Sending…',
     confirmar: (n: string) => 'Confirm pick · ' + n,
@@ -130,7 +130,7 @@ const T = {
           </nav>
           <div class="flex items-center justify-between gap-3">
             <h1 class="bg-[linear-gradient(180deg,#ff5a6e,#c8102e)] bg-clip-text pr-1.5 font-display text-[2rem] leading-none text-transparent uppercase italic">{{ t().porra }}</h1>
-            <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" [etiqueta]="etiquetaSaldo()" [etiquetaMovil]="false" />
+            <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" [etiqueta]="etiquetaSaldo()" />
           </div>
           <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             @if (fan.cargada() && fan.yo(); as yo) {
@@ -181,6 +181,8 @@ const T = {
                     <p class="flex items-center gap-2.5">
                       <gr-icon name="circle-check" [size]="18" class="shrink-0 text-accent-text" />
                       <span class="min-w-0 flex-1 truncate text-label-m text-text-primary">{{ o.nombre }}</span>
+                      @if (mias().get(m.id + ':' + o.atletaId); as mio) { <span class="inline-block shrink-0 rounded-pill border border-warning/50 px-2 py-0.5 text-[11px] leading-none text-warning">{{ t().tuPorra }} {{ monedas(mio) }}</span> }
+                      <span class="flex shrink-0 justify-end font-mono text-[1rem] font-bold text-text-primary"><gr-digit-roll [texto]="cuotaTxt(m, o)" [valor]="cuotaNum(m, o)" /></span>
                       <button type="button" class="-my-2 min-h-11 px-1 text-label-s text-text-secondary hover:text-text-primary" (click)="sel.set(null)">{{ t().cambiar }}</button>
                     </p>
                     @if (exito(); as ok) {
@@ -205,7 +207,7 @@ const T = {
                         </label>
                         <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong text-text-primary disabled:opacity-40" [attr.aria-label]="t().mas" [disabled]="importe() >= maximo()" (click)="paso(1)"><gr-icon name="plus" [size]="18" /></button>
                       </div>
-                      <p class="text-body-s text-text-primary" aria-live="polite">{{ t().recibiras(monedas(importe()), monedas(retorno())) }}</p>
+                      <p class="text-body-s text-text-primary" aria-live="polite">{{ t().recibiras(monedas(importe()), monedas(retorno()), importe(), retorno()) }}</p>
                       <p class="text-body-xs text-text-tertiary">{{ t().estimacion }}</p>
                       @if (sinSaldo()) {
                         <p class="text-body-xs text-accent-text" role="alert">{{ t().sinSaldo(monedas(saldo())) }}</p>

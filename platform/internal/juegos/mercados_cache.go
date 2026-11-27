@@ -29,6 +29,16 @@ type mercadosEntrada struct {
 
 var mercadosCache sync.Map // jornada id → *mercadosEntrada
 
+// invalidarMercadosVista caduca el caché de la jornada: tras una apuesta, la siguiente lectura recalcula los botes y cuotas.
+func invalidarMercadosVista(jid uuid.UUID) {
+	if v, ok := mercadosCache.Load(jid); ok {
+		e := v.(*mercadosEntrada)
+		e.mu.Lock()
+		e.exp = time.Time{}
+		e.mu.Unlock()
+	}
+}
+
 // etagCoincide applies weak comparison to an If-None-Match list (ST1-R6-1): proxies may strip W/ or the
 // gzip layer may append "-gzip", and a miss there re-downloads the whole body on every bet.
 func etagCoincide(inm, etag string) bool {
