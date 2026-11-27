@@ -34,7 +34,7 @@ import type { SolicitudItem } from './solicitudes-api';
                   <span class="min-w-0"><button type="button" class="block max-w-full truncate rounded-2xs text-left text-label-s focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]" [attr.aria-label]="'Revisar solicitud de ' + nombreCompleto(s)" (click)="$event.stopPropagation(); revisar.emit(s)">{{ nombreCompleto(s) }}</button><span class="block truncate text-body-xs text-text-tertiary">{{ s.email }}</span></span>
                 </span>
               </td>
-              <td class="px-3 py-3"><gr-badge [tone]="matchTone(s.match)">{{ match(s.match) }}</gr-badge>@if (s.tipo === 'cambio_perfil' || s.tipo === 'autorizacion') { <gr-badge class="ml-1" [tone]="tipoTone(s.tipo)">{{ tipoTxt(s.tipo) }}</gr-badge> }</td>
+              <td class="px-3 py-3"><gr-badge [tone]="matchTone(s.match)">{{ match(s.match) }}</gr-badge>@if (s.tipo !== 'alta') { <gr-badge class="ml-1" [tone]="tipoTone(s.tipo)">{{ tipoTxt(s.tipo) }}</gr-badge> }</td>
               <td class="truncate px-3 py-3 text-body-s">{{ s.club || 'Independiente' }}</td>
               <td class="px-3 py-3 text-body-s">{{ s.edad }}</td>
               <td class="px-3 py-3 text-body-s">{{ hace(s.createdAt) }}</td>
@@ -84,7 +84,7 @@ import type { SolicitudItem } from './solicitudes-api';
                     <span class="block truncate text-body-xs text-text-tertiary">{{ s.club || 'Independiente' }} · {{ s.edad }} años</span></span>
                 </span>
               </td>
-              <td class="px-3 py-3"><gr-badge [tone]="matchTone(s.match)">{{ match(s.match) }}</gr-badge>@if (s.tipo === 'cambio_perfil' || s.tipo === 'autorizacion') { <gr-badge class="ml-1" [tone]="tipoTone(s.tipo)">{{ tipoTxt(s.tipo) }}</gr-badge> }</td>
+              <td class="px-3 py-3"><gr-badge [tone]="matchTone(s.match)">{{ match(s.match) }}</gr-badge>@if (s.tipo !== 'alta') { <gr-badge class="ml-1" [tone]="tipoTone(s.tipo)">{{ tipoTxt(s.tipo) }}</gr-badge> }</td>
               <td class="px-3 py-3 text-body-s">{{ hace(s.createdAt) }}</td>
               <td class="px-3 py-3"><gr-badge [tone]="estado(s).tone">{{ estado(s).l }}</gr-badge></td>
               <td class="relative px-2 py-3" (click)="$event.stopPropagation()">
@@ -124,7 +124,7 @@ import type { SolicitudItem } from './solicitudes-api';
             </button>
             <div class="mt-3 flex flex-wrap gap-1">
               <gr-badge [tone]="matchTone(s.match)">{{ match(s.match) }}</gr-badge>
-              @if (s.tipo === 'cambio_perfil' || s.tipo === 'autorizacion') { <gr-badge [tone]="tipoTone(s.tipo)">{{ tipoTxt(s.tipo) }}</gr-badge> }
+              @if (s.tipo !== 'alta') { <gr-badge [tone]="tipoTone(s.tipo)">{{ tipoTxt(s.tipo) }}</gr-badge> }
               <gr-badge [tone]="estado(s).tone">{{ estado(s).l }}</gr-badge>
             </div>
             <button grButton class="mt-3" [block]="true" (click)="revisar.emit(s)">Revisar solicitud</button>

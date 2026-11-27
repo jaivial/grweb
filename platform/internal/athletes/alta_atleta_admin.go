@@ -997,7 +997,12 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 				}
 				origen := "Alta de atleta (interruptor «¿Necesitas handler?»)"
 				if _, err := s.creaHandling(ctx, tx, cid, r, origen); err != nil {
-					return err
+					// Una solicitud viva (o una carrera con el área) nunca tumba el alta: la pide el atleta desde su área.
+					var pe *problem.Error
+					if !errors.As(err, &pe) || pe.Code != "HANDLING_EN_CURSO" {
+						return err
+					}
+					s.a.Log.Warn("alta aprobada sin crear la solicitud de handling", "atleta", destino.String(), "err", err)
 				}
 			}
 		}

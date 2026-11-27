@@ -108,10 +108,15 @@ export class AreaHandlingPage {
 
   private async cargar(): Promise<void> {
     try {
-      this.e.set(await firstValueFrom(this.http.get<Estado>(`${AREA_API}/handling`)));
+      this.e.set(this.normaliza(await firstValueFrom(this.http.get<Estado>(`${AREA_API}/handling`))));
     } catch {
       this.e.set({ estado: 'ninguna' }); // sin estado no se bloquea: el POST dirá si ya había una solicitud
     }
+  }
+
+  /** El atleta ve lo mismo si el equipo la ha marcado «en revisión»: su solicitud sigue esperando. */
+  private normaliza(e: Estado): Estado {
+    return e.estado === 'revision' ? { ...e, estado: 'pendiente' } : e;
   }
 
   protected async pedir(): Promise<void> {
@@ -119,7 +124,7 @@ export class AreaHandlingPage {
     this.enviando.set(true);
     this.aviso.set('');
     try {
-      this.e.set(await firstValueFrom(this.http.post<Estado>(`${AREA_API}/handling`, {})));
+      this.e.set(this.normaliza(await firstValueFrom(this.http.post<Estado>(`${AREA_API}/handling`, {}))));
       confetti();
       this.aviso.set(this.t().ok);
     } catch (err) {
