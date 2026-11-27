@@ -88,15 +88,31 @@ export const PADRON: Record<EstadoPadron, { l: string; tone: GrTone }> = {
   parcial: { l: 'Parcial · revisar', tone: 'warning' },
   manual: { l: 'Sin coincidencia', tone: 'neutral' },
   descartada: { l: 'Descartada', tone: 'neutral' },
-  sin: { l: 'Sin coincidencia', tone: 'neutral' },
+  sin: { l: 'Sin comparar', tone: 'neutral' },
 };
 
-/** Etiqueta del estado con la confianza y el aviso de que la IA falló (que no es lo mismo que «no hay nadie»). */
-export function estadoPadron(e: { estado: EstadoPadron; origen?: string; confianza?: number }): { l: string; tone: GrTone } {
+/** Cómo se nombra cada campo en las diferencias («la categoría», «el año»). */
+const CAMPOS: Record<string, string> = {
+  categoria: 'la categoría', division: 'la división', anio: 'el año', sexo: 'el sexo', nivel: 'el nivel',
+};
+
+/**
+ * Etiqueta del estado. Un «parcial» no lleva un porcentaje suelto: dice qué hay que mirar (las diferencias que ha visto
+ * el código, o la confianza baja de la IA), que es lo que explica por qué no se enlazó solo.
+ */
+export function estadoPadron(e: { estado: EstadoPadron; origen?: string; confianza?: number; discrepancias?: { campo: string }[] }): { l: string; tone: GrTone } {
   const p = PADRON[e.estado] ?? PADRON.sin;
   if (e.origen === 'error_ia' && (e.estado === 'parcial' || e.estado === 'manual')) return { l: 'Error IA · revisar', tone: 'danger' };
-  if (!e.confianza || (e.estado !== 'auto' && e.estado !== 'parcial' && e.estado !== 'confirmada')) return p;
-  const pct = Math.round(e.confianza * 100);
+  const pct = e.confianza ? Math.round(e.confianza * 100) : 0;
+  if (e.estado === 'parcial') {
+    const campos = [...new Set((e.discrepancias ?? []).map((d) => d.campo))].map((c) => CAMPOS[c] ?? c);
+    if (campos.length === 1) return { l: `Parcial · revisa ${campos[0]}`, tone: 'warning' };
+    if (campos.length > 1 && campos.length <= 2) return { l: `Parcial · revisa ${campos.join(' y ')}`, tone: 'warning' };
+    if (campos.length > 2) return { l: `Parcial · revisa ${campos.length} diferencias`, tone: 'warning' };
+    if (pct) return { l: `Parcial · confianza baja (${pct} %)`, tone: 'warning' };
+    return p;
+  }
+  if (!pct || (e.estado !== 'auto' && e.estado !== 'confirmada')) return p;
   return { l: `${p.l} · ${pct} %`, tone: p.tone };
 }
 
@@ -104,7 +120,10 @@ export function estadoPadron(e: { estado: EstadoPadron; origen?: string; confian
 export function estadoCorto(e: { estado: EstadoPadron; origen?: string }): { l: string; tone: GrTone } {
   const p = PADRON[e.estado] ?? PADRON.sin;
   if (e.origen === 'error_ia') return { l: 'Error IA', tone: 'danger' };
-  return { l: { auto: 'Auto', confirmada: 'Staff', parcial: 'Parcial', manual: 'Sin', descartada: 'Sin', sin: 'Sin' }[e.estado ?? 'sin'] ?? 'Sin', tone: p.tone };
+  const corto: Record<EstadoPadron, string> = {
+    auto: 'Auto', confirmada: 'Staff', parcial: 'Parcial', manual: 'Sin coincidencia', descartada: 'Sin coincidencia', sin: 'Sin comparar',
+  };
+  return { l: corto[e.estado ?? 'sin'] ?? 'Sin comparar', tone: p.tone };
 }
 
 /** Etiqueta de una decisión del registro. */

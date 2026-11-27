@@ -20,6 +20,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/jaivial/grweb/platform/pkg/auth"
+	"github.com/jaivial/grweb/platform/pkg/config"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
@@ -156,6 +157,19 @@ func (s *Svc) registerPadron() {
 			}
 			if s.key == "" {
 				return nil, problem.New(http.StatusServiceUnavailable, "IA_NO_CONFIGURADA", "La IA no está configurada (MINIMAX_API_KEY).")
+			}
+			// QA only: a slow answer or a failure on demand, to see the «tardó demasiado» and «error de la IA» states of the
+			// panel without waiting for the model to fail. Both are off by default and never set by the deployment.
+			if config.Bool("AI_PADRON_FALLO", false) {
+				return nil, problem.New(http.StatusServiceUnavailable, "IA_NO_DISPONIBLE", "La IA no ha respondido (fallo simulado).")
+			}
+			if ms := config.Int("AI_PADRON_DEMORA_MS", 0); ms > 0 {
+				select {
+				case <-time.After(time.Duration(ms) * time.Millisecond):
+				case <-time.After(tiempoEmparejar):
+				case <-ctx.Done():
+					return nil, problem.New(http.StatusGatewayTimeout, "IA_TIEMPO", "La IA tardó demasiado (30 s) en responder.")
+				}
 			}
 			ids := map[string]bool{}
 			for _, c := range i.Body.Candidatos {

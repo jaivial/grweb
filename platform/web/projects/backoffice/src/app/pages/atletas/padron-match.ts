@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GrBadge, GrButton, GrInput, GrSkeleton, GrToasts, fmtShortDate } from '@grcup/ui';
+import { problemOf } from '../../core/api';
 import { Confirm, errText } from '../../shared/ui';
 import { AtletasApi } from './api';
 import { SolicitudesApi } from './solicitudes-api';
@@ -41,7 +42,7 @@ interface FilaComparada {
           <button grButton size="s" variant="ghost" icon="refresh" (click)="cargar()">Reintentar</button>
         </p>
       } @else if (emp(); as e) {
-        <p class="text-body-s text-text-secondary">{{ e.detalle.motivo || 'Todavía no se ha comparado con el padrón.' }}</p>
+        <p class="text-body-s text-text-secondary">{{ e.detalle.motivo || sinMotivo() }}</p>
 
         @if (e.inscripcion; as f) {
           <!-- El dato del atleta al lado del padrón: lo que no coincide va marcado, no hay que buscarlo -->
@@ -162,7 +163,12 @@ export class PadronMatch {
   protected readonly buscando = signal(false);
   protected readonly q = signal('');
   protected readonly resultados = signal<FilaPadron[]>([]);
-  protected readonly estado = computed(() => estadoPadron(this.emp() ?? { estado: 'sin' }));
+  protected readonly estado = computed(() => {
+    const e = this.emp();
+    return e ? estadoPadron({ estado: e.estado, origen: e.origen, confianza: e.confianza, discrepancias: e.detalle?.discrepancias }) : estadoPadron({ estado: 'sin' });
+  });
+  /** Lo que se dice cuando la decisión no trae motivo (una fila antigua): depende del estado, no del texto vacío. */
+  protected readonly sinMotivo = computed(() => (this.emp()?.estado === 'sin' ? 'Todavía no se ha comparado con el padrón.' : 'Sin motivo registrado.'));
   /** La IA solo se puede reintentar donde hay una solicitud de la que tirar. */
   protected readonly puedeReintentar = computed(() => !!this.solicitudId() || !!this.emp()?.solicitudId);
   protected readonly fila = computed(() => this.emp()?.inscripcion);
@@ -237,10 +243,21 @@ export class PadronMatch {
       this.toasts.success('Coincidencia confirmada', 'La fila del padrón queda enlazada por el equipo.');
       this.cambiado.emit();
     } catch (e) {
-      this.toasts.error('No se pudo confirmar la coincidencia', errText(e));
+      await this.fallo(e, 'No se pudo confirmar la coincidencia');
     } finally {
       this.ocupado.set('');
     }
+  }
+
+  /** Un 412 significa que otra persona ya ha contestado: se avisa, se recarga lo guardado y el panel sigue utilizable. */
+  private async fallo(e: unknown, titulo: string): Promise<void> {
+    if (problemOf(e).code === 'CONFLICTO_EDICION') {
+      this.toasts.info('Otra persona ha revisado esta coincidencia', 'Se recarga con lo último que se ha guardado.');
+      await this.cargar();
+      this.cambiado.emit();
+      return;
+    }
+    this.toasts.error(titulo, errText(e));
   }
 
   protected async descartar(): Promise<void> {
@@ -259,7 +276,7 @@ export class PadronMatch {
       this.toasts.success('Coincidencia descartada');
       this.cambiado.emit();
     } catch (e) {
-      this.toasts.error('No se pudo descartar', errText(e));
+      await this.fallo(e, 'No se pudo descartar');
     } finally {
       this.ocupado.set('');
     }
@@ -277,7 +294,7 @@ export class PadronMatch {
       this.toasts.success('Emparejamiento repetido', r.detalle?.motivo);
       this.cambiado.emit();
     } catch (e) {
-      this.toasts.error('No se pudo repetir el emparejamiento', errText(e));
+      await this.fallo(e, 'No se pudo repetir el emparejamiento');
     } finally {
       this.ocupado.set('');
     }

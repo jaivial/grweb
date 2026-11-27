@@ -190,8 +190,18 @@ func (s *Svc) cargarSolEmp(ctx context.Context, cid, id uuid.UUID) (solEmp, erro
 	if err != nil {
 		return solEmp{}, err
 	}
+	return solEmpDe(ctx, s.a.DB, sol)
+}
+
+// rowQuerier is the pool or a transaction: both read one row.
+type rowQuerier interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+// solEmpDe completes a request with the fields the matching compares (weight class and birth year).
+func solEmpDe(ctx context.Context, q rowQuerier, sol solicitud) (solEmp, error) {
 	o := solEmp{solicitud: sol}
-	if err := s.a.DB.QueryRow(ctx, `SELECT categoria FROM solicitudes_atleta WHERE id = $1`, id).Scan(&o.categoria); err != nil {
+	if err := q.QueryRow(ctx, `SELECT categoria FROM solicitudes_atleta WHERE id = $1`, sol.ID).Scan(&o.categoria); err != nil {
 		return o, err
 	}
 	if sol.FechaNacimiento != nil {
@@ -353,6 +363,9 @@ func (s *Svc) emparejar(ctx context.Context, cid, id uuid.UUID, reintentar bool)
 		// Without the model nothing is approved alone, however good the name looks: the team confirms it.
 		if confianza >= empAuto && len(det.Discrepancias) == 0 && origen != "error_ia" {
 			decision = "auto"
+			if det.Motivo == "" {
+				det.Motivo = fmt.Sprintf("Coincidencia automática de la IA (%d %% de confianza).", int(confianza*100+0.5))
+			}
 		} else {
 			// Any other candidate is «parcial»: a proposal the team confirms or discards, never a discarded row.
 			decision = "parcial"
@@ -457,13 +470,26 @@ func motivoParcial(det DetalleEmparejamiento, confianza float64) string {
 	return m
 }
 
-// diferenciasTexto writes the discrepancies of a request against the roll row in one line («año 1996 vs 1995, …»).
+// diferenciasTexto writes the discrepancies of a request against the roll row in one line, as the panel's table shows
+// them («categoría −69 kg vs −63 kg», «año 1996 vs 1995»).
 func diferenciasTexto(d []Discrepancia) string {
 	out := make([]string, len(d))
 	for i, x := range d {
-		out[i] = strings.NewReplacer("anio", "año", "categoria", "categoría", "division", "división").Replace(x.Campo) + " " + x.Solicitud + " vs " + x.Padron
+		a, z := x.Solicitud, x.Padron
+		if x.Campo == "categoria" {
+			a, z = catTexto(a), catTexto(z)
+		}
+		out[i] = strings.NewReplacer("anio", "año", "categoria", "categoría", "division", "división").Replace(x.Campo) + " " + a + " vs " + z
 	}
 	return strings.Join(out, ", ")
+}
+
+// catTexto is a weight class as the backoffice table writes it («−63 kg»).
+func catTexto(c string) string {
+	if c == "" {
+		return "—"
+	}
+	return strings.Replace(NormCategoria(c), "-", "−", 1) + " kg"
 }
 
 func (s *Svc) puedeAutoAprobar(sol solEmp, c *candidato) string {
@@ -495,6 +521,12 @@ type decisionEmparejamiento struct {
 }
 
 func (s *Svc) guardarDecision(ctx context.Context, cid uuid.UUID, d decisionEmparejamiento) error {
+	return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error { return guardarDecisionTx(ctx, tx, cid, d) })
+}
+
+// guardarDecisionTx writes one decision inside the caller's transaction (so the row lock of the request and the write
+// are the same unit: a second answer with the version it read loses with 412).
+func guardarDecisionTx(ctx context.Context, tx pgx.Tx, cid uuid.UUID, d decisionEmparejamiento) error {
 	var insc *uuid.UUID
 	if d.Candidato != nil {
 		insc = &d.Candidato.uuid
@@ -503,31 +535,34 @@ func (s *Svc) guardarDecision(ctx context.Context, cid uuid.UUID, d decisionEmpa
 	entJSON, _ := json.Marshal(d.Entrada)
 	resJSON, _ := json.Marshal(d.Respuesta)
 	disJSON, _ := json.Marshal(d.Detalle.Discrepancias)
-	return db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `UPDATE solicitudes_atleta SET padron_estado = $3, padron_origen = $4, padron_inscripcion_id = $5, padron_confianza = $6,
-			padron_detalle = $7, updated_at = now() WHERE competition_id = $1 AND id = $2`,
-			cid, d.Solicitud.ID, d.Decision, d.Origen, insc, d.Confianza, detJSON); err != nil {
+	// An answer of the team changes the request: its version moves so another panel that read it before gets 412.
+	version := ""
+	if d.Origen == "staff" {
+		version = ", version = version + 1"
+	}
+	if _, err := tx.Exec(ctx, `UPDATE solicitudes_atleta SET padron_estado = $3, padron_origen = $4, padron_inscripcion_id = $5, padron_confianza = $6,
+		padron_detalle = $7`+version+`, updated_at = now() WHERE competition_id = $1 AND id = $2`,
+		cid, d.Solicitud.ID, d.Decision, d.Origen, insc, d.Confianza, detJSON); err != nil {
+		return err
+	}
+	// The state of the row follows the decision: «sugerido» while the team has not answered, «manual» once they
+	// confirm it and «pendiente» when they discard it. A row already linked to an athlete keeps its link.
+	if insc != nil && d.Decision != "auto" {
+		if _, err := tx.Exec(ctx, `UPDATE inscripciones_aep SET estado_enlace = $2, updated_at = now() WHERE id = $1
+			AND (atleta_id IS NULL OR $2 = 'manual')`, insc, estadoEnlace(d.Decision)); err != nil {
 			return err
 		}
-		// The state of the row follows the decision: «sugerido» while the team has not answered, «manual» once they
-		// confirm it and «pendiente» when they discard it. A row already linked to an athlete keeps its link.
-		if insc != nil && d.Decision != "auto" {
-			if _, err := tx.Exec(ctx, `UPDATE inscripciones_aep SET estado_enlace = $2, updated_at = now() WHERE id = $1
-				AND (atleta_id IS NULL OR $2 = 'manual')`, insc, estadoEnlace(d.Decision)); err != nil {
-				return err
-			}
-		}
-		atleta := d.AtletaID
-		if atleta == nil && d.Solicitud.MatchAtletaID != nil && d.Decision != "manual" {
-			atleta = d.Solicitud.MatchAtletaID
-		}
-		if err := logEmparejamiento(ctx, tx, cid, &d.Solicitud.ID, atleta, insc, d.Decision, d.Origen, d.Confianza, entJSON, resJSON,
-			disJSON, d.Modelo, d.Por); err != nil {
-			return err
-		}
-		return events.Enqueue(ctx, tx, events.New(ctx, "athletes.solicitud_emparejada", map[string]any{"id": d.Solicitud.ID, "decision": d.Decision},
-			events.Competition(cid.String()), events.ForPermission("atletas.editar")))
-	})
+	}
+	atleta := d.AtletaID
+	if atleta == nil && d.Solicitud.MatchAtletaID != nil && d.Decision != "manual" {
+		atleta = d.Solicitud.MatchAtletaID
+	}
+	if err := logEmparejamiento(ctx, tx, cid, &d.Solicitud.ID, atleta, insc, d.Decision, d.Origen, d.Confianza, entJSON, resJSON,
+		disJSON, d.Modelo, d.Por); err != nil {
+		return err
+	}
+	return events.Enqueue(ctx, tx, events.New(ctx, "athletes.solicitud_emparejada", map[string]any{"id": d.Solicitud.ID, "decision": d.Decision},
+		events.Competition(cid.String()), events.ForPermission("atletas.editar")))
 }
 
 // estadoEnlace maps a decision of the matching to the state of the roll row (inscripciones_aep.estado_enlace).
@@ -722,6 +757,18 @@ func (s *Svc) leerDetalle(ctx context.Context, e Emparejamiento, conf *float32, 
 	_ = json.Unmarshal(det, &e.Detalle)
 	if e.Detalle.Discrepancias == nil {
 		e.Detalle.Discrepancias = []Discrepancia{}
+	}
+	// A row linked by hand has no request to keep the reason in, and an old one may not have it: the card always has
+	// something true to show about its state.
+	if e.Detalle.Motivo == "" {
+		switch e.Estado {
+		case "auto":
+			e.Detalle.Motivo = "Enlazado automáticamente con su fila del padrón AEP."
+		case "confirmada":
+			e.Detalle.Motivo = "Confirmado por el equipo: es la misma persona del padrón AEP."
+		case "descartada":
+			e.Detalle.Motivo = "El equipo ha descartado la coincidencia con el padrón."
+		}
 	}
 	if insc != nil {
 		if l, err := s.filaPadron(ctx, *insc); err == nil {

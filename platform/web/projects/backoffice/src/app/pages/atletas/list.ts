@@ -102,7 +102,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
 
         @if (pestana() !== 'incidencias' || reservas().length) {
           @if (pestana() !== 'incidencias') {
-            <bo-table-toolbar noun="atletas" [total]="l?.total ?? 0" [selected]="sel().size" [loading]="cargando()" [filtered]="filtrado()" (reset)="limpiar()" (clear)="limpiarSel()">
+            <bo-table-toolbar noun="atletas" singular="atleta" [total]="l?.total ?? 0" [selected]="sel().size" [loading]="cargando()" [filtered]="filtrado()" (reset)="limpiar()" (clear)="limpiarSel()">
               @if (canEdit()) { <button bulk grButton variant="secondary" icon="download" [loading]="exporting()" (click)="exportar([...sel()])">Exportar selección</button> }
               @if (canEdit()) { <button bulk grButton variant="secondary" icon="send" (click)="accionIds.set([...sel()])">Pedir una acción</button> }
               @if (canEdit()) { <button bulk grButton variant="secondary" icon="mail" (click)="perfil.set({ ids: [...sel()], todos: false })">Enviar acceso al perfil</button> }
@@ -190,8 +190,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                       <td class="px-3 py-3"><span class="flex items-center gap-2"><span class="h-1.5 flex-1 rounded-pill bg-bg-raised"><span class="block h-full rounded-pill" [class]="a.completo >= 70 ? 'bg-success' : 'bg-warning'" [style.width.%]="a.completo"></span></span><span class="w-10 text-right text-mono-xs text-text-secondary">{{ a.completo }} %</span></span></td>
                       <td class="px-3 py-3 text-body-s" [class]="imagen[a.imagen].cls">{{ imagen[a.imagen].label }}</td>
                       <td class="px-3 py-3">
-                        @if (padron(a).tone === 'neutral') { <span class="text-text-muted" title="Sin coincidencia con el padrón AEP">–</span> }
-                        @else { <gr-badge [tone]="padron(a).tone" [title]="'Padrón AEP: ' + padron(a).l">{{ padron(a).l }}</gr-badge> }
+                        <gr-badge [tone]="padron(a).tone" [title]="'Padrón AEP: ' + padron(a).l">{{ padron(a).l }}</gr-badge>
                       </td>
                       <td class="px-3 py-3">
                         @if (a.handling; as h) { <gr-badge [tone]="HANDLING[h.estado].tone" [title]="'Handling ' + HANDLING[h.estado].l"><span class="sr-only">Handling </span>SÍ</gr-badge> }

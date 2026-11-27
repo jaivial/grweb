@@ -229,7 +229,7 @@ export class SolicitudesApi {
       { headers: this.cab(version), context: sinTimeout() }));
   }
   descartarPadron(cid: string, id: string, version: number): Promise<EmparejamientoPadron> {
-    return firstValueFrom(this.http.post<EmparejamientoPadron>(`${this.base(cid)}/${id}/padron/descartar`, {}, { headers: this.cab(version) }));
+    return firstValueFrom(this.http.post<EmparejamientoPadron>(`${this.base(cid)}/${id}/padron/descartar`, null, { headers: this.cab(version) }));
   }
   /** Vuelve a emparejar con la IA (la respuesta llega cuando la IA contesta o se agota su tiempo). */
   reintentarPadron(cid: string, id: string): Promise<EmparejamientoPadron> {

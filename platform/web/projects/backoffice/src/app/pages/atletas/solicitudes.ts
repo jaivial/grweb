@@ -479,7 +479,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
           </section>
 
           <section>
-            <h3 class="text-label-xs text-text-muted uppercase">Coincidencia y enlazado</h3>
+            <h3 class="text-label-xs text-text-muted uppercase">Ficha de atleta existente</h3>
             <div class="mt-2 flex flex-wrap items-center gap-2">
               <gr-badge [tone]="matchTone(d.match)">{{ match(d.match) }}</gr-badge>
               @if (d.atleta) {

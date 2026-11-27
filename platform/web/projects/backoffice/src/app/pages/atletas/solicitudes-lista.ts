@@ -15,7 +15,7 @@ import type { SolicitudItem } from './solicitudes-api';
         <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary">
           <tr>
             <th class="px-4 py-3 font-normal">Atleta</th>
-            <th class="w-40 px-3 py-3 font-normal">Coincidencia</th>
+            <th class="w-40 px-3 py-3 font-normal">Ficha existente</th>
             <th class="w-48 px-3 py-3 font-normal">Club</th>
             <th class="w-20 px-3 py-3 font-normal">Edad</th>
             <th class="w-28 px-3 py-3 font-normal">Recibida</th>
@@ -66,7 +66,7 @@ import type { SolicitudItem } from './solicitudes-api';
         <thead class="border-b border-line-subtle text-mono-xs text-text-tertiary">
           <tr>
             <th class="px-4 py-3 font-normal">Atleta</th>
-            <th class="w-40 px-3 py-3 font-normal">Coincidencia</th>
+            <th class="w-40 px-3 py-3 font-normal">Ficha existente</th>
             <th class="w-28 px-3 py-3 font-normal">Recibida</th>
             <th class="w-48 px-3 py-3 font-normal">Estado</th>
             <th class="w-10"><span class="sr-only">Acciones</span></th>
