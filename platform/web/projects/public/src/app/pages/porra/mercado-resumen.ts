@@ -37,7 +37,7 @@ export function etiquetaDeMercado(m: Mercado, lang: Lang): string {
   imports: [OddsRow],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="flex flex-col gap-1 border-b border-line-subtle pb-4" [attr.aria-labelledby]="'vivo-' + mercado().id">
+    <section class="mx-auto flex w-full max-w-lg flex-col gap-1 border-b border-line-subtle pb-4" [attr.aria-labelledby]="'vivo-' + mercado().id">
       <h2 [id]="'vivo-' + mercado().id" class="flex items-center justify-between gap-3 text-label-m text-text-primary">
         <span>{{ etiqueta() }}</span>
         <span class="font-mono text-[12px] font-normal text-text-secondary">{{ t().bote }} {{ monedas(mercado().bote) }}</span>
