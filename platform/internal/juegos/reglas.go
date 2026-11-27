@@ -3,7 +3,9 @@
 package juegos
 
 import (
+	"bytes"
 	"math"
+	"sort"
 
 	"github.com/google/uuid"
 )
@@ -41,14 +43,15 @@ type apuestaLote struct {
 	Importe  int64
 }
 
-// categoriasDelSexo returns the weight categories of a sex that the scoreboard brings (contract §6.2): the result of
-// the `gl` and `movimiento` markets of a sex depends on all of them being published.
-func categoriasDelSexo(m *Marcador, sexo string) []string {
+// categoriasDelSexo returns the weight categories of a sex and competition that the scoreboard brings (contract
+// §6.2): the result of the `gl` and `movimiento` markets of that sex and prueba depends on all of them being
+// published.
+func categoriasDelSexo(m *Marcador, sexo, prueba string) []string {
 	out := []string{}
 	vistas := map[string]bool{}
 	for i := range m.Atletas {
 		ma := &m.Atletas[i]
-		if ma.Sexo != sexo {
+		if ma.Sexo != sexo || ma.Prueba != prueba {
 			continue
 		}
 		k := ma.Sexo + ma.Categoria
@@ -59,6 +62,62 @@ func categoriasDelSexo(m *Marcador, sexo string) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+// pruebasDelSexo returns the competitions (prueba) the athletes of a sex of the scoreboard belong to, each once.
+func pruebasDelSexo(m *Marcador, sexo string) []string {
+	out := []string{}
+	vistas := map[string]bool{}
+	for i := range m.Atletas {
+		ma := &m.Atletas[i]
+		if ma.Sexo != sexo || vistas[ma.Prueba] {
+			continue
+		}
+		vistas[ma.Prueba] = true
+		out = append(out, ma.Prueba)
+	}
+	return out
+}
+
+// ganadoresDeMercado returns the winners of a market from the scoreboard: the athletes of its sex and prueba (and of
+// its weight class for `categoria`) with the best value of the market; ties win together. The places of live are
+// not used: live ranks each day across both competitions, so they would mix them.
+func ganadoresDeMercado(m *Marcador, mc mercadoRow) []uuid.UUID {
+	var mejor float64
+	var ganadores []uuid.UUID
+	for i := range m.Atletas {
+		ma := &m.Atletas[i]
+		if ma.Sexo != mc.Sexo || ma.Prueba != mc.Prueba || (mc.Tipo == "categoria" && ma.Categoria != mc.Categoria) {
+			continue
+		}
+		v := valorMercado(ma, mc)
+		if v == nil || *v <= 0 {
+			continue
+		}
+		switch {
+		case len(ganadores) == 0 || *v > mejor:
+			mejor, ganadores = *v, []uuid.UUID{ma.AtletaID}
+		case *v == mejor:
+			ganadores = append(ganadores, ma.AtletaID)
+		}
+	}
+	return ganadores
+}
+
+// valorMercado is what an athlete is ranked by in a market, nil while he has none: the total of a finished athlete
+// (`categoria`), the IPF GL (`gl`) or his best valid lift (`movimiento`).
+func valorMercado(ma *MarcadorAtleta, mc mercadoRow) *float64 {
+	switch mc.Tipo {
+	case "categoria":
+		if ma.Terminado {
+			return ma.Total
+		}
+	case "gl":
+		return ma.GL
+	case "movimiento":
+		return ma.Mejor[mc.Movimiento]
+	}
+	return nil
 }
 
 // resultadoDefinitivoDeCategorias says whether the result of a market is definitive: there have to be categories in
@@ -96,18 +155,22 @@ type premioBote struct {
 }
 
 // repartoBote splits the pot parimutuel (contract §6.2): every winner gets floor(pot × own bet / total bet on the
-// winners); with several tied winners the pot is shared among the bets of all of them; the rounding remainder is
-// ignored. If nobody bet on the winners (the result IS definitive), everything is returned. An empty list of
-// winners means that nobody won: the whole pot comes back (the caller decides if the result was definitive).
+// winners); with several tied winners the pot is shared among the bets of all of them. The floors leave less than
+// one coin per winning bet: that remainder goes one coin at a time to the largest stakes (ties by bet id), so the
+// payouts add up to the pot exactly. If nobody bet on the winners (the result IS definitive), everything is returned.
+// An empty list of winners means that nobody won: the whole pot comes back (the caller decides if the result was
+// definitive).
 func repartoBote(apuestas []apuestaLote, ganadores []uuid.UUID) []premioBote {
 	ganado := map[uuid.UUID]bool{}
 	for _, g := range ganadores {
 		ganado[g] = true
 	}
 	var totalGanador int64
+	var ganadoras []apuestaLote
 	for _, a := range apuestas {
 		if ganado[a.AtletaID] {
 			totalGanador += a.Importe
+			ganadoras = append(ganadoras, a)
 		}
 	}
 	if totalGanador == 0 {
@@ -122,11 +185,23 @@ func repartoBote(apuestas []apuestaLote, ganadores []uuid.UUID) []premioBote {
 	for _, a := range apuestas {
 		bote += a.Importe
 	}
-	out := make([]premioBote, 0, len(apuestas))
-	for _, a := range apuestas {
-		if ganado[a.AtletaID] {
-			out = append(out, premioBote{ApuestaID: a.ID, FanID: a.FanID, Importe: bote * a.Importe / totalGanador})
+	sort.SliceStable(ganadoras, func(i, k int) bool {
+		a, b := ganadoras[i], ganadoras[k]
+		if a.Importe != b.Importe {
+			return a.Importe > b.Importe
 		}
+		return bytes.Compare(a.ID[:], b.ID[:]) < 0
+	})
+	out := make([]premioBote, 0, len(ganadoras))
+	var pagado int64
+	for _, a := range ganadoras {
+		importe := bote * a.Importe / totalGanador
+		pagado += importe
+		out = append(out, premioBote{ApuestaID: a.ID, FanID: a.FanID, Importe: importe})
+	}
+	for i := 0; pagado < bote; i++ {
+		out[i].Importe++
+		pagado++
 	}
 	return out
 }

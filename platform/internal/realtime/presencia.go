@@ -108,4 +108,3 @@ func (s *Svc) presencia(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{"recurso": body.Recurso, "usuarios": usuarios, "ttlSegundos": int(presenciaTTL / time.Second)})
 }
-

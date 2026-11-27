@@ -333,7 +333,9 @@ func (g *gw) serve(w http.ResponseWriter, r *http.Request) {
 			if r.Header.Get("X-GrCup-Origen") == "" {
 				r.Header.Set("X-GrCup-Origen", "cli")
 			}
-		} else if !strings.HasPrefix(r.URL.Path, "/api/auth/") {
+		} else if !strings.HasPrefix(r.URL.Path, "/api/auth/") && !strings.HasPrefix(r.URL.Path, "/api/webhooks/") {
+			// Webhooks authenticate themselves (signed URL + the provider's own key as Bearer, e.g. evo-weai): their
+			// Bearer is not a session.
 			if _, err := g.a.Verifier.Verify(ctx, tok); err != nil {
 				problem.Write(w, problem.Unauthorized("TOKEN_INVALIDO", "Tu sesión ha caducado o no es válida. Vuelve a iniciar sesión."))
 				return

@@ -72,8 +72,11 @@ type MarcadorAtleta struct {
 	FotoURL          string                       `json:"fotoUrl,omitempty"`
 	Sexo             string                       `json:"sexo"`
 	Categoria        string                       `json:"categoria"`
+	Prueba           string                       `json:"prueba"`
+	Slug             string                       `json:"slug,omitempty"`
 	SesionID         uuid.UUID                    `json:"sesionId"`
 	SesionEnCurso    bool                         `json:"sesionEnCurso"`
+	SesionInicio     *time.Time                   `json:"sesionInicio,omitempty"`
 	Intentos         map[string][]MarcadorIntento `json:"intentos"`
 	Mejor            map[string]*float64          `json:"mejor"`
 	Total            *float64                     `json:"total"`
@@ -151,6 +154,8 @@ func (s *Svc) cargarMarcador(cid uuid.UUID, dia, k string, prev marcEntrada, hay
 		if hayPrev && prev.m != nil && time.Since(prev.ok) < marcadorStale {
 			n.m, n.ok, n.err = prev.m, prev.ok, nil // stale but last known good
 		}
+	} else {
+		completarPrueba(&m, prueba)
 	}
 	s.marcMu.Lock()
 	if len(s.marc) > 64 {
@@ -159,4 +164,17 @@ func (s *Svc) cargarMarcador(cid uuid.UUID, dia, k string, prev marcEntrada, hay
 	s.marc[k] = n
 	s.marcMu.Unlock()
 	return n
+}
+
+// completarPrueba gives the athletes without a level of their own the level of the day (pruebaDelDia), the rule
+// live uses to place them in the marcador. An unknown day ("*") leaves them without one.
+func completarPrueba(m *Marcador, prueba string) {
+	if prueba == "*" {
+		return
+	}
+	for i := range m.Atletas {
+		if m.Atletas[i].Prueba == "" {
+			m.Atletas[i].Prueba = prueba
+		}
+	}
 }

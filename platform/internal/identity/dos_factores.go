@@ -333,4 +333,3 @@ func (s *Svc) enqueueTwoFactor(ctx context.Context, tx pgx.Tx, uid uuid.UUID, on
 	}
 	return nil
 }
-

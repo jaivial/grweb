@@ -245,7 +245,10 @@ func (s *Svc) aforoEvento(ctx context.Context, tx pgx.Tx, cid, sesion uuid.UUID)
 // dosDias presents a «both days» ticket as one span named like the web: «Sáb 19 y Dom 20 dic» (BIZ-163), from the first doors to the last end.
 func dosDias(x, y sesionRow) sesionRow {
 	a, b := x.Inicio.In(madrid), y.Inicio.In(madrid)
-	corto := func(t time.Time) string { d := diasSemana[t.Weekday()]; return strings.ToUpper(d[:1]) + string([]rune(d)[1:3]) + " " + t.Format("2") }
+	corto := func(t time.Time) string {
+		d := diasSemana[t.Weekday()]
+		return strings.ToUpper(d[:1]) + string([]rune(d)[1:3]) + " " + t.Format("2")
+	}
 	x.Nombre = corto(a) + " y " + corto(b) + " " + meses[b.Month()]
 	if a.Month() != b.Month() {
 		x.Nombre = corto(a) + " " + meses[a.Month()] + " y " + corto(b) + " " + meses[b.Month()]

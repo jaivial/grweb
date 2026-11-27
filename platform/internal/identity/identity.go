@@ -27,7 +27,7 @@ var migrationsFS embed.FS
 
 // Svc holds the service dependencies.
 type Svc struct {
-	a      *app.App
+	a       *app.App
 	signer  *auth.Signer
 	cfg     settings
 	totpKey []byte // key material for the TOTP secrets at rest

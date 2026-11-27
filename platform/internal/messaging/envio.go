@@ -3,6 +3,7 @@ package messaging
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -128,11 +129,24 @@ func (s *Svc) enviarLote(ctx context.Context, c envioCamp, canal string, porMin 
 	if n, _ := s.a.Redis.Exists(ctx, caido).Result(); n > 0 {
 		return
 	}
+	if canal == "whatsapp" {
+		// Quiet hours, and the transactional messages of the competition go first (they share the number's turn).
+		if s.silencio(ctx, c.cid) > 0 {
+			return
+		}
+		var urgente bool
+		if err := s.a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM mensajes WHERE competition_id = $1 AND canal = 'whatsapp' AND estado IN ('en_cola', 'reintentando', 'enviando') AND proximo_at <= now())`, c.cid).Scan(&urgente); err != nil || urgente {
+			return
+		}
+	}
 	var recientes int
 	if err := s.a.DB.QueryRow(ctx, `SELECT count(*) FROM campana_destinatarios WHERE campana_id = $1 AND canal = $2 AND (estado = 'enviando' OR enviado_at > now() - interval '60 seconds')`, c.id, canal).Scan(&recientes); err != nil {
 		return
 	}
 	n := min((porMin+11)/12, porMin-recientes)
+	if canal == "whatsapp" {
+		n = min(n, 1) // one per tick: the number's turn (ritmo.go) decides the pace
+	}
 	if n <= 0 {
 		return
 	}
@@ -171,7 +185,27 @@ func (s *Svc) enviarLote(ctx context.Context, c envioCamp, canal string, porMin 
 		smtpc = s.smtpDe(ctx, c.cid)
 		texto = textoPlano(c.diseno, s.contexto(ctx, c.cid, c.asunto, c.preheader, c.diseno, "email", slugCampana(c.nombre)))
 	}
+	remitente, intervalo := remitenteWA(wa, c.cid), intervaloWA()
+	if canal == "email" {
+		remitente, intervalo = remitenteEmail(smtpc), time.Minute/time.Duration(max(porMin, 1))
+	}
+	// devolverResto puts the recipients not sent yet back in the queue with their tries (also when the pod is stopping).
+	devolverResto := func(rest []pendienteCamp, en time.Duration, detalle string) {
+		ids := make([]uuid.UUID, 0, len(rest))
+		for _, q := range rest {
+			ids = append(ids, q.id)
+		}
+		_, _ = s.a.DB.Exec(context.WithoutCancel(ctx), `UPDATE campana_destinatarios SET estado = 'pendiente', intentos = greatest(intentos - 1, 0), proximo_at = now() + $3::interval, detalle = $2, updated_at = now() WHERE id = ANY($1)`,
+			ids, detalle, fmt.Sprintf("%d seconds", max(int(en.Seconds()), 1)))
+	}
 	for i, p := range lote {
+		if espera, err := s.turno(ctx, remitente, p.destino, canal == "whatsapp", intervalo); err != nil || espera > 0 {
+			if err != nil {
+				espera = time.Minute
+			}
+			devolverResto(lote[i:], espera, enCola("Ritmo de envío", espera))
+			return
+		}
 		baja, bajaPost, _ := strings.Cut(p.baja, "\n")
 		nombre := strings.Fields(p.nombre)
 		pila := ""
@@ -193,16 +227,12 @@ func (s *Svc) enviarLote(ctx context.Context, c envioCamp, canal string, porMin 
 		}
 		var ee *errEnvio
 		var ew *errWA
-		if err != nil && ((errors.As(err, &ee) && ee.servidor) || (errors.As(err, &ew) && ew.servidor)) {
+		if err != nil && ((errors.As(err, &ee) && ee.servidor) || (errors.As(err, &ew) && ew.pausa())) {
 			causa := err.Error()
 			if canal == "whatsapp" {
 				causa = s.waMensaje(ctx, c.cid, err)
 			}
 			_ = s.a.Redis.Set(ctx, caido, causa, time.Minute).Err()
-			rest := make([]uuid.UUID, 0, len(lote)-i)
-			for _, q := range lote[i:] {
-				rest = append(rest, q.id)
-			}
 			det := "Servidor de email no disponible: "
 			msg := err.Error()
 			if canal == "whatsapp" {
@@ -215,14 +245,16 @@ func (s *Svc) enviarLote(ctx context.Context, c envioCamp, canal string, porMin 
 			if len(msg) > 150 {
 				msg = msg[:150]
 			}
-			_, _ = s.a.DB.Exec(ctx, `UPDATE campana_destinatarios SET estado = 'pendiente', intentos = greatest(intentos - 1, 0), proximo_at = now() + interval '1 minute', detalle = $2, updated_at = now() WHERE id = ANY($1)`,
-				rest, det+msg)
+			devolverResto(lote[i:], time.Minute, det+msg)
 			detalleLog := err.Error()
 			if canal == "whatsapp" {
 				detalleLog = waSinDatos(waTecnico(err)) // the log never carries a phone number
 			}
 			s.a.Log.Warn("canal de campaña caído", "campana", c.id, "canal", canal, "err", detalleLog)
 			return
+		}
+		if err == nil || (ew != nil && ew.codigo != 0) || ee != nil {
+			s.anotar(ctx, remitente, p.destino, canal == "whatsapp")
 		}
 		s.resultado(ctx, c, canal, p, id, err, wa.Modo == "simulado")
 	}

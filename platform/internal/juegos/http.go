@@ -289,6 +289,34 @@ func (s *Svc) registerPublic() {
 			return o, nil
 		})
 
+	// GET ficha de un atleta en la porra (público): intentos, mejores marcas, total y GL de la jornada.
+	type atletaPorraIn struct {
+		Slug      string    `path:"slug" pattern:"^[a-z0-9-]{2,41}$"`
+		AtletaID  uuid.UUID `path:"atletaId"`
+		JornadaID uuid.UUID `query:"jornada"`
+	}
+	huma.Register(api, huma.Operation{OperationID: "juegos-porra-atleta", Method: http.MethodGet, Path: base + "/porra/atletas/{atletaId}",
+		Summary: "Ficha de un atleta en la porra: intentos, mejor marca, total y GL de la jornada", Tags: tagJuegos},
+		func(ctx context.Context, in *atletaPorraIn) (*struct{ Body atletaPorraVista }, error) {
+			c, err := s.comps.Public(ctx, in.Slug)
+			if err != nil {
+				return nil, err
+			}
+			j, err := s.jornadaPublicaCache(ctx, c.ID, in.JornadaID)
+			if err != nil {
+				return nil, err
+			}
+			m, _, _ := s.marcador(ctx, c.ID, j.Dia)
+			if m == nil {
+				return nil, problem.New(http.StatusServiceUnavailable, "MARCADOR_NO_DISPONIBLE", "No se pudo leer el marcador del directo. Reintenta en unos segundos.")
+			}
+			v, ok := atletaPorra(m, in.AtletaID)
+			if !ok {
+				return nil, problem.NotFound("Ese atleta no está en la porra de esta jornada.")
+			}
+			return &struct{ Body atletaPorraVista }{v}, nil
+		})
+
 	// POST apuestas (fan session; contract §6.2: open market, min and max, saldo, atomic spend).
 	type apuestaIn struct {
 		Session string `cookie:"grcup_fan" maxLength:"4096"`

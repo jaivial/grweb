@@ -6,7 +6,7 @@ import { RouterLink } from '@angular/router';
  */
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { GrButton, GrIcon, GrSelect } from '@grcup/ui';
+import { GrButton, GrDigitRoll, GrIcon, GrSelect } from '@grcup/ui';
 import { FanSession } from '../../core/fan';
 import { I18n, LocPipe } from '../../core/i18n';
 import { type Mercado, type OpcionMercado, type Premio, cuota } from '../../core/juegos';
@@ -404,6 +404,7 @@ export class GrupoChips<T extends string = string> {
  */
 @Component({
   selector: 'gr-odds-row',
+  imports: [GrDigitRoll],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block w-full' },
   template: `
@@ -414,11 +415,11 @@ export class GrupoChips<T extends string = string> {
           [class]="lider() ? 'border-accent bg-accent-deep text-accent-text' : 'border-line-strong bg-bg-raised text-text-secondary'">{{ ini() }}</span>
         <span class="flex min-w-0 flex-1 flex-col gap-0.5">
           <span class="truncate text-body-s text-text-primary">{{ opcion().nombre }}</span>
-          <span class="truncate text-body-xs text-text-secondary">{{ opcion().sexoTxt }}@if (opcion().categoria !== ' kg') { · {{ opcion().categoria }}}</span>
+          <span class="truncate text-body-xs text-text-secondary">{{ opcion().sexoTxt }}@if (opcion().categoria) { · {{ opcion().categoria }}}</span>
         </span>
         <span class="flex shrink-0 flex-col items-center rounded-sm border px-3 py-1 font-mono tabular-nums transition-colors"
           [class]="lider() && cuotaNum() > 0 ? 'border-accent bg-accent-deep text-white group-enabled:group-hover:bg-accent-deep/80' : cuotaNum() > 0 ? 'border-line-strong bg-bg-raised text-text-primary group-enabled:group-hover:border-text-muted' : 'border-line-subtle bg-bg-surface text-text-muted'">
-          <span class="text-[1rem] leading-[1.375rem] font-bold">{{ cuotaTxt() }}</span>
+          <gr-digit-roll class="text-[1rem] leading-[1.375rem] font-bold" [texto]="cuotaTxt()" [valor]="cuotaNum()" />
           <span class="text-[0.6875rem] leading-[0.875rem] font-semibold whitespace-nowrap" [class]="delta() > 0 ? 'text-success' : delta() < 0 ? 'text-[#f87171]' : 'text-text-secondary'">{{ deltaTxt() }}</span>
         </span>
       </span>
