@@ -158,7 +158,10 @@ export class BoIaFormulario {
 
   protected deshacer(): void {
     const r = this.recibo();
-    if (r && this.store.deshacerDesde(r.revision)) this.recibo.set(null);
+    if (r && this.store.deshacerDesde(r.revision)) {
+      this.recibo.set(null);
+      this.responder('Cambio de la IA deshecho.');
+    }
   }
 
   /** Applies the AI draft as one undoable step and keeps its receipt. */

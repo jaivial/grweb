@@ -29,7 +29,7 @@ const DEBOUNCE_MS = 600;
         @if (modo() === 'email' && previa()?.soloWeb) { <span class="text-body-xs text-text-tertiary">Solo web</span> }
       </div>
 
-      @if (error()) { <gr-alert tone="danger" title="No se ha podido generar la vista previa">{{ error() }}</gr-alert> }
+      @if (error() && modo() === 'email') { <gr-alert tone="danger" title="No se ha podido generar la vista previa">{{ error() }}</gr-alert> }
 
       @if (b) {
         @switch (modo()) {

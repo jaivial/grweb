@@ -9,8 +9,8 @@ import { Competitions } from '../../core/competitions';
 import { BoTabBar, Confirm, errText } from '../../shared/ui';
 import { BoEditorSave, type BoSave } from '../../shared/kit';
 import { tabEnUrl } from '../../shared/tab-url';
-import { FormulariosApi, type Borrador, type EstadoFormulario, type Formulario } from './api';
-import { ESTADOS_FORMULARIO } from './catalogo';
+import { FormulariosApi, type Borrador, type Campo, type EstadoFormulario, type Formulario } from './api';
+import { ESTADOS_FORMULARIO, infoTipo } from './catalogo';
 import { FormularioTabEditar } from './tab-editar';
 import { FormularioTabVistaPrevia } from './tab-vista-previa';
 import { BoFormEnvios } from './tab-envios';
@@ -104,6 +104,11 @@ export class FormularioEditorPage {
       if (!id || !c) return;
       untracked(() => void this.cargar(c, id));
     });
+    // A save error describes the draft it was sent with: any new change makes it stale.
+    effect(() => {
+      this.store.revision();
+      untracked(() => this.error.set(''));
+    });
   }
 
   /** Estado de guardado para el indicador de la cabecera. */
@@ -154,11 +159,27 @@ export class FormularioEditorPage {
         this.error.set(msg);
         this.toasts.error(msg);
       } else {
-        this.error.set(errText(e, 'No se ha podido guardar. Revisa los campos e inténtalo de nuevo.'));
+        this.error.set(this.mensajeGuardado(e, enviado.esquema.campos));
       }
     } finally {
       this.guardando.set(false);
     }
+  }
+
+  /**
+   * Message of a failed save. Schema errors name a raw JSON key («archivo»): when the error location points at a field of
+   * the draft, the message names that field by its type and label; otherwise a generic message.
+   */
+  private mensajeGuardado(e: unknown, campos: Campo[]): string {
+    const p = problemOf(e);
+    if (!p.errors?.length) return p.detail ?? 'No se ha podido guardar. Revisa los campos e inténtalo de nuevo.';
+    const generico = 'No se ha podido guardar. Revisa los campos del formulario e inténtalo de nuevo.';
+    const i = Number(p.errors[0].location?.match(/campos\.(\d+)/)?.[1]);
+    const campo = Number.isInteger(i) ? campos[i] : undefined;
+    if (!campo) return generico;
+    const tipo = infoTipo(campo.tipo).label;
+    const etiqueta = campo.etiqueta.replace(/\*+/g, '').trim().slice(0, 40);
+    return `Revisa el campo ${etiqueta ? `${tipo} «${etiqueta}»` : tipo}: su configuración no es válida. Ajústalo y vuelve a guardar.`;
   }
 
   protected async cambiarEstado(estado: EstadoFormulario): Promise<void> {

@@ -36,7 +36,7 @@ const ALINEA: Record<string, string> = { izquierda: 'left', centro: 'center', de
       }
       @default {
         <div class="flex flex-col gap-2">
-          <span class="flex flex-col gap-0.5">
+          <span class="flex flex-col gap-0.5" [style.text-align]="alineacion()">
             <span class="text-[15px] font-medium text-[var(--f-texto)]" [id]="'f-' + campo().id + '-t'" [innerHTML]="html()"></span>
             @if (campo().obligatorio) { <span class="text-[12px] text-[var(--f-acento)]">Obligatorio</span> }
             @if (campo().ayuda) { <span class="text-[13px] opacity-70 text-[var(--f-texto)]">{{ campo().ayuda }}</span> }
@@ -85,14 +85,24 @@ const ALINEA: Record<string, string> = { izquierda: 'left', centro: 'center', de
               </div>
             }
             @case ('deslizador') {
-              <div class="flex flex-col gap-1.5">
-                <div class="flex items-center gap-1.5 overflow-x-auto" role="radiogroup" [attr.aria-labelledby]="'f-' + campo().id + '-t'">
-                  @for (o of campo().opciones; track o.id) {
-                    <button type="button" role="radio" [attr.aria-checked]="valor() === o.id" [attr.aria-label]="o.texto" (click)="valorCambia.emit(o.id)" class="flex h-10 min-w-10 flex-1 items-center justify-center rounded-[var(--f-radio)] border text-[14px] transition-colors focus-visible:outline-2 focus-visible:outline-[var(--f-acento)]"
-                      [class]="valor() === o.id ? 'border-[var(--f-acento)] bg-[var(--f-acento)] text-white' : 'border-[color-mix(in_srgb,var(--f-texto)_25%,transparent)] text-[var(--f-texto)]'">{{ o.texto }}</button>
+              <div class="flex flex-col gap-2">
+                <p class="min-h-6 text-[15px] font-semibold leading-snug text-[var(--f-texto)] [overflow-wrap:anywhere]" aria-live="polite">{{ textoDeslizador() }}</p>
+                <div class="relative h-10" role="radiogroup" [attr.aria-labelledby]="'f-' + campo().id + '-t'">
+                  <div class="absolute inset-x-3 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-[color-mix(in_srgb,var(--f-texto)_18%,transparent)]"></div>
+                  @if (indiceDeslizador() >= 0) {
+                    <div class="absolute left-3 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-[var(--f-acento)]" [style.width]="'calc((100% - 24px) * ' + fraccion(indiceDeslizador()) + ')'"></div>
+                  }
+                  @for (o of paradas(); track o.id; let i = $index) {
+                    <button type="button" role="radio" [attr.aria-checked]="valor() === o.id" [attr.aria-label]="o.texto" [title]="o.texto" (click)="valorCambia.emit(o.id)"
+                      class="absolute top-1/2 flex size-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-[var(--f-acento)]" [style.left]="posicion(i)">
+                      <span class="size-2.5 rounded-full" [class]="i <= indiceDeslizador() && indiceDeslizador() >= 0 ? 'bg-white' : 'bg-[color-mix(in_srgb,var(--f-texto)_35%,transparent)]'"></span>
+                    </button>
+                  }
+                  @if (indiceDeslizador() >= 0) {
+                    <span class="pointer-events-none absolute top-1/2 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--f-acento)] shadow-md ring-4 ring-[var(--f-fondo)]" [style.left]="posicion(indiceDeslizador())"></span>
                   }
                 </div>
-                @if (campo().minEtiqueta || campo().maxEtiqueta) { <div class="flex justify-between text-[12px] opacity-70 text-[var(--f-texto)]"><span>{{ campo().minEtiqueta }}</span><span>{{ campo().maxEtiqueta }}</span></div> }
+                @if (campo().minEtiqueta || campo().maxEtiqueta) { <div class="flex justify-between gap-3 text-[12px] opacity-70 text-[var(--f-texto)]"><span>{{ campo().minEtiqueta }}</span><span class="text-right">{{ campo().maxEtiqueta }}</span></div> }
               </div>
             }
             @case ('escala') {
@@ -156,6 +166,15 @@ export class BoCampoRender {
     };
   });
   protected readonly marcadas = computed<string[]>(() => (Array.isArray(this.valor()) ? (this.valor() as string[]) : []));
+  /** Alignment of the question (label) and of the text blocks: the same value the editor's inspector sets. */
+  protected readonly alineacion = computed(() => ALINEA[this.campo().estilo?.alinear] ?? 'left');
+  /** Deslizador: its stops are the options, left to right. */
+  protected readonly paradas = computed(() => this.campo().opciones ?? []);
+  protected readonly indiceDeslizador = computed(() => this.paradas().findIndex((o) => o.id === this.valor()));
+  protected readonly textoDeslizador = computed(() => {
+    const i = this.indiceDeslizador();
+    return i < 0 ? 'Sin valorar' : this.paradas()[i].texto;
+  });
   protected readonly valores = computed<number[]>(() => {
     const c = this.campo();
     const min = c.min ?? 0;
@@ -181,5 +200,16 @@ export class BoCampoRender {
 
   protected numero(v: unknown): number {
     return Number(v ?? 0);
+  }
+
+  /** Share of the track (0 = first stop, 1 = last) where stop `i` sits. */
+  protected fraccion(i: number): number {
+    const ultimo = this.paradas().length - 1;
+    return ultimo > 0 ? i / ultimo : 0.5;
+  }
+
+  /** CSS left of stop `i` on the deslizador track (the track is inset 12 px on each side). */
+  protected posicion(i: number): string {
+    return `calc(12px + (100% - 24px) * ${this.fraccion(i)})`;
   }
 }

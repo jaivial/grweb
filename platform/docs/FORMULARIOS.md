@@ -140,7 +140,10 @@ Estadisticas      = { destinatarios, abiertos, respuestas, completas, parciales,
                       porOrigen: { web, email },
                       diario: { fecha: "AAAA-MM-DD", respuestas, completas }[],
                       porCampo: { campoId, etiqueta, tipo, respondidas, opciones?: {id, texto, n}[], media?: number }[] }
-Filtro            = { estados?: ("confirmado"|"reserva")[], atletas?: uuid[], soloSinResponder?: boolean }
+Filtro            = { estados?: ("confirmado"|"reserva")[], atletas?: uuid[] (≤ 500), soloSinResponder?: boolean }
+                    // con atletas: solo esos, sin mirar estados; las bajas se excluyen siempre (misma consulta en audiencia y envío)
+Audiencia         = { total, email, whatsapp, whatsappDisponible: boolean, whatsappMotivo: string } // motivo "" si disponible
+Candidato         = { id, nombre, apellidos, club, email: boolean, whatsapp: boolean }
 ```
 
 | Método y ruta | Entrada | Salida |
@@ -153,7 +156,8 @@ Filtro            = { estados?: ("confirmado"|"reserva")[], atletas?: uuid[], so
 | `POST   /{id}/duplicar` | — | 201 `Formulario` |
 | `POST   /{id}/estado` | `{ estado }` | `Formulario` |
 | `POST   /previsualizar` | `{ esquema, email }` | `{ emailHtml, asunto, soloWeb, whatsappTexto }` (token ficticio, `action` desactivado) |
-| `GET    /{id}/audiencia?estados=confirmado,reserva&soloSinResponder=true` | — | `{ total, email, whatsapp }` (email = con email; whatsapp = con teléfono y consentimiento de WhatsApp) |
+| `GET    /{id}/audiencia?estados=confirmado,reserva&soloSinResponder=true&atletas=uuid,uuid` | — | `Audiencia`: `{ total, email, whatsapp, whatsappDisponible, whatsappMotivo }` (email = con email; whatsapp = con teléfono y consentimiento de WhatsApp). `atletas` (≤ 500 uuid separados por coma) restringe a esos atletas e ignora `estados`; las bajas siempre se excluyen. 422 `ATLETAS_DEMASIADOS` si pasa de 500, 422 `ATLETA_NO_VALIDO` si algún valor no es uuid. `whatsappDisponible`/`whatsappMotivo` vienen de messaging (`GET /internal/competiciones/{cid}/whatsapp/estado` → `{ disponible, motivo }`, el mismo criterio que las campañas); si messaging no responde se muestra `true` y se registra un aviso |
+| `GET    /{id}/candidatos?q=&size=20` (`size` 1–100) | — | `Candidato[]` (buscador del diálogo de envío: nombre, apellidos o email contienen `q`, sin distinguir mayúsculas; solo atletas no baja, por apellidos). Permiso `atletas.editar` |
 | `POST   /{id}/envios` | cabecera opcional `Idempotency-Key` (≤ 80 caracteres) · `{ canales, filtro, confirmarDuplicado? }` | 201 `Envio` (estado pasa a `activo`; 409 si `cerrado`). Con la misma `Idempotency-Key` y la misma huella (canales + filtro): **200** con el `Envio` ya creado, sin encolar nada. Con la misma clave y otra huella: **422 `CLAVE_REUTILIZADA`**. Sin `confirmarDuplicado: true`: **409 `ENVIO_DUPLICADO`** (con `createdAt` del envío igual) si ya hay un envío con la misma huella de hace menos de 2 minutos, tenga o no clave. 422 `CLAVE_DEMASIADO_LARGA` si la clave pasa de 80 caracteres. 409 `ENVIO_EN_CURSO` si otro envío del mismo formulario se está preparando (no espera: reintentar con la misma clave). 409 `FORMULARIO_CAMBIADO` si la versión del formulario cambió mientras se preparaba el envío (se deshace todo) |
 | `GET    /{id}/envios` | — | `Envio[]` |
 | `GET    /{id}/estadisticas` | — | `Estadisticas` |

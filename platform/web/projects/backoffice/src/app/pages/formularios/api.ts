@@ -122,7 +122,18 @@ export interface Filtro {
   soloSinResponder?: boolean;
 }
 
-export interface Audiencia { total: number; email: number; whatsapp: number }
+export interface Audiencia {
+  total: number;
+  email: number;
+  whatsapp: number;
+  /** False when the server cannot send WhatsApp now (channel off, no consent setup…): the dialog disables the channel. */
+  whatsappDisponible: boolean;
+  /** Why WhatsApp is not available (shown in the dialog); empty when it is. */
+  whatsappMotivo: string;
+}
+
+/** Athlete found by the «Atletas concretos» search of the send dialog, with the channels each one can receive. */
+export interface AtletaCandidato { id: string; nombre: string; apellidos: string; club: string; email: boolean; whatsapp: boolean }
 
 export interface AtletaResumen { id: string; nombre: string; apellidos: string; club: string; categoria: string }
 export type EstadoRespuesta = 'parcial' | 'completa' | 'sin_respuesta';
@@ -226,8 +237,15 @@ export class FormulariosApi {
   audiencia(cid: string, id: string, f: Filtro = {}): Promise<Audiencia> {
     let p = new HttpParams();
     if (f.estados?.length) p = p.set('estados', f.estados.join(','));
+    if (f.atletas?.length) p = p.set('atletas', f.atletas.join(','));
     if (f.soloSinResponder) p = p.set('soloSinResponder', 'true');
     return firstValueFrom(this.http.get<Audiencia>(`${this.base(cid)}/${id}/audiencia`, { params: p }));
+  }
+  /** Athletes matching `q` (name, surname or club) for the «Atletas concretos» picker of a send. */
+  candidatos(cid: string, id: string, q: string, size = 20): Promise<AtletaCandidato[]> {
+    let p = new HttpParams().set('size', size);
+    if (q) p = p.set('q', q);
+    return firstValueFrom(this.http.get<AtletaCandidato[]>(`${this.base(cid)}/${id}/candidatos`, { params: p }));
   }
   /**
    * Crea el envío. `clave` es la Idempotency-Key del diálogo: con la misma clave y los mismos canales y filtro, un

@@ -21,6 +21,12 @@ function aLocal(iso: string | null): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+/** `#rrggbb` or `rrggbb` in any case → `#rrggbb` lowercase; null when it is not a full hex colour. */
+function hexValido(texto: string): string | null {
+  const m = texto.trim().match(/^#?([0-9a-f]{6})$/i);
+  return m ? `#${m[1].toLowerCase()}` : null;
+}
+
 /**
  * Inspector shown when no field is selected: form settings (texts, close date), theme (colours, radius, font, density),
  * email texts and the WhatsApp text. Variables ({{nombre}}…) are listed where they are used.
@@ -55,15 +61,25 @@ function aLocal(iso: string | null): string {
               <label class="flex flex-col gap-1.5">
                 <span class="text-label-s">{{ c.l }}</span>
                 <span class="flex h-10 items-center gap-2 rounded-sm border border-line-strong bg-bg-field px-2">
-                  <input type="color" class="size-6 shrink-0 cursor-pointer rounded-xs border-0 bg-transparent p-0" [value]="b.esquema.ajustes.tema[c.k]" (input)="colorTema(c.k, $any($event.target).value)" />
-                  <span class="font-mono text-[13px] text-text-secondary">{{ b.esquema.ajustes.tema[c.k] }}</span>
+                  <span class="relative size-6 shrink-0 overflow-hidden rounded-xs border border-line-strong" [style.background-color]="b.esquema.ajustes.tema[c.k]">
+                    <input type="color" class="absolute inset-0 size-full cursor-pointer opacity-0" [value]="hexSeguro(b.esquema.ajustes.tema[c.k])" (input)="colorTema(c.k, $any($event.target).value)" [attr.aria-label]="'Selector de color: ' + c.l" />
+                  </span>
+                  <input type="text" class="min-w-0 flex-1 bg-transparent font-mono text-[13px] text-text-primary outline-none" maxlength="7" spellcheck="false" autocomplete="off"
+                    [value]="b.esquema.ajustes.tema[c.k]" (change)="hexEscrito(c.k, $any($event.target))" [attr.aria-label]="'Código hexadecimal: ' + c.l" placeholder="#000000" />
                 </span>
               </label>
             }
           </div>
           <div>
-            <div class="mb-1.5 flex items-center justify-between"><label for="fz-radio" class="text-label-s">Radio de las esquinas</label><span class="font-mono text-mono-xs text-text-tertiary">{{ b.esquema.ajustes.tema.radio }} px</span></div>
-            <input id="fz-radio" type="range" min="0" max="24" step="1" class="w-full accent-[#7c5cff]" [value]="b.esquema.ajustes.tema.radio" (input)="tema({ radio: +$any($event.target).value })" />
+            <div class="mb-1.5 flex items-center justify-between"><label for="fz-radio" class="text-label-s">Radio de las esquinas</label></div>
+            <div class="flex items-center gap-3">
+              <input id="fz-radio" type="range" min="0" max="24" step="1" class="min-w-0 flex-1 accent-[#7c5cff]" [value]="b.esquema.ajustes.tema.radio" (input)="radio($any($event.target).value)" />
+              <span class="flex h-9 shrink-0 items-center gap-1.5">
+                <input type="number" min="0" max="24" step="1" inputmode="numeric" class="h-9 w-16 rounded-sm border border-line-strong bg-bg-field px-2 font-mono text-[13px] text-text-primary"
+                  [value]="b.esquema.ajustes.tema.radio" (input)="radio($any($event.target).value)" (change)="radioEscrito($any($event.target))" aria-label="Radio de las esquinas en píxeles" />
+                <span class="font-mono text-mono-xs text-text-tertiary">px</span>
+              </span>
+            </div>
           </div>
           <div><p class="mb-1.5 text-label-s">Fuente</p><gr-segmented [options]="fuentes" [value]="b.esquema.ajustes.tema.fuente" (valueChange)="tema({ fuente: $any($event) })" label="Fuente" /></div>
           <div><p class="mb-1.5 text-label-s">Densidad</p><gr-segmented [options]="densidades" [value]="b.esquema.ajustes.tema.densidad" (valueChange)="tema({ densidad: $any($event) })" label="Densidad" /></div>
@@ -105,6 +121,34 @@ export class BoInspectorAjustes {
   /** Colour pickers fire on every drag step: coalesced into one undo step per colour. */
   protected colorTema(k: 'acento' | 'fondo' | 'superficie' | 'texto', valor: string): void {
     this.store.editarTema({ [k]: valor }, `tema:${k}`);
+  }
+
+  /** `#rrggbb` as the colour input needs it (the picker shows black for anything else). */
+  protected hexSeguro(valor: string): string {
+    return hexValido(valor) ?? '#000000';
+  }
+
+  /** Typed hex code: committed on Enter or blur when it is a full colour; otherwise the field goes back to the stored value. */
+  protected hexEscrito(k: 'acento' | 'fondo' | 'superficie' | 'texto', el: HTMLInputElement): void {
+    const actual = this.borrador()?.esquema.ajustes.tema[k] ?? '';
+    const h = hexValido(el.value);
+    if (h && h !== actual) this.colorTema(k, h);
+    el.value = h ?? actual;
+  }
+
+  /** Radius from the slider or the number field: whole pixels 0–24, coalesced into one undo step while it is edited. */
+  protected radio(v: unknown): void {
+    if (v === '' || v === null || v === undefined) return;
+    const n = Math.round(Number(v));
+    if (!Number.isFinite(n)) return;
+    const acotado = Math.min(24, Math.max(0, n));
+    if (acotado !== this.borrador()?.esquema.ajustes.tema.radio) this.store.editarTema({ radio: acotado }, 'tema:radio');
+  }
+
+  /** Leaving the number field with an out-of-range or empty value shows the stored radius again. */
+  protected radioEscrito(el: HTMLInputElement): void {
+    this.radio(el.value);
+    el.value = String(this.borrador()?.esquema.ajustes.tema.radio ?? '');
   }
 
   protected email(p: Partial<Borrador['email']>, clave: string): void {

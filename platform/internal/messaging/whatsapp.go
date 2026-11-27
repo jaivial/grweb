@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/jaivial/grweb/platform/pkg/auth"
 	"github.com/jaivial/grweb/platform/pkg/config"
 	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/problem"
@@ -465,6 +466,29 @@ func (s *Svc) numeroEvo(ctx context.Context, c waCfg) string {
 func (s *Svc) registerWhatsApp() {
 	api := s.a.API
 	base := "/api/admin/competiciones/{cid}/whatsapp"
+	// Estado para athletes (audiencia de los formularios): el mismo criterio que las campañas (waDe).
+	type estadoInternoIn struct {
+		CID uuid.UUID `path:"cid"`
+	}
+	type estadoInternoOut struct {
+		Body struct {
+			Disponible bool   `json:"disponible"`
+			Motivo     string `json:"motivo"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "internal-whatsapp-estado", Method: http.MethodGet, Path: "/internal/competiciones/{cid}/whatsapp/estado",
+		Summary: "WhatsApp disponible para la competición (solo athletes)", Tags: []string{"Interno"}, Hidden: true},
+		func(ctx context.Context, in *estadoInternoIn) (*estadoInternoOut, error) {
+			if _, err := auth.RequireService(ctx); err != nil {
+				return nil, err
+			}
+			out := &estadoInternoOut{}
+			out.Body.Disponible = s.waDe(ctx, in.CID).Modo != "ninguno"
+			if !out.Body.Disponible {
+				out.Body.Motivo = "WhatsApp no está conectado en esta competición"
+			}
+			return out, nil
+		})
 	type cidIn struct {
 		CID uuid.UUID `path:"cid"`
 	}
