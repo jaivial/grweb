@@ -24,7 +24,11 @@ mapfile -t IMAGENES < <(construir_imagenes "$VERSION" $KUST_IMAGENES)
 importar_imagenes "${IMAGENES[@]}"
 
 log "1/6 nginx: vhost sin upstreams en línea y upstream con las IPs antiguas (sin cambio de tráfico)"
-deploy/scripts/nginx-qa.sh 10.43.240.10 10.43.240.11 10.43.240.12 10.43.240.13
+if ssh "$KRAKEN" "test -e /etc/nginx/conf.d/grcup-qa-upstream.conf"; then
+  log "1/6 nginx ya migrado (upstream presente): se omite"
+else
+  deploy/scripts/nginx-qa.sh 10.43.240.10 10.43.240.11 10.43.240.12 10.43.240.13
+fi
 
 log "2/6 capa compartida"
 colores_compartido "$VERSION"
