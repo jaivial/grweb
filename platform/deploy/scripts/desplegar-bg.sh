@@ -20,7 +20,7 @@ read -r VIVO PREVIO < <(colores_estado_leer) || true
 IDLE=$(otro "$VIVO")
 VERSION=$(version_build)
 SWITCHED=0
-trap 'rc=$?; if [ "$rc" -ne 0 ] && [ "$SWITCHED" -eq 0 ]; then log "fallo antes de conmutar: apago $IDLE, $VIVO sigue vivo"; colores_apagar "$IDLE" || true; fi; exit "$rc"' EXIT
+trap 'rc=$?; colores_liberar; if [ "$rc" -ne 0 ] && [ "$SWITCHED" -eq 0 ]; then log "fallo antes de conmutar: apago $IDLE, $VIVO sigue vivo"; colores_apagar "$IDLE" || true; fi; exit "$rc"' EXIT
 
 log "vivo=$VIVO · inactivo=$IDLE · versión $VERSION"
 # shellcheck disable=SC2086

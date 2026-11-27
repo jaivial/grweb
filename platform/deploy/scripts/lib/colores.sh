@@ -46,14 +46,19 @@ otro() { if [ "$1" = blue ]; then echo green; else echo blue; fi; }
 # Un solo despliegue o rollback a la vez, también desde otra sesión: un flock en kraken que se mantiene mientras
 # este proceso vive (el ssh lee de una FIFO; al salir se cierra y el lock remoto se libera).
 colores_bloquear() {
-  local f=$HOME/.cache/grcup-colores/$ENTORNO.fifo
-  mkdir -p "$(dirname "$f")"
-  rm -f "$f"
-  mkfifo "$f"
-  exec 8<>"$f"
-  ssh -o BatchMode=yes "$KRAKEN" "flock -n \$HOME/.grcup-colores-$ENTORNO.lock -c 'read -r _'" <&8 &
+  ssh -o BatchMode=yes "$KRAKEN" "flock -n \$HOME/.grcup-colores-$ENTORNO.lock -c 'touch \$HOME/.grcup-colores-$ENTORNO.run; while [ -e \$HOME/.grcup-colores-$ENTORNO.run ]; do sleep 2; done'" >/dev/null 2>&1 &
+  local pid=$!
   sleep 3
-  kill -0 $! 2>/dev/null || die "otro despliegue o rollback de $ENTORNO está en marcha (lock en kraken)"
+  kill -0 "$pid" 2>/dev/null || die "otro despliegue o rollback de $ENTORNO está en marcha (lock en kraken)"
+  LOCK_PROPIO=1
+  trap colores_liberar EXIT
+}
+
+# Borra la marca (suelta el flock remoto). Solo si este proceso la creó.
+colores_liberar() {
+  [ "${LOCK_PROPIO:-0}" = 1 ] || return 0
+  ssh "$KRAKEN" "rm -f \$HOME/.grcup-colores-$ENTORNO.run" || true
+  LOCK_PROPIO=0
 }
 
 colores_memoria() {
