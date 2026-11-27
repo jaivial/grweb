@@ -1,5 +1,7 @@
 # QA: lo común de los dos colores (blue y green). El namespace y las IPs fijas los pone cada color (../blue, ../green).
 # Presupuesto y patrones del overlay de QA anterior: prod-20261115 (deploy/k8s/presupuesto.py).
+# Réplicas mínimas 1 en QA: el nodo (110 pods) no admite dos colores completos más prod (36 pods); con mínimos de 1
+# cada color ocupa ~22 pods. El escalado máximo sigue como en QA.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
@@ -10,17 +12,17 @@ patches:
   # prod-20261115: QA quota and floors leave room for production on the same node (deploy/k8s/presupuesto.py).
   - path: recursos.yaml
   - path: chat-memoria.yaml
+  - target: { kind: HorizontalPodAutoscaler }
+    patch: |-
+      - { op: add, path: /spec/minReplicas, value: 1 }
   - target: { kind: HorizontalPodAutoscaler, name: gateway }
     patch: |-
-      - { op: replace, path: /spec/minReplicas, value: 2 }
       - { op: replace, path: /spec/maxReplicas, value: 4 }
   - target: { kind: HorizontalPodAutoscaler, name: juegos }
     patch: |-
-      - { op: replace, path: /spec/minReplicas, value: 3 }
       - { op: replace, path: /spec/maxReplicas, value: 4 }
   - target: { kind: HorizontalPodAutoscaler, name: realtime }
     patch: |-
-      - { op: replace, path: /spec/minReplicas, value: 2 }
       - { op: replace, path: /spec/maxReplicas, value: 3 }
   - target: { kind: HorizontalPodAutoscaler, name: chat }
     patch: |-
