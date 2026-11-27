@@ -108,8 +108,9 @@ func (s *Svc) init(a *app.App) {
 	s.fansSvc = svcclient.New(config.Str("UPSTREAM_FANS", "http://fans:8080"), "athletes", "fans", a.Cfg.InternalToken)
 	s.openlifter = svcclient.New(config.Str("UPSTREAM_OPENLIFTER", "http://openlifter:8080"), "athletes", "openlifter", a.Cfg.InternalToken)
 	s.ai = svcclient.New(config.Str("UPSTREAM_AI", "http://ai:8080"), "athletes", "ai", a.Cfg.InternalToken)
-	// The ai service gives MiniMax 90 s: the default 10 s of svcclient cut the slow answers («error_ia»).
-	s.ai.HTTP = &http.Client{Timeout: 100 * time.Second}
+	// The ai service gives the model 30 s and answers its own timeout: this client waits a little longer (35 s), so the
+	// review panel gets «tardó demasiado» and not a generic «no respondió». The default 10 s of svcclient cut it.
+	s.ai.HTTP = &http.Client{Timeout: 35 * time.Second}
 	s.comps = compref.New(s.comp, a.Log).Versioned(a.Redis, compref.VerKey(a.Keys.Of))
 	s.cache = &cache.Cache{R: a.Redis, Prefix: a.Keys.Of("cache", "athletes", "")}
 	s.fans = &fanauth.Verifier{Key: fanauth.Key(a.Cfg.InternalToken), Redis: a.Redis, Keys: a.Keys}
@@ -160,6 +161,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerAltaAtletaAdmin()
 	s.registerAutorizacion()
 	s.registerEmparejamiento()
+	s.registerPadronEquipo()
 	s.registerAltaCupos()
 	a.Go(s.expirador)
 	// Places changed in the backoffice (competition service): publish the new counter to the open pages.

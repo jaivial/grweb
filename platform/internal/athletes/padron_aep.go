@@ -703,6 +703,48 @@ func (s *Svc) registerPadron() {
 			return o, err
 		})
 
+	// The picker of the review panel: «elegir otro candidato» searches the roll by name (accent-free, as imported).
+	type buscarIn struct {
+		CID   uuid.UUID `path:"cid"`
+		Q     string    `query:"q" maxLength:"60" doc:"Nombre o apellidos (sin tildes también)"`
+		Nivel string    `query:"nivel" enum:"aep2,aep3," doc:"Solo un nivel"`
+	}
+	type buscarOut struct {
+		Body struct {
+			Items []LifterPadron `json:"items"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "padron-aep-buscar", Method: http.MethodGet, Path: base + "/buscar",
+		Summary: "Buscar filas del padrón AEP por nombre (elegir un candidato a mano)", Tags: tagAdmin, Security: bearer},
+		func(ctx context.Context, in *buscarIn) (*buscarOut, error) {
+			if _, err := requireAny(ctx, in.CID, readPerms...); err != nil {
+				return nil, err
+			}
+			o := &buscarOut{}
+			o.Body.Items = []LifterPadron{}
+			q := normNombre(in.Q)
+			if len([]rune(q)) < 3 {
+				return o, nil
+			}
+			rows, err := s.a.DB.Query(ctx, `SELECT id, nombre, apellidos, sexo, anio, club, division, equipamiento, categoria, total_anterior::float8,
+				openlifter_lifter_id, atleta_id, estado_enlace, nivel FROM inscripciones_aep
+				WHERE competition_id = $1 AND estado_enlace <> 'rechazado' AND nombre_norm LIKE '%' || $2 || '%' AND ($3 = '' OR nivel = $3)
+				ORDER BY apellidos, nombre LIMIT 20`, in.CID, q, in.Nivel)
+			if err != nil {
+				return nil, err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var l LifterPadron
+				if err := rows.Scan(&l.ID, &l.Nombre, &l.Apellidos, &l.Sexo, &l.Anio, &l.Club, &l.Division, &l.Equipamiento, &l.Categoria,
+					&l.TotalAnterior, &l.LifterID, &l.AtletaID, &l.EstadoEnlace, &l.Nivel); err != nil {
+					return nil, err
+				}
+				o.Body.Items = append(o.Body.Items, l)
+			}
+			return o, rows.Err()
+		})
+
 	// For the openlifter service: the roll of a level («Importar atletas» of the fork) and the entry the desk
 	// created for each row.
 	type intListOut struct{ Body []LifterPadron }

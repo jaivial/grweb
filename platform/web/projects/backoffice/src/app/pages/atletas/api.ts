@@ -1,8 +1,9 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, map } from 'rxjs';
 import { sinTimeout } from '@grcup/ui';
 import type { GrTone } from '@grcup/ui';
+import type { EmparejamientoPadron, FilaPadron, PadronEstado } from './padron-model';
 
 /** Latest «handling gratis» request of an athlete (null without one). */
 export interface HandlingAtleta {
@@ -49,6 +50,8 @@ export interface ItemLista {
   edad?: number;
   pesaje: string;
   handling?: HandlingAtleta;
+  /** Coincidencia con el padrón de la AEP (auto · confirmada · parcial · manual · sin). */
+  padron: PadronEstado;
 }
 export interface Lista {
   items: ItemLista[];
@@ -124,6 +127,8 @@ export interface Atleta {
   whatsapp?: { at: string; version: string; origen: string };
   /** Latest «handling gratis» request (null: never asked). */
   handling?: HandlingAtleta;
+  /** Coincidencia con el padrón de la AEP, para la etiqueta de la cabecera. */
+  padron: PadronEstado;
 }
 export interface EstadoAutorizacion {
   estado: 'sin_pedir' | 'enviada' | 'revision' | 'rechazada' | 'aprobada';
@@ -239,6 +244,26 @@ export class AtletasApi {
     return firstValueFrom(this.http.post<PerfilExisteOut>(`${this.base(cid)}/perfil-existe`, body));
   }
   borrar(cid: string, id: string): Promise<unknown> { return firstValueFrom(this.http.delete(`${this.base(cid)}/${id}`)); }
+
+  /** Coincidencia del atleta con el padrón de la AEP (estado, fila propuesta o enlazada y registro). */
+  padron(cid: string, id: string): Promise<EmparejamientoPadron> { return firstValueFrom(this.http.get<EmparejamientoPadron>(`${this.base(cid)}/${id}/padron`)); }
+  /** El equipo confirma la fila: enlaza la fila del padrón y la entrada de OpenLifter (y aprueba el alta si toca). */
+  confirmarPadron(cid: string, id: string, version: number, inscripcionId: string): Promise<EmparejamientoPadron> {
+    return firstValueFrom(this.http.post<EmparejamientoPadron>(`${this.base(cid)}/${id}/padron/confirmar`, { inscripcionId },
+      { headers: new HttpHeaders({ 'If-Match': `W/"${version}"` }), context: sinTimeout() }));
+  }
+  descartarPadron(cid: string, id: string, version: number): Promise<EmparejamientoPadron> {
+    return firstValueFrom(this.http.post<EmparejamientoPadron>(`${this.base(cid)}/${id}/padron/descartar`, {},
+      { headers: new HttpHeaders({ 'If-Match': `W/"${version}"` }) }));
+  }
+  /** Vuelve a emparejar con la IA el alta de la que salió el atleta (tarda: sin tiempo límite en el cliente). */
+  reintentarPadron(cid: string, id: string): Promise<EmparejamientoPadron> {
+    return firstValueFrom(this.http.post<EmparejamientoPadron>(`${this.base(cid)}/${id}/padron/reintentar`, {}, { context: sinTimeout() }));
+  }
+  /** Filas del padrón por nombre, para elegir un candidato a mano. */
+  buscarPadron(cid: string, q: string): Promise<FilaPadron[]> {
+    return firstValueFrom(this.http.get<{ items: FilaPadron[] }>(`${this.base(cid)}/padron-aep/buscar`, { params: { q } }).pipe(map((r) => r.items)));
+  }
 
   subirActa(cid: string, file: File): Promise<Importacion> {
     const fd = new FormData();
