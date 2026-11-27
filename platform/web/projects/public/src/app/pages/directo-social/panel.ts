@@ -163,7 +163,7 @@ export class PanelSocial {
       // Only the shown tab keeps a connection: the chat socket lives while «Chat» is open (one room, today's)
       effect(() => {
         const t = this.tab();
-        untracked(() => (t === 'chat' ? this.chat.conectar(this.hoy) : this.chat.desconectar()));
+        untracked(() => (t === 'chat' ? this.chat.conectar() : this.chat.desconectar()));
       });
       // The jornadas (juegos service) are only needed by «Porra» («Donantes» loads its own): loaded the first time it opens
       let pedidas = false;

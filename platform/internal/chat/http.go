@@ -38,7 +38,7 @@ func (s *Svc) registrarPublico() {
 		Summary: "Enviar un mensaje al chat (sesión de fan)", Tags: tagChat},
 		s.postMensaje)
 	huma.Register(s.a.API, huma.Operation{OperationID: "chat-historial", Method: http.MethodGet, Path: "/api/competiciones/{slug}/chat/mensajes",
-		Summary: "Historial de la sala (por defecto la de hoy; ?dia= para otra jornada, solo lectura)", Tags: tagChat},
+		Summary: "Historial de la sala (por defecto la de hoy; ?dia= para otra jornada, solo lectura; ?todos=1 para todas las jornadas)", Tags: tagChat},
 		s.getHistorial)
 	huma.Register(s.a.API, huma.Operation{OperationID: "chat-reportar", Method: http.MethodPost, Path: "/api/competiciones/{slug}/chat/mensajes/{id}/reportar",
 		Summary: "Reportar un mensaje para la moderación", Tags: tagChat},
@@ -556,12 +556,13 @@ func (s *Svc) postMensaje(ctx context.Context, in *enviarIn) (*enviarOut, error)
 type historialIn struct {
 	Slug   string `path:"slug"`
 	Dia    string `query:"dia"`
+	Todos  bool   `query:"todos" doc:"Mensajes de todas las jornadas, del más nuevo al más antiguo (ignora dia)"`
 	Antes  string `query:"antes"`
 	Limite int    `query:"limite"`
 }
 
 type historialBody struct {
-	Dia      string `json:"dia"`
+	Dia      string `json:"dia,omitempty"`
 	Mensajes []item `json:"mensajes"`
 }
 
@@ -571,7 +572,8 @@ type historialOut struct {
 }
 
 // getHistorial returns the recent messages: today's room comes from Redis (complete, with the trims), other days
-// come from the persisted table (solo lectura: sending only works against today's room).
+// come from the persisted table (solo lectura: sending only works against today's room). With todos the history
+// spans every day of the competition.
 func (s *Svc) getHistorial(ctx context.Context, in *historialIn) (*historialOut, error) {
 	cid, err := s.comps.ID(ctx, in.Slug)
 	if err != nil {
@@ -588,41 +590,19 @@ func (s *Svc) getHistorial(ctx context.Context, in *historialIn) (*historialOut,
 	if limite <= 0 || limite > 100 {
 		limite = 50
 	}
+	if in.Todos {
+		msgs, err := s.historialTodos(ctx, cid, in.Antes, limite)
+		if err != nil {
+			return nil, err
+		}
+		return &historialOut{CacheControl: "no-cache", Body: historialBody{Mensajes: msgs}}, nil
+	}
 	var msgs []item
 	if dia == hoy() {
-		nombre := s.streamDe(cid.String(), dia)
-		var fin, omitir string
-		fin = "+" // XREVRANGE empieza por el más nuevo (con «» Redis rechaza el rango y el historial se queda solo con la tabla)
-		if in.Antes != "" {
-			if _, _, err := parseID(in.Antes); err != nil {
-				return nil, problem.BadRequest("ID_INVALIDO", "El parámetro antes tiene que ser un id del stream.")
-			}
-			// Redis 6.0 no tiene rangos exclusivos: leemos desde `antes` incluido y lo saltamos después
-			fin = in.Antes
-			omitir = in.Antes
+		msgs, err = s.historialRedis(ctx, cid, dia, in.Antes, limite)
+		if err != nil {
+			return nil, err
 		}
-		msgsRedis, err := s.a.Redis.XRevRangeN(ctx, nombre, fin, "-", int64(limite)+boolToInt(omitir != "")).Result()
-		if err == nil {
-			for _, m := range msgsRedis {
-				if m.ID == omitir {
-					continue
-				}
-				var it item
-				raw, _ := m.Values["d"].(string)
-				if json.Unmarshal([]byte(raw), &it) != nil {
-					continue
-				}
-				if it.T == "msg" || it.T == "donacion" {
-					it.ID = m.ID
-					msgs = append(msgs, it.publica(s.hub.hashFan))
-				} else if it.T == "borrado" && it.MensajeID != "" {
-					// the deleted message left the stream (XDEL): its placeholder keeps its place in the history
-					msgs = append(msgs, item{T: "borrado", ID: it.MensajeID, Ts: tsDeID(it.MensajeID), Dia: dia})
-				}
-			}
-		}
-		// the «borrado» entries were published later than their message: order by the message id (newest first)
-		sort.SliceStable(msgs, func(i, j int) bool { return after(msgs[i].ID, msgs[j].ID) })
 		if len(msgs) < limite { // trimmed: the older part is in PostgreSQL
 			// only what is older than the oldest entry read from Redis (the persisted rows repeat the stream ids)
 			cursor := in.Antes
@@ -653,6 +633,75 @@ func (s *Svc) getHistorial(ctx context.Context, in *historialIn) (*historialOut,
 		msgs = []item{}
 	}
 	return &historialOut{CacheControl: "no-cache", Body: historialBody{Dia: dia, Mensajes: msgs}}, nil
+}
+
+// historialRedis reads the room of a day from its stream (newest first, from the cursor antes).
+func (s *Svc) historialRedis(ctx context.Context, cid uuid.UUID, dia, antes string, limite int) ([]item, error) {
+	nombre := s.streamDe(cid.String(), dia)
+	var fin, omitir string
+	fin = "+" // XREVRANGE empieza por el más nuevo (con «» Redis rechaza el rango y el historial se queda solo con la tabla)
+	if antes != "" {
+		if _, _, err := parseID(antes); err != nil {
+			return nil, problem.BadRequest("ID_INVALIDO", "El parámetro antes tiene que ser un id del stream.")
+		}
+		// Redis 6.0 no tiene rangos exclusivos: leemos desde `antes` incluido y lo saltamos después
+		fin = antes
+		omitir = antes
+	}
+	var msgs []item
+	msgsRedis, err := s.a.Redis.XRevRangeN(ctx, nombre, fin, "-", int64(limite)+boolToInt(omitir != "")).Result()
+	if err == nil {
+		for _, m := range msgsRedis {
+			if m.ID == omitir {
+				continue
+			}
+			var it item
+			raw, _ := m.Values["d"].(string)
+			if json.Unmarshal([]byte(raw), &it) != nil {
+				continue
+			}
+			if it.T == "msg" || it.T == "donacion" {
+				it.ID = m.ID
+				it.Dia = dia
+				msgs = append(msgs, it.publica(s.hub.hashFan))
+			} else if it.T == "borrado" && it.MensajeID != "" {
+				// the deleted message left the stream (XDEL): its placeholder keeps its place in the history
+				msgs = append(msgs, item{T: "borrado", ID: it.MensajeID, Ts: tsDeID(it.MensajeID), Dia: dia})
+			}
+		}
+	}
+	// the «borrado» entries were published later than their message: order by the message id (newest first)
+	sort.SliceStable(msgs, func(i, j int) bool { return after(msgs[i].ID, msgs[j].ID) })
+	return msgs, nil
+}
+
+// historialTodos returns the latest messages of the competition across every day (newest first, cursor antes).
+// The persisted rows of all the days are merged with today's room still in Redis: the persistence lags a second
+// behind the stream, so the two sources can share entries and each one alone can miss the newest ones.
+func (s *Svc) historialTodos(ctx context.Context, cid uuid.UUID, antes string, limite int) ([]item, error) {
+	hot, err := s.historialRedis(ctx, cid, hoy(), antes, limite)
+	if err != nil {
+		return nil, err
+	}
+	resto, err := s.historialDBTodos(ctx, cid, antes, limite)
+	if err != nil {
+		return nil, err
+	}
+	out := []item{}
+	vistos := make(map[string]bool, len(hot)+len(resto))
+	for _, m := range append(hot, resto...) {
+		k := m.Dia + "|" + m.ID
+		if vistos[k] {
+			continue
+		}
+		vistos[k] = true
+		out = append(out, m)
+	}
+	sort.SliceStable(out, func(i, j int) bool { return after(out[i].ID, out[j].ID) })
+	if len(out) > limite {
+		out = out[:limite]
+	}
+	return out, nil
 }
 
 // idNumerico is the numeric form of the stream id («<ms>-<seq>»). Compared as text, «1000-0» < «999-0» is false:
@@ -698,6 +747,45 @@ func (s *Svc) historialDB(ctx context.Context, cid uuid.UUID, dia, antes string,
 		}
 		// el historial es público: el UUID del fan se sustituye por su seudónimo, igual que en la parte que
 		// sale de Redis
+		out = append(out, it.publica(s.hub.hashFan))
+	}
+	return out, nil
+}
+
+// historialDBTodos reads the persisted messages of every day of the competition (newest first). created_at is the
+// millisecond of the stream id, so the cursor compares the instant first and the id second.
+func (s *Svc) historialDBTodos(ctx context.Context, cid uuid.UUID, antes string, limite int) ([]item, error) {
+	args := []any{cid}
+	q := `SELECT id, to_char(dia, 'YYYY-MM-DD'), fan_id, alias, tipo, texto, borrado, extract(epoch from created_at)::bigint * 1000 FROM mensajes WHERE competition_id = $1`
+	if antes != "" {
+		ms, seq, err := parseID(antes)
+		if err != nil {
+			return nil, problem.BadRequest("ID_INVALIDO", "El parámetro antes tiene que ser un id del stream.")
+		}
+		// the upper bound of the instant uses the index (competition_id, created_at); the id breaks the ties
+		q += ` AND created_at < to_timestamp($2/1000.0) AND ` + idNumerico + ` < ($3::numeric, $4::numeric)`
+		args = append(args, int64(ms)+1, int64(ms), int64(seq))
+	}
+	q += ` ORDER BY created_at DESC, ` + idNumerico + ` DESC LIMIT $` + strconv.Itoa(len(args)+1)
+	args = append(args, limite)
+	rows, err := s.a.DB.Query(ctx, q, args...)
+	if err != nil {
+		return nil, problem.Internal()
+	}
+	defer rows.Close()
+	out := []item{}
+	for rows.Next() {
+		var it item
+		var ts int64
+		var borrado bool
+		if err := rows.Scan(&it.ID, &it.Dia, &it.FanID, &it.Alias, &it.T, &it.Texto, &borrado, &ts); err != nil {
+			continue
+		}
+		it.Ts = ts
+		if borrado {
+			out = append(out, item{T: "borrado", ID: it.ID, Ts: ts, Dia: it.Dia})
+			continue
+		}
 		out = append(out, it.publica(s.hub.hashFan))
 	}
 	return out, nil
