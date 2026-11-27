@@ -4,7 +4,7 @@ import { grDict } from './lang';
 
 export interface GrToast {
   id: number;
-  tone: 'success' | 'error' | 'info';
+  tone: 'success' | 'warning' | 'error' | 'info';
   title: string;
   text?: string;
   /** Figma 17 «Toast / Edge» action (e.g. «Reintentar»): runs and closes the toast. */
@@ -22,12 +22,14 @@ export class GrToasts {
     setTimeout(() => this.dismiss(id), ms);
   }
   success(title: string, text?: string): void { this.show({ tone: 'success', title, text }); }
+  /** The action ran but did not end well enough to call it a success (e.g. the AI could not decide) and the person has to look at it. */
+  warning(title: string, text?: string): void { this.show({ tone: 'warning', title, text }, 8000); }
   error(title: string, text?: string, action?: GrToast['action']): void { this.show({ tone: 'error', title, text, action }, 8000); }
   info(title: string, text?: string): void { this.show({ tone: 'info', title, text }); }
   dismiss(id: number): void { this.items.update((l) => l.filter((x) => x.id !== id)); }
 }
 
-const icons: Record<GrToast['tone'], GrIconName> = { success: 'circle-check', error: 'circle-alert', info: 'info' };
+const icons: Record<GrToast['tone'], GrIconName> = { success: 'circle-check', warning: 'triangle-alert', error: 'circle-alert', info: 'info' };
 
 /** One toast (Figma «Toast»; 17 «Toast / Edge»: raised bg, radius 12, optional action link instead of the close). */
 @Component({
@@ -40,7 +42,7 @@ const icons: Record<GrToast['tone'], GrIconName> = { success: 'circle-check', er
     '[attr.role]': "tone() === 'error' ? 'alert' : 'status'",
   },
   template: `
-    <gr-icon [name]="icons[tone()]" [size]="20" [class]="tone() === 'success' ? 'text-success' : tone() === 'error' ? 'text-accent-text' : 'text-info'" />
+    <gr-icon [name]="icons[tone()]" [size]="20" [class]="tone() === 'success' ? 'text-success' : tone() === 'warning' ? 'text-warning' : tone() === 'error' ? 'text-accent-text' : 'text-info'" />
     <div class="min-w-0 flex-1">
       <p class="text-body-s text-text-primary [overflow-wrap:anywhere]">{{ title() }}</p>
       @if (text()) { <p class="mt-1 text-body-xs text-text-tertiary">{{ text() }}</p> }

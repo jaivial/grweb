@@ -50,6 +50,12 @@ type RespuestaEmparejar struct {
 // one that reports the timeout and the reason reaches the review panel.
 const tiempoEmparejar = 30 * time.Second
 
+// errorTiempo is the answer of a model that did not finish in tiempoEmparejar (the real timeout and the QA delay that
+// goes past it): athletes tells it apart from «not available» and the panel says «tardó demasiado».
+func errorTiempo() error {
+	return problem.New(http.StatusGatewayTimeout, "IA_TIEMPO", "La IA tardó demasiado (30 s) en responder.")
+}
+
 const sistemaEmparejar = `Eres el asistente de inscripciones de una competición de powerlifting. Comparas UNA solicitud de alta de atleta con hasta 5 filas del padrón oficial de la AEP y dices si alguna es la misma persona.
 
 Reglas:
@@ -166,9 +172,11 @@ func (s *Svc) registerPadron() {
 			if ms := config.Int("AI_PADRON_DEMORA_MS", 0); ms > 0 {
 				select {
 				case <-time.After(time.Duration(ms) * time.Millisecond):
+				// A simulated delay longer than the budget has to end like the real one: the 504, not the model.
 				case <-time.After(tiempoEmparejar):
+					return nil, errorTiempo()
 				case <-ctx.Done():
-					return nil, problem.New(http.StatusGatewayTimeout, "IA_TIEMPO", "La IA tardó demasiado (30 s) en responder.")
+					return nil, errorTiempo()
 				}
 			}
 			ids := map[string]bool{}
@@ -184,7 +192,7 @@ func (s *Svc) registerPadron() {
 			if err != nil {
 				s.a.Log.Warn("ia.emparejar_padron_fallo", "err", err, "tiempo_agotado", tctx.Err() != nil)
 				if tctx.Err() != nil || errors.Is(err, context.DeadlineExceeded) {
-					return nil, problem.New(http.StatusGatewayTimeout, "IA_TIEMPO", "La IA tardó demasiado (30 s) en responder.")
+					return nil, errorTiempo()
 				}
 				return nil, problem.New(http.StatusBadGateway, "IA_NO_DISPONIBLE", "La IA no ha respondido.")
 			}
