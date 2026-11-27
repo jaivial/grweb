@@ -103,8 +103,11 @@ func (s *Svc) versionAtleta(ctx context.Context, cid, atleta uuid.UUID, ifm stri
 		return nil
 	}
 	var v int
-	if err := s.a.DB.QueryRow(ctx, `SELECT version FROM atletas WHERE competition_id = $1 AND id = $2`, cid, atleta).Scan(&v); err != nil {
+	switch err := s.a.DB.QueryRow(ctx, `SELECT version FROM atletas WHERE competition_id = $1 AND id = $2`, cid, atleta).Scan(&v); {
+	case errors.Is(err, pgx.ErrNoRows):
 		return problem.NotFound("Ese atleta no existe.")
+	case err != nil:
+		return err
 	}
 	if ifMatch(ifm) != v {
 		return problem.Conflict("CONFLICTO_EDICION", "Otra persona ha guardado esta ficha mientras la veías. Recarga para ver sus cambios.")
