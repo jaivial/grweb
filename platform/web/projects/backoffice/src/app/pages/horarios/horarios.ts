@@ -267,7 +267,7 @@ const diaSiguiente = (f: string) => {
             </dl>
 
             @if (d.primera) {
-              <p class="mt-5 text-body-s text-text-secondary"><strong class="text-text-primary">{{ d.atletas }} atletas</strong> recibirán su fecha, hora y pesaje en su ficha y en su área.</p>
+              <p class="mt-5 text-body-s text-text-secondary"><strong class="text-text-primary">{{ d.atletas }} {{ d.atletas === 1 ? 'atleta' : 'atletas' }}</strong> {{ d.atletas === 1 ? 'recibirá' : 'recibirán' }} su fecha, hora y pesaje en su ficha y en su área.</p>
             } @else if (d.cambios.length) {
               <section class="mt-6" aria-labelledby="pub-cambios">
                 <div class="flex flex-wrap items-center justify-between gap-2">
@@ -345,7 +345,7 @@ const diaSiguiente = (f: string) => {
     <bo-drawer [(open)]="sesionOpen" [title]="'Sesión de las ' + hora(sSel()?.inicio)">
       @if (sSel(); as f) {
         <div class="flex flex-col gap-4">
-          <p class="text-body-s text-text-secondary">{{ f.titulo }} · {{ activos(f) }} atletas</p>
+          <p class="text-body-s text-text-secondary">{{ f.titulo }} · {{ activos(f) }} {{ activos(f) === 1 ? 'atleta' : 'atletas' }}</p>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <gr-field label="Fecha" for="s-dia"><gr-select id="s-dia" [(ngModel)]="sEdit.dia" [disabled]="!canEdit()">@for (d of raw()?.config?.dias ?? []; track d.fecha) { <option [value]="d.fecha">{{ diaLargo(d.fecha) }}</option> }</gr-select></gr-field>
             <gr-field label="Empieza" for="s-ini"><bo-date-picker id="s-ini" tipo="time" [(ngModel)]="sEdit.inicio" [borrable]="false" [disabled]="!canEdit()" aria-label="Empieza" /></gr-field>
@@ -497,7 +497,7 @@ const diaSiguiente = (f: string) => {
           @if (r.sesion; as f) {
             <li class="rounded-md border border-line-subtle bg-bg-raised p-3">
               <p class="flex items-baseline gap-3"><span class="font-mono text-ui-h5">{{ hora(f.inicio) }}</span><span class="text-label-m">{{ f.titulo }}{{ f.prueba ? ' · ' + nombrePrueba(f.prueba) : '' }}</span></p>
-              <p class="text-body-xs text-text-tertiary">{{ activos(f) }} atletas · Pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }}</p>
+              <p class="text-body-xs text-text-tertiary">{{ activos(f) }} {{ activos(f) === 1 ? 'atleta' : 'atletas' }} · Pesaje {{ hora(f.pesajeInicio) }}–{{ hora(f.pesajeFin) }}</p>
             </li>
           } @else {
             <li class="flex items-center gap-3 rounded-md border border-line-subtle px-3 py-2 text-body-s"><span class="font-mono text-accent-text">{{ r.item!.hora }}</span><gr-icon [name]="icono(r.item!.icono)" [size]="14" />{{ r.item!.titulo }}</li>

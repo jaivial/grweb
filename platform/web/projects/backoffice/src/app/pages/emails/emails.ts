@@ -222,7 +222,7 @@ const CANALES: { v: string; label: string }[] = [{ v: '', label: 'Todos los cana
     </div>
 
     <bo-sheet title="Filtrar bandeja" [(open)]="filtrosOpen" [filtered]="nFiltros() > 0" (reset)="limpiar()"
-      [resultLabel]="salida() ? 'Ver ' + salida()!.total + ' mensajes' : 'Ver mensajes'">
+      [resultLabel]="salida() ? 'Ver ' + salida()!.total + (salida()!.total === 1 ? ' mensaje' : ' mensajes') : 'Ver mensajes'">
       <div class="flex flex-col gap-2">
         <span class="text-label-s text-text-primary" id="salida-estado">Estado</span>
         <div class="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="salida-estado">
