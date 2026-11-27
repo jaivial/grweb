@@ -58,6 +58,14 @@ export class AreaSesion {
 
   /** Last panel known (null: none yet, or no session). */
   readonly panel = this.actual.asReadonly();
+  /** First name of the athlete with an area session (navbar), null without one. */
+  readonly nombre = signal<string | null>(null);
+
+  /** Navbar check on every page: GET /sesion answers 204 without a session (no 401 for anonymous visitors). */
+  async comprobar(): Promise<void> {
+    const r = await firstValueFrom(this.http.get<{ nombre: string } | null>(`${AREA_API}/sesion`)).catch(() => undefined);
+    if (r !== undefined) this.nombre.set(r?.nombre ?? null);
+  }
 
   /** Panel of the area, or null without a session (or when the API does not answer). */
   async cargar(fresca = false): Promise<Panel | null> {
@@ -72,6 +80,7 @@ export class AreaSesion {
   /** The page already has a panel (login, save): the next reads use it instead of asking again. */
   poner(p: Panel | null): void {
     this.actual.set(p);
+    this.nombre.set(p?.atleta.nombre ?? null);
     this.ultima = { at: Date.now(), respuesta: Promise.resolve({ panel: p, estado: p ? 'ok' : 'sin-sesion' }) };
   }
 
@@ -83,6 +92,7 @@ export class AreaSesion {
       .catch((e): Respuesta => ({ panel: null, estado: e instanceof HttpErrorResponse && e.status === 401 ? 'sin-sesion' : 'error' }))
       .then((r) => {
         this.actual.set(r.panel);
+        if (r.estado !== 'error') this.nombre.set(r.panel?.atleta.nombre ?? null);
         return r;
       });
     this.ultima = { at: ahora, respuesta };

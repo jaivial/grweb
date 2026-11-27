@@ -115,7 +115,7 @@ var catalogo = []Plantilla{
 		map[string]string{"alias": "Laura_PL", "tipo": "publico", "enlace": "https://grcup.example/acceso?acceso=…"},
 		Contenido{Asunto: "Tu enlace para entrar al directo", Preheader: "Enlace válido 30 minutos", Titulo: "Hola, {{alias}}", Cuerpo: "Pulsa el botón para entrar al directo de la GR Cup: chatea, dona y juega a la porra y a GRS Fantasy.\n\nEl enlace caduca en 30 minutos y solo funciona una vez. Si no lo has pedido tú, ignora este email.", BotonTexto: "Entrar al directo", BotonURL: "{{enlace}}"}),
 	p("fans-acceso-contrasena", "Crear o cambiar la contraseña del directo", "Al pulsar «¿Has olvidado tu contraseña?»", "fans", "accesos", true, []string{"alias", "tipo", "enlace"},
-		map[string]string{"alias": "", "tipo": "publico", "enlace": "https://grcup.example/acceso?acceso=…"},
+		map[string]string{"alias": "", "tipo": "publico", "enlace": "https://grcup.example/restablecer-contrasena?token=…"},
 		Contenido{Asunto: "Crea tu nueva contraseña", Preheader: "Enlace válido 30 minutos", Titulo: "Tu contraseña de la GRS Cup", Cuerpo: "Has pedido crear o cambiar la contraseña de tu cuenta del directo. Pulsa el botón y elige la nueva.\n\nEl enlace caduca en 30 minutos y solo funciona una vez. Si no lo has pedido tú, ignora este email: tu contraseña no cambia.", BotonTexto: "Crear mi contraseña", BotonURL: "{{enlace}}"}),
 	p("fans-acceso-inscripcion", "Acceso para inscribirse", "Al pedir el enlace desde /inscripcion", "fans", "accesos", true, []string{"alias", "tipo", "enlace"},
 		map[string]string{"alias": "Laura_PL", "tipo": "publico", "enlace": "https://grcup.example/acceso?acceso=…&next=%2Finscripcion"},
