@@ -103,16 +103,37 @@ const (
 	tipoMatchNacimiento = "nacimiento"
 )
 
-// reglaMatch names the rule of a match in the record and the panel: «por teléfono», «por nombre y fecha de
-// nacimiento». It is empty for the rules that already name themselves (licence, email, manual).
+// reglaMatch names in one phrase the rule of a match («por email», «por teléfono», «por nombre y fecha de
+// nacimiento»), as the record of the athlete writes it. It is empty when no rule did it (the team chose the athlete).
 func reglaMatch(tipo string) string {
 	switch tipo {
+	case "licencia":
+		return "por licencia"
+	case "email":
+		return "por email"
 	case tipoMatchTelefono:
 		return "por teléfono"
-	case tipoMatchNacimiento:
+	case tipoMatchNacimiento, "nombre":
 		return "por nombre y fecha de nacimiento"
 	}
 	return ""
+}
+
+// motivoEnlace is the history entry of an approval that links the request to a record that already exists: the action
+// says what linked it and the detail that nothing was created, so the record can be audited years later.
+func motivoEnlace(tipo string, elegido bool) (string, string) {
+	accion := "Solicitud de alta enlazada a la ficha existente"
+	switch regla := reglaMatch(tipo); {
+	case elegido || tipo == "manual":
+		accion += " por el equipo"
+	case regla != "":
+		accion += " " + regla
+	}
+	detalle := "La solicitud corresponde a este atleta: sin ficha nueva y sin duplicado"
+	if elegido || tipo == "manual" {
+		detalle = "El equipo ha elegido esta ficha al aprobar la solicitud: sin ficha nueva y sin duplicado"
+	}
+	return accion, detalle
 }
 
 // atletaDuplicado is the record the request is about, by a rule stronger than the name alone: the phone with the same

@@ -311,8 +311,8 @@ type Vista = 'puesto' | 'escaner' | 'buscar';
               <li class="flex flex-col gap-3 rounded-lg border border-line-subtle bg-bg-card p-4">
                 <div class="flex items-start gap-2"><div class="min-w-0 flex-1"><p class="truncate text-label-l">{{ e.nombre }} {{ e.apellidos }}</p>
                   <p class="text-body-s text-text-secondary">{{ corta(e.sesion) }} · @if (e.estado === 'anulada') { anulada } @else { {{ e.personas }} persona{{ e.personas === 1 ? '' : 's' }} · <span class="whitespace-nowrap font-mono">{{ e.codigo }}</span> }</p></div>
-                  @if (e.estado === 'anulada') { <gr-badge tone="neutral">Anulada</gr-badge> } @else if (e.dentro > 0) { <gr-badge tone="success">Dentro {{ e.dentro }} de {{ e.personas }}</gr-badge> } @else if (e.sesionId !== sesion()) { <gr-badge tone="warning">Otra sesión</gr-badge> } @else { <gr-badge tone="info">Reservada</gr-badge> }</div>
-                @if (e.estado !== 'anulada' && e.dentro < e.personas) { <button grButton size="l" [variant]="e.sesionId === sesion() ? 'primary' : 'secondary'" class="w-full" (click)="porCodigo(e)">{{ e.sesionId === sesion() ? 'Entrar (' + (e.personas - e.dentro) + ')' : 'Ver' }}</button> }
+                  @if (e.estado === 'anulada') { <gr-badge tone="neutral">Anulada</gr-badge> } @else if (e.dentro > 0) { <gr-badge tone="success">Dentro {{ e.dentro }} de {{ e.personas }}</gr-badge> } @else if (!(e.sesionIds ?? [e.sesionId]).includes(sesion())) { <gr-badge tone="warning">Otra sesión</gr-badge> } @else { <gr-badge tone="info">Reservada</gr-badge> }</div>
+                @if (e.estado !== 'anulada' && e.dentro < e.personas) { <button grButton size="l" [variant]="(e.sesionIds ?? [e.sesionId]).includes(sesion()) ? 'primary' : 'secondary'" class="w-full" (click)="porCodigo(e)">{{ (e.sesionIds ?? [e.sesionId]).includes(sesion()) ? 'Entrar (' + (e.personas - e.dentro) + ')' : 'Ver' }}</button> }
               </li>
             } @empty { @if (q().length > 1) { <li class="rounded-lg border border-line-subtle bg-bg-card p-6 text-center text-body-s text-text-tertiary">Nadie con «{{ q() }}».</li> } }
           </ul>
@@ -526,7 +526,9 @@ export class EscanerPage {
   /** Offline answer from the downloaded list (the server re-checks the signature when the queue is sent). */
   private local(b: { qr?: string; codigo?: string }): Resultado {
     const cod = b.codigo ?? (b.qr?.startsWith('E:') ? b.qr.split(':')[1] : '');
-    const x = (this.boot()?.lista ?? []).find((e: Compacta) => e.c === cod);
+    const lista = this.boot()?.lista ?? [];
+    // A ticket may cover several days: the row of the day this station is entering.
+    const x = lista.find((e: Compacta) => e.c === cod && e.s === this.sesion()) ?? lista.find((e: Compacta) => e.c === cod);
     const base = { codigo: cod, nombre: x?.n ?? '', personas: x?.p ?? 0, dentro: x?.d ?? 0, pendientes: x ? x.p - x.d : 0, sesion: '', registrado: false } as Resultado;
     if (!x) return { ...base, resultado: 'invalida', mensaje: 'No está en la lista descargada.' };
     if (x.d >= x.p) return { ...base, resultado: 'ya_usada', mensaje: 'Ya ha entrado todo el grupo (según este dispositivo).' };
@@ -557,7 +559,8 @@ export class EscanerPage {
   private actualizarLocal(cod: string, dentro: number): void {
     const b = this.boot();
     if (!b) return;
-    this.boot.set({ ...b, lista: b.lista.map((e) => (e.c === cod ? { ...e, d: dentro } : e)) });
+    // Only the row of the day this station is entering (a ticket may cover several days).
+    this.boot.set({ ...b, lista: b.lista.map((e) => (e.c === cod && e.s === this.sesion() ? { ...e, d: dentro } : e)) });
   }
   protected siguiente(): void {
     this.r.set(null);
@@ -588,7 +591,7 @@ export class EscanerPage {
         // Offline: search the downloaded list.
         const n = v.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         this.encontrados.set((this.boot()?.lista ?? []).filter((e) => e.n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(n) || e.c.includes(v.toUpperCase())).slice(0, 20)
-          .map((e) => ({ id: e.c, codigo: e.c, nombre: e.n, apellidos: '', email: '', telefono: '', sesionId: e.s, sesion: this.boot()?.sesiones.find((s) => s.id === e.s)?.nombre ?? '', personas: e.p, dentro: e.d,
+          .map((e) => ({ id: e.c, codigo: e.c, nombre: e.n, apellidos: '', email: '', telefono: '', sesionId: e.s, sesion: this.boot()?.sesiones.find((s) => s.id === e.s)?.nombre ?? '', sesionIds: [e.s], personas: e.p, dentro: e.d,
             estado: e.e as Entrada['estado'], origen: '', manual: false, nota: '', novedades: false, consentimientos: {}, createdAt: '' })));
       }
     }, 250);

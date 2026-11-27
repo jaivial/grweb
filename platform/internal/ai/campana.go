@@ -1,15 +1,12 @@
 package ai
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -19,7 +16,6 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/auth"
 	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/problem"
-	"github.com/jaivial/grweb/platform/pkg/ratelimit"
 )
 
 // Campaign assistant with tools: the model edits a working copy of the whole campaign draft (data, channels,
@@ -101,17 +97,7 @@ Reglas:
 - Español de España, cercano y deportivo. Sin emojis salvo que te los pidan.
 - Máximo 40 bloques.`
 
-func obj(props map[string]any, req ...string) map[string]any {
-	o := map[string]any{"type": "object", "properties": props}
-	if len(req) > 0 {
-		o["required"] = req
-	}
-	return o
-}
-
 var (
-	str      = map[string]any{"type": "string"}
-	entero   = map[string]any{"type": "integer"}
 	camposBl = map[string]any{
 		"texto": str, "texto2": str, "url": str, "imagen": str, "alt": str, "fecha": str, "alto": entero,
 		"items":   map[string]any{"type": "array", "items": str},
@@ -130,38 +116,29 @@ func herramientas() []map[string]any {
 	for k, v := range camposBl {
 		conID[k] = v
 	}
-	t := func(n, d string, s map[string]any) map[string]any {
-		return map[string]any{"name": n, "description": d, "input_schema": s}
-	}
 	return []map[string]any{
-		t("ver_campana", "Devuelve el borrador actual completo (datos, canales, segmento, ritmo, bloques con sus id y el WhatsApp propio; whatsapp null = derivado del email).", obj(map[string]any{})),
-		t("editar_datos", "Cambia el nombre interno, el asunto del email y/o el preheader.", obj(map[string]any{"nombre": str, "asunto": str, "preheader": str})),
-		t("elegir_canales", "Fija los canales de la campaña.", obj(map[string]any{"canales": map[string]any{"type": "array", "items": map[string]any{"type": "string", "enum": []string{"email", "whatsapp"}}}}, "canales")),
-		t("listar_segmentos", "Lista los segmentos de contactos disponibles como destinatarios.", obj(map[string]any{})),
-		t("elegir_segmento", "Fija el segmento de destinatarios; segmentoId vacío = todos los contactos con consentimiento.", obj(map[string]any{"segmentoId": str}, "segmentoId")),
-		t("ritmo_envio", "Mensajes por minuto: email 1-600, WhatsApp 1-60 (con número propio mejor ≤ 6).", obj(map[string]any{"emailPorMin": entero, "waPorMin": entero})),
-		t("anadir_bloque", "Añade un bloque nuevo con sus campos.", obj(conTipo, "tipo")),
-		t("editar_bloque", "Cambia campos de un bloque existente (solo los que pases).", obj(conID, "id")),
-		t("borrar_bloque", "Quita un bloque.", obj(map[string]any{"id": str}, "id")),
-		t("mover_bloque", "Mueve un bloque a la posición indicada (0 = primero).", obj(map[string]any{"id": str, "posicion": entero}, "id", "posicion")),
-		t("reemplazar_diseno", "Sustituye todos los bloques (para rediseños completos). Cada bloque lleva tipo y sus campos; conserva los id de los que mantengas.", obj(map[string]any{"diseno": map[string]any{"type": "array", "items": map[string]any{"type": "object"}}}, "diseno")),
-		t("ver_whatsapp", "Devuelve el mensaje de WhatsApp actual (texto, imagen, botones) y su modo: automatico (derivado del email) o propio.", obj(map[string]any{})),
-		t("whatsapp_desde_email", "Copia el WhatsApp derivado del diseño del email como mensaje propio, para retocarlo después.", obj(map[string]any{})),
-		t("whatsapp_desde_html", "Convierte un HTML (un email o fragmento pegado por el usuario) en el mensaje propio de WhatsApp.", obj(map[string]any{"html": str}, "html")),
-		t("editar_whatsapp", "Cambia el mensaje propio de WhatsApp (solo los campos que pases; sin mensaje propio parte del derivado). botones sustituye la lista entera.", obj(map[string]any{
+		herramienta("ver_campana", "Devuelve el borrador actual completo (datos, canales, segmento, ritmo, bloques con sus id y el WhatsApp propio; whatsapp null = derivado del email).", obj(map[string]any{})),
+		herramienta("editar_datos", "Cambia el nombre interno, el asunto del email y/o el preheader.", obj(map[string]any{"nombre": str, "asunto": str, "preheader": str})),
+		herramienta("elegir_canales", "Fija los canales de la campaña.", obj(map[string]any{"canales": map[string]any{"type": "array", "items": map[string]any{"type": "string", "enum": []string{"email", "whatsapp"}}}}, "canales")),
+		herramienta("listar_segmentos", "Lista los segmentos de contactos disponibles como destinatarios.", obj(map[string]any{})),
+		herramienta("elegir_segmento", "Fija el segmento de destinatarios; segmentoId vacío = todos los contactos con consentimiento.", obj(map[string]any{"segmentoId": str}, "segmentoId")),
+		herramienta("ritmo_envio", "Mensajes por minuto: email 1-600, WhatsApp 1-60 (con número propio mejor ≤ 6).", obj(map[string]any{"emailPorMin": entero, "waPorMin": entero})),
+		herramienta("anadir_bloque", "Añade un bloque nuevo con sus campos.", obj(conTipo, "tipo")),
+		herramienta("editar_bloque", "Cambia campos de un bloque existente (solo los que pases).", obj(conID, "id")),
+		herramienta("borrar_bloque", "Quita un bloque.", obj(map[string]any{"id": str}, "id")),
+		herramienta("mover_bloque", "Mueve un bloque a la posición indicada (0 = primero).", obj(map[string]any{"id": str, "posicion": entero}, "id", "posicion")),
+		herramienta("reemplazar_diseno", "Sustituye todos los bloques (para rediseños completos). Cada bloque lleva tipo y sus campos; conserva los id de los que mantengas.", obj(map[string]any{"diseno": map[string]any{"type": "array", "items": map[string]any{"type": "object"}}}, "diseno")),
+		herramienta("ver_whatsapp", "Devuelve el mensaje de WhatsApp actual (texto, imagen, botones) y su modo: automatico (derivado del email) o propio.", obj(map[string]any{})),
+		herramienta("whatsapp_desde_email", "Copia el WhatsApp derivado del diseño del email como mensaje propio, para retocarlo después.", obj(map[string]any{})),
+		herramienta("whatsapp_desde_html", "Convierte un HTML (un email o fragmento pegado por el usuario) en el mensaje propio de WhatsApp.", obj(map[string]any{"html": str}, "html")),
+		herramienta("editar_whatsapp", "Cambia el mensaje propio de WhatsApp (solo los campos que pases; sin mensaje propio parte del derivado). botones sustituye la lista entera.", obj(map[string]any{
 			"texto": map[string]any{"type": "string", "description": "Formato WhatsApp: *negrita*, _cursiva_"}, "imagen": map[string]any{"type": "string", "description": "URL https de la foto; vacío = sin foto"},
 			"botones": map[string]any{"type": "array", "maxItems": 10, "items": obj(map[string]any{"texto": str, "url": str}, "texto", "url")},
 		})),
-		t("whatsapp_automatico", "Quita el mensaje propio: el WhatsApp vuelve a derivarse del diseño del email.", obj(map[string]any{})),
-		t("tool_chain", "Ejecuta hasta 20 herramientas en UNA llamada, en orden, con las mismas reglas que una a una. calls: [{id, name, input}]; id único, name otra herramienta (no tool_chain). "+
-			"En input cualquier valor puede ser {\"$ref\":\"id_anterior.ruta\"} (la ruta empieza en el resultado JSON de ese paso y admite índices). Devuelve el resultado de cada paso; "+
-			"si alguno falla, NO repitas los que tengan ok=true.", obj(map[string]any{"calls": map[string]any{"type": "array", "minItems": 1, "maxItems": maxCadena,
-			"items": obj(map[string]any{"id": str, "name": str, "input": map[string]any{"type": "object"}}, "id", "name", "input")}}, "calls")),
+		herramienta("whatsapp_automatico", "Quita el mensaje propio: el WhatsApp vuelve a derivarse del diseño del email.", obj(map[string]any{})),
+		herramientaCadena(),
 	}
 }
-
-// maxCadena is the number of calls of one tool_chain.
-const maxCadena = 20
 
 // trabajo is the working copy the tools edit.
 type trabajo struct {
@@ -425,7 +402,7 @@ func (w *trabajo) ejecutar(nombre string, raw json.RawMessage) (string, error) {
 		w.cambios = append(w.cambios, "whatsapp")
 		return "ok: el WhatsApp se deriva del email", nil
 	case "tool_chain":
-		return w.cadena(raw)
+		return cadena(raw, w.ejecutar)
 	}
 	return "", fmt.Errorf("herramienta %s desconocida", nombre)
 }
@@ -436,203 +413,6 @@ func (w *trabajo) derivado() (WAMsg, error) {
 		return WAMsg{}, fmt.Errorf("WhatsApp no disponible")
 	}
 	return w.whatsapp(map[string]any{"nombre": w.b.Nombre, "diseno": w.bloques})
-}
-
-var reIDPaso = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}$`)
-
-// cadena runs an ordered batch of tools on the same working copy (one model turn instead of one per change). A step
-// may feed any JSON value of a previous result into its input with {"$ref":"paso.ruta.al.valor"}.
-func (w *trabajo) cadena(raw json.RawMessage) (string, error) {
-	var in struct {
-		Calls json.RawMessage `json:"calls"`
-	}
-	if err := json.Unmarshal(raw, &in); err != nil {
-		return "", fmt.Errorf("argumentos de tool_chain ilegibles: %v; envía menos llamadas", err)
-	}
-	cs := in.Calls
-	if t := strings.TrimSpace(string(cs)); strings.HasPrefix(t, `"`) { // models sometimes stringify the array
-		var s string
-		if json.Unmarshal(cs, &s) == nil {
-			cs = json.RawMessage(s)
-		}
-	}
-	var calls []struct {
-		ID    string          `json:"id"`
-		Name  string          `json:"name"`
-		Input json.RawMessage `json:"input"`
-	}
-	if err := json.Unmarshal(cs, &calls); err != nil || len(calls) == 0 {
-		return "", fmt.Errorf("calls debe ser un array de {id, name, input}")
-	}
-	if len(calls) > maxCadena {
-		return "", fmt.Errorf("demasiadas llamadas: máximo %d", maxCadena)
-	}
-	type resultadoPaso struct {
-		ID     string          `json:"id"`
-		Name   string          `json:"name"`
-		OK     bool            `json:"ok"`
-		Result json.RawMessage `json:"result,omitempty"`
-		Error  string          `json:"error,omitempty"`
-	}
-	salidas := map[string]any{}
-	pasos := make([]resultadoPaso, 0, len(calls))
-	ok := 0
-	for _, c := range calls {
-		c.ID, c.Name = strings.TrimSpace(c.ID), strings.TrimSpace(c.Name)
-		p := resultadoPaso{ID: c.ID, Name: c.Name}
-		var err error
-		var entrada json.RawMessage
-		switch {
-		case !reIDPaso.MatchString(c.ID):
-			err = fmt.Errorf("id inválido: usa 1-40 letras, números, _ o -")
-		case salidas[c.ID] != nil:
-			err = fmt.Errorf("id duplicado")
-		case c.Name == "" || c.Name == "tool_chain":
-			err = fmt.Errorf("name debe ser otra herramienta (no tool_chain)")
-		default:
-			if t := strings.TrimSpace(string(c.Input)); strings.HasPrefix(t, `"`) {
-				var s string
-				if json.Unmarshal(c.Input, &s) == nil && json.Valid([]byte(s)) {
-					c.Input = json.RawMessage(s)
-				}
-			}
-			entrada, err = resolverRefs(c.Input, salidas)
-		}
-		var r string
-		if err == nil {
-			r, err = w.ejecutar(c.Name, entrada)
-		}
-		var valor any
-		if err != nil {
-			p.Error = err.Error()
-			valor = map[string]any{"error": err.Error()}
-		} else {
-			p.OK = true
-			ok++
-			if json.Unmarshal([]byte(r), &valor) != nil {
-				// plain answers («ok», «añadido con id ia3») become an object; the new block id is reachable as .id
-				o := map[string]any{"texto": r}
-				if id, encontrado := strings.CutPrefix(r, "añadido con id "); encontrado {
-					o["id"] = id
-				}
-				valor = o
-			}
-		}
-		if c.ID != "" && salidas[c.ID] == nil {
-			salidas[c.ID] = valor
-		}
-		p.Result, _ = json.Marshal(valor)
-		pasos = append(pasos, p)
-	}
-	b, _ := json.Marshal(map[string]any{"tool": "tool_chain", "count": len(pasos), "succeeded": ok, "results": pasos})
-	return string(b), nil
-}
-
-// resolverRefs replaces every exact {"$ref":"paso.ruta"} object of an input (recursively) with that value.
-func resolverRefs(raw json.RawMessage, salidas map[string]any) (json.RawMessage, error) {
-	if len(raw) == 0 || string(raw) == "null" {
-		return json.RawMessage(`{}`), nil
-	}
-	var v any
-	if err := json.Unmarshal(raw, &v); err != nil {
-		return nil, fmt.Errorf("input JSON inválido")
-	}
-	var res func(any) (any, error)
-	res = func(v any) (any, error) {
-		switch x := v.(type) {
-		case map[string]any:
-			if ref, ok := x["$ref"].(string); ok && len(x) == 1 {
-				return buscarRef(ref, salidas)
-			}
-			out := make(map[string]any, len(x))
-			for k, it := range x {
-				r, err := res(it)
-				if err != nil {
-					return nil, err
-				}
-				out[k] = r
-			}
-			return out, nil
-		case []any:
-			out := make([]any, len(x))
-			for i, it := range x {
-				r, err := res(it)
-				if err != nil {
-					return nil, err
-				}
-				out[i] = r
-			}
-			return out, nil
-		}
-		return v, nil
-	}
-	r, err := res(v)
-	if err != nil {
-		return nil, err
-	}
-	b, err := json.Marshal(r)
-	return b, err
-}
-
-func buscarRef(ref string, salidas map[string]any) (any, error) {
-	partes := strings.Split(strings.Trim(strings.TrimSpace(ref), "."), ".")
-	v, ok := salidas[partes[0]]
-	if !ok {
-		return nil, fmt.Errorf("$ref apunta a un paso anterior desconocido: %s", partes[0])
-	}
-	for _, p := range partes[1:] {
-		switch x := v.(type) {
-		case map[string]any:
-			v, ok = x[p]
-		case []any:
-			i, err := strconv.Atoi(p)
-			if err != nil || i < 0 || i >= len(x) {
-				return nil, fmt.Errorf("$ref con índice inválido: %s", p)
-			}
-			v, ok = x[i], true
-		default:
-			ok = false
-		}
-		if !ok {
-			return nil, fmt.Errorf("$ref no existe: %s", ref)
-		}
-	}
-	return v, nil
-}
-
-func trunc(s string, n int) string {
-	if r := []rune(s); len(r) > n {
-		return string(r[:n])
-	}
-	return s
-}
-
-// paso is one model turn of the tool loop.
-type paso struct {
-	Content    []json.RawMessage `json:"content"`
-	StopReason string            `json:"stop_reason"`
-}
-
-func (s *Svc) turno(ctx context.Context, system string, msgs []map[string]any) (paso, error) {
-	var p paso
-	body, _ := json.Marshal(map[string]any{"model": s.modelo, "max_tokens": 8000, "system": system, "messages": msgs, "tools": herramientas()})
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.base+"/v1/messages", bytes.NewReader(body))
-	if err != nil {
-		return p, err
-	}
-	req.Header.Set("x-api-key", s.key)
-	req.Header.Set("anthropic-version", "2023-06-01")
-	req.Header.Set("Content-Type", "application/json")
-	res, err := s.http.Do(req)
-	if err != nil {
-		return p, err
-	}
-	defer res.Body.Close()
-	raw, _ := io.ReadAll(io.LimitReader(res.Body, 4<<20))
-	if res.StatusCode >= 300 {
-		return p, fmt.Errorf("MiniMax %d: %s", res.StatusCode, trunc(string(raw), 300))
-	}
-	return p, json.Unmarshal(raw, &p)
 }
 
 func (s *Svc) registerCampana() {
@@ -664,19 +444,10 @@ func (s *Svc) registerCampana() {
 			if s.key == "" {
 				return nil, problem.New(http.StatusServiceUnavailable, "IA_NO_CONFIGURADA", "El asistente de IA no está configurado en este entorno.")
 			}
-			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "ia", p.UserID.String()), 30, time.Hour); !r.Allowed {
-				return nil, problem.TooMany("Has hecho muchas peticiones a la IA en la última hora. Espera un poco.")
+			if err := s.limitarIA(ctx, p.UserID, in.CID); err != nil {
+				return nil, err
 			}
-			if r, _ := ratelimit.Allow(ctx, s.a.Redis, s.a.Keys.Of("rl", "ia-comp", in.CID.String()), 300, 24*time.Hour); !r.Allowed {
-				return nil, problem.TooMany("La competición ha llegado al límite diario de la IA.")
-			}
-			nombre, fechas, sede := "GR Strength Cup", "fecha por confirmar", ""
-			if c, err := s.comps.ByID(ctx, in.CID); err == nil {
-				nombre, sede = c.Nombre, c.Sede.Ciudad
-				if c.FechaInicio != "" {
-					fechas = c.FechaInicio + " a " + c.FechaFin
-				}
-			}
+			nombre, fechas, sede := s.contexto(ctx, in.CID)
 			w := &trabajo{b: in.Body.Campana, segs: in.Body.Segmentos}
 			w.whatsapp = func(body map[string]any) (WAMsg, error) {
 				var m WAMsg
@@ -695,20 +466,7 @@ func (s *Svc) registerCampana() {
 					w.bloques = append(w.bloques, m)
 				}
 			}
-			msgs := []map[string]any{}
-			for _, h := range in.Body.Historial {
-				rol := "user"
-				if h.Rol == "asistente" {
-					rol = "assistant"
-				}
-				if len(msgs) == 0 && rol != "user" || len(msgs) > 0 && msgs[len(msgs)-1]["role"] == rol {
-					continue // must start with the user and alternate
-				}
-				msgs = append(msgs, map[string]any{"role": rol, "content": h.Texto})
-			}
-			if len(msgs) > 0 && msgs[len(msgs)-1]["role"] == "user" {
-				msgs = msgs[:len(msgs)-1]
-			}
+			msgs := historialMensajes(in.Body.Historial)
 			estado, _ := w.ejecutar("ver_campana", nil)
 			sel := ""
 			if in.Body.Seleccion != "" {
@@ -717,47 +475,13 @@ func (s *Svc) registerCampana() {
 			msgs = append(msgs, map[string]any{"role": "user", "content": "Borrador actual:\n" + estado + sel + "\n\nPetición: " + in.Body.Instruccion})
 			system := fmt.Sprintf(sistemaCampana, nombre, fechas, sede)
 			t0 := time.Now()
-			respuesta := ""
-			for vuelta := 0; ; vuelta++ {
-				if vuelta == 10 {
-					return nil, problem.New(http.StatusBadGateway, "IA_SIN_TERMINAR", "La IA no ha terminado la tarea. Pídelo en pasos más pequeños.")
-				}
-				ps, err := s.turno(ctx, system, msgs)
-				if err != nil {
-					s.a.Log.Warn("minimax", "err", err)
-					return nil, problem.New(http.StatusBadGateway, "IA_NO_RESPONDE", "La IA no ha respondido. Inténtalo de nuevo en unos segundos.")
-				}
-				msgs = append(msgs, map[string]any{"role": "assistant", "content": ps.Content})
-				var resultados []map[string]any
-				var texto strings.Builder
-				for _, c := range ps.Content {
-					var b struct {
-						Type  string          `json:"type"`
-						Text  string          `json:"text"`
-						ID    string          `json:"id"`
-						Name  string          `json:"name"`
-						Input json.RawMessage `json:"input"`
-					}
-					if json.Unmarshal(c, &b) != nil {
-						continue
-					}
-					switch b.Type {
-					case "text":
-						texto.WriteString(b.Text)
-					case "tool_use":
-						r, err := w.ejecutar(b.Name, b.Input)
-						res := map[string]any{"type": "tool_result", "tool_use_id": b.ID, "content": r}
-						if err != nil {
-							res["content"], res["is_error"] = "Error: "+err.Error(), true
-						}
-						resultados = append(resultados, res)
-					}
-				}
-				if len(resultados) == 0 {
-					respuesta = strings.TrimSpace(texto.String())
-					break
-				}
-				msgs = append(msgs, map[string]any{"role": "user", "content": resultados})
+			respuesta, err := s.bucle(ctx, system, herramientas(), msgs, w.ejecutar)
+			if errors.Is(err, errSinTerminar) {
+				return nil, problem.New(http.StatusBadGateway, "IA_SIN_TERMINAR", "La IA no ha terminado la tarea. Pídelo en pasos más pequeños.")
+			}
+			if err != nil {
+				s.a.Log.Warn("minimax", "err", err)
+				return nil, problem.New(http.StatusBadGateway, "IA_NO_RESPONDE", "La IA no ha respondido. Inténtalo de nuevo en unos segundos.")
 			}
 			o := &out{}
 			o.Body.Respuesta, o.Body.Modelo, o.Body.Ms = respuesta, s.modelo, time.Since(t0).Milliseconds()

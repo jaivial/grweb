@@ -29,15 +29,15 @@ import (
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
-// Campo is a target field of the import mapping.
-type Campo struct {
+// CampoImportacion is a target field of the import mapping.
+type CampoImportacion struct {
 	Clave       string `json:"clave"`
 	Etiqueta    string `json:"etiqueta"`
 	Obligatorio bool   `json:"obligatorio"`
 }
 
 // Campos of an athlete the AEP list can fill («nombreCompleto» splits into first name and surnames).
-var Campos = []Campo{
+var Campos = []CampoImportacion{
 	{"licencia", "Licencia", true}, {"nombre", "Nombre", false}, {"apellidos", "Apellidos", false}, {"nombreCompleto", "Nombre completo", false},
 	{"sexo", "Sexo", true}, {"fechaNacimiento", "Fecha de nacimiento", true}, {"categoria", "Categoría de peso", true}, {"division", "División", false},
 	{"club", "Club", false}, {"ciudad", "Ciudad", false}, {"email", "Email", false}, {"telefono", "Teléfono", false},
@@ -177,17 +177,17 @@ func leerTabla(name string, data []byte) ([]string, [][]string, error) {
 
 // Importacion is the state of an import (Figma «Atletas · importar acta AEP»).
 type Importacion struct {
-	ID       uuid.UUID         `json:"id" db:"id"`
-	Archivo  string            `json:"archivo" db:"archivo"`
-	Estado   string            `json:"estado" db:"estado" enum:"subida,revisada,importando,confirmada,fallida"`
-	Columnas []string          `json:"columnas" db:"columnas"`
-	Mapeo    map[string]string `json:"mapeo" db:"mapeo" doc:"campo → columna del archivo"`
-	Resumen  Resumen           `json:"resumen" db:"resumen"`
-	Total    int               `json:"total" db:"total"`
-	Hechas   int               `json:"hechas" db:"hechas"`
-	Muestra  [][]string        `json:"muestra" db:"-" doc:"Primeras filas (vista previa del mapeo)"`
-	Campos   []Campo           `json:"campos" db:"-"`
-	Filas    []FilaDiff        `json:"filas" db:"-" doc:"Filas con cambios o errores (las iguales se omiten)"`
+	ID       uuid.UUID          `json:"id" db:"id"`
+	Archivo  string             `json:"archivo" db:"archivo"`
+	Estado   string             `json:"estado" db:"estado" enum:"subida,revisada,importando,confirmada,fallida"`
+	Columnas []string           `json:"columnas" db:"columnas"`
+	Mapeo    map[string]string  `json:"mapeo" db:"mapeo" doc:"campo → columna del archivo"`
+	Resumen  Resumen            `json:"resumen" db:"resumen"`
+	Total    int                `json:"total" db:"total"`
+	Hechas   int                `json:"hechas" db:"hechas"`
+	Muestra  [][]string         `json:"muestra" db:"-" doc:"Primeras filas (vista previa del mapeo)"`
+	Campos   []CampoImportacion `json:"campos" db:"-"`
+	Filas    []FilaDiff         `json:"filas" db:"-" doc:"Filas con cambios o errores (las iguales se omiten)"`
 }
 
 // Resumen counts the diff.

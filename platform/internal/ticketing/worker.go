@@ -182,24 +182,22 @@ func (s *Svc) recordatorios(ctx context.Context) error {
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 				var cod, nombre, ape, mail string
 				var personas int
-				var sid uuid.UUID
-				if err := tx.QueryRow(ctx, fmt.Sprintf(`UPDATE entradas SET %s = now() WHERE id = $1 AND %s IS NULL RETURNING codigo, nombre, apellidos, email::text, personas, sesion_id`, r.col, r.col), p.id).
-					Scan(&cod, &nombre, &ape, &mail, &personas, &sid); err != nil {
+				if err := tx.QueryRow(ctx, fmt.Sprintf(`UPDATE entradas SET %s = now() WHERE id = $1 AND %s IS NULL RETURNING codigo, nombre, apellidos, email::text, personas`, r.col, r.col), p.id).
+					Scan(&cod, &nombre, &ape, &mail, &personas); err != nil {
 					return nil // another pod took it
 				}
 				tok, err := s.enlaceEntrada(ctx, tx, p.id)
 				if err != nil {
 					return err
 				}
-				rs, err := tx.Query(ctx, selSesion+` WHERE s.id = $1`, sid)
+				xs, err := sesionesDeEntrada(ctx, tx, p.id)
 				if err != nil {
 					return err
 				}
-				x, err := pgx.CollectExactlyOneRow(rs, scanSesion)
-				if err != nil {
-					return err
+				if len(xs) == 0 {
+					return nil // no days: nothing to remind
 				}
-				v := s.varsEntrada(c, x, cod, tok, nombre, ape, personas)
+				v := s.varsEntrada(c, xs, cod, tok, nombre, ape, personas)
 				v["cuando"] = r.cuando
 				return email(ctx, tx, p.cid, mail, "entrada-recordatorio", v)
 			})
