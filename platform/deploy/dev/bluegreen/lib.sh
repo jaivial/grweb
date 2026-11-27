@@ -185,38 +185,60 @@ render_upstream() { # <color-web> <color-api> → ruta de un fichero temporal co
   printf '%s\n' "$f"
 }
 
-# Pone las puertas en estos colores: valida con nginx -t y recarga. Si algo falla, deja el upstream anterior.
+# Escribe un fichero de nginx como root con su contexto SELinux (nunca mv/cp de un directorio desde $HOME).
+nginx_put() { # <origen> <destino>
+  sudo install -o root -g root -m 0644 "$1" "$2"
+  sudo restorecon "$2"
+}
+
+# Antes de tocar nginx: gestionado por systemd, conf.d de root, puertos no estándar etiquetados, red de httpd abierta.
+nginx_prepare() {
+  systemctl is-active --quiet nginx || die "nginx no está activo bajo systemd: no se conmuta (revísalo a mano, no arrancar nginx a mano)"
+  [ "$(systemctl show -p MainPID --value nginx)" != 0 ] || die "nginx sin MainPID de systemd"
+  sudo chown root:root "$NGINX_DIR"
+  sudo semanage port -a -t http_port_t -p tcp "$SSR_API_PORT" 2>/dev/null \
+    || sudo semanage port -m -t http_port_t -p tcp "$SSR_API_PORT" 2>/dev/null || true
+  if [ "$(getsebool httpd_can_network_connect | awk '{print $3}')" != on ]; then
+    sudo setsebool -P httpd_can_network_connect on
+  fi
+  sudo restorecon -R /etc/nginx
+}
+
+# nginx -t, recarga por systemd, unidad activa y listener de la config nueva. Falso = la config no está cargada.
+nginx_reload_ok() {
+  sudo nginx -t >/dev/null 2>&1 || { log "nginx -t falla"; return 1; }
+  sudo systemctl reload nginx || { log "systemctl reload nginx falló"; return 1; }
+  sleep 1
+  systemctl is-active --quiet nginx || { log "nginx no está activo tras recargar"; return 1; }
+  ss -ltn | grep -q "127.0.0.1:${SSR_API_PORT} " || { log "la config nueva no cargó (sin listener ${SSR_API_PORT})"; return 1; }
+}
+
+# Pone las puertas en estos colores: escribe, valida, recarga por systemd y comprueba. Si algo falla, restaura el anterior.
 nginx_apply() { # <web> <api>
   local new prev
+  nginx_prepare
   new=$(render_upstream "$1" "$2")
   prev=$(mktemp)
   sudo cat "$UPSTREAM_CONF" > "$prev" 2>/dev/null || : > "$prev"
-  sudo install -m 644 "$new" "$UPSTREAM_CONF"
+  nginx_put "$new" "$UPSTREAM_CONF"
   rm -f "$new"
-  if ! sudo nginx -t >/dev/null 2>&1; then
-    sudo install -m 644 "$prev" "$UPSTREAM_CONF"
+  if ! nginx_reload_ok; then
+    nginx_put "$prev" "$UPSTREAM_CONF"
+    nginx_reload_ok || true
     rm -f "$prev"
-    log "nginx -t rechaza web=$1 api=$2: upstream anterior restaurado"
-    return 1
-  fi
-  if ! sudo nginx -s reload; then
-    sudo install -m 644 "$prev" "$UPSTREAM_CONF"
-    sudo nginx -s reload || true
-    rm -f "$prev"
-    log "nginx no recargó: upstream anterior restaurado"
-    return 1
-  fi
-  # nginx -s reload devuelve 0 aunque el master rechace la config nueva (y siga con la anterior): se comprueba el efecto.
-  sleep 1
-  if ! ss -ltn | grep -q "127.0.0.1:${SSR_API_PORT} "; then
-    sudo install -m 644 "$prev" "$UPSTREAM_CONF"
-    sudo nginx -s reload || true
-    rm -f "$prev"
-    log "nginx no cargó la config nueva (sin listener ${SSR_API_PORT}): upstream anterior restaurado"
+    log "nginx rechaza web=$1 api=$2: upstream anterior restaurado"
     return 1
   fi
   rm -f "$prev"
   log "nginx: web=$1 (:${PORT_WEB[$1]}) api=$2 (:${PORT_GW[$2]})"
+}
+
+# Un solo despliegue vivo: si el legado grcup-h tiene contenedores en marcha, no se toca nada (ver README).
+refuse_if_legacy_running() {
+  local n
+  n=$(docker ps --filter label=com.docker.compose.project=grcup-h --filter status=running -q | wc -l)
+  [ "$n" -eq 0 ] || die "el legado grcup-h tiene $n contenedores en marcha: no se despliega. Para parar lo que quede: docker compose -p grcup-h stop (NUNCA up: lo levantó en paralelo el 27-nov 17:02 y rompió el corte)"
+}
 }
 
 # Liberar el color que deja de ser vivo: solo tras el drenaje (clientes SSE/WS reconectan con Last-Event-ID).
@@ -250,6 +272,7 @@ bo_build() { # → /srv/grcup-dev/backoffice-releases/<sha>-<hora>; devuelve su 
 bo_switch() { # <release>: nginx sirve /srv/grcup-dev/backoffice; un rename de symlink lo cambia de golpe
   ln -sfn "$BO_ROOT/backoffice-releases/$1" "$BO_ROOT/.backoffice.next"
   mv -T "$BO_ROOT/.backoffice.next" "$BO_ROOT/backoffice"
+  sudo -n restorecon "$BO_ROOT/backoffice" 2>/dev/null || true
   state_set BO "$1"
   log "backoffice → release $1"
 }

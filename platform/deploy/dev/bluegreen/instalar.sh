@@ -26,12 +26,12 @@ restaurar_legado() {
   compose_app blue stop || true
   compose_infra stop || true
   sudo rm -f "$UPSTREAM_CONF" "$NGINX_DIR/grcup-dev-ssr-api.conf"
-  sudo cp -a "$BK/nginx/." "$NGINX_DIR/"
+  for f in "$BK"/nginx/*.conf; do nginx_put "$f" "$NGINX_DIR/$(basename "$f")"; done
   if [ -n "$BO_LEGACY" ]; then
     rm -f "$BO_ROOT/backoffice"
     mv "$BO_ROOT/backoffice-releases/$BO_LEGACY" "$BO_ROOT/backoffice"
   fi
-  sudo nginx -t >/dev/null 2>&1 && sudo nginx -s reload || log "nginx no recargó: revisa a mano"
+  nginx_reload_ok || log "nginx no recargó: revisa a mano"
   cp -a "$BK/grcup-dev-web.service" "$LEG_UNIT"
   systemctl --user daemon-reload
   systemctl --user enable grcup-dev-web.service >/dev/null 2>&1 || true
@@ -62,6 +62,7 @@ docker inspect -f '{{.State.Running}}' grcup-h-gateway-1 2>/dev/null | grep -qx 
 
 log "0/3 preparación (sin corte)"
 sudo chown "$(id -u):$(id -g)" "$BO_ROOT"
+nginx_prepare
 mkdir -p "$BK/nginx" "$BO_ROOT/backoffice-releases"
 if command -v semanage >/dev/null 2>&1; then
   sudo semanage fcontext -a -t httpd_sys_content_t "$BO_ROOT(/.*)?" 2>/dev/null \
@@ -95,9 +96,9 @@ gate_api blue || die "gateway blue no pasa los gates"
 
 install -m 644 "$BG_DIR/systemd/grcup-dev-web@.service" "$UNIT_DIR/grcup-dev-web@.service"
 rm -f "$LEG_UNIT"
-sudo install -d -m 755 "$SNIPPET_DIR"
-sudo install -m 644 "$BG_DIR"/nginx/snippets/*.inc "$SNIPPET_DIR/"
-sudo install -m 644 "$BG_DIR/nginx/grcup-dev-ssr-api.conf" "$BG_DIR/nginx/grcup-qa-desktop.conf" "$BG_DIR/nginx/grcup-dev.conf" "$NGINX_DIR/"
+sudo install -d -o root -g root -m 755 "$SNIPPET_DIR"
+for f in "$BG_DIR"/nginx/snippets/*.inc; do nginx_put "$f" "$SNIPPET_DIR/$(basename "$f")"; done
+for f in grcup-dev-ssr-api.conf grcup-qa-desktop.conf grcup-dev.conf; do nginx_put "$BG_DIR/nginx/$f" "$NGINX_DIR/$f"; done
 
 if [ -e "$BO_ROOT/backoffice" ] && [ ! -L "$BO_ROOT/backoffice" ]; then
   BO_LEGACY="legacy-$TS"

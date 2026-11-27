@@ -20,6 +20,7 @@ cleanup() {
 trap cleanup EXIT
 
 take_lock
+refuse_if_legacy_running
 WEB_LIVE=$(live_web)
 API_LIVE=$(live_api)
 [ -n "$WEB_LIVE" ] && [ -n "$API_LIVE" ] || die "sin estado: ejecuta instalar.sh primero"

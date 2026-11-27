@@ -40,8 +40,8 @@ cleanup() {
 trap cleanup EXIT
 
 take_lock
+refuse_if_legacy_running
 check_memory
-git -C "$MAIN_REPO" fetch origin --prune -q
 checkout_src "$REF"
 
 WEB_LIVE=$(live_web)
