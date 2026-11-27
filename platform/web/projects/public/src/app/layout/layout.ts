@@ -9,6 +9,7 @@ import { COMPETITION_SLUG, Competition, type CompeticionPublica } from '../core/
 import { Seo } from '../core/seo';
 import { I18n, LocPipe, sinPrefijo } from '../core/i18n';
 import { FanSession } from '../core/fan';
+import { Cuenta } from '../core/cuenta';
 import { Newsletter } from './newsletter';
 import { AccesoModal } from '../pages/directo-social/acceso-modal';
 import { Consentimiento } from '../core/consentimiento';
@@ -84,6 +85,7 @@ const T = {
     cta: 'Entrada gratis', ctaMenu: 'Reserva tu entrada gratis', open: 'Abrir menú', close: 'Cerrar menú', otherLabel: 'English version', home: 'GRS Cup 2 · inicio',
     principal: 'Principal', menu: 'Menú', megaEyebrow: 'Entrada gratuita', megaTitulo: 'Vive la GR Cup en directo', megaTexto: 'Reserva gratis tu plaza en las gradas.', reservar: 'Reservar',
     porConfirmar: 'fecha por confirmar', edicion: (y: string, f: string, ciudad: string) => `Edición ${y} · ${f} · ${ciudad}`,
+    cuenta: 'Mi cuenta', perfil: 'Mi perfil', salir: 'Cerrar sesión',
   },
   en: {
     links: [
@@ -135,6 +137,7 @@ const T = {
     cta: 'Free ticket', ctaMenu: 'Book your free ticket', open: 'Open menu', close: 'Close menu', otherLabel: 'Versión en español', home: 'GRS Cup 2 · home',
     principal: 'Main', menu: 'Menu', megaEyebrow: 'Free entry', megaTitulo: 'Watch the GR Cup live', megaTexto: 'Book your free seat in the stands.', reservar: 'Book',
     porConfirmar: 'date to be confirmed', edicion: (y: string, f: string, ciudad: string) => `${y} edition · ${f} · ${ciudad}`,
+    cuenta: 'My account', perfil: 'My profile', salir: 'Sign out',
   },
 };
 
@@ -147,7 +150,7 @@ const T = {
   imports: [RouterLink, LocPipe, GrButton, GrIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   // UX1-R1-1: on phones the navbar stays visible during the intro (hidden only from md). UX1-R1-5: above the bottom bar and FAB while the menu is open.
-  host: { class: 'fixed inset-x-0 top-0 pr-[max(20px,env(safe-area-inset-right))] pl-[max(20px,env(safe-area-inset-left))] pt-[max(12px,env(safe-area-inset-top))] max-[239px]:px-2 transition-[opacity,transform,translate] duration-300 ease-[cubic-bezier(.22,1,.36,1)] md:pr-[max(32px,env(safe-area-inset-right))] md:pl-[max(32px,env(safe-area-inset-left))] md:pt-[max(16px,env(safe-area-inset-top))] xl:px-[120px]', '(document:click)': 'fuera($event)', '(document:keydown.escape)': 'mega.set(false); open.set(false)', '[class.z-40]': '!capa()', '[class.z-60]': 'capa()', '[class.md:opacity-0]': 'hidden()', '[class.md:-translate-y-4]': 'hidden()', '[class.md:pointer-events-none]': 'hidden()', '[attr.aria-hidden]': '(hidden() && ancho()) || null', '[style.translate]': "oculta() && !open() ? '0 calc(-100% - 8px)' : null", '(window:scroll)': 'alScroll()' },
+  host: { class: 'fixed inset-x-0 top-0 pr-[max(20px,env(safe-area-inset-right))] pl-[max(20px,env(safe-area-inset-left))] pt-[max(12px,env(safe-area-inset-top))] max-[239px]:px-2 transition-[opacity,transform,translate] duration-300 ease-[cubic-bezier(.22,1,.36,1)] md:pr-[max(32px,env(safe-area-inset-right))] md:pl-[max(32px,env(safe-area-inset-left))] md:pt-[max(16px,env(safe-area-inset-top))] xl:px-[120px]', '(document:click)': 'fuera($event)', '(document:keydown.escape)': 'mega.set(false); perfilMenu.set(false); open.set(false)', '[class.z-40]': '!capa()', '[class.z-60]': 'capa()', '[class.md:opacity-0]': 'hidden()', '[class.md:-translate-y-4]': 'hidden()', '[class.md:pointer-events-none]': 'hidden()', '[attr.aria-hidden]': '(hidden() && ancho()) || null', '[style.translate]': "oculta() && !open() ? '0 calc(-100% - 8px)' : null", '(window:scroll)': 'alScroll()' },
   template: `
     <nav class="@container relative mx-auto flex min-h-16 max-w-[1200px] items-center gap-2 overflow-hidden md:gap-4 min-[1440px]:gap-6 rounded-md border border-accent-deep/35 bg-bg-deep/72 px-3 max-[239px]:px-1.5 backdrop-blur-[10px] md:min-h-[72px] md:px-6" [attr.aria-label]="t().principal">
       <span class="pointer-events-none absolute -top-20 -left-10 size-40 rounded-full bg-[radial-gradient(closest-side,rgb(110_20_32/0.35),transparent)]" aria-hidden="true"></span>
@@ -159,7 +162,7 @@ const T = {
           <li [class]="i > 5 ? 'hidden xl:block' : i > 2 ? 'hidden lg:block' : ''">
             @if (i === 0) {
               <!-- «Competición ▾» is marked like a link while the current page is one of its items; ↓ opens it and focuses the first item -->
-              <button type="button" data-mega class="group relative inline-flex items-center rounded-xs p-2 text-label-s whitespace-nowrap pointer-coarse:min-h-11 transition-colors hover:text-text-primary" [class]="megaActivo() ? 'text-text-primary' : 'text-text-secondary'" [attr.aria-expanded]="mega()" aria-controls="mega-competicion" (click)="mega.set(!mega())" (keydown.arrowdown)="abrirMega($event)">
+              <button type="button" data-mega class="group relative inline-flex items-center rounded-xs p-2 text-label-s whitespace-nowrap pointer-coarse:min-h-11 transition-colors hover:text-text-primary" [class]="megaActivo() ? 'text-text-primary' : 'text-text-secondary'" [attr.aria-expanded]="mega()" aria-controls="mega-competicion" (click)="perfilMenu.set(false); mega.set(!mega())" (keydown.arrowdown)="abrirMega($event)">
                 <span class="inline-flex items-center gap-1">{{ l.label }}<gr-icon name="chevron-down" [size]="14" class="text-text-tertiary transition-transform" [class.rotate-180]="mega()" /></span>
                 <span class="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-[1px] transition-colors" [class]="megaActivo() ? 'bg-accent' : 'bg-transparent group-hover:bg-white/30'" aria-hidden="true"></span>
               </button>
@@ -171,6 +174,9 @@ const T = {
         }
       </ul>
       <a [routerLink]="otra()" [attr.hreflang]="otraLang()" [attr.aria-label]="t().otherLabel" class="relative hidden h-7 items-center gap-1 rounded-sm pointer-coarse:h-11 border border-white/12 px-2 text-label-xs text-text-secondary hover:text-text-primary md:inline-flex"><gr-icon name="globe" [size]="14" class="text-text-tertiary" />{{ lang() === 'en' ? 'EN' : 'ES' }}</a>
+      @if (cuenta.conSesion()) {
+        <button type="button" data-perfil class="relative hidden h-7 max-w-[160px] items-center gap-1.5 rounded-sm pointer-coarse:h-11 border border-white/12 px-2 text-label-xs text-text-secondary hover:text-text-primary md:inline-flex" [attr.aria-label]="t().cuenta" [attr.aria-expanded]="perfilMenu()" aria-controls="menu-perfil" (click)="mega.set(false); perfilMenu.set(!perfilMenu())"><gr-icon name="user" [size]="14" class="text-text-tertiary" /><span class="hidden truncate xl:inline">{{ cuenta.nombre() }}</span><gr-icon name="chevron-down" [size]="12" class="text-text-tertiary transition-transform" [class.rotate-180]="perfilMenu()" /></button>
+      }
       @if (!activo('/entradas') && !activo('/mi-entrada')) {
       <a grButton variant="primary" [routerLink]="'/entradas' | loc" class="relative ml-auto min-h-11 max-[359px]:hidden @max-[18rem]:hidden md:ml-0" [class.max-md:hidden]="barraCta.visible()">{{ t().cta }}</a>
       } @else { <span class="ml-auto md:hidden" aria-hidden="true"></span> }
@@ -178,6 +184,15 @@ const T = {
       @if (barraCta.visible()) { <span class="ml-auto md:hidden min-[360px]:inline" aria-hidden="true"></span> }
       <button type="button" data-menu class="relative flex size-11 shrink-0 @max-[18rem]:ml-auto items-center justify-center rounded-sm text-text-primary hover:bg-white/6 md:hidden" [attr.aria-label]="t().open" [attr.aria-expanded]="open()" aria-controls="menu-movil" (click)="open.set(true)"><gr-icon name="menu" [size]="24" /></button>
     </nav>
+    @if (perfilMenu() && cuenta.conSesion()) {
+      <div class="relative mx-auto hidden max-w-[1200px] md:block">
+        <div id="menu-perfil" class="absolute top-2 right-0 flex w-56 flex-col gap-1 rounded-lg border border-line-strong bg-bg-raised p-2 shadow-card">
+          @if (cuenta.nombre()) { <p class="truncate px-2 pt-1 pb-2 text-label-xs text-text-muted">{{ cuenta.nombre() }}</p> }
+          <a [routerLink]="cuenta.perfil() | loc" (click)="perfilMenu.set(false)" class="flex h-10 items-center gap-2 rounded-sm px-2 text-label-s text-text-secondary hover:bg-white/5 hover:text-text-primary"><gr-icon name="user" [size]="16" />{{ t().perfil }}</a>
+          <button type="button" (click)="salir()" class="flex h-10 items-center gap-2 rounded-sm px-2 text-left text-label-s text-text-secondary hover:bg-white/5 hover:text-text-primary"><gr-icon name="log-out" [size]="16" />{{ t().salir }}</button>
+        </div>
+      </div>
+    }
     @if (mega()) {
       <div id="mega-competicion" class="mx-auto mt-2 hidden max-w-[1180px] flex-wrap gap-8 rounded-xl border border-line-strong bg-bg-raised p-7 shadow-card md:flex lg:flex-nowrap" (keydown.escape)="cerrarMega()">
         @for (col of t().mega; track col.titulo) {
@@ -214,6 +229,10 @@ const T = {
         <ul class="flex flex-col">
           @for (l of accesos(); track l.href) {
             <li><a [routerLink]="ruta(l.href) | loc" [fragment]="frag(l.href)" (click)="open.set(false)" class="flex h-[54px] items-center justify-between border-b border-line-subtle px-1 text-display-xs decoration-accent decoration-2 underline-offset-8" [class.underline]="activo(l.href)" [attr.aria-current]="activo(l.href) ? 'page' : null">{{ l.label }}<gr-icon name="arrow-right" [size]="18" class="text-text-tertiary" /></a></li>
+          }
+          @if (cuenta.conSesion()) {
+            <li><a [routerLink]="cuenta.perfil() | loc" (click)="open.set(false)" class="flex h-[54px] items-center justify-between border-b border-line-subtle px-1 text-display-xs decoration-accent decoration-2 underline-offset-8" [class.underline]="activo(cuenta.perfil())" [attr.aria-current]="activo(cuenta.perfil()) ? 'page' : null"><span class="flex items-center gap-2"><gr-icon name="user" [size]="20" class="text-text-tertiary" />{{ t().perfil }}</span><gr-icon name="arrow-right" [size]="18" class="text-text-tertiary" /></a></li>
+            <li><button type="button" (click)="salir()" class="flex h-[54px] w-full items-center justify-between border-b border-line-subtle px-1 text-left text-display-xs"><span class="flex items-center gap-2"><gr-icon name="log-out" [size]="20" class="text-text-tertiary" />{{ t().salir }}</span></button></li>
           }
         </ul>
           <div class="flex flex-col pt-2">
@@ -273,7 +292,15 @@ export class Navbar {
   protected readonly mega = signal(false);
   private readonly el = inject(ElementRef<HTMLElement>);
   /** The mega menu closes with a click outside the navbar (and with Esc). */
-  protected fuera(e: Event): void { if (this.mega() && !this.el.nativeElement.contains(e.target as Node)) this.mega.set(false); }
+  protected fuera(e: Event): void { if ((this.mega() || this.perfilMenu()) && !this.el.nativeElement.contains(e.target as Node)) { this.mega.set(false); this.perfilMenu.set(false); } }
+  /** Signed-in person: profile menu on desktop, two entries in the mobile menu. */
+  protected readonly cuenta = inject(Cuenta);
+  protected readonly perfilMenu = signal(false);
+  protected async salir(): Promise<void> {
+    this.perfilMenu.set(false);
+    this.open.set(false);
+    await this.cuenta.salir();
+  }
   /** The current page is one of the items of «Competición ▾» (the button shows the active indicator). */
   protected readonly megaActivo = computed(() => { this.actual(); const arriba = this.t().links.map((l) => l.href); return this.t().mega.some((c) => c.items.some((i) => !i.href.includes('#') && !arriba.includes(i.href) && this.activo(i.href))); });
   /** ↓ on «Competición ▾»: open it and move the focus to its first item. */
@@ -361,7 +388,8 @@ export class Navbar {
         // the page behind (above all the hero's video, blend and blur layers) is not painted and the hero's loop idles
         document.documentElement.classList.toggle('gr-menu-abierto', cubierto);
       });
-      const sub = this.router.events.subscribe(() => { this.open.set(false); this.alNavegar(); });
+      this.cuenta.cargar();
+      const sub = this.router.events.subscribe(() => { this.open.set(false); this.perfilMenu.set(false); this.alNavegar(); });
       inject(DestroyRef).onDestroy(() => { sub.unsubscribe(); document.body.style.overflow = ''; document.documentElement.classList.remove('gr-menu-abierto'); });
     }
   }

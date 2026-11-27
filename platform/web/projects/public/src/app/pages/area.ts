@@ -8,6 +8,7 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { Cuenta } from '../core/cuenta';
 import { AreaSesion, esVista, type AreaVista, type Marcas, type Panel, type PruebaArea } from '../core/area';
 import { cat, hora } from '../core/atletas';
 import { COMPETITION_SLUG, Competition } from '../core/competition';
@@ -569,6 +570,7 @@ export class AreaAtletaPage {
   private readonly comp = inject(Competition);
   private readonly i18n = inject(I18n);
   private readonly area = inject(AreaSesion);
+  private readonly cuenta = inject(Cuenta);
   private readonly injector = inject(Injector);
   protected readonly t = this.i18n.dict(T);
   protected readonly hora = (iso?: string) => hora(iso, this.i18n.lang());
@@ -915,11 +917,9 @@ export class AreaAtletaPage {
     setTimeout(() => this.copiado.set(false), 2500);
   }
 
+  /** Same logout as the navbar: both sessions end and the private area goes back home. */
   protected async salir(): Promise<void> {
-    await firstValueFrom(this.http.post(`${api}/salir`, {})).catch(() => undefined);
-    this.area.poner(null);
-    this.estado.set('acceso');
-    await this.router.navigate([], { relativeTo: this.route, queryParams: {} });
+    await this.cuenta.salir();
   }
 
   private msg(e: unknown): string {

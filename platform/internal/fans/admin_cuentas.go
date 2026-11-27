@@ -296,7 +296,7 @@ func (s *Svc) registerCuentas(api huma.API, base string, operar func(context.Con
 					VALUES ($1,$2,$3,$4,$5,$6,'','','','', now() + interval '30 minutes')`, newID(), in.CID, hashToken(tok), email, emailHash(email), row.Tipo); err != nil {
 					return err
 				}
-				if err := emailSolicitado(ctx, tx, in.CID, email, "fans-acceso-contrasena", map[string]string{"alias": row.Alias, "tipo": row.Tipo, "enlace": s.webURL + "/acceso?acceso=" + tok}); err != nil {
+				if err := emailSolicitado(ctx, tx, in.CID, email, "fans-acceso-contrasena", map[string]string{"alias": row.Alias, "tipo": row.Tipo, "enlace": s.webURL + "/restablecer-contrasena?token=" + tok}); err != nil {
 					return err
 				}
 				return evento(ctx, tx, in.CID, "fans.reset_enviado", map[string]any{"fanId": row.ID, "alias": row.Alias})

@@ -299,6 +299,28 @@ func (s *Svc) registerArea() {
 			return &panelOut{Body: p}, err
 		})
 
+	// Cheap check for the navbar of every page: 204 without a session (no 401 in the console of anonymous visitors).
+	type sesionActivaOut struct {
+		Status int
+		Body   struct {
+			Nombre string `json:"nombre"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "area-sesion-activa", Method: http.MethodGet, Path: base + "/sesion", Summary: "¿Hay sesión de área? (204 sin sesión)", Tags: tagArea},
+		func(ctx context.Context, in *cookieIn) (*sesionActivaOut, error) {
+			o := &sesionActivaOut{Status: http.StatusNoContent}
+			if in.Session == "" {
+				return o, nil
+			}
+			r, err := s.session(ctx, in.Session)
+			if err != nil {
+				return o, nil
+			}
+			o.Status = http.StatusOK
+			o.Body.Nombre = r.Nombre
+			return o, nil
+		})
+
 	// The athlete can change here what is a setting (visibility, image consent). The details of the record (name,
 	// contact, club, bio, marks…) are a change request that the team reviews first: nothing is written until approving.
 	type perfilIn struct {

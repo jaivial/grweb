@@ -179,6 +179,7 @@ func (s *Svc) registerPublic() {
 			plantilla := "fans-acceso"
 			if alias == "" {
 				plantilla = "fans-acceso-contrasena"
+				link = s.webURL + "/restablecer-contrasena?token=" + tok
 			}
 			if next := nextValido(in.Body.Next); next != "" {
 				link += "&next=" + url.QueryEscape(next)
