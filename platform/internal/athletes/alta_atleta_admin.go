@@ -1172,7 +1172,7 @@ func (s *Svc) actualizaPerfil(ctx context.Context, tx pgx.Tx, cid, atleta uuid.U
 		frase = COALESCE(NULLIF($2,''), frase), bio = COALESCE(NULLIF($3,''), bio), instagram = CASE WHEN $9 THEN '' ELSE COALESCE(NULLIF($4,''), instagram) END,
 		historial = COALESCE(NULLIF($5,''), historial), entrenador = COALESCE(NULLIF($10,''), entrenador),
 		marca_sq = COALESCE($6, marca_sq), marca_bp = COALESCE($7, marca_bp), marca_dl = COALESCE($8, marca_dl),
-		visible = CASE WHEN $9 OR NOT $11 OR $12 THEN false ELSE visible END, updated_at = now() WHERE atleta_id = $1`,
+		visible = CASE WHEN NOT $11 OR $12 THEN false ELSE visible END, updated_at = now() WHERE atleta_id = $1`,
 		atleta, frase, bio, instagram, historial, sq, bp, dl, sol.EsMenor, entrenador, sol.consent("imagen").Aceptado, nuevo); err != nil {
 		return "", err
 	}
