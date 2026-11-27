@@ -342,7 +342,7 @@ export class JuegosNav {
         <gr-icon name="zap" [size]="15" />
       </span>
       <span class="font-mono text-[1rem] font-bold tabular-nums">{{ monedas(valor()) }}</span>
-      <span class="text-mono-xs text-text-secondary" [class]="etiquetaMovil() ? '' : 'max-md:hidden'">· {{ moneda() === 'porra' ? t().porra : 'Fantasy' }}</span>
+      <span class="text-mono-xs text-text-secondary" [class]="etiquetaMovil() ? '' : 'max-md:hidden'">· {{ etiqueta() || (moneda() === 'porra' ? t().porra : 'Fantasy') }}</span>
     } @else if (!fan.cargada()) {
       <!-- UX5-R1-6: sesión sin resolver (SSR / primera carga): esqueleto del saldo, nunca «Entrar» -->
       <span class="size-8 shrink-0 animate-pulse rounded-full bg-bg-field motion-reduce:animate-none" aria-hidden="true"></span>
@@ -359,6 +359,8 @@ export class CoinBalance {
   readonly moneda = input<'porra' | 'fantasy'>('porra');
   /** UX5-R4-1: false oculta «· Porra» en móvil (cabeceras compactas). */
   readonly etiquetaMovil = input(true);
+  /** Lo que sigue al punto de la moneda (por defecto «Porra»): el nivel del saldo, p. ej. «Saldo AEP-2». */
+  readonly etiqueta = input('');
   /** El motivo del acceso: 'porra' o 'fantasy' (lo usa el modal de acceso). */
   readonly motivo = input<'porra' | 'fantasy'>('porra');
   protected readonly fan = inject(FanSession);
