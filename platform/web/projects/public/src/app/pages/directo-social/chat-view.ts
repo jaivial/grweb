@@ -326,8 +326,6 @@ export class ChatView {
   protected readonly emojisLista = EMOJIS;
   /** New messages that arrived while the user was not at the bottom. */
   protected readonly noLeido = signal(0);
-  /** True when the list is scrolled to the bottom (the autoscroll follows it). */
-  private readonly pegado = signal(true);
   /** Key of the first and the last item seen by the list (tells an older page from a new message). */
   private primeroVisto = '';
   private ultimoVisto = '';
@@ -359,6 +357,8 @@ export class ChatView {
   );
 
   constructor() {
+    // A new view starts at the bottom (the store cuts the oldest items only while the reader follows the live end).
+    this.chat.siguiendoFinal.set(true);
     effect(() => {
       // The list element is read inside the effect: the first run can happen before the view exists.
       const items = this.chat.items();
@@ -371,7 +371,7 @@ export class ChatView {
       this.primeroVisto = primero;
       this.ultimoVisto = ultimo;
       untracked(() => {
-        if (this.pegado()) this.bajar();
+        if (this.chat.siguiendoFinal()) this.bajar();
         else if (!antepuesto) this.noLeido.update((v) => v + 1);
       });
     });
@@ -426,8 +426,8 @@ export class ChatView {
 
   protected alScroll(e: Event): void {
     const el = e.target as HTMLElement;
-    this.pegado.set(el.scrollTop + el.clientHeight >= el.scrollHeight - 48);
-    if (this.pegado()) this.noLeido.set(0);
+    this.chat.siguiendoFinal.set(el.scrollTop + el.clientHeight >= el.scrollHeight - 48);
+    if (this.chat.siguiendoFinal()) this.noLeido.set(0);
     if (el.scrollTop < 96) this.cargarAnteriores(el);
   }
 
@@ -447,7 +447,7 @@ export class ChatView {
   }
 
   protected irAlFinal(): void {
-    this.pegado.set(true);
+    this.chat.siguiendoFinal.set(true);
     this.noLeido.set(0);
     this.bajar();
   }

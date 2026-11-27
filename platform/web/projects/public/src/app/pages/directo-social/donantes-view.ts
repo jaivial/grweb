@@ -179,7 +179,10 @@ export class DonantesView {
   /** Id of the panel's jornada (fallback for the prizes when the day has no game jornada). */
   readonly jornadaId = input<string>('');
 
-  protected readonly hoy = diaDeHoy();
+  /** Today (Europe/Madrid) of the panel: the day the donors tab passes to its view (moves at midnight). Without it, the clock. */
+  protected get hoy(): string {
+    return this.diaSala() || diaDeHoy();
+  }
   /** Days of the competition (from the public schedule), sorted. */
   protected readonly dias = signal<string[]>([]);
   private readonly jornadas = signal<Jornada[]>([]);

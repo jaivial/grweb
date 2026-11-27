@@ -4,7 +4,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 import { GrIcon, GrToasts, type GrLiveEstado } from '@grcup/ui';
-import { ChatService, diaDeHoy } from '../../core/chat';
+import { ChatService } from '../../core/chat';
 import { type Directo } from '../../core/directo';
 import { FanSession } from '../../core/fan';
 import { I18n } from '../../core/i18n';
@@ -96,7 +96,7 @@ export function escritorio(): Signal<boolean> {
         [class]="t === 'chat' ? (chatVacio() ? 'md:h-[600px] lg:h-auto' : 'h-[max(360px,calc(100dvh-382px))] md:h-[600px] lg:h-auto') : 'min-h-[480px] md:min-h-[600px]'">
         @switch (t) {
           @case ('chat') { @defer (on immediate) { <gr-chat-view (donar)="donar.set(true)" /> } }
-          @case ('donantes') { @defer (on immediate) { <gr-donantes-view [diaSala]="hoy" [jornadaId]="jornadaPorra()?.id ?? ''" (donar)="donar.set(true)" /> } }
+          @case ('donantes') { @defer (on immediate) { <gr-donantes-view [diaSala]="hoy()" [jornadaId]="jornadaPorra()?.id ?? ''" (donar)="donar.set(true)" /> } }
           @case ('porra') {
             <!-- «Activar juegos» apagado en el backoffice: el aviso en lugar de la porra (vuelve sola al activarse) -->
             @if (juegosEstado.cerrados()) { <gr-juegos-cerrados class="px-4 py-4" [compacto]="true" /> }
@@ -143,8 +143,8 @@ export class PanelSocial {
   private readonly pestanas: { v: Pestana }[] = [{ v: 'chat' }, { v: 'donantes' }, { v: 'porra' }, { v: 'tarima' }];
   protected readonly visibles = computed(() => (this.escritorio() ? this.pestanas.filter((t) => t.v !== 'tarima') : this.pestanas));
 
-  /** Today (Madrid): the day of the chat room and of the games. */
-  protected readonly hoy = diaDeHoy();
+  /** Today (Madrid): the day of the chat room and of the games. Moves at midnight (the store's watch, see the constructor). */
+  protected readonly hoy = this.chat.hoy;
   /** The porra shown: the same jornada /porra opens by default (`jornadaPorDefecto`), so both show the same data. */
   protected readonly jornadaPorra = computed<Jornada | undefined>(() => jornadaPorDefecto(this.jornadas()) ?? undefined);
 
@@ -160,6 +160,8 @@ export class PanelSocial {
   constructor() {
     if (this.browser) {
       void this.fan.cargar();
+      // The day moves at midnight for the chat and the donors tab alike: the watch lives as long as the panel
+      this.chat.vigilarDia();
       // Only the shown tab keeps a connection: the chat socket lives while «Chat» is open (one room, today's)
       effect(() => {
         const t = this.tab();
@@ -207,7 +209,10 @@ export class PanelSocial {
         this.toasts.info(this.t().canceladoT, this.t().canceladoD);
       }
     }
-    inject(DestroyRef).onDestroy(() => this.chat.desconectar());
+    inject(DestroyRef).onDestroy(() => {
+      this.chat.desconectar();
+      this.chat.pararVigilanciaDia();
+    });
   }
 
   protected elegir(t: Pestana): void {
