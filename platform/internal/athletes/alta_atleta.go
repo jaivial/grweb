@@ -182,13 +182,18 @@ const selSolicitud = `SELECT id, competition_id, tipo, cambios::text AS cambios,
 	revisado_at, revisado_por, consentimientos::text AS consentimientos, consentimiento_at, ip, user_agent,
 	version, created_at, updated_at, prueba, categoria, handler FROM solicitudes_atleta`
 
-// getSolicitud reads a request of the competition.
-func getSolicitud(ctx context.Context, q querier, cid, id uuid.UUID) (solicitud, error) {
-	rows, err := q.Query(ctx, selSolicitud+` WHERE competition_id = $1 AND id = $2`, cid, id)
+// collectSolicitud reads the one request of selSolicitud. The struct follows the columns by name
+// (pgx.RowToStructByName), so a new column can never leave a Scan short.
+func collectSolicitud(rows pgx.Rows, err error) (solicitud, error) {
 	if err != nil {
 		return solicitud{}, err
 	}
-	s, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[solicitud])
+	return pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[solicitud])
+}
+
+// getSolicitud reads a request of the competition.
+func getSolicitud(ctx context.Context, q querier, cid, id uuid.UUID) (solicitud, error) {
+	s, err := collectSolicitud(q.Query(ctx, selSolicitud+` WHERE competition_id = $1 AND id = $2`, cid, id))
 	if err != nil {
 		return s, problem.NotFound("Esa solicitud no existe.")
 	}

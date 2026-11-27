@@ -166,6 +166,8 @@ type DetalleSolicitud struct {
 	AutorizacionURL string `json:"autorizacionUrl,omitempty" doc:"Autorización firmada subida por el tutor (tipo autorizacion)"`
 	// Anteriores: the earlier rejected authorisations of the same athlete (tipo autorizacion), newest first.
 	Anteriores []AutorizacionAnterior `json:"anteriores,omitempty"`
+	// Handler: the alta asked for free handling (approving it creates the «handling» request).
+	Handler bool `json:"handler"`
 }
 
 // AutorizacionAnterior is an earlier rejected authorisation: when and why.
@@ -590,7 +592,7 @@ func (s *Svc) detalleSolicitud(ctx context.Context, cid, id uuid.UUID) (DetalleS
 		MarcaSQ: sol.MarcaSQ, MarcaBP: sol.MarcaBP, MarcaDL: sol.MarcaDL,
 		FocalX: int(sol.FocalX), FocalY: int(sol.FocalY),
 		MotivoRechazo: sol.MotivoRechazo, RevisadoAt: sol.RevisadoAt, RevisadoPor: sol.RevisadoPor,
-		Diferencias: []Diferencia{}, Cambios: cambiosDeSolicitud(sol), Consentimientos: []ConsentimientoItem{},
+		Diferencias: []Diferencia{}, Cambios: cambiosDeSolicitud(sol), Consentimientos: []ConsentimientoItem{}, Handler: sol.Handler,
 	}
 	if sol.FechaNacimiento != nil {
 		d.FechaNacimiento = sol.FechaNacimiento.Format("2006-01-02")
@@ -739,14 +741,8 @@ func (s *Svc) candidatos(ctx context.Context, cid uuid.UUID, q string) (*Candida
 
 // lockSolicitud reads a request with a row lock and checks the version of the client.
 func (s *Svc) lockSolicitud(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, ifm string) (solicitud, error) {
-	var sol solicitud
-	err := tx.QueryRow(ctx, selSolicitud+` WHERE competition_id = $1 AND id = $2 FOR UPDATE`, cid, id).
-		Scan(&sol.ID, &sol.CompetitionID, &sol.Tipo, &sol.Cambios, &sol.MatchAtletaID, &sol.MatchTipo, &sol.Licencia, &sol.Nombre, &sol.Apellidos, &sol.Email,
-			&sol.Telefono, &sol.Sexo, &sol.FechaNacimiento, &sol.Club, &sol.Ciudad, &sol.Frase, &sol.Bio, &sol.Instagram,
-			&sol.Entrenador, &sol.Historial, &sol.MarcaSQ, &sol.MarcaBP, &sol.MarcaDL, &sol.FocalX, &sol.FocalY, &sol.EsMenor,
-			&sol.FotoClave, &sol.FotoSHA256, &sol.AutorizacionClave, &sol.Estado, &sol.Notas, &sol.MotivoRechazo, &sol.RevisadoAt,
-			&sol.RevisadoPor, &sol.Consentimientos, &sol.ConsentimientoAt, &sol.IP, &sol.UserAgent, &sol.Version, &sol.CreatedAt, &sol.UpdatedAt, &sol.Prueba, &sol.Categoria)
-	if err == pgx.ErrNoRows {
+	sol, err := collectSolicitud(tx.Query(ctx, selSolicitud+` WHERE competition_id = $1 AND id = $2 FOR UPDATE`, cid, id))
+	if errors.Is(err, pgx.ErrNoRows) {
 		return sol, problem.NotFound("Esa solicitud no existe.")
 	}
 	if err != nil {
