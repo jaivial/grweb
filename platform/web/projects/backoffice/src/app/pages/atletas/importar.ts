@@ -124,7 +124,7 @@ const RESULTADO: Record<FilaDiff['accion'] | 'baja', { label: string; tone: GrTo
               @if (!filasVista().length) { <p class="px-5 py-8 text-center text-body-s text-text-tertiary">No hay cambios: el acta coincide con los atletas actuales.</p> }
             </section>
             @if (bajasMasivas()) {
-              <gr-alert tone="danger" [title]="'Esta acta da de baja a ' + imp.resumen.bajas + ' atletas'">
+              <gr-alert tone="danger" [title]="'Esta acta da de baja a ' + imp.resumen.bajas + (imp.resumen.bajas === 1 ? ' atleta' : ' atletas')">
                 El acta solo trae {{ imp.resumen.nuevos + imp.resumen.cambios + imp.resumen.iguales }} {{ imp.resumen.nuevos + imp.resumen.cambios + imp.resumen.iguales === 1 ? 'fila válida' : 'filas válidas' }}: todos los demás atletas pasarán a «Baja» y perderán su plaza. Comprueba que es el acta completa.
                 <label class="mt-3 flex flex-col gap-1.5 text-label-s text-text-primary" for="i-conf">Escribe {{ imp.resumen.bajas }} para confirmar las bajas
                   <input grInput id="i-conf" class="max-w-40" inputmode="numeric" autocomplete="off" [ngModel]="confBajas()" (ngModelChange)="confBajas.set($event)" /></label>
