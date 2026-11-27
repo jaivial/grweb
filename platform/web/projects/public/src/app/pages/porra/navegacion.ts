@@ -173,15 +173,15 @@ export class PorraNivel {
           <ng-content />
         </div>
       } @else {
-        <nav class="grid gap-2" [class]="dosColumnas() ? 'grid-cols-2' : 'grid-cols-1 @[28rem]:grid-cols-2 @[40rem]:grid-cols-6'" [attr.aria-label]="t().mercados">
+        <nav class="grid gap-2" [class]="dosColumnas() ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-5'" [attr.aria-label]="t().mercados">
           @for (g of grupos(); track g.v) {
             <a #tarjeta [routerLink]="ruta() | loc" [queryParams]="{ grupo: g.v, sexo: null, prueba: null, peso: null }" queryParamsHandling="merge"
-              class="flex min-h-32 flex-col items-center justify-center gap-3 rounded-md border border-line-subtle bg-bg-card p-4 text-center transition-colors hover:border-line-strong" [class]="g.clase">
+              class="flex min-h-32 flex-col items-center justify-start gap-3 rounded-md border border-line-subtle bg-bg-card p-4 text-center transition-colors hover:border-line-strong">
               <span class="flex h-[42px] w-12 items-center justify-center md:h-14 md:w-16">
                 @if (g.imagen; as src) {
-                  <img [src]="src" alt="" width="223" height="193" loading="lazy" decoding="async" class="h-full w-full object-contain" />
+                  <img [src]="src" alt="" width="223" height="193" loading="eager" decoding="async" class="h-full w-full object-contain" />
                 } @else if (g.icono; as nombre) {
-                  <gr-icon [name]="nombre" [size]="36" [stroke]="1.5" class="text-text-secondary [&>svg]:size-9 md:[&>svg]:size-11" />
+                  <gr-icon [name]="nombre" [size]="36" [stroke]="1.5" class="text-text-secondary [&>svg]:size-[42px] md:[&>svg]:size-[52px]" />
                 }
               </span>
               <span class="block min-h-[2lh] text-label-m text-text-primary">{{ g.l }}</span>
@@ -226,7 +226,7 @@ export class PorraNavegacion {
     { v: 'F' as Sexo, l: this.t().femenino },
     { v: 'M' as Sexo, l: this.t().masculino },
   ]);
-  protected readonly grupos = computed(() => GRUPOS.map((v, i) => ({ v, l: this.t()[v], icono: ICONOS[v] ?? null, imagen: IMAGENES[v] ?? null, clase: this.claseTarjeta(i) })));
+  protected readonly grupos = computed(() => GRUPOS.map((v) => ({ v, l: this.t()[v], icono: ICONOS[v] ?? null, imagen: IMAGENES[v] ?? null })));
   protected readonly categorias = computed(() => mercadosDe(this.mercados(), this.sexo(), 'categoria', this.prueba()));
   protected readonly activa = computed<Mercado | undefined>(() => this.categorias().find((m) => m.categoria === this.peso()) ?? this.categorias()[0]);
 
