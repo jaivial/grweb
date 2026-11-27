@@ -162,6 +162,21 @@ SH
 }
 
 # Postgres: conexiones libres para un color más (~150 = ~30 pods × DB_POOL 5).
+# Pods del nodo (cap de kubelet, 110 en kraken): el scheduler no admite más, y un color que no cabe deja pods en
+# Pending a mitad de la conmutación. Exige un pod por Deployment del color más 5 de margen (surges de rollout).
+colores_holgura_pods() { # <color>
+  ssh "$KRAKEN" bash -s -- "${NS[$1]}" <<'SH'
+set -euo pipefail
+ns=$1
+nodo=$(sudo k3s kubectl get node -o jsonpath='{.items[0].metadata.name}')
+cap=$(sudo k3s kubectl get node "$nodo" -o jsonpath='{.status.capacity.pods}')
+usados=$(sudo k3s kubectl get pods -A --field-selector "spec.nodeName=$nodo,status.phase!=Succeeded,status.phase!=Failed" --no-headers | wc -l)
+need=$(( $(sudo k3s kubectl -n "$ns" get deploy --no-headers | wc -l) + 5 ))
+echo "pods en $nodo: $usados de $cap · el color necesita ~$need"
+[ $((cap - usados)) -ge "$need" ] || { echo "sin pods libres para $ns: baja réplicas de QA o sube max-pods de kubelet" >&2; exit 1; }
+SH
+}
+
 colores_holgura() {
   ssh "$KRAKEN" bash -s -- "$NS_COMP" <<'SH'
 set -euo pipefail
