@@ -90,6 +90,8 @@ const paginas: Routes = [
   // Internal overlay / global state sheet for visual QA (Figma 17); noindex and not in the sitemap.
   { path: '_overlays', loadComponent: () => import('./pages/overlays').then((m) => m.OverlaysPage) },
   { path: 'autorizacion/:token', loadComponent: () => import('./pages/autorizacion').then((m) => m.AutorizacionPage) },
+  // Formulario personal del atleta (enlace del email o WhatsApp); noindex, la página pide sus datos en el navegador.
+  { path: 'formularios/:token', loadComponent: () => import('./pages/formulario/formulario').then((m) => m.FormularioPage) },
 ];
 // CMS content pages (reglamento, categorias-de-peso, marcas-minimas…); unknown slugs answer 404.
 const cola: Routes = [

@@ -85,6 +85,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerWAPlantillas()
 	s.registerAvisos()
 	s.registerRGPD()
+	s.registerFormularios()
 	s.registerSistema()
 	return nil
 }
@@ -130,6 +131,10 @@ func (s *Svc) handleEmail(ctx context.Context, e events.Event) error {
 	}
 	if d.Vars == nil {
 		d.Vars = map[string]string{}
+	}
+	// formulario_html is HTML ready to send (FORMULARIOS.md §6): only the athletes' events may carry it.
+	if !strings.HasPrefix(e.Type, "athletes.") {
+		delete(d.Vars, formularioHTML)
 	}
 	return s.tx(ctx, func(tx pgx.Tx) error {
 		id := uuid.Must(uuid.NewV7())

@@ -30,7 +30,7 @@ const (
 
 // renderizarDe renders a catalogue template with its layout.
 func renderizarDe(t Plantilla, c Contenido, vars map[string]string, m Marca) (Render, error) {
-	r, err := renderizar(c, vars, t.Variables, m, t.Esencial, t.QR)
+	r, err := renderizarCon(c, vars, t.Variables, m, t.Esencial, t.QR, bloqueBajoCuerpo(t.Clave, vars))
 	if err == nil && formularioAutorizacion(t.Clave) {
 		// The image of these templates is the form to sign, not the photo of a request.
 		r.Texto = strings.Replace(r.Texto, "Foto de la solicitud: ", "Formulario de autorización: ", 1)
@@ -40,6 +40,15 @@ func renderizarDe(t Plantilla, c Contenido, vars map[string]string, m Marca) (Re
 	}
 	r.HTML = altaHTML(t.Clave, c, vars, t.Variables, m)
 	return r, nil
+}
+
+// bloqueBajoCuerpo is the HTML that goes under the body without escaping: only the invitation's form, from the
+// variable formulario_html (a ready HTML that athletes compiles; handleEmail keeps it out of the other events).
+func bloqueBajoCuerpo(clave string, vars map[string]string) string {
+	if clave != formularioInvitacion {
+		return ""
+	}
+	return vars[formularioHTML]
 }
 
 // formularioAutorizacion: the templates to the athlete whose image is the authorisation form (a public file that

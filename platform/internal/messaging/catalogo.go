@@ -75,6 +75,7 @@ var automatizaciones = []Automatizacion{
 	{Clave: "publico", Nombre: "Avisos al público", Cuando: "al publicar horarios · al empezar el directo · el día antes", Publico: "Cuentas de público del directo", Canales: []string{"email", "whatsapp"}},
 	{Clave: "anuncios", Nombre: "Anuncios de juegos y chat", Cuando: "40 min después de crear la cuenta (una vez)", Publico: "Cuentas de público del directo", Canales: []string{"email", "whatsapp"}},
 	{Clave: "solicitudes-atleta", Nombre: "Solicitudes de atleta", Cuando: "al enviar el alta y al aprobar o rechazarla", Publico: "Atletas que se dan de alta y el equipo", Canales: []string{"email", "whatsapp"}},
+	{Clave: "formularios", Nombre: "Formularios: invitaciones", Cuando: "al enviar un formulario desde el backoffice", Publico: "Atletas invitados a un formulario", Canales: []string{"email", "whatsapp"}},
 	{Clave: "fantasy-salas", Nombre: "Solicitudes de sala (GRS Fantasy)", Cuando: "al pedir alguien unirse a una sala (una vez por jugador y sala)", Publico: "Anfitriones de salas de GRS Fantasy", Canales: []string{"email", "whatsapp"}},
 }
 
@@ -419,6 +420,17 @@ var catalogo = []Plantilla{
 			BotonTexto: "Ver la solicitud", BotonURL: "{{enlace}}", Pie: "¿No quieres más avisos del directo? Date de baja aquí: {{baja}}",
 			Nota: "Recibes este email porque eres el anfitrión de la sala {{sala}} de GRS Fantasy."},
 		ContenidoWA{Texto: "*{{alias}} quiere unirse a tu sala {{sala}} de GRS Fantasy* 🏋️\n\nAcepta o rechaza su solicitud desde la sala.\n\n_Responde BAJA si no quieres más avisos._", Botones: []BotonWA{{Texto: "Ver la solicitud", URL: "{{enlace}}"}}}),
+	// ---- Formularios (athletes, FORMULARIOS.md §6): invitación a rellenar un formulario. El email lleva el formulario
+	// incrustado (formulario_html, HTML ya compilado: solo llega en eventos de athletes, ver handleEmail); el WhatsApp
+	// llega ya con su texto resuelto. Es un aviso no operativo: se pausa durante el evento como el resto de avisos. ----
+	pwa(formularioInvitacion, "Formulario: invitación", "Al enviar un formulario desde el backoffice (email y WhatsApp)", "athletes", "formularios", false,
+		[]string{"asunto", "preheader", "formulario", "intro", "enlace", "competicion", "nombre", "formulario_html", "texto"},
+		map[string]string{"asunto": "Encuesta post-competición", "preheader": "Te llevará dos minutos", "formulario": "Encuesta post-competición",
+			"intro": "Hola Laura, cuéntanos cómo ha ido la GRS Cup 2.", "enlace": "https://grcup.example/formularios/…", "competicion": "GRS Cup 2", "nombre": "Laura",
+			"formulario_html": "", "texto": "Hola Laura, tienes un formulario de GRS Cup 2: «Encuesta post-competición». Rellénalo aquí: https://grcup.example/formularios/…"},
+		Contenido{Asunto: "{{asunto}}", Preheader: "{{preheader}}", Titulo: "{{formulario}}", Cuerpo: "{{intro}}",
+			BotonTexto: "Rellenar en la web", BotonURL: "{{enlace}}", Nota: "Recibes este email porque participas en {{competicion}}."},
+		ContenidoWA{Texto: "{{texto}}"}),
 }
 
 var ejPublico = map[string]string{"alias": "laurafit", "competicion": "GRS Cup 2", "enlace": "https://grcup.example/en-directo", "area": "https://grcup.example/area-atleta",
