@@ -5,13 +5,22 @@ import { GrAlert, GrButton, GrField, GrIcon, GrInput, GrSegmented, GrSkeleton, G
 import { TimeoutError } from 'rxjs';
 import { Competitions } from '../../core/competitions';
 import { problemOf, type Problem } from '../../core/api';
-import { BoCheckbox } from '../../shared/kit';
+import { BoCheckbox, BoDatePicker } from '../../shared/kit';
 import { Confirm, errText } from '../../shared/ui';
 import { nuevoUuid } from '../../shared/uuid';
-import { FormulariosApi, type AtletaCandidato, type Audiencia, type CanalFormulario, type Envio, type Filtro, type Formulario } from './api';
+import { FormulariosApi, type AtletaCandidato, type Audiencia, type CanalFormulario, type Envio, type Filtro, type Formulario, type Programado } from './api';
 
 type Estado = 'confirmado' | 'reserva';
 type Destinatarios = 'todos' | 'concretos';
+type Cuando = 'ahora' | 'programar';
+const CUANDO: { value: Cuando; label: string }[] = [
+  { value: 'ahora', label: 'Enviar ahora' },
+  { value: 'programar', label: 'Programar' },
+];
+const pad2 = (n: number) => String(n).padStart(2, '0');
+/** Local `YYYY-MM-DDTHH:mm` (the value format of bo-date-picker datetime). */
+const localDT = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+const fmtProgramado = new Intl.DateTimeFormat('es-ES', { dateStyle: 'long', timeStyle: 'short' });
 const ESTADOS: { v: Estado; label: string }[] = [
   { v: 'confirmado', label: 'Confirmados' },
   { v: 'reserva', label: 'En reserva' },
@@ -39,7 +48,7 @@ const MOTIVO_SIN_ATLETAS = 'Elige al menos un atleta.';
  */
 @Component({
   selector: 'bo-envio-dialogo',
-  imports: [A11yModule, RouterLink, BoCheckbox, GrAlert, GrButton, GrField, GrIcon, GrInput, GrSegmented, GrSkeleton],
+  imports: [A11yModule, RouterLink, BoCheckbox, BoDatePicker, GrAlert, GrButton, GrField, GrIcon, GrInput, GrSegmented, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" (click)="alCerrar()" (keydown.escape)="alCerrar()">
@@ -145,16 +154,32 @@ const MOTIVO_SIN_ATLETAS = 'Elige al menos un atleta.';
           } @else { <gr-skeleton class="mt-2 h-12 rounded-sm" /> }
         </section>
 
+        <fieldset class="flex flex-col gap-3">
+          <legend class="mb-1 text-label-s text-text-secondary">Cuándo</legend>
+          <gr-segmented [options]="cuandoOps" [value]="cuando()" (valueChange)="cambiarCuando($any($event))" label="Cuándo enviar" />
+          @if (cuando() === 'programar') {
+            <gr-field label="Fecha y hora del envío" [hint]="fechaProgramada() ? 'A esa hora los mensajes entran en la Cola de envío.' : 'Elige el día y la hora.'">
+              <bo-date-picker tipo="datetime" aria-label="Fecha y hora del envío" placeholder="Elige fecha y hora" [min]="minProgramado()" [paso]="5"
+                [value]="fechaProgramada()" [invalido]="!!fechaProgramada() && !fechaValida()" (valueChange)="fechaProgramada.set($event)" data-fecha-programada />
+            </gr-field>
+            @if (fechaProgramada() && !fechaValida()) { <p class="text-body-xs text-warning">Elige una fecha y hora futuras.</p> }
+          }
+        </fieldset>
+
         <gr-alert tone="info" icon="clock" title="Ritmo anti-spam">
           {{ ritmo }}
           <a alertAction [routerLink]="['/', comps.current()?.slug, 'sistema', 'cola-envio']" class="mt-2 inline-flex h-9 items-center gap-1 text-label-s text-info">Ver la Cola de envío <gr-icon name="arrow-right" [size]="14" /></a>
         </gr-alert>
 
-        @if (error()) { <gr-alert tone="danger" icon="circle-alert" title="No se ha podido crear el envío">{{ error() }}</gr-alert> }
+        @if (error()) { <gr-alert tone="danger" icon="circle-alert" [title]="cuando() === 'programar' ? 'No se ha podido programar el envío' : 'No se ha podido crear el envío'">{{ error() }}</gr-alert> }
 
         <div class="flex flex-wrap justify-end gap-2">
           <button type="button" grButton variant="ghost" (click)="alCerrar()">Cancelar</button>
-          <button type="button" grButton variant="primary" icon="send" [loading]="enviando()" [disabled]="!puedeEnviar()" (click)="enviar()">Enviar</button>
+          @if (cuando() === 'programar') {
+            <button type="button" grButton variant="primary" icon="clock" [loading]="enviando()" [disabled]="!puedeEnviar() || !fechaValida()" (click)="programar()">Programar envío</button>
+          } @else {
+            <button type="button" grButton variant="primary" icon="send" [loading]="enviando()" [disabled]="!puedeEnviar()" (click)="enviar()">Enviar</button>
+          }
         </div>
       </div>
     </div>
@@ -164,12 +189,22 @@ export class BoEnvioDialogo {
   readonly formulario = input.required<Formulario>();
   readonly cerrar = output<void>();
   readonly enviado = output<Envio>();
+  readonly programado = output<Programado>();
   protected readonly comps = inject(Competitions);
   private readonly api = inject(FormulariosApi);
   private readonly confirm = inject(Confirm);
   private readonly toasts = inject(GrToasts);
   protected readonly estados = ESTADOS;
   protected readonly modos = MODOS;
+  protected readonly cuandoOps = CUANDO;
+  protected readonly cuando = signal<Cuando>('ahora');
+  /** Local `YYYY-MM-DDTHH:mm` from the picker ('' = none yet). */
+  protected readonly fechaProgramada = signal('');
+  protected readonly minProgramado = signal(localDT(new Date()));
+  protected readonly fechaValida = computed(() => {
+    const v = this.fechaProgramada();
+    return !!v && new Date(v).getTime() > Date.now() + 60_000;
+  });
   protected readonly ritmo = COLA_RITMO;
   protected readonly MAX = MAX_ATLETAS;
   protected readonly n = fmtNumber;
@@ -231,6 +266,49 @@ export class BoEnvioDialogo {
 
   protected tiene(e: Estado): boolean {
     return this.estadosSel().includes(e);
+  }
+
+  protected cambiarCuando(c: Cuando): void {
+    this.cuando.set(c);
+    this.error.set('');
+    if (c === 'programar') {
+      this.minProgramado.set(localDT(new Date()));
+      // Default: next full hour.
+      if (!this.fechaProgramada()) {
+        const d = new Date();
+        d.setHours(d.getHours() + 1, 0, 0, 0);
+        this.fechaProgramada.set(localDT(d));
+      }
+    }
+  }
+
+  /** Schedules the send: at that time the server creates it and the messages enter the Cola de envío. */
+  protected async programar(): Promise<void> {
+    if (!this.fechaValida()) return;
+    const cuando = new Date(this.fechaProgramada());
+    const canales = this.canales();
+    const ok = await this.confirm.ask({
+      title: `¿Programar «${this.formulario().nombre}»?`,
+      text: `Se enviará el ${fmtProgramado.format(cuando)} por ${canales.map((c) => (c === 'email' ? 'email' : 'WhatsApp')).join(' y ')}. A esa hora los mensajes entran en la Cola de envío y salen al ritmo anti-spam.`,
+      confirm: 'Programar',
+    });
+    if (!ok) return;
+    this.enviando.set(true);
+    this.error.set('');
+    try {
+      const p = await this.api.programar(this.cid(), this.formulario().id, { canales, filtro: this.filtro(), programadoAt: cuando.toISOString() });
+      this.toasts.success('Envío programado', fmtProgramado.format(cuando));
+      this.programado.emit(p);
+    } catch (e) {
+      const p = problemOf(e);
+      if (p.code === 'WHATSAPP_NO_DISPONIBLE' || p.code === 'WHATSAPP_NO_COMPROBADO') {
+        this.whatsapp.set(false);
+        this.actualizarAudiencia();
+      }
+      this.error.set(p.status === 409 ? 'El formulario está cerrado y no admite envíos.' : errText(e, 'Prueba de nuevo en unos segundos.'));
+    } finally {
+      this.enviando.set(false);
+    }
   }
 
   protected estaElegido(id: string): boolean {

@@ -53,7 +53,8 @@ const clubDe = (r: RespuestaFila): string => [r.atleta.club, r.atleta.categoria]
       <div class="flex flex-col gap-4">
         <div class="flex flex-wrap items-center gap-3">
           <div class="min-w-0 flex-1 basis-64"><bo-search [value]="busqueda()" (valueChange)="onBuscar($event)" placeholder="Buscar atleta, club o categoría" [loading]="cargando()" [shortcut]="false" /></div>
-          <button type="button" grButton variant="secondary" icon="download" [loading]="descargando()" (click)="exportar()">Exportar CSV</button>
+          <button type="button" grButton variant="primary" icon="download" [loading]="descargando() === 'xlsx'" [disabled]="!!descargando()" (click)="exportar('xlsx')">Exportar Excel</button>
+          <button type="button" grButton variant="secondary" icon="download" [loading]="descargando() === 'csv'" [disabled]="!!descargando()" (click)="exportar('csv')">Exportar CSV</button>
         </div>
         <div role="group" aria-label="Filtrar por estado" class="flex flex-wrap gap-2">
           @for (c of chips; track c.v) {
@@ -160,7 +161,7 @@ export class BoFormAtletas {
   protected readonly filas = signal<RespuestaFila[] | null | undefined>(undefined);
   protected readonly cargando = signal(false);
   protected readonly error = signal(false);
-  protected readonly descargando = signal(false);
+  protected readonly descargando = signal<'' | 'csv' | 'xlsx'>('');
   protected readonly vista = signal<'lista' | 'detalle'>('lista');
   /** Row whose answer is open: its header comes from the row, its body from the detail. */
   protected readonly abierta = signal<RespuestaFila | null>(null);
@@ -237,14 +238,14 @@ export class BoFormAtletas {
     void this.cargar();
   }
 
-  protected async exportar(): Promise<void> {
-    this.descargando.set(true);
+  protected async exportar(ext: 'csv' | 'xlsx'): Promise<void> {
+    this.descargando.set(ext);
     try {
-      await this.api.descargarCsv(this.cid(), this.formulario().id, this.formulario().nombre);
+      await this.api.descargarCsv(this.cid(), this.formulario().id, this.formulario().nombre, ext);
     } catch {
       this.toasts.error('No se pudo exportar', 'Vuelve a intentarlo en unos segundos.');
     } finally {
-      this.descargando.set(false);
+      this.descargando.set('');
     }
   }
 

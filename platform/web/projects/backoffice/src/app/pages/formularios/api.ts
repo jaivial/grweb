@@ -124,6 +124,19 @@ export interface Filtro {
   soloSinResponder?: boolean;
 }
 
+/** A send scheduled for a date and time: at that time the server creates a normal send (same queue). */
+export interface Programado {
+  id: string;
+  canales: CanalFormulario[];
+  filtro: Filtro;
+  programadoAt: string;
+  estado: 'pendiente' | 'enviando' | 'enviado' | 'fallido' | 'cancelado';
+  envioId: string | null;
+  error: string;
+  creadoPor: string;
+  createdAt: string;
+}
+
 export interface Audiencia {
   total: number;
   email: number;
@@ -262,6 +275,15 @@ export class FormulariosApi {
   envios(cid: string, id: string): Promise<Envio[]> {
     return firstValueFrom(this.http.get<Envio[]>(`${this.base(cid)}/${id}/envios`));
   }
+  programados(cid: string, id: string): Promise<Programado[]> {
+    return firstValueFrom(this.http.get<Programado[]>(`${this.base(cid)}/${id}/programados`));
+  }
+  programar(cid: string, id: string, b: { canales: CanalFormulario[]; filtro: Filtro; programadoAt: string }): Promise<Programado> {
+    return firstValueFrom(this.http.post<Programado>(`${this.base(cid)}/${id}/programados`, b));
+  }
+  cancelarProgramado(cid: string, id: string, pid: string): Promise<Programado> {
+    return firstValueFrom(this.http.delete<Programado>(`${this.base(cid)}/${id}/programados/${pid}`));
+  }
   estadisticas(cid: string, id: string): Promise<Estadisticas> {
     return firstValueFrom(this.http.get<Estadisticas>(`${this.base(cid)}/${id}/estadisticas`));
   }
@@ -276,9 +298,9 @@ export class FormulariosApi {
   respuesta(cid: string, id: string, rid: string): Promise<RespuestaDetalle> {
     return firstValueFrom(this.http.get<RespuestaDetalle>(`${this.base(cid)}/${id}/respuestas/${rid}`));
   }
-  /** Link for a download (CSV, one column per answered field). */
-  csvUrl(cid: string, id: string): string {
-    return `${this.base(cid)}/${id}/respuestas.csv`;
+  /** Link for a download (CSV or Excel, one row per athlete who answered, one column per answered field). */
+  csvUrl(cid: string, id: string, ext: 'csv' | 'xlsx' = 'csv'): string {
+    return `${this.base(cid)}/${id}/respuestas.${ext}`;
   }
   modelos(cid: string): Promise<Modelo[]> {
     return firstValueFrom(this.http.get<Modelo[]>(`/api/admin/competiciones/${cid}/ia/modelos`));
@@ -287,12 +309,12 @@ export class FormulariosApi {
   ia(cid: string, b: EntradaIA): Promise<RespuestaIA> {
     return firstValueFrom(this.http.post<RespuestaIA>(`/api/admin/competiciones/${cid}/ia/formulario`, b, { context: sinTimeout() }).pipe(timeout(IA_TIMEOUT_MS)));
   }
-  /** Authenticated CSV download (bearer token via the HTTP interceptor), saved as `formulario-<slug>.csv`. */
-  async descargarCsv(cid: string, id: string, nombre: string): Promise<void> {
-    const blob = await firstValueFrom(this.http.get(this.csvUrl(cid, id), { responseType: 'blob', context: sinTimeout() }));
+  /** Authenticated download (bearer token via the HTTP interceptor), saved as `<slug>-respuestas.<ext>`. */
+  async descargarCsv(cid: string, id: string, nombre: string, ext: 'csv' | 'xlsx' = 'csv'): Promise<void> {
+    const blob = await firstValueFrom(this.http.get(this.csvUrl(cid, id, ext), { responseType: 'blob', context: sinTimeout() }));
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `${nombre.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'formulario'}-respuestas.csv`;
+    a.download = `${nombre.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'formulario'}-respuestas.${ext}`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }

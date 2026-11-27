@@ -177,6 +177,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 		}, Log: a.Log}).Run)
 	a.Go(s.avisosSalida)
 	a.Go(s.purgaSolicitudes)
+	a.Go(s.programador)
 	return nil
 }
 
