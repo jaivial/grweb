@@ -434,6 +434,11 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
           @if (esAlta()) {
           <section>
             <h3 class="text-label-xs text-text-muted uppercase">Datos declarados vs atleta enlazado</h3>
+            <p class="mt-2 flex items-start gap-2 rounded-sm px-3 py-2 text-body-s" [class]="d.handler ? 'bg-success/8 text-text-primary' : 'bg-bg-raised text-text-tertiary'">
+              <gr-icon [name]="d.handler ? 'user-plus' : 'minus'" [size]="16" class="mt-0.5 shrink-0" [class.text-success]="d.handler" />
+              @if (d.handler) { <span><strong class="font-semibold">Handler gratis · solicitado:</strong> el atleta ha pedido handler. Al aprobar el alta se crea la solicitud de Handling para el equipo de GR Strength.</span> }
+              @else { <span>Handler gratis · no lo ha pedido.</span> }
+            </p>
             @if (!verTodos()) {
               <dl class="mt-2 flex flex-col gap-1.5">
                 @for (f of resumen(); track f.clave) {

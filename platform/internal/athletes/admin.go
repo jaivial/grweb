@@ -137,10 +137,7 @@ func (s *Svc) alcance(ctx context.Context, cid uuid.UUID, f filtrosAtletas) (alc
 	if err != nil {
 		return out, err
 	}
-	// The tab «Handling» is the athletes with a request waiting for the team (the filter can narrow it).
-	if f.Pestana == "handling" && f.Handling == "" {
-		f.Handling = "solicitado"
-	}
+	// The tab «Handling» is every athlete with a handling request (whatever its state); the filter narrows it by state.
 	cats, jornadas := map[string]bool{}, map[string]bool{}
 	q := fold(f.Q)
 	for _, r := range all {
@@ -163,7 +160,7 @@ func (s *Svc) alcance(ctx context.Context, cid uuid.UUID, f filtrosAtletas) (alc
 		if inc > 0 {
 			out.Lista.Pestanas["incidencias"]++
 		}
-		if tieneHandling && h.vivo() {
+		if tieneHandling {
 			out.Lista.Pestanas["handling"]++
 		}
 		if r.Estado != "baja" {
@@ -205,6 +202,10 @@ func (s *Svc) alcance(ctx context.Context, cid uuid.UUID, f filtrosAtletas) (alc
 			}
 		case "incidencias":
 			if inc == 0 {
+				continue
+			}
+		case "handling":
+			if !tieneHandling {
 				continue
 			}
 		}

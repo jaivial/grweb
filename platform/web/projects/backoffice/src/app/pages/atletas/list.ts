@@ -46,7 +46,12 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
         <gr-alert tone="warning" [title]="'Cupo superado: ' + s.confirmados + ' confirmados para ' + s.plazas + ' plazas'">Sobran {{ s.confirmados - s.plazas }}. Revisa el cupo de la AEP en Inscripción o da de baja a quien no tenga plaza.</gr-alert>
       }
 
-      @if (l && l.pestanas.todos === 0 && !cargando()) {
+      @if (error(); as e) {
+        <gr-alert tone="danger" title="No se pudieron cargar los atletas">
+          {{ e }} La tabla está vacía a propósito: los datos que se veían eran de otro alcance.
+          <span alertAction class="mt-3 flex"><button grButton [loading]="cargando()" (click)="recargar(pagina())">Reintentar</button></span>
+        </gr-alert>
+      } @else if (l && l.pestanas.todos === 0 && !cargando()) {
         <div class="grid gap-4 lg:grid-cols-2">
           <div class="flex flex-col items-center justify-center rounded-lg border border-line-subtle bg-bg-card p-8 text-center">
             <span class="flex size-12 items-center justify-center rounded-md bg-accent-deep/40 text-accent-text"><gr-icon name="sparkles" [size]="22" /></span>
@@ -297,6 +302,8 @@ export class AtletasPage {
   protected readonly reservas = signal<ItemLista[]>([]);
   protected readonly incidenciasDe = signal<{ id: string; tono: GrTone; titulo: string; texto: string; accion: string }[]>([]);
   protected readonly cargando = signal(true);
+  /** The last load failed: the table is cleared and a persistent «Reintentar» stays on screen. */
+  protected readonly error = signal('');
   protected readonly exporting = signal(false);
   protected readonly pestana = signal<Pestana>(((p) => (this.tabs.some((t) => t.key === p) ? p : 'todos') as Pestana)(this.route.snapshot.queryParamMap.get('tab')));
   private readonly tabUrl = tabEnUrl(this.pestana, () => this.tabs.map((t) => t.key));
@@ -428,6 +435,7 @@ export class AtletasPage {
     this.pagina.set(pagina);
     if (!silencioso) this.sel.set(new Set());
     if (!silencioso) this.cargando.set(true);
+    this.error.set('');
     try {
       if (this.pestana() === 'incidencias') {
         const [inc, res] = await Promise.all([
@@ -450,7 +458,11 @@ export class AtletasPage {
         }));
       }
     } catch (e) {
-      this.toasts.error('No se pudieron cargar los atletas', errText(e, 'Inténtalo de nuevo.'));
+      // Stale data from another tab/filter is worse than no data: clear it and keep the error with «Reintentar».
+      this.lista.set(null);
+      this.reservas.set([]);
+      this.incidenciasDe.set([]);
+      this.error.set(errText(e, 'Inténtalo de nuevo.'));
     } finally {
       this.cargando.set(false);
     }
