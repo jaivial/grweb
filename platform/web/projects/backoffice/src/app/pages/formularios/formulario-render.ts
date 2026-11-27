@@ -30,7 +30,7 @@ export type AccionCampo = 'duplicar' | 'subir' | 'bajar' | 'borrar';
       <div id="fz-lienzo" cdkDropList [cdkDropListData]="esquema().campos" [cdkDropListDisabled]="!edicion()" [cdkDropListConnectedTo]="conectadoA()" cdkDropListOrientation="mixed"
         (cdkDropListDropped)="soltar.emit($event)" class="flex min-h-24 flex-wrap items-start gap-[var(--f-gap)]">
         @for (c of esquema().campos; track c.id) {
-          <div cdkDrag [cdkDragData]="c" [cdkDragDisabled]="!edicion()" class="relative min-w-0 rounded-[calc(var(--f-radio)+6px)] [&.cdk-drag-placeholder]:opacity-30"
+          <div cdkDrag data-campo-item [cdkDragData]="c" [cdkDragDisabled]="!edicion()" class="relative min-w-0 rounded-[calc(var(--f-radio)+6px)] [&.cdk-drag-placeholder]:opacity-30"
             [class]="claseCampo(c)" [class.pt-10]="edicion() && seleccion() === c.id" [attr.role]="edicion() ? 'button' : null" [attr.tabindex]="edicion() ? 0 : null" [attr.aria-pressed]="edicion() ? seleccion() === c.id : null"
             [attr.aria-label]="edicion() ? 'Elemento: ' + (c.etiqueta || c.tipo) : null"
             (click)="pulsar(c.id)" (keydown.enter)="pulsar(c.id)" (keydown.space)="pulsar(c.id, $event)">

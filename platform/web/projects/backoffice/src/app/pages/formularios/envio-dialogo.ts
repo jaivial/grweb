@@ -29,6 +29,8 @@ const nombreDe = (a: { nombre: string; apellidos: string }): string => `${a.nomb
 const NOTA_WHATSAPP = 'Solo con consentimiento: sin consentimiento de WhatsApp no se envía.';
 /** Same text as the server's 503 WHATSAPP_NO_COMPROBADO (FORMULARIOS.md §4). */
 const msgWaNoComprobado = 'No se ha podido comprobar WhatsApp. Inténtalo de nuevo o envía solo por email.';
+/** Concrete mode without chosen athletes: WhatsApp has no recipients to check. */
+const MOTIVO_SIN_ATLETAS = 'Elige al menos un atleta.';
 
 /**
  * «Nuevo envío» dialog: channels, recipients (every athlete of a status, or chosen athletes) and a live audience (per
@@ -190,9 +192,12 @@ export class BoEnvioDialogo {
   protected readonly enviando = signal(false);
   protected readonly error = signal('');
   protected readonly notaWa = NOTA_WHATSAPP;
-  protected readonly waDisponible = computed(() => this.waEstado()?.whatsappDisponible === true);
+  /** Concrete mode with no chips: there is no recipient to check WhatsApp for, so it is disabled at once (no waiting for the audience). */
+  private readonly sinElegidos = computed(() => this.modo() === 'concretos' && !this.elegidos().length);
+  protected readonly waDisponible = computed(() => !this.sinElegidos() && this.waEstado()?.whatsappDisponible === true);
   /** Why WhatsApp cannot be sent now (or that it is being checked); empty when it is available. */
   protected readonly motivoWa = computed(() => {
+    if (this.sinElegidos()) return MOTIVO_SIN_ATLETAS;
     const w = this.waEstado();
     if (w === undefined) return 'Comprobando si WhatsApp está disponible…';
     if (w === null) return msgWaNoComprobado;
@@ -308,7 +313,13 @@ export class BoEnvioDialogo {
     // Chosen athletes but none picked yet: nothing to count (an empty filter would mean everybody).
     if (this.modo() === 'concretos' && !this.elegidos().length) {
       const vacia: Audiencia = { total: 0, email: 0, whatsapp: 0, whatsappDisponible: false, whatsappMotivo: '' };
-      if (mine === this.seq) this.audiencia.set(vacia);
+      if (mine === this.seq) {
+        this.audiencia.set(vacia);
+        // Nada que consultar: WhatsApp queda desmarcado y sin estado previo. Al volver a elegir un atleta, su estado es
+        // «Comprobando…» hasta la siguiente respuesta (motivoWa y waDisponible ya muestran lo de «sin atletas» al instante).
+        this.waEstado.set(undefined);
+        this.whatsapp.set(false);
+      }
       return vacia;
     }
     try {

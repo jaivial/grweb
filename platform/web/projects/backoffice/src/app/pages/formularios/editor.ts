@@ -226,7 +226,7 @@ export class FormularioEditorPage {
     if (this.tab() !== 'editar' || escribiendo(ev.target)) return;
     if (mod && k === 'z' && !ev.shiftKey) { ev.preventDefault(); this.store.deshacer(); }
     else if (mod && ((k === 'z' && ev.shiftKey) || k === 'y')) { ev.preventDefault(); this.store.rehacer(); }
-    else if ((k === 'delete' || k === 'backspace') && this.store.seleccion()) {
+    else if ((k === 'delete' || k === 'backspace') && this.store.seleccion() && enElementoOCuerpo(ev.target)) {
       ev.preventDefault();
       this.store.borrar(this.store.seleccion()!);
     } else if (k === 'escape' && this.store.seleccion()) {
@@ -240,4 +240,10 @@ function escribiendo(t: EventTarget | null): boolean {
   const el = t as HTMLElement | null;
   if (!el) return false;
   return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
+}
+
+/** True when focus is on the canvas item itself or on nothing (body). Any control inside an item (slider stop, radio, button) keeps its own keys. */
+function enElementoOCuerpo(t: EventTarget | null): boolean {
+  const el = t as HTMLElement | null;
+  return el === document.body || !!el?.hasAttribute('data-campo-item');
 }

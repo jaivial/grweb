@@ -250,15 +250,32 @@ func (s *Svc) registerFormulariosEnvios() {
 			if err != nil {
 				return nil, err
 			}
-			// WhatsApp solo si messaging lo tiene disponible ahora (fail-closed: si no responde, no se envía).
-			if slices.Contains(canales, "whatsapp") {
-				if err := s.exigeWhatsapp(ctx, in.CID); err != nil {
-					return nil, err
-				}
-			}
-			id, reutilizado, err := s.creaEnvio(ctx, in.CID, in.ID, c.Nombre, canales, in.Body.Filtro, clave, in.Body.ConfirmarDuplicado)
+			// Repetición (misma clave y huella): se devuelve el envío ya creado, sin consultar a messaging ni encolar nada.
+			// Va antes del control de WhatsApp: un reintento no debe fallar porque messaging no responda ahora.
+			previo, err := envioPorClave(ctx, s.a.DB, in.CID, in.ID, clave)
 			if err != nil {
 				return nil, err
+			}
+			huella, err := huellaEnvio(canales, in.Body.Filtro)
+			if err != nil {
+				return nil, err
+			}
+			id, reutilizado := uuid.Nil, false
+			if previo != nil {
+				if previo.huella != huella {
+					return nil, errClaveReutilizada()
+				}
+				id, reutilizado = previo.id, true
+			} else {
+				// WhatsApp: se comprueba justo antes de crear el envío (fail-closed: si messaging no responde, no se encola nada).
+				if slices.Contains(canales, "whatsapp") {
+					if err := s.exigeWhatsapp(ctx, in.CID); err != nil {
+						return nil, err
+					}
+				}
+				if id, reutilizado, err = s.creaEnvio(ctx, in.CID, in.ID, c.Nombre, canales, in.Body.Filtro, clave, in.Body.ConfirmarDuplicado); err != nil {
+					return nil, err
+				}
 			}
 			// Recién encolado (o ya encolado con esa clave): todo está «en cola» y no hace falta preguntar a messaging.
 			envs, entregas, err := cargaEnvios(ctx, s.a.DB, in.ID)
@@ -439,13 +456,13 @@ func (s *Svc) creaEnvio(ctx context.Context, cid, fid uuid.UUID, competicion str
 			return err
 		}
 		if clave != "" {
-			previo, err := envioPorClave(ctx, tx, fid, clave)
+			previo, err := envioPorClave(ctx, tx, cid, fid, clave)
 			if err != nil {
 				return err
 			}
 			if previo != nil {
 				if previo.huella != huella {
-					return problem.Unprocessable("CLAVE_REUTILIZADA", "Esa clave ya se usó para un envío con otros canales o filtro. Vuelve a pulsar Enviar para crear uno nuevo.")
+					return errClaveReutilizada()
 				}
 				envioID, reutilizado = previo.id, true
 				return nil
@@ -665,11 +682,15 @@ func huellaEnvio(canales []string, f FiltroEnvio) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
-// envioPorClave devuelve el envío que ya se creó con esa Idempotency-Key en el formulario (nil si no hay ninguno).
-func envioPorClave(ctx context.Context, tx pgx.Tx, fid uuid.UUID, clave string) (*envioBreve, error) {
+// envioPorClave devuelve el envío de la competición que ya se creó con esa Idempotency-Key en el formulario (nil si no hay
+// ninguno o la clave está vacía). Lo usan la comprobación previa al WhatsApp (sin transacción) y creaEnvio (dentro).
+func envioPorClave(ctx context.Context, q consulta, cid, fid uuid.UUID, clave string) (*envioBreve, error) {
+	if clave == "" {
+		return nil, nil
+	}
 	var e envioBreve
-	err := tx.QueryRow(ctx, `SELECT id, huella, created_at FROM formulario_envios WHERE formulario_id = $1 AND clave_idempotencia = $2`,
-		fid, clave).Scan(&e.id, &e.huella, &e.createdAt)
+	err := q.QueryRow(ctx, `SELECT id, huella, created_at FROM formulario_envios WHERE formulario_id = $1 AND competition_id = $2 AND clave_idempotencia = $3`,
+		fid, cid, clave).Scan(&e.id, &e.huella, &e.createdAt)
 	if db.IsNoRows(err) {
 		return nil, nil
 	}
@@ -677,6 +698,11 @@ func envioPorClave(ctx context.Context, tx pgx.Tx, fid uuid.UUID, clave string) 
 		return nil, err
 	}
 	return &e, nil
+}
+
+// errClaveReutilizada es el 422 de una Idempotency-Key ya usada con otros canales o filtro (la handler y creaEnvio lo dan).
+func errClaveReutilizada() error {
+	return problem.Unprocessable("CLAVE_REUTILIZADA", "Esa clave ya se usó para un envío con otros canales o filtro. Vuelve a pulsar Enviar para crear uno nuevo.")
 }
 
 // envioCerrado es el 409 FORMULARIO_CERRADO de un envío (lo devuelve creaEnvio en dos momentos: antes y al final).
@@ -831,6 +857,11 @@ func validaFiltro(f *FiltroEnvio) error {
 	if len(f.Atletas) > maxAtletasFiltro {
 		return problem.Unprocessable("ATLETAS_DEMASIADOS", fmt.Sprintf("Un envío puede dirigirse como máximo a %d atletas.", maxAtletasFiltro))
 	}
+	// atletas presente pero vacío (`"atletas": []`) no es «todos los confirmados»: el cliente pidió destinatarios concretos y no
+	// eligió ninguno. encoding/json deja nil la clave ausente (o null) y un slice vacío no nil el `[]` (huma decodifica así).
+	if f.Atletas != nil && len(f.Atletas) == 0 {
+		return problem.Unprocessable("SIN_DESTINATARIOS", "Elige al menos un atleta.")
+	}
 	if len(f.Atletas) > 0 {
 		f.Estados = nil
 		return nil
@@ -843,19 +874,6 @@ func validaFiltro(f *FiltroEnvio) error {
 
 // maxAtletasFiltro es el máximo de atletas concretos de un filtro (audiencia y envío).
 const maxAtletasFiltro = 500
-
-// uuidsCSV separa una lista de uuid «a,b» sin huecos; cualquier valor que no sea un uuid es 422.
-func uuidsCSV(v string) ([]uuid.UUID, error) {
-	var out []uuid.UUID
-	for _, x := range listaCSV(v) {
-		id, err := uuid.Parse(x)
-		if err != nil {
-			return nil, problem.Unprocessable("ATLETA_NO_VALIDO", "La lista de atletas contiene un id que no es válido.")
-		}
-		out = append(out, id)
-	}
-	return out, nil
-}
 
 // msgWhatsappNoComprobado es lo que ve el backoffice cuando messaging no responde (audiencia y envío).
 const msgWhatsappNoComprobado = "No se ha podido comprobar WhatsApp. Inténtalo de nuevo o envía solo por email."
@@ -875,7 +893,8 @@ func (s *Svc) whatsappEstado(ctx context.Context, cid uuid.UUID) (bool, string, 
 }
 
 // exigeWhatsapp frena un envío con WhatsApp: 422 WHATSAPP_NO_DISPONIBLE con el motivo de messaging, o 503
-// WHATSAPP_NO_COMPROBADO si messaging no responde (fail-closed: nunca se encola un WhatsApp que messaging descartaría).
+// WHATSAPP_NO_COMPROBADO si messaging no responde (fail-closed). Se llama justo antes de crear el envío, fuera de su
+// transacción: messaging puede cambiar su respuesta entre esta comprobación y el encolado.
 func (s *Svc) exigeWhatsapp(ctx context.Context, cid uuid.UUID) error {
 	disponible, motivo, err := s.whatsappEstado(ctx, cid)
 	if err != nil {

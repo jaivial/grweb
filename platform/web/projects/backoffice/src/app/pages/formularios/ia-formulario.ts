@@ -13,6 +13,12 @@ const EJEMPLOS = [
   'Pon el texto del botón en «Confirmar inscripción»',
 ];
 
+/** Límites del servidor (internal/ai/formulario.go): historial ≤ 20 mensajes, texto de cada mensaje ≤ 2000 caracteres (runas). */
+const HISTORIAL_MAX = 12;
+const TEXTO_MENSAJE_MAX = 2000;
+/** Corta por code points (no por unidades UTF-16) para no partir un par sustituto y contar como el servidor. */
+const acotaTexto = (t: string): string => Array.from(t).slice(0, TEXTO_MENSAJE_MAX).join('');
+
 /** Receipt of an applied AI change: `revision` is the draft revision it produced (undo is exact only while it still matches). */
 interface Recibo { cambios: string[]; hora: string; revision: number }
 
@@ -122,7 +128,7 @@ export class BoIaFormulario {
       const sel = this.store.seleccion();
       const r = await this.api.ia(this.cid(), {
         instruccion: texto,
-        historial: historial.slice(-12),
+        historial: historial.slice(-HISTORIAL_MAX).map((m) => ({ rol: m.rol, texto: acotaTexto(m.texto) })),
         borrador,
         seleccion: sel ?? undefined,
         modelo: this.modelo() || undefined,
