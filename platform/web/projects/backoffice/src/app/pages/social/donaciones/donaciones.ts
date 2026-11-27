@@ -222,7 +222,7 @@ const VACIO: FormConfig = { activo: true, minimo: 100, maximo: 50000, coinsPorEu
                 @if (form().importesSugeridos.length < 6) {
                   <label class="inline-flex h-9 cursor-text items-center gap-1.5 rounded-pill border border-dashed border-line-strong pr-2 pl-3 text-label-s text-text-tertiary focus-within:border-accent-text hover:border-text-muted">
                     <gr-icon name="plus" [size]="14" />
-                    <input type="number" class="w-16 bg-transparent text-label-s text-text-primary outline-none placeholder:text-text-muted" min="1" placeholder="Añadir" [value]="nuevoSugerido() || ''"
+                    <input type="number" class="w-20 bg-transparent text-[16px] text-text-primary outline-none placeholder:text-text-muted" min="1" placeholder="Añadir" [value]="nuevoSugerido() || ''"
                       (input)="nuevoSugerido.set(+$any($event.target).value); errSugerido.set('')" (keydown.enter)="$event.preventDefault(); anadirSugerido()" (change)="anadirSugerido()" aria-label="Nuevo importe sugerido en euros" [disabled]="!puede()" />€
                   </label>
                 }

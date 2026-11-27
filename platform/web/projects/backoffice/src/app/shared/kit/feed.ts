@@ -122,7 +122,7 @@ export class BoNotificationItem {
   template: `
     @if (editing() || saving() || error()) {
       <div class="flex h-10 items-center gap-2 rounded-md border bg-bg-field px-2" [class]="error() ? 'border-error' : saving() ? 'border-line-strong' : 'border-accent'">
-        <input #inp class="min-w-0 flex-1 bg-transparent font-mono text-[13px] text-text-primary outline-none" [value]="draft()" [disabled]="saving()" [attr.aria-label]="label()"
+        <input #inp class="min-w-0 flex-1 bg-transparent font-mono text-[16px] text-text-primary outline-none" [value]="draft()" [disabled]="saving()" [attr.aria-label]="label()"
           [attr.aria-invalid]="error() ? true : null" (input)="draft.set($any($event.target).value)" (keydown.enter)="commit()" (keydown.escape)="cancel()" />
         @if (saving()) { <gr-icon name="loader" [size]="14" class="text-text-tertiary motion-safe:animate-spin" /> }
         @else if (error()) { <gr-icon name="circle-alert" [size]="16" class="text-error" /> }

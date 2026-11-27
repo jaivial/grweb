@@ -198,7 +198,7 @@ export class GrTelefono implements ControlValueAccessor {
     return this.tocado() && !this.invalido() && faltan ? this.t().falta(this.n()) : null;
   });
   protected readonly cajaCls = computed(() => {
-    const alto = this.tam() === 'l' ? 'h-12 text-[17px] md:text-[16px]' : 'h-11 text-[15px] md:pointer-fine:h-10';
+    const alto = this.tam() === 'l' ? 'h-12 text-[17px] md:text-[16px]' : 'h-11 text-[16px] md:pointer-fine:h-10';
     return `w-full min-w-0 ${alto} rounded-sm border bg-bg-field px-0 text-center font-mono leading-none text-text-primary caret-accent ` +
       'focus:border-accent-text focus:ring-2 focus:ring-accent/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ' +
       (this.invalido() || this.error() ? 'border-accent-text' : 'border-line-strong hover:border-line-hover');
