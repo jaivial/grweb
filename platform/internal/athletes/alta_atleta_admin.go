@@ -205,7 +205,7 @@ type FiltrosLista struct {
 	CID    uuid.UUID `path:"cid"`
 	Estado string    `query:"estado" enum:"pendiente,revision,menor,aprobada,rechazada,todas" default:"todas"`
 	Tipo   string    `query:"tipo" enum:"todas,alta,cambio_perfil,autorizacion,handling" default:"todas"`
-	Match  string    `query:"match" enum:"licencia,email,telefono,nombre,manual,ninguna" default:""`
+	Match  string    `query:"match" enum:"licencia,email,telefono,nacimiento,nombre,manual,ninguna" default:""`
 	Menor  string    `query:"menor" enum:"si,no" default:""`
 	Q      string    `query:"q" maxLength:"80"`
 	Pagina int       `query:"pagina" minimum:"1" default:"1"`
@@ -530,6 +530,8 @@ func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, tipo, match string, menor 
 		where = append(where, "match_tipo = 'email'")
 	case "telefono":
 		where = append(where, "match_tipo = 'telefono'")
+	case "nacimiento":
+		where = append(where, "match_tipo = 'nacimiento'")
 	case "nombre":
 		where = append(where, "match_tipo = 'nombre'")
 	case "manual":
@@ -877,18 +879,13 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		// The athlete: the one the reviewer chose, the one of the match or a new one.
 		destino := atletaID
 		perfilNuevo := false
-		// The rule that links the request, when it is not the reviewer choosing the athlete: it names the link in the
-		// record of the athlete and in the request.
+		// matchTipo is the rule the link is written with (it goes to the request and names the link in the record of
+		// the athlete): the pre-match of the form, the rule applied on approval, or the team choosing the athlete.
 		matchTipo := sol.MatchTipo
+		// elegido: the reviewer sent an athlete that is not the one the request already proposed.
+		elegido := atletaID != nil && (sol.MatchAtletaID == nil || *atletaID != *sol.MatchAtletaID)
 		if destino == nil && sol.MatchAtletaID != nil && sol.MatchTipo != "nombre" {
 			destino = sol.MatchAtletaID
-			// A pre-match by phone (or the birth date) explains itself in the history.
-			if regla := reglaMatch(sol.MatchTipo); regla != "" {
-				if err := hist(ctx, tx, *destino, "Solicitud de alta enlazada a la ficha existente "+regla,
-					"La solicitud es de este mismo atleta: sin duplicado"); err != nil {
-					return err
-				}
-			}
 		}
 		// One athlete per email: a request whose email already belongs to an athlete of the competition is linked to
 		// that athlete (no duplicate) and nobody is notified (the athlete already has their access).
@@ -898,9 +895,7 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 				cid, normEmail(sol.Email)).Scan(&existente)
 			if err == nil {
 				destino = &existente
-				if err := hist(ctx, tx, existente, "Solicitud de alta enlazada por email", "El email de la solicitud ya era de este atleta: sin duplicado y sin avisos"); err != nil {
-					return err
-				}
+				matchTipo = "email"
 			} else if !errors.Is(err, pgx.ErrNoRows) {
 				return err
 			}
@@ -914,12 +909,7 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 				return err
 			}
 			if id != nil {
-				destino = id
-				matchTipo = tipo
-				if err := hist(ctx, tx, *id, "Solicitud de alta enlazada a la ficha existente "+reglaMatch(tipo),
-					"La solicitud es de este mismo atleta: sin duplicado"); err != nil {
-					return err
-				}
+				destino, matchTipo = id, tipo
 			}
 		}
 		if destino == nil {
@@ -939,6 +929,12 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 			}
 			if n == 0 {
 				return problem.NotFound("Ese atleta no está en esta competición.")
+			}
+			// Linking to a record that already exists says why in the history of the athlete, whichever rule did it
+			// (the panel always sends the proposed athlete, so the reason cannot hang on which branch set destino).
+			accion, detalle := motivoEnlace(matchTipo, elegido)
+			if err := hist(ctx, tx, *destino, accion, detalle); err != nil {
+				return err
 			}
 		}
 		// An athlete that already had this email keeps their access: approving the request notifies nobody.
