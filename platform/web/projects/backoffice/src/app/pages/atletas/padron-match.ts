@@ -296,7 +296,16 @@ export class PadronMatch {
         ? await this.solicitudesApi.reintentarPadron(cid, this.solicitudId())
         : await this.atletasApi.reintentarPadron(cid, this.atletaId());
       this.emp.set(r);
-      this.toasts.success('Emparejamiento repetido', r.detalle?.motivo);
+      // The toast says what came back, not just that the retry ran: a failed or undecided model must not look green.
+      const motivo = r.detalle?.motivo;
+      if (r.origen === 'error_ia') {
+        const tiempo = (motivo ?? '').includes('tardó demasiado');
+        this.toasts.error(tiempo ? 'La IA tardó demasiado' : 'La IA no ha podido responder', motivo);
+      } else if (r.estado === 'auto' || r.estado === 'confirmada') {
+        this.toasts.success('Emparejamiento repetido', motivo);
+      } else {
+        this.toasts.warning('La IA no ha resuelto: revisa la coincidencia', motivo);
+      }
       this.cambiado.emit();
     } catch (e) {
       await this.fallo(e, 'No se pudo repetir el emparejamiento');

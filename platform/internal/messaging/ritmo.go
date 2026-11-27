@@ -33,6 +33,10 @@ const (
 	silencioDesde   = 22
 	silencioHasta   = 9
 	esperaCorta     = 3 * time.Second // an email turn this close is waited in place
+	// A number that keeps answering «not connected» (unlinked, or blocked for a day by WhatsApp) is tried once a
+	// minute; after 10 tries in a row, once an hour.
+	pausasSeguidas = 10
+	pausaLarga     = time.Hour
 )
 
 func intervaloWA() time.Duration {
@@ -113,7 +117,7 @@ func (s *Svc) reservar(ctx context.Context, remitente, destino string, wa, forza
 			}
 			porDia := emailPorDia
 			if wa {
-				porDia = min(waPorDia, waCalentamiento<<min(int(ahora.Sub(desde)/(24*time.Hour)), 8))
+				porDia = porDiaWA(desde, ahora)
 			}
 			switch {
 			case dia >= porDia:
@@ -185,26 +189,41 @@ func (s *Svc) calentar(ctx context.Context, remitente string) {
 	_, _ = s.a.DB.Exec(ctx, `INSERT INTO envio_turnos (remitente) VALUES ($1) ON CONFLICT (remitente) DO UPDATE SET calentamiento_desde = now()`, remitente)
 }
 
-// silencio returns how long the quiet hours (22:00–09:00 in the competition's time zone, Madrid by default) still
-// last; 0 outside them.
-func (s *Svc) silencio(ctx context.Context, cid uuid.UUID) time.Duration {
-	loc := horaMadrid()
+// zonaDe is the competition's time zone (Madrid by default).
+func (s *Svc) zonaDe(ctx context.Context, cid uuid.UUID) *time.Location {
 	if cid != uuid.Nil {
 		if c, err := s.comps.ByID(ctx, cid); err == nil && c.ZonaHoraria != "" {
 			if l, err := time.LoadLocation(c.ZonaHoraria); err == nil {
-				loc = l
+				return l
 			}
 		}
 	}
-	ahora := time.Now().In(loc)
-	if ahora.Hour() >= silencioHasta && ahora.Hour() < silencioDesde {
-		return 0
+	return horaMadrid()
+}
+
+// finSilencio is t, or the end of the quiet hours (22:00–09:00 in loc) when t falls in them.
+func finSilencio(t time.Time, loc *time.Location) time.Time {
+	l := t.In(loc)
+	if l.Hour() >= silencioHasta && l.Hour() < silencioDesde {
+		return t
 	}
-	fin := time.Date(ahora.Year(), ahora.Month(), ahora.Day(), silencioHasta, 0, 0, 0, loc)
-	if ahora.Hour() >= silencioDesde {
+	fin := time.Date(l.Year(), l.Month(), l.Day(), silencioHasta, 0, 0, 0, loc)
+	if l.Hour() >= silencioDesde {
 		fin = fin.AddDate(0, 0, 1)
 	}
-	return time.Until(fin)
+	return fin
+}
+
+// silencio returns how long the quiet hours (22:00–09:00 in the competition's time zone, Madrid by default) still
+// last; 0 outside them.
+func (s *Svc) silencio(ctx context.Context, cid uuid.UUID) time.Duration {
+	ahora := time.Now()
+	return max(finSilencio(ahora, s.zonaDe(ctx, cid)).Sub(ahora), 0)
+}
+
+// porDiaWA is the daily cap of a number: 30 the first day after linking it, doubling every day, up to 150.
+func porDiaWA(desde, ahora time.Time) int {
+	return min(waPorDia, waCalentamiento<<min(int(ahora.Sub(desde)/(24*time.Hour)), 8))
 }
 
 // enCola is the outbox detail of a message waiting for its turn.

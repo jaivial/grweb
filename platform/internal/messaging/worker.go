@@ -280,10 +280,15 @@ func (s *Svc) procesarWA(ctx context.Context, p pendiente, t plantillaEfectiva) 
 		s.devolver(ctx, p, d, enCola("Horario de descanso de WhatsApp", d))
 		return
 	}
-	// Circuit breaker: while the server is down or the number unlinked, the messages wait instead of burning attempts.
+	// Circuit breaker: while the server is down or the number unlinked, the messages wait instead of burning attempts
+	// (until the pause of the channel ends: 1 minute, or 1 hour after 10 tries in a row).
 	caido := s.a.Keys.Of("messaging", "canal-caido", p.cid.String(), "whatsapp")
 	if causa, err := s.a.Redis.Get(ctx, caido).Result(); err == nil {
-		s.devolver(ctx, p, time.Minute, causa)
+		espera := time.Minute
+		if d, err := s.a.Redis.TTL(ctx, caido).Result(); err == nil && d > espera {
+			espera = d
+		}
+		s.devolver(ctx, p, espera, causa)
 		return
 	}
 	// The turn of the number (one every 30–60 s and the caps of ritmo.go), shared with the campaigns.
@@ -295,7 +300,9 @@ func (s *Svc) procesarWA(ctx context.Context, p pendiente, t plantillaEfectiva) 
 		return
 	}
 	id, err := s.enviarWA(ctx, c, p.destino, waDe(t.WA, texto, p.vars))
+	seguidas := s.a.Keys.Of("messaging", "canal-pausas", p.cid.String(), "whatsapp")
 	if err == nil {
+		s.a.Redis.Del(ctx, seguidas)
 		s.anotar(ctx, remitenteWA(c, p.cid), p.destino, true)
 		detalle := "Enviado"
 		if c.Modo == "simulado" {
@@ -326,11 +333,23 @@ func (s *Svc) procesarWA(ctx context.Context, p pendiente, t plantillaEfectiva) 
 		if ew.desconectado {
 			causa = s.waMensaje(ctx, p.cid, err) + " Los mensajes esperan en la cola y salen solos al volver."
 		}
-		_ = s.a.Redis.Set(ctx, caido, causa, time.Minute).Err()
-		s.devolver(ctx, p, time.Minute, causa)
+		// Tries in a row of the channel (any message) and of this message: after 10, the next one in an hour (a
+		// number blocked by WhatsApp stays blocked for a day; trying every minute is pointless).
+		espera := time.Minute
+		n, _ := s.a.Redis.Incr(ctx, seguidas).Result()
+		s.a.Redis.Expire(ctx, seguidas, 48*time.Hour)
+		var propias int64
+		_ = s.a.DB.QueryRow(ctx, `SELECT count(*) FROM mensaje_intentos WHERE mensaje_id = $1 AND estado = 'pausa'`, p.id).Scan(&propias)
+		if k := max(n, propias+1); k >= pausasSeguidas {
+			espera = pausaLarga
+			causa += fmt.Sprintf(" %d intentos sin conexión: el siguiente, hacia las %s.", k, time.Now().Add(espera).In(horaMadrid()).Format("15:04"))
+		}
+		_ = s.a.Redis.Set(ctx, caido, causa, espera).Err()
+		s.devolver(ctx, p, espera, causa)
 		return
 	}
 	if ew.codigo != 0 {
+		s.a.Redis.Del(ctx, seguidas)                          // the number answered: the pause streak ends
 		s.anotar(ctx, remitenteWA(c, p.cid), p.destino, true) // WhatsApp saw it (a number that is not on WhatsApp counts too)
 	}
 	// The provider answers in English and with the technical name of the instance: the person reads a sentence in

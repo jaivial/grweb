@@ -45,11 +45,11 @@ export function etiquetaDeMercado(m: Mercado, lang: Lang): string {
       @if (filas().length) {
         <ul class="flex flex-col" [attr.id]="'vivo-lista-' + mercado().id">
           @for (f of visibles(); track f.opcion.atletaId) {
-            <li><gr-odds-row [opcion]="f.opcion" [bote]="mercado().bote" [total]="mercado().bote" [lider]="f.pos === 0 && f.opcion.apostado > 0" [activo]="false" /></li>
+            <li><gr-odds-row [opcion]="f.opcion" [bote]="mercado().bote" [total]="mercado().bote" [lider]="f.pos === 0 && f.opcion.apostado > 0" [activo]="false" [mostrarSub]="false" /></li>
           }
         </ul>
         @if (filas().length > tope) {
-          <button type="button" class="mt-1 min-h-11 self-start px-1 text-label-s text-accent-text" [attr.aria-expanded]="expandido()" [attr.aria-controls]="'vivo-lista-' + mercado().id"
+          <button type="button" class="mt-1 min-h-11 self-center px-1 text-label-s text-accent-text" [attr.aria-expanded]="expandido()" [attr.aria-controls]="'vivo-lista-' + mercado().id"
             (click)="expandido.set(!expandido())">{{ expandido() ? t().verMenos : t().verMas(filas().length - tope) }}</button>
         }
       } @else {
