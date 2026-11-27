@@ -12,6 +12,7 @@ import { FormArchivo } from './campo-archivo';
 
 const TEXTO_TIPOS: ReadonlySet<TipoCampo> = new Set(['texto_corto', 'texto_largo', 'email', 'telefono', 'numero', 'fecha']);
 const OPCION_TIPOS: ReadonlySet<TipoCampo> = new Set(['opcion_unica', 'desplegable', 'casillas', 'seleccion_multiple', 'casilla', 'si_no']);
+const ALIN_CSS: Record<string, string> = { izquierda: 'left', centro: 'center', derecha: 'right' };
 
 /**
  * Un campo del formulario público: etiqueta (o leyenda si es un grupo), ayuda, control según el tipo y error.
@@ -37,12 +38,12 @@ const OPCION_TIPOS: ReadonlySet<TipoCampo> = new Set(['opcion_unica', 'desplegab
 
     <ng-template #contenido>
       @if (grupo()) {
-        <legend class="mb-1 text-[16px] leading-snug font-semibold text-[var(--f-texto)]">{{ campo().etiqueta }}@if (campo().obligatorio) { <span class="text-accent-text" aria-hidden="true"> *</span> }</legend>
+        <legend class="mb-1 text-[16px] leading-snug font-semibold text-[var(--f-texto)]" [style.text-align]="alineacion()">{{ campo().etiqueta }}@if (campo().obligatorio) { <span class="text-accent-text" aria-hidden="true"> *</span> }</legend>
       } @else if (!esCasilla()) {
-        <label [attr.for]="ctrl()" class="text-[16px] leading-snug font-semibold text-[var(--f-texto)]">{{ campo().etiqueta }}@if (campo().obligatorio) { <span class="text-accent-text" aria-hidden="true"> *</span> }</label>
+        <label [attr.for]="ctrl()" class="text-[16px] leading-snug font-semibold text-[var(--f-texto)]" [style.text-align]="alineacion()">{{ campo().etiqueta }}@if (campo().obligatorio) { <span class="text-accent-text" aria-hidden="true"> *</span> }</label>
       }
       @if (campo().ayuda) {
-        <p [id]="'f-' + campo().id + '-ayuda'" class="text-[14px] leading-snug text-[color-mix(in_srgb,var(--f-texto)_70%,transparent)]">{{ campo().ayuda }}</p>
+        <p [id]="'f-' + campo().id + '-ayuda'" class="text-[14px] leading-snug text-[color-mix(in_srgb,var(--f-texto)_70%,transparent)]" [style.text-align]="alineacion()">{{ campo().ayuda }}</p>
       }
 
       @if (esTexto()) {
@@ -80,6 +81,8 @@ export class FormCampo {
 
   protected readonly ctrl = computed(() => ctrlId(this.campo()));
   protected readonly completo = computed(() => this.campo().ancho !== 'mitad');
+  /** Alignment chosen in the editor for the question text (`estilo.alinear`). */
+  protected readonly alineacion = computed(() => ALIN_CSS[this.campo().estilo?.alinear ?? 'izquierda'] ?? 'left');
   protected readonly bloque = computed(() => esBloque(this.campo().tipo));
   protected readonly grupo = computed(() => esGrupo(this.campo().tipo));
   protected readonly esCasilla = computed(() => this.campo().tipo === 'casilla');

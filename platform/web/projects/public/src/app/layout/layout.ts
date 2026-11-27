@@ -552,7 +552,7 @@ export class Footer {
   protected readonly otraLang = computed(() => (this.i18n.lang() === 'en' ? 'es' : 'en'));
   /** Mobile CTA bar (Figma Mobile, every public page; UX7-R1-7: not on the event-day lookup pages): on the home only once the trophy intro is over; not on flows with their own bottom action. */
   protected readonly barra = computed(() => this.scrolled() && this.comp.data()?.modulos?.['entradas'] !== false &&
-    !/^\/(inscripcion|pago|entradas|area-atleta|alta-atleta|novedades|baja|en-directo|porra|fantasy|horarios|atletas|resultados|mi-entrada|sorteo\/confirmacion)(\/|$|\?|#)/.test(sinPrefijo(this.url())));
+    !/^\/(inscripcion|pago|entradas|area-atleta|alta-atleta|novedades|baja|en-directo|porra|fantasy|horarios|atletas|resultados|mi-entrada|sorteo\/confirmacion|formularios)(\/|$|\?|#)/.test(sinPrefijo(this.url())));
   protected readonly srcsetLogo = srcsetLogo;
   protected readonly tabsPorra = computed(() => /^\/porra(\/|$)/.test(sinPrefijo(this.seo.path())));
   constructor() {

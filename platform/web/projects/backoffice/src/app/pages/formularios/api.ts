@@ -7,6 +7,8 @@ import { sinTimeout } from '@grcup/ui';
 
 /** Corte de la petición de crear un envío (el resto de POST usan el corte global de 12 s, que aquí no aplica). */
 export const ENVIO_TIMEOUT_MS = 30_000;
+/** Corte de la petición al asistente IA: igual que el cliente MiniMax del servicio ai (internal/ai/ai.go, 90 s). */
+export const IA_TIMEOUT_MS = 90_000;
 
 export type TipoCampo =
   | 'titulo' | 'parrafo' | 'imagen' | 'separador'
@@ -122,7 +124,18 @@ export interface Filtro {
   soloSinResponder?: boolean;
 }
 
-export interface Audiencia { total: number; email: number; whatsapp: number }
+export interface Audiencia {
+  total: number;
+  email: number;
+  whatsapp: number;
+  /** False when the server cannot send WhatsApp now (channel off, no consent setup…): the dialog disables the channel. */
+  whatsappDisponible: boolean;
+  /** Why WhatsApp is not available (shown in the dialog); empty when it is. */
+  whatsappMotivo: string;
+}
+
+/** Athlete found by the «Atletas concretos» search of the send dialog, with the channels each one can receive. */
+export interface AtletaCandidato { id: string; nombre: string; apellidos: string; club: string; email: boolean; whatsapp: boolean }
 
 export interface AtletaResumen { id: string; nombre: string; apellidos: string; club: string; categoria: string }
 export type EstadoRespuesta = 'parcial' | 'completa' | 'sin_respuesta';
@@ -220,14 +233,19 @@ export class FormulariosApi {
   cambiarEstado(cid: string, id: string, estado: EstadoFormulario): Promise<Formulario> {
     return firstValueFrom(this.http.post<Formulario>(`${this.base(cid)}/${id}/estado`, { estado }));
   }
-  previsualizar(cid: string, b: { esquema: Esquema; email: TextosEmail }): Promise<Previsualizacion> {
+  /** Vista previa del email y del WhatsApp de un borrador (sin guardar). `whatsapp` opcional: sin él, el texto por defecto. */
+  previsualizar(cid: string, b: { esquema: Esquema; email: TextosEmail; whatsapp?: TextosWhatsApp }): Promise<Previsualizacion> {
     return firstValueFrom(this.http.post<Previsualizacion>(`${this.base(cid)}/previsualizar`, b));
   }
+  /** POST: el filtro va en el cuerpo (una lista de hasta 500 atletas no cabe en la URL). */
   audiencia(cid: string, id: string, f: Filtro = {}): Promise<Audiencia> {
-    let p = new HttpParams();
-    if (f.estados?.length) p = p.set('estados', f.estados.join(','));
-    if (f.soloSinResponder) p = p.set('soloSinResponder', 'true');
-    return firstValueFrom(this.http.get<Audiencia>(`${this.base(cid)}/${id}/audiencia`, { params: p }));
+    return firstValueFrom(this.http.post<Audiencia>(`${this.base(cid)}/${id}/audiencia`, f));
+  }
+  /** Athletes matching `q` (name, surname, club or email) for the «Atletas concretos» picker of a send. */
+  candidatos(cid: string, id: string, q: string, size = 20): Promise<AtletaCandidato[]> {
+    let p = new HttpParams().set('size', size);
+    if (q) p = p.set('q', q);
+    return firstValueFrom(this.http.get<AtletaCandidato[]>(`${this.base(cid)}/${id}/candidatos`, { params: p }));
   }
   /**
    * Crea el envío. `clave` es la Idempotency-Key del diálogo: con la misma clave y los mismos canales y filtro, un
@@ -267,7 +285,7 @@ export class FormulariosApi {
   }
   /** Assistant: edits a working copy with tools and returns it; nothing is saved (the editor applies it as one undoable change). */
   ia(cid: string, b: EntradaIA): Promise<RespuestaIA> {
-    return firstValueFrom(this.http.post<RespuestaIA>(`/api/admin/competiciones/${cid}/ia/formulario`, b, { context: sinTimeout() }));
+    return firstValueFrom(this.http.post<RespuestaIA>(`/api/admin/competiciones/${cid}/ia/formulario`, b, { context: sinTimeout() }).pipe(timeout(IA_TIMEOUT_MS)));
   }
   /** Authenticated CSV download (bearer token via the HTTP interceptor), saved as `formulario-<slug>.csv`. */
   async descargarCsv(cid: string, id: string, nombre: string): Promise<void> {

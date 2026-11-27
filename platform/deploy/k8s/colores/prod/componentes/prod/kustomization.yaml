@@ -1,0 +1,12 @@
+# Producción: lo que comparten la capa compartida (grcup) y los dos colores (grcup-blue / grcup-green): configuración
+# de producción (dominios, Stripe, Google, DOMINIOS_CONFIRMADOS), PriorityClass grcup-prod y la prioridad de cada
+# Deployment. Mismos valores que overlays/prod (el overlay de una sola pila se retira tras la migración).
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - prioridad.yaml # prod-20261115: PriorityClass grcup-prod (above grcup-qa-low)
+patches:
+  - path: config.yaml
+  - target: { kind: Deployment }
+    patch: |-
+      - { op: replace, path: /spec/template/spec/priorityClassName, value: grcup-prod }

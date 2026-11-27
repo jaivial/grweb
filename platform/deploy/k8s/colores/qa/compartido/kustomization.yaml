@@ -1,0 +1,21 @@
+# QA · capa compartida (namespace grcup-qa): Postgres, Redis, Mailpit, evo-weai y juegos-worker. Sin color.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: grcup-qa
+resources:
+  - namespace.yaml
+  - ../../compartido
+  - ../../../base/mailpit # QA only: prod has no Mailpit
+  - permitir-mailpit.yaml
+patches:
+  - path: recursos.yaml
+  - target: { kind: StatefulSet, name: postgres }
+    patch: |-
+      - { op: replace, path: /spec/template/spec/containers/0/resources/limits/cpu, value: "2" }
+  # Mailpit keeps its ClusterIP: the vhost grcup-qa-mail proxies to it directly.
+  - target: { kind: Service, name: mailpit }
+    patch: |-
+      - { op: add, path: /spec/clusterIP, value: 10.43.240.25 }
+# The deploy script replaces TAG with the commit being deployed.
+images:
+  - { name: grcup/juegos, newTag: TAG }

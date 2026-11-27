@@ -1,5 +1,7 @@
 # prod-20261115 (§9 del informe perf-20261115): QA cede sitio a producción en el mismo nodo (12 CPU / 62 GiB).
 # Cuenta: deploy/k8s/presupuesto.py. QA sigue con prioridad grcup-qa-low; aquí baja su suelo y su techo.
+# Un color (namespace grcup-qa-<color>): el presupuesto se cuenta por color. Durante el solape de dos colores
+# (despliegue) el nodo tiene ~2 × 2,6 CPU de requests de QA; el resto del presupuesto lo sigue marcando la capa compartida.
 apiVersion: v1
 kind: ResourceQuota
 metadata:

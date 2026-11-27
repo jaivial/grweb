@@ -9,8 +9,8 @@ import { Competitions } from '../../core/competitions';
 import { BoTabBar, Confirm, errText } from '../../shared/ui';
 import { BoEditorSave, type BoSave } from '../../shared/kit';
 import { tabEnUrl } from '../../shared/tab-url';
-import { FormulariosApi, type Borrador, type EstadoFormulario, type Formulario } from './api';
-import { ESTADOS_FORMULARIO } from './catalogo';
+import { FormulariosApi, type Borrador, type Campo, type EstadoFormulario, type Formulario } from './api';
+import { ESTADOS_FORMULARIO, infoTipo } from './catalogo';
 import { FormularioTabEditar } from './tab-editar';
 import { FormularioTabVistaPrevia } from './tab-vista-previa';
 import { BoFormEnvios } from './tab-envios';
@@ -104,6 +104,11 @@ export class FormularioEditorPage {
       if (!id || !c) return;
       untracked(() => void this.cargar(c, id));
     });
+    // A save error describes the draft it was sent with: any new change makes it stale.
+    effect(() => {
+      this.store.revision();
+      untracked(() => this.error.set(''));
+    });
   }
 
   /** Estado de guardado para el indicador de la cabecera. */
@@ -154,11 +159,27 @@ export class FormularioEditorPage {
         this.error.set(msg);
         this.toasts.error(msg);
       } else {
-        this.error.set(errText(e, 'No se ha podido guardar. Revisa los campos e inténtalo de nuevo.'));
+        this.error.set(this.mensajeGuardado(e, enviado.esquema.campos));
       }
     } finally {
       this.guardando.set(false);
     }
+  }
+
+  /**
+   * Message of a failed save. Schema errors name a raw JSON key («archivo»): when the error location points at a field of
+   * the draft, the message names that field by its type and label; otherwise a generic message.
+   */
+  private mensajeGuardado(e: unknown, campos: Campo[]): string {
+    const p = problemOf(e);
+    if (!p.errors?.length) return p.detail ? nombrarCampos(p.detail, campos) : 'No se ha podido guardar. Revisa los campos e inténtalo de nuevo.';
+    const generico = 'No se ha podido guardar. Revisa los campos del formulario e inténtalo de nuevo.';
+    const i = Number(p.errors[0].location?.match(/campos\.(\d+)/)?.[1]);
+    const campo = Number.isInteger(i) ? campos[i] : undefined;
+    if (!campo) return generico;
+    const tipo = infoTipo(campo.tipo).label;
+    const etiqueta = campo.etiqueta.replace(/\*+/g, '').trim().slice(0, 40);
+    return `Revisa el campo ${etiqueta ? `${tipo} «${etiqueta}»` : tipo}: su configuración no es válida. Ajústalo y vuelve a guardar.`;
   }
 
   protected async cambiarEstado(estado: EstadoFormulario): Promise<void> {
@@ -205,7 +226,7 @@ export class FormularioEditorPage {
     if (this.tab() !== 'editar' || escribiendo(ev.target)) return;
     if (mod && k === 'z' && !ev.shiftKey) { ev.preventDefault(); this.store.deshacer(); }
     else if (mod && ((k === 'z' && ev.shiftKey) || k === 'y')) { ev.preventDefault(); this.store.rehacer(); }
-    else if ((k === 'delete' || k === 'backspace') && this.store.seleccion()) {
+    else if ((k === 'delete' || k === 'backspace') && this.store.seleccion() && enElementoOCuerpo(ev.target)) {
       ev.preventDefault();
       this.store.borrar(this.store.seleccion()!);
     } else if (k === 'escape' && this.store.seleccion()) {
@@ -214,9 +235,28 @@ export class FormularioEditorPage {
   }
 }
 
+/**
+ * The server names a draft field by its position («campo 14: …», «campo 3 («Nombre»): …»). Each mention becomes the
+ * field's own label, or «Campo sin título (n.º N)» when the field has none, so the person can find it.
+ */
+function nombrarCampos(texto: string, campos: Campo[]): string {
+  return texto.replace(/campo (\d+)(?: \(«[^»]*»\))?/g, (mencion, n: string) => {
+    const campo = campos[Number(n) - 1];
+    if (!campo) return mencion;
+    const etiqueta = campo.etiqueta.replace(/\*+/g, '').trim().slice(0, 40);
+    return etiqueta ? `«${etiqueta}»` : `Campo sin título (n.º ${n})`;
+  });
+}
+
 /** True when the key press belongs to a text field (let the browser handle it). */
 function escribiendo(t: EventTarget | null): boolean {
   const el = t as HTMLElement | null;
   if (!el) return false;
   return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
+}
+
+/** True when focus is on the canvas item itself or on nothing (body). Any control inside an item (slider stop, radio, button) keeps its own keys. */
+function enElementoOCuerpo(t: EventTarget | null): boolean {
+  const el = t as HTMLElement | null;
+  return el === document.body || !!el?.hasAttribute('data-campo-item');
 }

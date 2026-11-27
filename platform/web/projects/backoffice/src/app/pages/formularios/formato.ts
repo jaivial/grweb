@@ -33,8 +33,9 @@ export const ORIGEN: Record<OrigenRespuesta, { label: string; icon: GrIconName }
   email: { label: 'Email', icon: 'mail' },
 };
 
-export const ESTADO_RESPUESTA: Record<EstadoRespuesta, { label: string; tone: GrTone }> = {
-  completa: { label: 'Completa', tone: 'success' },
+/** `ayuda`: tooltip of the badge when the label alone can be misread (a complete response can still have a low % of answers). */
+export const ESTADO_RESPUESTA: Record<EstadoRespuesta, { label: string; tone: GrTone; ayuda?: string }> = {
+  completa: { label: 'Completa', tone: 'success', ayuda: 'Respondió todas las preguntas obligatorias. El porcentaje no se muestra porque puede haber preguntas opcionales sin responder.' },
   parcial: { label: 'Parcial', tone: 'warning' },
   sin_respuesta: { label: 'Sin respuesta', tone: 'neutral' },
 };

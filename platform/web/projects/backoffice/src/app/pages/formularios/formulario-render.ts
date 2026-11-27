@@ -30,15 +30,15 @@ export type AccionCampo = 'duplicar' | 'subir' | 'bajar' | 'borrar';
       <div id="fz-lienzo" cdkDropList [cdkDropListData]="esquema().campos" [cdkDropListDisabled]="!edicion()" [cdkDropListConnectedTo]="conectadoA()" cdkDropListOrientation="mixed"
         (cdkDropListDropped)="soltar.emit($event)" class="flex min-h-24 flex-wrap items-start gap-[var(--f-gap)]">
         @for (c of esquema().campos; track c.id) {
-          <div cdkDrag [cdkDragData]="c" [cdkDragDisabled]="!edicion()" class="relative min-w-0 rounded-[calc(var(--f-radio)+6px)] [&.cdk-drag-placeholder]:opacity-30"
-            [class]="claseCampo(c)" [attr.role]="edicion() ? 'button' : null" [attr.tabindex]="edicion() ? 0 : null" [attr.aria-pressed]="edicion() ? seleccion() === c.id : null"
+          <div cdkDrag data-campo-item [cdkDragData]="c" [cdkDragDisabled]="!edicion()" class="relative min-w-0 rounded-[calc(var(--f-radio)+6px)] [&.cdk-drag-placeholder]:opacity-30"
+            [class]="claseCampo(c)" [class.pt-10]="edicion() && seleccion() === c.id" [attr.role]="edicion() ? 'button' : null" [attr.tabindex]="edicion() ? 0 : null" [attr.aria-pressed]="edicion() ? seleccion() === c.id : null"
             [attr.aria-label]="edicion() ? 'Elemento: ' + (c.etiqueta || c.tipo) : null"
             (click)="pulsar(c.id)" (keydown.enter)="pulsar(c.id)" (keydown.space)="pulsar(c.id, $event)">
             <div class="relative" [class.pointer-events-none]="edicion()">
               <bo-campo-render [campo]="c" [valor]="valores()[c.id]" [error]="errores()[c.id] ?? null" [interactivo]="interactivo()" (valorCambia)="valorCambia.emit({ id: c.id, valor: $event })" />
             </div>
             @if (edicion() && seleccion() === c.id) {
-              <div class="absolute -top-4 right-2 z-10 flex items-center gap-0.5 rounded-sm border border-line-strong bg-bg-raised p-0.5 text-text-primary shadow-card" role="toolbar" aria-label="Acciones del elemento" (click)="$event.stopPropagation()">
+              <div class="absolute right-0 top-0 z-10 flex items-center gap-0.5 rounded-sm border border-line-strong bg-bg-raised p-0.5 text-text-primary shadow-card" role="toolbar" aria-label="Acciones del elemento" (click)="$event.stopPropagation()">
                 <button type="button" class="flex size-8 items-center justify-center rounded-xs hover:bg-bg-hover" (click)="accion.emit({ tipo: 'duplicar', id: c.id })" aria-label="Duplicar"><gr-icon name="copy" [size]="14" /></button>
                 <button type="button" class="flex size-8 items-center justify-center rounded-xs hover:bg-bg-hover disabled:opacity-30" [disabled]="$first" (click)="accion.emit({ tipo: 'subir', id: c.id })" aria-label="Subir"><gr-icon name="arrow-up" [size]="14" /></button>
                 <button type="button" class="flex size-8 items-center justify-center rounded-xs hover:bg-bg-hover disabled:opacity-30" [disabled]="$last" (click)="accion.emit({ tipo: 'bajar', id: c.id })" aria-label="Bajar"><gr-icon name="arrow-down" [size]="14" /></button>

@@ -22,7 +22,7 @@ type Ajustes struct {
 	BotonEnviar    string     `json:"botonEnviar"`
 	MensajeGracias string     `json:"mensajeGracias"`
 	PermiteEditar  bool       `json:"permiteEditar"`
-	CierreAt       *time.Time `json:"cierreAt"`
+	CierreAt       *time.Time `json:"cierreAt" nullable:"true"`
 	Tema           Tema       `json:"tema"`
 }
 
@@ -39,24 +39,26 @@ type Tema struct {
 
 // Campo es un elemento del formulario: pregunta, texto decorativo, imagen o separador.
 type Campo struct {
-	ID          string      `json:"id"`
-	Tipo        string      `json:"tipo"`
-	Etiqueta    string      `json:"etiqueta"`
-	Ayuda       string      `json:"ayuda"`
-	Obligatorio bool        `json:"obligatorio"`
-	Placeholder string      `json:"placeholder"`
-	Ancho       string      `json:"ancho"`
-	Opciones    []Opcion    `json:"opciones"`
-	Min         *float64    `json:"min"`
-	Max         *float64    `json:"max"`
-	Paso        *float64    `json:"paso"`
-	MinEtiqueta string      `json:"minEtiqueta"`
-	MaxEtiqueta string      `json:"maxEtiqueta"`
-	Validacion  Validacion  `json:"validacion"`
-	Archivo     *ArchivoCfg `json:"archivo"`
-	Estilo      Estilo      `json:"estilo"`
-	Imagen      string      `json:"imagen"`
-	Alt         string      `json:"alt"`
+	ID          string     `json:"id"`
+	Tipo        string     `json:"tipo"`
+	Etiqueta    string     `json:"etiqueta"`
+	Ayuda       string     `json:"ayuda"`
+	Obligatorio bool       `json:"obligatorio"`
+	Placeholder string     `json:"placeholder"`
+	Ancho       string     `json:"ancho"`
+	Opciones    []Opcion   `json:"opciones"`
+	Min         *float64   `json:"min" nullable:"true"`
+	Max         *float64   `json:"max" nullable:"true"`
+	Paso        *float64   `json:"paso" nullable:"true"`
+	MinEtiqueta string     `json:"minEtiqueta"`
+	MaxEtiqueta string     `json:"maxEtiqueta"`
+	Validacion  Validacion `json:"validacion"`
+	// Archivo es un puntero a struct: huma no admite nullable:"true" aquí (schema.go: panic «nullable is not supported
+	// for field … which is type …» al referenciar un objeto), así que se marca opcional: su null se ignora (validate.go).
+	Archivo *ArchivoCfg `json:"archivo" required:"false"`
+	Estilo  Estilo      `json:"estilo"`
+	Imagen  string      `json:"imagen"`
+	Alt     string      `json:"alt"`
 }
 
 // Opcion es una opción de los campos de elección.
@@ -67,8 +69,8 @@ type Opcion struct {
 
 // Validacion son las reglas de texto (solo texto_corto y texto_largo).
 type Validacion struct {
-	MinLargo *int   `json:"minLargo"`
-	MaxLargo *int   `json:"maxLargo"`
+	MinLargo *int   `json:"minLargo" nullable:"true"`
+	MaxLargo *int   `json:"maxLargo" nullable:"true"`
 	Patron   string `json:"patron"`
 }
 

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, output, signal, untracked, computed } from '@angular/core';
 import { GrButton, GrToasts } from '@grcup/ui';
+import { TimeoutError } from 'rxjs';
 import { Competitions } from '../../core/competitions';
 import { BoIaChat, type ChatAplicada, type ChatMensaje } from '../../shared/ia-chat';
 import { errText } from '../../shared/ui';
@@ -12,6 +13,12 @@ const EJEMPLOS = [
   'Marca como obligatorios el email y el teléfono',
   'Pon el texto del botón en «Confirmar inscripción»',
 ];
+
+/** Límites del servidor (internal/ai/formulario.go): historial ≤ 20 mensajes, texto de cada mensaje ≤ 2000 caracteres (runas). */
+const HISTORIAL_MAX = 12;
+const TEXTO_MENSAJE_MAX = 2000;
+/** Corta por code points (no por unidades UTF-16) para no partir un par sustituto y contar como el servidor. */
+const acotaTexto = (t: string): string => Array.from(t).slice(0, TEXTO_MENSAJE_MAX).join('');
 
 /** Receipt of an applied AI change: `revision` is the draft revision it produced (undo is exact only while it still matches). */
 interface Recibo { cambios: string[]; hora: string; revision: number }
@@ -122,7 +129,7 @@ export class BoIaFormulario {
       const sel = this.store.seleccion();
       const r = await this.api.ia(this.cid(), {
         instruccion: texto,
-        historial: historial.slice(-12),
+        historial: historial.slice(-HISTORIAL_MAX).map((m) => ({ rol: m.rol, texto: acotaTexto(m.texto) })),
         borrador,
         seleccion: sel ?? undefined,
         modelo: this.modelo() || undefined,
@@ -135,7 +142,9 @@ export class BoIaFormulario {
         this.responder(r.respuesta || 'La IA ha terminado.');
       }
     } catch (e) {
-      const msg = errText(e, 'La IA no ha podido editar el formulario. Inténtalo de nuevo.');
+      const msg = e instanceof TimeoutError
+        ? 'La IA ha tardado más de 90 s y no ha respondido. No se ha cambiado nada: inténtalo de nuevo.'
+        : errText(e, 'La IA no ha podido editar el formulario. Inténtalo de nuevo.');
       this.responder(msg);
       this.toasts.error('No se ha aplicado el cambio', msg);
     } finally {
@@ -158,7 +167,10 @@ export class BoIaFormulario {
 
   protected deshacer(): void {
     const r = this.recibo();
-    if (r && this.store.deshacerDesde(r.revision)) this.recibo.set(null);
+    if (r && this.store.deshacerDesde(r.revision)) {
+      this.recibo.set(null);
+      this.responder('Cambio de la IA deshecho.');
+    }
   }
 
   /** Applies the AI draft as one undoable step and keeps its receipt. */

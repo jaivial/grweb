@@ -113,7 +113,7 @@ platform/
   internal/<servicio>/       # dominio, http, store, eventos, migraciones (embed)
   pkg/                       # compartido: app, httpx, problem, db, redisx, events, auth, idem, ratelimit, sse, crypto, mailer
   web/                       # workspace Angular (pnpm)
-  deploy/k8s/                # kustomize: base/ + overlays/qa/
+  deploy/k8s/                # kustomize: base/ + colores/ (blue, green, compartido) + overlays/prod/
   deploy/scripts/            # desplegar (qa|prod), secretos, redis-acl, copias-remotas, tarea, migrar-legado, nginx-qa, nginx-prod
   docs/                      # este documento, INVENTARIO, ROADMAP, runbooks
   Dockerfile                 # multi-stage; ARG SVC → imagen distroless por servicio
@@ -205,7 +205,7 @@ flowchart TB
   - Dockerfile multi-stage: build con `golang:1.26` → `gcr.io/distroless/static:nonroot`, de unos 15 MB por servicio.
   - Se etiquetan con el commit.
   - No hay registro: se construyen en el escritorio y se importan en containerd de k3s (`docker save | ssh kraken sudo k3s ctr -n k8s.io images import -`), con `imagePullPolicy: IfNotPresent`.
-- **Manifiestos.** Kustomize: `base/` (un directorio por servicio) y `overlays/qa/`. Cada servicio tiene:
+- **Manifiestos.** Kustomize: `base/` (un directorio por servicio), `colores/` (QA: dos colores blue/green y una capa compartida) y `overlays/prod/`. Cada servicio tiene:
   - **Deployment** con `initContainer migrate`, *probes* y `securityContext` sin privilegios: `runAsNonRoot`, `readOnlyRootFilesystem`, sin *capabilities*.
   - **Service ClusterIP.** El `gateway`, la `web`, el `backoffice` y `mailpit` usan una IP fija del rango 10.43.240.0/24 para el nginx del host. **Sin NodePort**, porque kraken no tiene cortafuegos.
   - **HPA** (CPU 70 % y memoria 80 %, con metrics-server de k3s): mínimo 1 o 2 réplicas y máximo de 4 a 6 según el servicio.

@@ -1,6 +1,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: grcup-qa
+  name: grcup-green
   labels:
     app.kubernetes.io/part-of: grcup
+    grcup.dev/colores: "true"

@@ -87,12 +87,14 @@ const clubDe = (r: RespuestaFila): string => [r.atleta.club, r.atleta.categoria]
                       [attr.data-fila]="r.id" [attr.tabindex]="r.id ? 0 : null" [attr.aria-disabled]="r.id ? null : 'true'" (click)="abrir(r)" (keydown.enter)="abrir(r)">
                       <td class="px-4 py-3"><span class="block text-label-m">{{ nombre(r) }}</span></td>
                       <td class="px-4 py-3 text-body-s text-text-tertiary">{{ clubDe(r) || '—' }}</td>
-                      <td class="px-4 py-3"><gr-badge [tone]="etiqueta(r).tone">{{ etiqueta(r).label }}</gr-badge></td>
+                      <td class="px-4 py-3"><gr-badge [tone]="etiqueta(r).tone" [attr.title]="etiqueta(r).ayuda ?? null">{{ etiqueta(r).label }}</gr-badge></td>
                       <td class="px-4 py-3">
-                        <span class="flex items-center gap-3">
-                          <span class="block h-1.5 min-w-16 flex-1 overflow-hidden rounded-pill bg-bg-raised" aria-hidden="true"><span class="block h-full rounded-pill bg-accent" [style.width.%]="r.porcentaje"></span></span>
-                          <span class="w-12 shrink-0 text-right font-mono text-mono-xs tabular-nums">{{ r.porcentaje }} %</span>
-                        </span>
+                        @if (r.estado !== 'completa') {
+                          <span class="flex items-center gap-3">
+                            <span class="block h-1.5 min-w-16 flex-1 overflow-hidden rounded-pill bg-bg-raised" aria-hidden="true"><span class="block h-full rounded-pill bg-accent" [style.width.%]="r.porcentaje"></span></span>
+                            <span class="w-12 shrink-0 text-right font-mono text-mono-xs tabular-nums">{{ r.porcentaje }} %</span>
+                          </span>
+                        }
                       </td>
                       <td class="px-4 py-3 text-body-s">
                         @if (r.origen; as o) { <span class="inline-flex items-center gap-1.5 text-text-secondary"><gr-icon [name]="origen[o].icon" [size]="14" class="text-text-tertiary" />{{ origen[o].label }}</span> } @else { <span class="text-text-muted">—</span> }
@@ -124,8 +126,8 @@ const clubDe = (r: RespuestaFila): string => [r.atleta.club, r.atleta.categoria]
               <p class="mt-1 text-body-s text-text-tertiary">{{ clubDe(r) || 'Sin club ni categoría' }}</p>
             </div>
             <div class="flex flex-wrap items-center gap-3 text-body-s">
-              <gr-badge [tone]="etiqueta(r).tone">{{ etiqueta(r).label }}</gr-badge>
-              <span class="font-mono text-mono-s tabular-nums">{{ r.porcentaje }} %</span>
+              <gr-badge [tone]="etiqueta(r).tone" [attr.title]="etiqueta(r).ayuda ?? null">{{ etiqueta(r).label }}</gr-badge>
+              @if (r.estado !== 'completa') { <span class="font-mono text-mono-s tabular-nums">{{ r.porcentaje }} %</span> }
               @if (r.origen; as o) { <span class="inline-flex items-center gap-1.5 text-text-tertiary"><gr-icon [name]="origen[o].icon" [size]="14" />Respondió por {{ origen[o].label.toLowerCase() }}</span> }
             </div>
           </header>

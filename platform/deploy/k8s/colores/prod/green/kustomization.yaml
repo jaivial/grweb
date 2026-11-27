@@ -1,0 +1,17 @@
+# Producción · color green (namespace grcup-green). IPs fijas: 10.43.241.10-12 (gateway, web, backoffice).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: grcup-green
+resources:
+  - namespace.yaml
+  - ../comun
+patches:
+  - target: { kind: Service, name: gateway }
+    patch: |-
+      - { op: add, path: /spec/clusterIP, value: 10.43.241.10 }
+  - target: { kind: Service, name: web }
+    patch: |-
+      - { op: add, path: /spec/clusterIP, value: 10.43.241.11 }
+  - target: { kind: Service, name: backoffice }
+    patch: |-
+      - { op: add, path: /spec/clusterIP, value: 10.43.241.12 }

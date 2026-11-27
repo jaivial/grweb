@@ -20,6 +20,8 @@
 #   PAUSA          (20)  segundos entre Deployments.
 #   SOLO="chat gateway"  limita aplicar/rollback a esos Deployments.
 set -euo pipefail
+echo "✗ obsoleto desde la migración a colores (blue/green): QA se despliega con deploy/scripts/desplegar-bg.sh qa" >&2
+exit 1
 cd "$(dirname "$0")/../.."
 KRAKEN="${KRAKEN:-kraken}"; NS=grcup-qa; OVERLAY=deploy/k8s/overlays/qa
 LOAD_MAX="${LOAD_MAX:-8}"; ESPERA_MAX="${ESPERA_MAX:-600}"; PAUSA="${PAUSA:-20}"; ESTABLE=107ea39b

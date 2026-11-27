@@ -44,18 +44,31 @@ type consulta interface {
 	QueryRow(context.Context, string, ...any) pgx.Row
 }
 
-// AudienciaFormulario es a cuántos atletas llega la invitación, por canal.
+// AudienciaFormulario es a cuántos atletas llega la invitación, por canal, y si messaging tiene WhatsApp disponible
+// en la competición (whatsappMotivo vacío cuando sí lo está).
 type AudienciaFormulario struct {
-	Total    int `json:"total"`
-	Email    int `json:"email"`
-	WhatsApp int `json:"whatsapp"`
+	Total              int    `json:"total"`
+	Email              int    `json:"email"`
+	WhatsApp           int    `json:"whatsapp"`
+	WhatsAppDisponible bool   `json:"whatsappDisponible"`
+	WhatsAppMotivo     string `json:"whatsappMotivo"`
+}
+
+// CandidatoFormulario es un atleta que se puede elegir como destinatario concreto de un envío.
+type CandidatoFormulario struct {
+	ID        uuid.UUID `json:"id"`
+	Nombre    string    `json:"nombre"`
+	Apellidos string    `json:"apellidos"`
+	Club      string    `json:"club"`
+	Email     bool      `json:"email" doc:"Tiene email"`
+	WhatsApp  bool      `json:"whatsapp" doc:"Tiene teléfono y consentimiento de WhatsApp"`
 }
 
 // FiltroEnvio es a quién va un envío.
 type FiltroEnvio struct {
-	Estados          []string    `json:"estados,omitempty" doc:"confirmado · reserva (por defecto, confirmado)"`
+	Estados          []string    `json:"estados,omitempty" doc:"confirmado · reserva (por defecto, confirmado). Vacío con atletas concretos"`
 	Atletas          []uuid.UUID `json:"atletas,omitempty" doc:"Solo estos atletas"`
-	SoloSinResponder bool        `json:"soloSinResponder" doc:"Omite a quien ya tiene la respuesta completa"`
+	SoloSinResponder bool        `json:"soloSinResponder" required:"false" doc:"Omite a quien ya tiene la respuesta completa"`
 }
 
 // CanalEstado es el estado de un canal de un envío.
@@ -136,33 +149,70 @@ func (s *Svc) registerFormulariosEnvios() {
 	api := s.a.API
 	base := "/api/admin/competiciones/{cid}/formularios"
 
-	type audienciaIn struct {
+	type audienciaOut struct {
+		Body AudienciaFormulario
+	}
+	// GET: compatibilidad. Sin atletas concretos (la lista de uuid en la URL no cabe en las cabeceras de nginx); el
+	// backoffice usa POST.
+	type audienciaGetIn struct {
 		CID              uuid.UUID `path:"cid"`
 		ID               uuid.UUID `path:"id"`
 		Estados          string    `query:"estados" doc:"confirmado,reserva (por defecto, confirmado)"`
 		SoloSinResponder bool      `query:"soloSinResponder"`
 	}
-	type audienciaOut struct {
-		Body AudienciaFormulario
-	}
 	huma.Register(api, huma.Operation{OperationID: "formularios-audiencia", Method: http.MethodGet, Path: base + "/{id}/audiencia",
-		Summary: "A cuántos atletas llega la invitación, por canal", Tags: tagAdmin, Security: bearer},
-		func(ctx context.Context, in *audienciaIn) (*audienciaOut, error) {
-			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {
+		Summary: "A cuántos atletas llega la invitación, por canal (y si WhatsApp está disponible). Obsoleto: usar POST", Tags: tagAdmin, Security: bearer},
+		func(ctx context.Context, in *audienciaGetIn) (*audienciaOut, error) {
+			out, err := s.audienciaDe(ctx, in.CID, in.ID, FiltroEnvio{Estados: listaCSV(in.Estados), SoloSinResponder: in.SoloSinResponder})
+			if err != nil {
 				return nil, err
 			}
-			f := FiltroEnvio{Estados: listaCSV(in.Estados), SoloSinResponder: in.SoloSinResponder}
-			if err := validaFiltro(&f); err != nil {
+			return &audienciaOut{Body: out}, nil
+		})
+
+	// POST: el filtro va en el cuerpo (sin límite de longitud en la URL).
+	type audienciaPostIn struct {
+		CID  uuid.UUID `path:"cid"`
+		ID   uuid.UUID `path:"id"`
+		Body struct {
+			Estados          []string    `json:"estados,omitempty" doc:"confirmado · reserva (por defecto, confirmado). Se ignora si se indican atletas"`
+			Atletas          []uuid.UUID `json:"atletas,omitempty" doc:"Solo estos atletas (máximo 500), sin mirar estados. Las bajas siempre se excluyen"`
+			SoloSinResponder bool        `json:"soloSinResponder,omitempty"`
+		}
+	}
+	huma.Register(api, huma.Operation{OperationID: "formularios-audiencia-post", Method: http.MethodPost, Path: base + "/{id}/audiencia",
+		Summary: "A cuántos atletas llega la invitación, por canal (y si WhatsApp está disponible)", Tags: tagAdmin, Security: bearer},
+		func(ctx context.Context, in *audienciaPostIn) (*audienciaOut, error) {
+			out, err := s.audienciaDe(ctx, in.CID, in.ID, FiltroEnvio{Estados: in.Body.Estados, Atletas: in.Body.Atletas, SoloSinResponder: in.Body.SoloSinResponder})
+			if err != nil {
+				return nil, err
+			}
+			return &audienciaOut{Body: out}, nil
+		})
+
+	type candidatosIn struct {
+		CID  uuid.UUID `path:"cid"`
+		ID   uuid.UUID `path:"id"`
+		Q    string    `query:"q" maxLength:"80" doc:"Busca en nombre, apellidos y email"`
+		Size int       `query:"size" minimum:"1" maximum:"100" default:"20"`
+	}
+	type candidatosOut struct {
+		Body []CandidatoFormulario
+	}
+	huma.Register(api, huma.Operation{OperationID: "formularios-candidatos", Method: http.MethodGet, Path: base + "/{id}/candidatos",
+		Summary: "Atletas de la competición (no bajas) para elegir destinatarios concretos", Tags: tagAdmin, Security: bearer},
+		func(ctx context.Context, in *candidatosIn) (*candidatosOut, error) {
+			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {
 				return nil, err
 			}
 			if _, err := s.formularioDe(ctx, in.CID, in.ID); err != nil {
 				return nil, err
 			}
-			lista, err := s.audiencia(ctx, s.a.DB, in.CID, in.ID, f)
+			lista, err := s.buscaCandidatos(ctx, in.CID, strings.ToLower(strings.TrimSpace(in.Q)), in.Size)
 			if err != nil {
 				return nil, err
 			}
-			return &audienciaOut{Body: contaAudiencia(lista, f)}, nil
+			return &candidatosOut{Body: lista}, nil
 		})
 
 	type envioIn struct {
@@ -172,7 +222,7 @@ func (s *Svc) registerFormulariosEnvios() {
 		Body  struct {
 			Canales            []string    `json:"canales" maxItems:"2" doc:"email y/o whatsapp"`
 			Filtro             FiltroEnvio `json:"filtro"`
-			ConfirmarDuplicado bool        `json:"confirmarDuplicado" doc:"true: crear aunque ya exista un envio igual hace menos de 2 minutos (tras el 409 ENVIO_DUPLICADO)"`
+			ConfirmarDuplicado bool        `json:"confirmarDuplicado,omitempty" doc:"true: crear aunque ya exista un envio igual hace menos de 2 minutos (tras el 409 ENVIO_DUPLICADO)"`
 		}
 	}
 	type envioOut struct {
@@ -200,9 +250,32 @@ func (s *Svc) registerFormulariosEnvios() {
 			if err != nil {
 				return nil, err
 			}
-			id, reutilizado, err := s.creaEnvio(ctx, in.CID, in.ID, c.Nombre, canales, in.Body.Filtro, clave, in.Body.ConfirmarDuplicado)
+			// Repetición (misma clave y huella): se devuelve el envío ya creado, sin consultar a messaging ni encolar nada.
+			// Va antes del control de WhatsApp: un reintento no debe fallar porque messaging no responda ahora.
+			previo, err := envioPorClave(ctx, s.a.DB, in.CID, in.ID, clave)
 			if err != nil {
 				return nil, err
+			}
+			huella, err := huellaEnvio(canales, in.Body.Filtro)
+			if err != nil {
+				return nil, err
+			}
+			id, reutilizado := uuid.Nil, false
+			if previo != nil {
+				if previo.huella != huella {
+					return nil, errClaveReutilizada()
+				}
+				id, reutilizado = previo.id, true
+			} else {
+				// WhatsApp: se comprueba justo antes de crear el envío (fail-closed: si messaging no responde, no se encola nada).
+				if slices.Contains(canales, "whatsapp") {
+					if err := s.exigeWhatsapp(ctx, in.CID); err != nil {
+						return nil, err
+					}
+				}
+				if id, reutilizado, err = s.creaEnvio(ctx, in.CID, in.ID, c.Nombre, canales, in.Body.Filtro, clave, in.Body.ConfirmarDuplicado); err != nil {
+					return nil, err
+				}
 			}
 			// Recién encolado (o ya encolado con esa clave): todo está «en cola» y no hace falta preguntar a messaging.
 			envs, entregas, err := cargaEnvios(ctx, s.a.DB, in.ID)
@@ -246,25 +319,63 @@ func (s *Svc) registerFormulariosEnvios() {
 		})
 }
 
+// audienciaDe es la respuesta de GET y POST /audiencia: valida el filtro, cuenta por canal y añade si WhatsApp está
+// disponible en messaging.
+func (s *Svc) audienciaDe(ctx context.Context, cid, fid uuid.UUID, f FiltroEnvio) (AudienciaFormulario, error) {
+	if _, err := auth.Require(ctx, cid.String(), "atletas.editar"); err != nil {
+		return AudienciaFormulario{}, err
+	}
+	if err := validaFiltro(&f); err != nil {
+		return AudienciaFormulario{}, err
+	}
+	if _, err := s.formularioDe(ctx, cid, fid); err != nil {
+		return AudienciaFormulario{}, err
+	}
+	lista, err := s.audiencia(ctx, s.a.DB, cid, fid, f)
+	if err != nil {
+		return AudienciaFormulario{}, err
+	}
+	out := contaAudiencia(lista, f)
+	disponible, motivo, err := s.whatsappEstado(ctx, cid)
+	if err != nil {
+		// No comprobado: se muestra como no disponible (fail-closed); el envío lo rechaza también (exigeWhatsapp).
+		out.WhatsAppDisponible, out.WhatsAppMotivo = false, msgWhatsappNoComprobado
+		return out, nil
+	}
+	out.WhatsAppDisponible, out.WhatsAppMotivo = disponible, motivo
+	return out, nil
+}
+
+// sqlConsentWA es el consentimiento de WhatsApp de un atleta: el suyo o el de su alta aprobada (requiere sqlJoinAlta).
+const sqlConsentWA = `(a.whatsapp_at IS NOT NULL OR (COALESCE(a.whatsapp_origen, '') <> 'retirado'
+		AND COALESCE((alta.consentimientos::text::jsonb -> 'whatsapp' ->> 'aceptado') = 'true', false)))`
+
+// sqlJoinAlta trae la última alta aprobada del atleta (de ella sale su consentimiento). Lo usan la audiencia y los candidatos.
+const sqlJoinAlta = `LEFT JOIN LATERAL (SELECT s.consentimientos FROM solicitudes_atleta s
+		WHERE s.competition_id = a.competition_id AND s.match_atleta_id = a.id AND s.tipo = 'alta' AND s.estado = 'aprobada'
+		ORDER BY s.revisado_at DESC NULLS LAST LIMIT 1) alta ON true`
+
 // audiencia lista los atletas de la competición que cumplen el filtro (nunca «baja»), con su consentimiento de WhatsApp
 // y si ya tienen la respuesta completa. Es una sola consulta: el consentimiento sigue la regla de consentimientoWA
 // (autorizacion.go → waAceptado): el registrado en la ficha (whatsapp_at); si no, que la ficha no lo retire
 // (whatsapp_origen = 'retirado') y que la última alta aprobada tenga la casilla de WhatsApp aceptada.
+// Con filtro.atletas trae solo esos, sin mirar estados. La vista de audiencia y creaEnvio usan esta misma consulta.
 func (s *Svc) audiencia(ctx context.Context, q consulta, cid, fid uuid.UUID, f FiltroEnvio) ([]atletaEnvio, error) {
 	atletas := f.Atletas
 	if atletas == nil {
 		atletas = []uuid.UUID{}
 	}
-	rows, err := q.Query(ctx, `SELECT a.id, a.nombre, COALESCE(a.email::text, ''), a.telefono,
-		a.whatsapp_at IS NOT NULL OR (COALESCE(a.whatsapp_origen, '') <> 'retirado'
-			AND COALESCE((alta.consentimientos::text::jsonb -> 'whatsapp' ->> 'aceptado') = 'true', false)),
+	estados := f.Estados
+	if estados == nil {
+		estados = []string{}
+	}
+	rows, err := q.Query(ctx, `SELECT a.id, a.nombre, COALESCE(a.email::text, ''), a.telefono, `+sqlConsentWA+`,
 		EXISTS (SELECT 1 FROM formulario_respuestas r WHERE r.formulario_id = $2 AND r.atleta_id = a.id AND r.estado = 'completa')
 		FROM atletas a
-		LEFT JOIN LATERAL (SELECT s.consentimientos FROM solicitudes_atleta s
-			WHERE s.competition_id = a.competition_id AND s.match_atleta_id = a.id AND s.tipo = 'alta' AND s.estado = 'aprobada'
-			ORDER BY s.revisado_at DESC NULLS LAST LIMIT 1) alta ON true
-		WHERE a.competition_id = $1 AND a.estado = ANY($3) AND a.estado <> 'baja' AND (cardinality($4::uuid[]) = 0 OR a.id = ANY($4::uuid[]))
-		ORDER BY a.apellidos, a.nombre, a.id`, cid, fid, f.Estados, atletas)
+		`+sqlJoinAlta+`
+		WHERE a.competition_id = $1 AND a.estado <> 'baja'
+		  AND ((cardinality($4::uuid[]) > 0 AND a.id = ANY($4::uuid[])) OR (cardinality($4::uuid[]) = 0 AND a.estado = ANY($3)))
+		ORDER BY a.apellidos, a.nombre, a.id`, cid, fid, estados, atletas)
 	if err != nil {
 		return nil, err
 	}
@@ -345,13 +456,13 @@ func (s *Svc) creaEnvio(ctx context.Context, cid, fid uuid.UUID, competicion str
 			return err
 		}
 		if clave != "" {
-			previo, err := envioPorClave(ctx, tx, fid, clave)
+			previo, err := envioPorClave(ctx, tx, cid, fid, clave)
 			if err != nil {
 				return err
 			}
 			if previo != nil {
 				if previo.huella != huella {
-					return problem.Unprocessable("CLAVE_REUTILIZADA", "Esa clave ya se usó para un envío con otros canales o filtro. Vuelve a pulsar Enviar para crear uno nuevo.")
+					return errClaveReutilizada()
 				}
 				envioID, reutilizado = previo.id, true
 				return nil
@@ -571,11 +682,15 @@ func huellaEnvio(canales []string, f FiltroEnvio) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
-// envioPorClave devuelve el envío que ya se creó con esa Idempotency-Key en el formulario (nil si no hay ninguno).
-func envioPorClave(ctx context.Context, tx pgx.Tx, fid uuid.UUID, clave string) (*envioBreve, error) {
+// envioPorClave devuelve el envío de la competición que ya se creó con esa Idempotency-Key en el formulario (nil si no hay
+// ninguno o la clave está vacía). Lo usan la comprobación previa al WhatsApp (sin transacción) y creaEnvio (dentro).
+func envioPorClave(ctx context.Context, q consulta, cid, fid uuid.UUID, clave string) (*envioBreve, error) {
+	if clave == "" {
+		return nil, nil
+	}
 	var e envioBreve
-	err := tx.QueryRow(ctx, `SELECT id, huella, created_at FROM formulario_envios WHERE formulario_id = $1 AND clave_idempotencia = $2`,
-		fid, clave).Scan(&e.id, &e.huella, &e.createdAt)
+	err := q.QueryRow(ctx, `SELECT id, huella, created_at FROM formulario_envios WHERE formulario_id = $1 AND competition_id = $2 AND clave_idempotencia = $3`,
+		fid, cid, clave).Scan(&e.id, &e.huella, &e.createdAt)
 	if db.IsNoRows(err) {
 		return nil, nil
 	}
@@ -583,6 +698,11 @@ func envioPorClave(ctx context.Context, tx pgx.Tx, fid uuid.UUID, clave string) 
 		return nil, err
 	}
 	return &e, nil
+}
+
+// errClaveReutilizada es el 422 de una Idempotency-Key ya usada con otros canales o filtro (la handler y creaEnvio lo dan).
+func errClaveReutilizada() error {
+	return problem.Unprocessable("CLAVE_REUTILIZADA", "Esa clave ya se usó para un envío con otros canales o filtro. Vuelve a pulsar Enviar para crear uno nuevo.")
 }
 
 // envioCerrado es el 409 FORMULARIO_CERRADO de un envío (lo devuelve creaEnvio en dos momentos: antes y al final).
@@ -726,17 +846,96 @@ func canalEstado(e *Envio, canal string) *CanalEstado {
 	return &e.Email
 }
 
-// validaFiltro deja el filtro listo: por defecto, confirmados; solo confirmado o reserva.
+// validaFiltro deja el filtro listo: con atletas concretos, sin estados (la consulta los ignora y así el filtro y la huella
+// lo dicen); sin atletas, por defecto confirmados; solo confirmado o reserva; como máximo 500 atletas concretos.
 func validaFiltro(f *FiltroEnvio) error {
-	if len(f.Estados) == 0 {
-		f.Estados = []string{"confirmado"}
-	}
 	for _, e := range f.Estados {
 		if e != "confirmado" && e != "reserva" {
 			return problem.Unprocessable("ESTADO_NO_VALIDO", "Los estados válidos son confirmado y reserva.")
 		}
 	}
+	if len(f.Atletas) > maxAtletasFiltro {
+		return problem.Unprocessable("ATLETAS_DEMASIADOS", fmt.Sprintf("Un envío puede dirigirse como máximo a %d atletas.", maxAtletasFiltro))
+	}
+	// atletas presente pero vacío (`"atletas": []`) no es «todos los confirmados»: el cliente pidió destinatarios concretos y no
+	// eligió ninguno. encoding/json deja nil la clave ausente (o null) y un slice vacío no nil el `[]` (huma decodifica así).
+	if f.Atletas != nil && len(f.Atletas) == 0 {
+		return problem.Unprocessable("SIN_DESTINATARIOS", "Elige al menos un atleta.")
+	}
+	if len(f.Atletas) > 0 {
+		f.Estados = nil
+		return nil
+	}
+	if len(f.Estados) == 0 {
+		f.Estados = []string{"confirmado"}
+	}
 	return nil
+}
+
+// maxAtletasFiltro es el máximo de atletas concretos de un filtro (audiencia y envío).
+const maxAtletasFiltro = 500
+
+// msgWhatsappNoComprobado es lo que ve el backoffice cuando messaging no responde (audiencia y envío).
+const msgWhatsappNoComprobado = "No se ha podido comprobar WhatsApp. Inténtalo de nuevo o envía solo por email."
+
+// whatsappEstado pregunta a messaging si WhatsApp está disponible en la competición (mismo criterio que las campañas).
+// Si messaging no responde, devuelve error: quien llama decide (la audiencia lo muestra como no disponible; el envío falla).
+func (s *Svc) whatsappEstado(ctx context.Context, cid uuid.UUID) (bool, string, error) {
+	var out struct {
+		Disponible bool   `json:"disponible"`
+		Motivo     string `json:"motivo"`
+	}
+	if err := s.messaging.Do(ctx, http.MethodGet, "/internal/competiciones/"+cid.String()+"/whatsapp/estado", nil, &out); err != nil {
+		s.a.Log.Warn("formularios: estado de WhatsApp no comprobado", "err", err)
+		return false, "", err
+	}
+	return out.Disponible, out.Motivo, nil
+}
+
+// exigeWhatsapp frena un envío con WhatsApp: 422 WHATSAPP_NO_DISPONIBLE con el motivo de messaging, o 503
+// WHATSAPP_NO_COMPROBADO si messaging no responde (fail-closed). Se llama justo antes de crear el envío, fuera de su
+// transacción: messaging puede cambiar su respuesta entre esta comprobación y el encolado.
+func (s *Svc) exigeWhatsapp(ctx context.Context, cid uuid.UUID) error {
+	disponible, motivo, err := s.whatsappEstado(ctx, cid)
+	if err != nil {
+		return problem.New(http.StatusServiceUnavailable, "WHATSAPP_NO_COMPROBADO", msgWhatsappNoComprobado)
+	}
+	if !disponible {
+		if motivo == "" {
+			motivo = "WhatsApp no está disponible ahora."
+		}
+		return problem.Unprocessable("WHATSAPP_NO_DISPONIBLE", motivo)
+	}
+	return nil
+}
+
+// buscaCandidatos son los atletas no baja de la competición cuyo nombre, apellidos, club o email contienen q (ya en
+// minúsculas). Sin q, los primeros por apellidos. Devuelve siempre una lista (nunca null).
+func (s *Svc) buscaCandidatos(ctx context.Context, cid uuid.UUID, q string, size int) ([]CandidatoFormulario, error) {
+	rows, err := s.a.DB.Query(ctx, `SELECT a.id, a.nombre, a.apellidos, COALESCE(a.club, ''), COALESCE(a.email::text, ''), COALESCE(a.telefono, ''), `+sqlConsentWA+`
+		FROM atletas a
+		`+sqlJoinAlta+`
+		WHERE a.competition_id = $1 AND a.estado <> 'baja'
+		  AND ($2 = '' OR strpos(lower(concat_ws(' ', a.nombre, a.apellidos, a.club, a.email::text)), $2) > 0)
+		ORDER BY a.apellidos, a.nombre, a.id LIMIT $3`, cid, q, size)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []CandidatoFormulario{}
+	for rows.Next() {
+		var x CandidatoFormulario
+		var email, tel string
+		var consiente bool
+		if err := rows.Scan(&x.ID, &x.Nombre, &x.Apellidos, &x.Club, &email, &tel, &consiente); err != nil {
+			return nil, err
+		}
+		a := atletaEnvio{Email: email, Telefono: tel, Consiente: consiente}
+		x.Email = motivoOmision(a, "email", false) == ""
+		x.WhatsApp = motivoOmision(a, "whatsapp", false) == ""
+		out = append(out, x)
+	}
+	return out, rows.Err()
 }
 
 // canalesValidos quita los repetidos, ordena los canales (así un envío con los mismos canales en otro orden es el mismo)

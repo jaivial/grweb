@@ -1,5 +1,5 @@
 import type { GrIconName } from '@grcup/ui';
-import type { Alinear, Ancho, Campo, Opcion, TipoCampo } from './api';
+import type { Alinear, Ancho, Campo, ConfigArchivo, Opcion, TipoCampo } from './api';
 
 /** Id generator with the contract formats: `c_` + 8 [a-z0-9] for fields, `o_` + 8 for options (contract §2). */
 export function nuevoId(prefijo: 'c_' | 'o_'): string {
@@ -97,7 +97,7 @@ export function campoNuevo(tipo: TipoCampo, id: string = nuevoId('c_')): Campo {
     estilo: { ...ESTILO_BASE }, imagen: '', alt: '',
   };
   switch (tipo) {
-    case 'titulo': return { ...base, etiqueta: 'Nueva sección', estilo: { ...base.estilo, tamano: 'l', negrita: true } };
+    case 'titulo': return { ...base, etiqueta: 'Título de la sección', estilo: { ...base.estilo, tamano: 'l', negrita: true } };
     case 'parrafo': return { ...base, etiqueta: 'Escribe aquí el texto. Usa **negrita** para lo importante.' };
     case 'texto_corto': return { ...base, etiqueta: 'Pregunta de texto' };
     case 'texto_largo': return { ...base, etiqueta: 'Pregunta de texto largo' };
@@ -123,6 +123,18 @@ export function campoNuevo(tipo: TipoCampo, id: string = nuevoId('c_')): Campo {
 /** Options with fresh ids: texts «Opción 1…N» unless given. */
 export function opcionesIniciales(n: number, textos?: string[]): Opcion[] {
   return Array.from({ length: n }, (_, i) => ({ id: nuevoId('o_'), texto: textos?.[i] ?? `Opción ${i + 1}` }));
+}
+
+/** Config of a file field when the server has none: the editor always works with a full object there. */
+export const ARCHIVO_POR_DEFECTO: ConfigArchivo = { tipos: ['image/*', 'application/pdf'], maxMb: 10, maxArchivos: 1 };
+
+/**
+ * Null handling of the draft: `archivo` is a full object for `archivo` fields and `null` for every other type, whatever the
+ * server or an older draft sent. Keeps the shape stable so the save body and the dirty check always agree.
+ */
+export function normalizarCampo(c: Campo): Campo {
+  if (c.tipo === 'archivo') return c.archivo ? c : { ...c, archivo: { ...ARCHIVO_POR_DEFECTO, tipos: [...ARCHIVO_POR_DEFECTO.tipos] } };
+  return c.archivo === null ? c : { ...c, archivo: null };
 }
 
 /** Deep copy of a field with new ids for the field and its options (duplicate, paste). */

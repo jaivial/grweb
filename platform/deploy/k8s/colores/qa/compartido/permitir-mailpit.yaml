@@ -1,0 +1,14 @@
+# QA: Mailpit (SMTP de pruebas) está en la capa compartida de grcup-qa; los colores le escriben por namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-colores-mailpit
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: mailpit } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { grcup.dev/colores: "true" } }
+      ports:
+        - { port: 1025, protocol: TCP }
+        - { port: 8025, protocol: TCP }

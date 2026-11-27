@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """presupuesto.py · cuenta de recursos de grcup (prod) + grcup-qa en kraken a partir de los manifests renderizados.
-Uso: kubectl kustomize overlays/qa > /tmp/qa.yaml; kubectl kustomize overlays/prod > /tmp/prod.yaml;
+Uso: kubectl kustomize colores/qa/blue > /tmp/qa.yaml; kubectl kustomize overlays/prod > /tmp/prod.yaml;
      python3 presupuesto.py /tmp/qa.yaml /tmp/prod.yaml
 Cuenta por pod lo mismo que la ResourceQuota: max(suma de contenedores, mayor init) para requests y limits."""
 import sys, yaml
