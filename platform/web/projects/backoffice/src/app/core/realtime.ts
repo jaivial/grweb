@@ -34,6 +34,8 @@ export class Realtime {
   /** Browser network state (window online/offline): offline is shown at once, coming back reconnects at once. */
   private readonly online = signal(typeof navigator === 'undefined' || navigator.onLine !== false);
   private wake: (() => void) | null = null;
+  /** Last byte read from the stream (the server pings every 15 s, even when nothing happens). */
+  private ultimo = 0;
 
   constructor() {
     if (typeof window === 'undefined') return;
@@ -84,23 +86,45 @@ export class Realtime {
   }
 
   /**
-   * Back from a frozen tab (iOS Safari): the stream died with the tab. Reopens it from the last event received, so nothing
-   * published meanwhile is lost, and only when a screen still wants it.
+   * Back from a frozen tab (iOS Safari): the stream died with the tab. It only reconnects when it is really down — no
+   * connection, or no data at all (not even the server's `: ping`, every 15 s) for two whole ping intervals — so a
+   * stream that came back healthy is left untouched instead of being aborted and logged as a failed request.
    */
   reanudar(): void {
     if (!this.cid || !this.activo()) return;
-    this.ctrl?.abort();
-    this.ctrl = null;
-    this.wake?.();
-    this.connected.set(false);
+    const sano = this.connected() && this.ultimo && Date.now() - this.ultimo < 2 * 15_000;
+    if (sano) return;
+    this.disconnect();
     this.fallos.set(0);
     void this.run();
+  }
+
+  /** Fetch of the stream that timestamps every chunk: the pings are SSE comments and never reach `onmessage`. */
+  private async conActividad(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    const res = await fetch(input, init);
+    this.ultimo = Date.now();
+    if (!res.body) return res;
+    const [mio, lector] = res.body.tee();
+    void (async () => {
+      const r = lector.getReader();
+      try {
+        for (;;) {
+          const { done } = await r.read();
+          if (done) return;
+          this.ultimo = Date.now();
+        }
+      } catch {
+        /* el stream se cerró: lo decide el bucle de reconexión */
+      }
+    })();
+    return new Response(mio, { status: res.status, statusText: res.statusText, headers: res.headers });
   }
 
   private async run(): Promise<void> {
     const ctrl = new AbortController();
     this.ctrl = ctrl;
     this.activo.set(true);
+    this.ultimo = Date.now();
     while (!ctrl.signal.aborted) {
       const token = await this.auth.freshToken();
       if (!token) {
@@ -114,6 +138,7 @@ export class Realtime {
         await fetchEventSource(`/api/admin/competiciones/${this.cid}/stream`, {
           signal: ctrl.signal,
           openWhenHidden: true,
+          fetch: (input, init) => this.conActividad(input, init),
           headers: { Authorization: `Bearer ${token}`, ...(this.lastId ? { 'Last-Event-ID': this.lastId } : {}) },
           onopen: async (res) => {
             if (res.ok && res.headers.get('content-type')?.startsWith(EventStreamContentType)) {

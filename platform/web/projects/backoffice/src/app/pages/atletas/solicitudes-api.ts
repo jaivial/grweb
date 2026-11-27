@@ -96,6 +96,8 @@ export interface AtletaEnlace {
 }
 export interface SolicitudDetalle extends SolicitudItem {
   telefono: string;
+  /** The alta turned on «¿Necesitas handler?»: approving it creates the athlete's handling request. */
+  handler?: boolean;
   sexo: 'F' | 'M';
   fechaNacimiento: string;
   licencia: string;
