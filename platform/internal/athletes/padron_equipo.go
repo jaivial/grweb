@@ -272,8 +272,12 @@ func (s *Svc) registerPadronEquipo() {
 	type empOut struct{ Body Emparejamiento }
 
 	// ---- the athlete record ----
-
-	huma.Register(api, huma.Operation{OperationID: "atleta-padron", Method: http.MethodGet, Path: base + "/{id}/padron",
+	//
+	// /atletas/padron/{id} (the athlete first would be /atletas/{id}/padron, but Go's router cannot tell it apart from
+	// /atletas/historial/{id} and panics at start-up: /atletas/{id}/padron/confirmar is ambiguous with
+	// /atletas/importaciones/{id}/confirmar in the same way). The roll itself lives in /atletas/padron-aep.
+	pbase := base + "/padron"
+	huma.Register(api, huma.Operation{OperationID: "atleta-padron", Method: http.MethodGet, Path: pbase + "/{id}",
 		Summary: "Coincidencia de un atleta con el padrón AEP (estado, fila y registro)", Tags: tagAdmin, Security: bearer},
 		func(ctx context.Context, in *idIn) (*padronOut, error) {
 			if _, err := requireAny(ctx, in.CID, readPerms...); err != nil {
@@ -291,7 +295,7 @@ func (s *Svc) registerPadronEquipo() {
 			InscripcionID uuid.UUID `json:"inscripcionId" doc:"Fila del padrón que se confirma"`
 		}
 	}
-	huma.Register(api, huma.Operation{OperationID: "atleta-padron-confirmar", Method: http.MethodPost, Path: base + "/{id}/padron/confirmar",
+	huma.Register(api, huma.Operation{OperationID: "atleta-padron-confirmar", Method: http.MethodPost, Path: pbase + "/{id}/confirmar",
 		Summary: "Confirmar la fila del padrón AEP de un atleta (enlaza la fila y la entrada de OpenLifter)", Tags: tagAdmin, Security: bearer},
 		func(ctx context.Context, in *padronIn) (*padronOut, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {
@@ -307,7 +311,7 @@ func (s *Svc) registerPadronEquipo() {
 			return &padronOut{Body: e}, err
 		})
 
-	huma.Register(api, huma.Operation{OperationID: "atleta-padron-descartar", Method: http.MethodPost, Path: base + "/{id}/padron/descartar",
+	huma.Register(api, huma.Operation{OperationID: "atleta-padron-descartar", Method: http.MethodPost, Path: pbase + "/{id}/descartar",
 		Summary: "Descartar la coincidencia propuesta con el padrón AEP", Tags: tagAdmin, Security: bearer},
 		func(ctx context.Context, in *padronIn) (*padronOut, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {
@@ -320,7 +324,7 @@ func (s *Svc) registerPadronEquipo() {
 			return &padronOut{Body: e}, err
 		})
 
-	huma.Register(api, huma.Operation{OperationID: "atleta-padron-reintentar", Method: http.MethodPost, Path: base + "/{id}/padron/reintentar",
+	huma.Register(api, huma.Operation{OperationID: "atleta-padron-reintentar", Method: http.MethodPost, Path: pbase + "/{id}/reintentar",
 		Summary: "Volver a emparejar con el padrón AEP el atleta (la IA responde o se agota su tiempo)", Tags: tagAdmin, Security: bearer},
 		func(ctx context.Context, in *idIn) (*padronOut, error) {
 			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {

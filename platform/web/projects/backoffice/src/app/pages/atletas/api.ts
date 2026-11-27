@@ -246,19 +246,19 @@ export class AtletasApi {
   borrar(cid: string, id: string): Promise<unknown> { return firstValueFrom(this.http.delete(`${this.base(cid)}/${id}`)); }
 
   /** Coincidencia del atleta con el padrón de la AEP (estado, fila propuesta o enlazada y registro). */
-  padron(cid: string, id: string): Promise<EmparejamientoPadron> { return firstValueFrom(this.http.get<EmparejamientoPadron>(`${this.base(cid)}/${id}/padron`)); }
+  padron(cid: string, id: string): Promise<EmparejamientoPadron> { return firstValueFrom(this.http.get<EmparejamientoPadron>(`${this.base(cid)}/padron/${id}`)); }
   /** El equipo confirma la fila: enlaza la fila del padrón y la entrada de OpenLifter (y aprueba el alta si toca). */
   confirmarPadron(cid: string, id: string, version: number, inscripcionId: string): Promise<EmparejamientoPadron> {
-    return firstValueFrom(this.http.post<EmparejamientoPadron>(`${this.base(cid)}/${id}/padron/confirmar`, { inscripcionId },
+    return firstValueFrom(this.http.post<EmparejamientoPadron>(`${this.base(cid)}/padron/${id}/confirmar`, { inscripcionId },
       { headers: new HttpHeaders({ 'If-Match': `W/"${version}"` }), context: sinTimeout() }));
   }
   descartarPadron(cid: string, id: string, version: number): Promise<EmparejamientoPadron> {
-    return firstValueFrom(this.http.post<EmparejamientoPadron>(`${this.base(cid)}/${id}/padron/descartar`, {},
+    return firstValueFrom(this.http.post<EmparejamientoPadron>(`${this.base(cid)}/padron/${id}/descartar`, {},
       { headers: new HttpHeaders({ 'If-Match': `W/"${version}"` }) }));
   }
   /** Vuelve a emparejar con la IA el alta de la que salió el atleta (tarda: sin tiempo límite en el cliente). */
   reintentarPadron(cid: string, id: string): Promise<EmparejamientoPadron> {
-    return firstValueFrom(this.http.post<EmparejamientoPadron>(`${this.base(cid)}/${id}/padron/reintentar`, {}, { context: sinTimeout() }));
+    return firstValueFrom(this.http.post<EmparejamientoPadron>(`${this.base(cid)}/padron/${id}/reintentar`, {}, { context: sinTimeout() }));
   }
   /** Filas del padrón por nombre, para elegir un candidato a mano. */
   buscarPadron(cid: string, q: string): Promise<FilaPadron[]> {
