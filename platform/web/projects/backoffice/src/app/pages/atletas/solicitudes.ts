@@ -395,7 +395,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
           }
           @if (d.esMenor && !esAutorizacion()) {
             <gr-alert [tone]="d.autorizacion ? 'success' : 'warning'" title="Menor de {{ d.edad }} años · {{ d.autorizacion ? 'autorización guardada' : 'falta autorización' }}">
-              {{ d.autorizacion ? 'La autorización firmada está guardada en privado.' : 'Aprobar permanece bloqueado hasta subir la autorización firmada de madre, padre o tutor.' }}
+              {{ d.autorizacion ? 'La autorización firmada está guardada en privado.' : 'Al aprobar se pide la autorización al tutor automáticamente. Si ya la tienes, súbela aquí.' }}
               <a alertAction [href]="correoAutorizacion()" class="mt-2 inline-flex h-9 items-center gap-1 text-label-s text-accent-text">Pedir autorización <gr-icon name="arrow-right" [size]="14" /></a>
             </gr-alert>
             <section class="flex flex-col gap-2">
@@ -600,14 +600,14 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
             <button grButton variant="danger" [disabled]="ocupado()" (click)="dialogo.set('borrar')">Borrar…</button>
           } @else {
             <!-- Mobile: Approve full width on top, the other two below; desktop: the three on one row. -->
-            <button grButton variant="primary" class="order-first w-full sm:order-last sm:w-auto" [disabled]="ocupado() || bloqueadoAprobar()" (click)="dialogo.set('aprobar')">{{ esAutorizacion() ? 'Aprobar autorización' : esCambio() ? 'Aprobar cambios' : esHandling() ? 'Aprobar handling' : 'Aprobar (ficha privada)' }}</button>
+            <button grButton variant="primary" class="order-first w-full sm:order-last sm:w-auto" [disabled]="ocupado()" (click)="dialogo.set('aprobar')">{{ esAutorizacion() ? 'Aprobar autorización' : esCambio() ? 'Aprobar cambios' : esHandling() ? 'Aprobar handling' : 'Aprobar (ficha privada)' }}</button>
             <button grButton class="flex-1 sm:flex-none" [disabled]="ocupado()" (click)="marcarRevision()">Marcar en revisión</button>
             <button grButton variant="danger" class="flex-1 sm:flex-none" [disabled]="ocupado()" (click)="dialogo.set('rechazar')">Rechazar…</button>
           }
         }
       </footer>
       @if (detalle()?.estado === 'rechazada') { <p class="shrink-0 bg-bg-card px-4 pb-4 text-body-xs text-text-tertiary sm:px-6">Borrar elimina la solicitud y sus datos · confirmación en dos pasos</p> }
-      @if (bloqueadoAprobar()) { <p class="shrink-0 bg-bg-card px-4 pb-4 text-body-xs text-warning sm:px-6">Aprobar se desbloquea al subir la autorización firmada.</p> }
+      @if (menorSinAutorizacion()) { <p class="shrink-0 bg-bg-card px-4 pb-4 text-body-xs text-text-tertiary sm:px-6">Al aprobar, se pide la autorización al tutor automáticamente por email y WhatsApp. Si ya la tiene, súbela arriba y se publicará.</p> }
     </aside>
     }
 
@@ -741,7 +741,7 @@ export class SolicitudesPage {
     const k = this.lista()?.kpis?.pendientesHoy ?? 0;
     return k > 0 ? `+${k}` : null;
   });
-  protected readonly bloqueadoAprobar = computed(() => {
+  protected readonly menorSinAutorizacion = computed(() => {
     const d = this.detalle();
     return !!d && d.esMenor && !d.autorizacion && d.tipo !== 'autorizacion';
   });
