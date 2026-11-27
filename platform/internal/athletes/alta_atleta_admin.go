@@ -1039,6 +1039,15 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		if fotoPublicada != "" {
 			foto = "✓ Tu foto en blanco y negro ya está en tu ficha."
 		}
+		// A minor whose guardian's authorisation is still missing is told so: the request comes in its own message.
+		autorizacion := ""
+		rAut, err := getRow(ctx, tx, cid, *destino)
+		if err != nil {
+			return err
+		}
+		if rAut.menor(s.compDate(ctx, cid)) && rAut.AutorizacionURL == "" {
+			autorizacion = "✓ Tu ficha pública también necesita la autorización firmada de tu madre, padre o tutor: te enviaremos el formulario y el enlace en un mensaje aparte."
+		}
 		if avisarEmail || avisarWA {
 			urlArea, err = s.newAreaLinkTTL(ctx, tx, *destino, aprobadaLinkTTL)
 			if err != nil {
@@ -1052,13 +1061,13 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		}
 		if avisarEmail {
 			if err := email(ctx, tx, cid, sol.Email, "atleta-solicitud-aprobada", map[string]string{
-				"nombre": sol.Nombre, "prueba": prueba, "urlFicha": urlFicha, "privada": privada, "foto": foto, "urlArea": urlArea}); err != nil {
+				"nombre": sol.Nombre, "prueba": prueba, "urlFicha": urlFicha, "privada": privada, "autorizacion": autorizacion, "foto": foto, "urlArea": urlArea}); err != nil {
 				return err
 			}
 		}
 		if avisarWA {
 			if err := whatsapp(ctx, tx, cid, sol.Telefono, false, "atleta-solicitud-aprobada", map[string]string{
-				"nombre": sol.Nombre, "urlFicha": urlFicha, "privada": privada, "urlArea": urlArea}, ""); err != nil {
+				"nombre": sol.Nombre, "urlFicha": urlFicha, "privada": privada, "autorizacion": autorizacion, "urlArea": urlArea}, ""); err != nil {
 				return err
 			}
 		}
