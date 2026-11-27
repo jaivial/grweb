@@ -167,7 +167,7 @@ export class PorraClasificacionPage {
   protected readonly etiquetaSaldo = computed(() => saldoNivelTxt(this.prueba(), this.i18n.lang()));
   protected readonly monedas = (v: number | null | undefined) => monedas(v, this.i18n.locale());
   /** El bote total del nivel (suma de los botes de sus mercados). */
-  protected readonly bote = computed(() => this.store.mercados().filter((m) => m.prueba === this.prueba()).reduce((s, m) => s + m.bote, 0));
+  protected readonly bote = computed(() => this.store.mercadosDeNivel(this.prueba()).reduce((s, m) => s + m.bote, 0));
   protected readonly premios = computed(() => this.store.premios().filter((p) => p.ranking === 'porra'));
   /** La línea de premios del diseño. */
   protected readonly premiosTexto = computed(() => {

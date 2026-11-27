@@ -164,7 +164,7 @@ const T = {
               [placeholder]="t().busca" autocomplete="off" [value]="q()" (input)="q.set($any($event.target).value)" />
           </label>
 
-          <gr-porra-navegacion [mercados]="store.mercados()" [sexo]="sexo()" [grupo]="grupo()" [prueba]="prueba()" [peso]="pesoActivo()" [conPesos]="true" />
+          <gr-porra-navegacion [mercados]="store.mercadosDeNivel(prueba())" [sexo]="sexo()" [grupo]="grupo()" [prueba]="prueba()" [peso]="pesoActivo()" [conPesos]="true" />
 
           @if (mercadoActivo(); as m) {
             <section class="flex flex-col" [attr.aria-label]="etiquetaMercado(m)">
@@ -247,7 +247,7 @@ const T = {
           <gr-perfil-atleta [opcion]="perfil()" [jornada]="mercadoActivo()?.jornadaId ?? ''" (cerrar)="perfil.set(null)" />
         } @else {
           <!-- En vivo: sexo → nivel → mercado, con los tres más apostados de cada mercado -->
-          <gr-porra-navegacion [mercados]="store.mercados()" [sexo]="sexo()" [grupo]="grupo()" [prueba]="prueba()" [peso]="pesoActivo()" />
+          <gr-porra-navegacion [mercados]="store.mercadosDeNivel(prueba())" [sexo]="sexo()" [grupo]="grupo()" [prueba]="prueba()" [peso]="pesoActivo()" />
 
           @if (mercadosNivel().length) {
             <p class="flex items-center gap-1.5 font-mono text-[12px] text-text-secondary">@let pj = t().porrasEnJuego(monedas(resumen().porras), monedas(resumen().bote));{{ pj[0] }}<span class="size-2.5 rounded-full bg-warning" aria-hidden="true"></span>{{ pj[1] }}</p>
@@ -320,7 +320,7 @@ export class PorraPage {
   }
 
   /** Los mercados del sexo, nivel y grupo elegidos (categorías de menos a más peso). */
-  protected readonly mercadosNivel = computed(() => mercadosDe(this.store.mercados(), this.sexo(), this.grupo(), this.prueba()));
+  protected readonly mercadosNivel = computed(() => mercadosDe(this.store.mercadosDeNivel(this.prueba()), this.sexo(), this.grupo(), this.prueba()));
   /** El mercado que se ve: la categoría de ?peso (o la primera) en el grupo de categorías; el único del grupo si no. */
   protected readonly mercadoActivo = computed<Mercado | null>(() => {
     const l = this.mercadosNivel();

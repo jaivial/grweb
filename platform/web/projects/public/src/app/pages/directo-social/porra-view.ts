@@ -72,7 +72,7 @@ const T = {
       <!-- porra: sexo → nivel → grupo, con el resumen de cada mercado del grupo -->
       <div class="flex shrink-0 flex-col gap-3 pt-1">
         <p class="bg-[linear-gradient(180deg,#ff5a6e,#c8102e)] bg-clip-text pr-1 font-display text-[1.25rem] leading-none text-transparent uppercase italic">{{ t().titulo }}</p>
-        <gr-porra-navegacion ruta="/en-directo" [mercados]="store.mercados()" [sexo]="nav().sexo" [grupo]="nav().grupo" [prueba]="nav().prueba" />
+        <gr-porra-navegacion ruta="/en-directo" [mercados]="store.mercadosDeNivel(nav().prueba)" [sexo]="nav().sexo" [grupo]="nav().grupo" [prueba]="nav().prueba" />
 
         @if (store.cargando()) {
           <div class="flex flex-col gap-2"><gr-skeleton class="h-12 rounded-md" /><gr-skeleton class="h-12 rounded-md" /><gr-skeleton class="h-12 rounded-md" /></div>
@@ -118,7 +118,7 @@ export class PorraView {
   protected readonly cartera = computed(() => this.store.carteraDe(this.nav().prueba));
   protected readonly etiquetaSaldo = computed(() => saldoNivelTxt(this.nav().prueba, this.i18n.lang()));
   protected readonly nivelTxt = computed(() => PRUEBA_TXT[this.nav().prueba]);
-  protected readonly mercadosGrupo = computed(() => mercadosDe(this.store.mercados(), this.nav().sexo, this.nav().grupo, this.nav().prueba));
+  protected readonly mercadosGrupo = computed(() => mercadosDe(this.store.mercadosDeNivel(this.nav().prueba), this.nav().sexo, this.nav().grupo, this.nav().prueba));
   protected readonly monedas = (v: number | null | undefined) => monedas(v, this.i18n.lang());
 
   constructor() {

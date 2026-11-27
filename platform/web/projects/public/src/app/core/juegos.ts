@@ -1376,10 +1376,15 @@ export class PorraStore {
     return this.carteraDe(prueba)?.porra ?? 0;
   }
 
+  /** Los mercados del nivel, solo los de su jornada (saldo, apuestas y mercados son de la misma jornada). */
+  mercadosDeNivel(prueba: 'aep2' | 'aep3'): Mercado[] {
+    const jid = this.jornadaDe(prueba);
+    return this.mercados().filter((m) => m.prueba === prueba && m.jornadaId === jid);
+  }
+
   /** Las apuestas del nivel: las de los mercados de su jornada. */
   apuestasDe(prueba: 'aep2' | 'aep3'): Apuesta[] {
-    const jid = this.jornadaDe(prueba);
-    const ids = new Set(this.mercados().filter((m) => m.jornadaId === jid).map((m) => m.id));
+    const ids = new Set(this.mercadosDeNivel(prueba).map((m) => m.id));
     return this.apuestas().filter((a) => ids.has(a.mercadoId));
   }
 
