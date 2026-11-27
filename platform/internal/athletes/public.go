@@ -73,6 +73,7 @@ type ListaPub struct {
 // FichaPub is /atletas/:slug (Figma page 40).
 type FichaPub struct {
 	AtletaPub
+	Prueba           string      `json:"prueba,omitempty" doc:"Competición del atleta: aep2 o aep3"`
 	Frase            string      `json:"frase"`
 	Bio              string      `json:"bio"`
 	Instagram        string      `json:"instagram"`
@@ -203,7 +204,7 @@ func (s *Svc) registerPublic() {
 					return FichaPub{}, problem.NotFound("Atleta no encontrado.")
 				}
 				r := list[0]
-				f := FichaPub{AtletaPub: r.pub(d), PrimerosIntentos: Marcas{r.IntentoSQ, r.IntentoBP, r.IntentoDL}, PesajeInicio: r.PesajeInicio, PesajeFin: r.PesajeFin,
+				f := FichaPub{AtletaPub: r.pub(d), Prueba: r.Prueba, PrimerosIntentos: Marcas{r.IntentoSQ, r.IntentoBP, r.IntentoDL}, PesajeInicio: r.PesajeInicio, PesajeFin: r.PesajeFin,
 					Seguidores: r.Seguidores, PermiteSeguir: r.PermiteSeguir, Tambien: []AtletaPub{}}
 				f.Frase, f.Bio, f.Instagram, f.Entrenador, f.Historial = r.Frase, r.Bio, r.Instagram, r.Entrenador, historial(r.Historial)
 				if r.MostrarMarcas && (r.MarcaSQ != nil || r.MarcaBP != nil || r.MarcaDL != nil) {
