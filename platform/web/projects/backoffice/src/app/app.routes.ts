@@ -209,6 +209,7 @@ export const routes: Routes = [
       { path: 'sistema/integraciones', loadComponent: () => import('./pages/sistema').then((m) => m.SistemaPage), data: { vista: 'integraciones' }, title: 'Integraciones · Sistema e integraciones · Backoffice GR Cup' },
       { path: 'sistema/salud', loadComponent: () => import('./pages/sistema').then((m) => m.SistemaPage), data: { vista: 'salud' }, title: 'Salud · Sistema e integraciones · Backoffice GR Cup' },
       { path: 'sistema/zona-peligrosa', loadComponent: () => import('./pages/sistema').then((m) => m.SistemaPage), data: { vista: 'peligro' }, title: 'Zona peligrosa · Sistema e integraciones · Backoffice GR Cup' },
+      { path: 'sistema/cola-envio', loadComponent: () => import('./pages/sistema/cola').then((m) => m.SistemaColaPage), title: 'Cola de envío · Sistema e integraciones · Backoffice GR Cup' },
       { path: 'sistema/email', loadComponent: () => import('./pages/sistema/email').then((m) => m.SistemaEmailPage), title: 'Email · Sistema e integraciones · Backoffice GR Cup' },
       { path: 'sistema/nueva', loadComponent: () => import('./pages/sistema/nueva').then((m) => m.SistemaNuevaPage), title: 'Nueva competición · Sistema e integraciones · Backoffice GR Cup' },
       { path: 'sistema/whatsapp', loadComponent: () => import('./pages/sistema/whatsapp').then((m) => m.WhatsAppSistemaPage), title: 'WhatsApp · Backoffice GR Cup' },

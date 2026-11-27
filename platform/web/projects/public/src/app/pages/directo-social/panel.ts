@@ -100,7 +100,7 @@ export function escritorio(): Signal<boolean> {
           @case ('porra') {
             <!-- «Activar juegos» apagado en el backoffice: el aviso en lugar de la porra (vuelve sola al activarse) -->
             @if (juegosEstado.cerrados()) { <gr-juegos-cerrados class="px-4 py-4" [compacto]="true" /> }
-            @else { @defer (on immediate) { <gr-porra-view [jornadaId]="jornadaPorra()?.id ?? ''" [jornadaNombre]="jornadaPorra()?.nombre ?? ''" [cargada]="jornadasCargadas()" /> } }
+            @else { @defer (on immediate) { <gr-porra-view /> } }
           }
           @case ('tarima') { @if (directo(); as d) { @defer (on immediate) { <gr-tarima-view class="px-4 py-4 md:px-5" [directo]="d" [conexion]="conexion()" /> } } }
         }
@@ -138,14 +138,13 @@ export class PanelSocial {
   });
   protected readonly donar = signal(false);
   protected readonly jornadas = signal<Jornada[]>([]);
-  protected readonly jornadasCargadas = signal(false);
 
   private readonly pestanas: { v: Pestana }[] = [{ v: 'chat' }, { v: 'donantes' }, { v: 'porra' }, { v: 'tarima' }];
   protected readonly visibles = computed(() => (this.escritorio() ? this.pestanas.filter((t) => t.v !== 'tarima') : this.pestanas));
 
   /** Today (Madrid): the day of the chat room and of the games. Moves at midnight (the store's watch, see the constructor). */
   protected readonly hoy = this.chat.hoy;
-  /** The porra shown: the same jornada /porra opens by default (`jornadaPorDefecto`), so both show the same data. */
+  /** The jornada the donors' prizes fall back to: the one /porra opens by default (`jornadaPorDefecto`). */
   protected readonly jornadaPorra = computed<Jornada | undefined>(() => jornadaPorDefecto(this.jornadas()) ?? undefined);
 
   /** Connected and live: the audience shows (no red dot, Figma 393:120125). */
@@ -167,7 +166,7 @@ export class PanelSocial {
         const t = this.tab();
         untracked(() => (t === 'chat' ? this.chat.conectar() : this.chat.desconectar()));
       });
-      // The jornadas (juegos service) are only needed by «Porra» («Donantes» loads its own): loaded the first time it opens
+      // The jornadas (juegos service) feed the donors' prize fallback: loaded the first time «Porra» opens
       let pedidas = false;
       effect(() => {
         const t = this.tab();
@@ -177,8 +176,7 @@ export class PanelSocial {
         void this.juegos
           .jornadas()
           .then((l) => this.jornadas.set(l))
-          .catch(() => this.jornadas.set([]))
-          .finally(() => this.jornadasCargadas.set(true));
+          .catch(() => this.jornadas.set([]));
       });
       // `?tab=` always names the tab shown (an absent or unknown value becomes the real one, without a history entry)
       // «Porra» follows «Activar juegos» live (juegos.estado on the games stream) while it is shown

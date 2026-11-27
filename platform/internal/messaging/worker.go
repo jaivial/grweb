@@ -25,6 +25,7 @@ type pendiente struct {
 	vars     map[string]string
 	prueba   bool
 	intentos int
+	tecnico  string // technical detail of the last failure (mensaje_intentos), never a phone number
 }
 
 // worker sends due messages every 2 s and recovers messages left «enviando» by a pod that died.
@@ -71,11 +72,14 @@ func (s *Svc) tick(ctx context.Context) error {
 	return nil
 }
 
-// fin updates a message and tells the backoffice (no personal data in the admin event).
+// fin updates a message, logs the try and tells the backoffice (no personal data in the admin event).
 func (s *Svc) fin(ctx context.Context, p pendiente, estado, detalle string, extra func(tx pgx.Tx) error, sets string, args ...any) {
 	err := s.tx(ctx, func(tx pgx.Tx) error {
 		q := `UPDATE mensajes SET estado = $2, detalle = $3, updated_at = now()` + sets + ` WHERE id = $1`
 		if _, err := tx.Exec(ctx, q, append([]any{p.id, estado, detalle}, args...)...); err != nil {
+			return err
+		}
+		if err := s.anotarIntento(ctx, tx, p, estado, detalle); err != nil {
 			return err
 		}
 		if extra != nil {
@@ -83,21 +87,47 @@ func (s *Svc) fin(ctx context.Context, p pendiente, estado, detalle string, extr
 				return err
 			}
 		}
-		if p.cid == uuid.Nil {
-			return nil
-		}
-		return events.Enqueue(ctx, tx, events.New(ctx, "mensaje.estado", map[string]any{"id": p.id, "estado": estado, "plantilla": p.clave},
-			events.Competition(p.cid.String()), events.ForPermission("campanas.enviar")))
+		return eventoCola(ctx, tx, p.cid, p.id, estado, p.clave)
 	})
 	if err != nil {
 		s.a.Log.Error("actualizar mensaje", "id", p.id, "err", err)
 	}
 }
 
-// devolver puts a message back in the queue without spending an attempt.
+// anotarIntento keeps one try of a message in its log (Sistema › Cola de envío).
+func (s *Svc) anotarIntento(ctx context.Context, tx pgx.Tx, p pendiente, estado, detalle string) error {
+	_, err := tx.Exec(ctx, `INSERT INTO mensaje_intentos (mensaje_id, intento, estado, detalle, tecnico) VALUES ($1,$2,$3,$4,$5)`, p.id, p.intentos, estado, detalle, p.tecnico)
+	return err
+}
+
+// eventoCola tells the backoffice that a message of the queue changed (state or turn): the outbox and «Cola de
+// envío» reload it. No personal data.
+func eventoCola(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, estado, plantilla string) error {
+	if cid == uuid.Nil {
+		return nil
+	}
+	return events.Enqueue(ctx, tx, events.New(ctx, "mensaje.estado", map[string]any{"id": id, "estado": estado, "plantilla": plantilla},
+		events.Competition(cid.String()), events.ForPermission("campanas.enviar")))
+}
+
+// devolver puts a message back in the queue without spending an attempt. A pause after a real try (the number
+// unlinked) is also logged.
 func (s *Svc) devolver(ctx context.Context, p pendiente, en time.Duration, detalle string) {
-	_, _ = s.a.DB.Exec(ctx, `UPDATE mensajes SET estado = 'reintentando', intentos = intentos - 1, proximo_at = now() + $2::interval, detalle = $3, updated_at = now() WHERE id = $1`,
-		p.id, fmt.Sprintf("%d seconds", int(en.Seconds())), detalle)
+	err := s.tx(ctx, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `UPDATE mensajes SET estado = 'reintentando', intentos = intentos - 1, proximo_at = now() + $2::interval, detalle = $3, updated_at = now() WHERE id = $1`,
+			p.id, fmt.Sprintf("%d seconds", int(en.Seconds())), detalle); err != nil {
+			return err
+		}
+		if p.tecnico != "" {
+			if err := s.anotarIntento(ctx, tx, p, "pausa", detalle); err != nil {
+				return err
+			}
+		}
+		return eventoCola(ctx, tx, p.cid, p.id, "reintentando", p.clave)
+	})
+	if err != nil {
+		s.a.Log.Error("devolver mensaje a la cola", "id", p.id, "err", err)
+	}
 }
 
 func (s *Svc) procesar(ctx context.Context, p pendiente) {
@@ -203,6 +233,7 @@ func (s *Svc) procesar(ctx context.Context, p pendiente) {
 	if !errors.As(err, &ee) {
 		ee = &errEnvio{servidor: true, msg: err.Error()}
 	}
+	p.tecnico = ee.msg
 	if ee.servidor {
 		s.estadoSMTP(ctx, p.cid, cfg, false, ee.msg)
 	}
@@ -288,6 +319,7 @@ func (s *Svc) procesarWA(ctx context.Context, p pendiente, t plantillaEfectiva) 
 	if !errors.As(err, &ew) {
 		ew = &errWA{msg: err.Error()}
 	}
+	p.tecnico = waSinDatos(waTecnico(err))
 	if ew.pausa() {
 		s.waLog(ctx, p.cid, "enviar el mensaje de WhatsApp", err)
 		causa := "WhatsApp (evo-weai) no disponible: reintento automático"

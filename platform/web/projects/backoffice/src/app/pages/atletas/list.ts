@@ -112,7 +112,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
               @if (canEdit()) { <button filters grIconButton icon="more" label="Más acciones" aria-haspopup="dialog" [attr.aria-expanded]="acciones()" (click)="acciones.set(true)"></button> }
             </bo-table-toolbar>
             <bo-sheet title="Filtrar atletas" [(open)]="filtros" [filtered]="filtrado()" (reset)="limpiar()"
-              [resultLabel]="cargando() ? 'Buscando…' : 'Ver ' + fmtNumber(l?.total ?? 0) + ' atletas'">
+              [resultLabel]="cargando() ? 'Buscando…' : 'Ver ' + fmtNumber(l?.total ?? 0) + (l?.total === 1 ? ' atleta' : ' atletas')">
               <bo-search class="w-full" placeholder="Buscar atleta, club o licencia…" [shortcut]="false" [value]="q()" (valueChange)="buscar($event)" [loading]="cargando() && !!q()" />
               <gr-select tipo="campo" [ngModel]="sexo()" (ngModelChange)="sexo.set($event); recargar(1)" aria-label="Sexo">
                 <option value="">Sexo: todos</option><option value="F">Femenino</option><option value="M">Masculino</option>

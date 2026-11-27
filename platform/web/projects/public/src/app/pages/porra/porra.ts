@@ -1,9 +1,10 @@
 /**
  * porra/porra.ts — /porra (Figma 211:141707 «Hacer porra», 211:143732 estados y 211:163291 «En vivo»): dos pestañas
- * por query param (`?vista=en-vivo`). Sexo → mercado (ganador de categoría de peso, mejor IPF GL, sentadilla, banca,
- * peso muerto) → nivel AEP-2 / AEP-3 → categoría de peso, todo en la URL (`?sexo&grupo&prueba&peso`). «Hacer porra»:
- * los atletas del mercado con su cuota en vivo (gr-digit-roll), perfil rápido y, al elegir uno, importe con estimación
- * de retorno y «Confirmar porra». «En vivo»: los tres más apostados de cada mercado, con «Ver más».
+ * por query param (`?vista=en-vivo`). Sexo → nivel AEP-2 / AEP-3 → mercado (ganador de categoría de peso, mejor IPF GL,
+ * sentadilla, banca, peso muerto) → categoría de peso, todo en la URL (`?sexo&grupo&prueba&peso`). El nivel decide la
+ * jornada por debajo: sus mercados, su cartera y a ella van las apuestas. «Hacer porra»: los atletas del mercado con su
+ * cuota en vivo, perfil rápido y, al elegir uno, importe con estimación de retorno y «Confirmar porra». «En vivo»: los
+ * tres más apostados de cada mercado, con «Ver más».
  */
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTasks, computed, effect, inject, signal, untracked } from '@angular/core';
@@ -14,27 +15,19 @@ import { map } from 'rxjs';
 import { Cms } from '../../core/cms';
 import { FanSession, codigoError } from '../../core/fan';
 import { I18n, LocPipe } from '../../core/i18n';
-import { Juegos, JuegosEnVivo, JuegosEstado, PorraStore, cuota, mensajeError, nombreJornadaLoc, seguirMercadosEnVivo, type Jornada, type Mercado, type OpcionMercado, type Sexo } from '../../core/juegos';
+import { Juegos, JuegosEnVivo, JuegosEstado, PorraStore, cuota, mensajeError, seguirMercadosEnVivo, type Mercado, type OpcionMercado } from '../../core/juegos';
 import { Seo } from '../../core/seo';
 import { Page } from '../../layout/page';
 import { applySeo } from '../content';
-import { CoinBalance, OddsRow } from './componentes';
+import { CoinBalance } from './componentes';
 import { ComoFunciona } from './como-funciona';
 import { monedas, norm } from './formato';
-import { GRUPOS, PRUEBA_TXT, PorraNavegacion, mercadosDe, type Grupo, type Prueba } from './navegacion';
+import { MercadoResumen, etiquetaDeMercado } from './mercado-resumen';
+import { PRUEBA_TXT, PorraNavegacion, filtrosPorra, mercadosSeleccion, saldoNivelTxt } from './navegacion';
 import { PerfilAtleta } from './perfil-atleta';
-import { kg, misPorras, sexoTxt } from './ranking';
+import { misPorras } from './ranking';
 
 type Vista = 'hacer' | 'en-vivo';
-/** Atletas por mercado que se ven en «En vivo» antes de «Ver más». */
-const TOP_VIVO = 3;
-
-/** «Sáb 19» a partir de la fecha ISO del día. */
-export function diaCorto(dia: string, locale = 'es-ES'): string {
-  if (!dia) return '';
-  const d = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(new Date(dia + 'T12:00:00Z')).replace('.', '');
-  return d.charAt(0).toUpperCase() + d.slice(1) + ' ' + Number(dia.slice(8, 10));
-}
 
 const T = {
   es: {
@@ -46,7 +39,6 @@ const T = {
     hacer: 'Hacer porra',
     hola: (n: string) => `Hola, ${n}`,
     errorCarga: 'No hemos podido cargar la porra',
-    jornada: 'Jornada',
     busca: 'Busca un atleta por nombre',
     nAtletas: (n: number) => `${n} atletas`,
     resuelta: 'resuelta',
@@ -60,7 +52,7 @@ const T = {
     monedas: ' monedas',
     sinSaldo: (n: string) => `No tienes monedas suficientes: tu saldo es ${n}. Gana más escribiendo en el chat del directo.`,
     saldoTras: (n: string) => `Saldo tras la porra: ${n} monedas · puedes sumar más mientras el mercado siga abierto.`,
-    recibiras: (a: string, b: string) => `Apuestas ${a} monedas, recibirías ${b} monedas`,
+    recibiras: (a: string, b: string, na: number, nb: number) => `Apuestas ${a} ${na === 1 ? 'moneda' : 'monedas'}, recibirías ${b} ${nb === 1 ? 'moneda' : 'monedas'}`,
     estimacion: 'estimación: la cuota cambia hasta el cierre',
     enviando: 'Enviando…',
     confirmar: (n: string) => 'Confirmar porra · ' + n,
@@ -69,9 +61,7 @@ const T = {
     verPerfil: (n: string) => 'Ver perfil de ' + n,
     ninguno: (q: string) => `Ningún atleta coincide con «${q}».`,
     sinAtletasMercado: 'Todavía no hay atletas en este mercado.',
-    sinMercado: (n: string) => `Esta jornada no tiene mercados de ${n} para este grupo.`,
-    verMas: (n: number) => `Ver más (${n})`,
-    verMenos: 'Ver menos',
+    sinMercado: (n: string) => `No hay mercados de ${n} para este grupo.`,
     sinResultados: (q: string) => `Sin resultados para «${q}»`,
     revisa: 'Revisa el nombre o busca por apellido.',
     borrar: 'Borrar búsqueda',
@@ -91,7 +81,6 @@ const T = {
     hacer: 'Make a pick',
     hola: (n: string) => `Hi, ${n}`,
     errorCarga: "We couldn't load the betting pool",
-    jornada: 'Day',
     busca: 'Search for an athlete by name',
     nAtletas: (n: number) => `${n} athletes`,
     resuelta: 'settled',
@@ -105,7 +94,7 @@ const T = {
     monedas: ' coins',
     sinSaldo: (n: string) => `You don't have enough coins: your balance is ${n}. Earn more by writing in the live stream chat.`,
     saldoTras: (n: string) => `Balance after your pick: ${n} coins · you can add more while the market stays open.`,
-    recibiras: (a: string, b: string) => `You bet ${a} coins, you would get ${b} coins`,
+    recibiras: (a: string, b: string, na: number, nb: number) => `You bet ${a} ${na === 1 ? 'coin' : 'coins'}, you would get ${b} ${nb === 1 ? 'coin' : 'coins'}`,
     estimacion: 'estimate: the odds change until closing',
     enviando: 'Sending…',
     confirmar: (n: string) => 'Confirm pick · ' + n,
@@ -114,9 +103,7 @@ const T = {
     verPerfil: (n: string) => 'See the profile of ' + n,
     ninguno: (q: string) => `No athlete matches “${q}”.`,
     sinAtletasMercado: 'There are no athletes in this market yet.',
-    sinMercado: (n: string) => `This day has no ${n} markets for this group.`,
-    verMas: (n: number) => `See more (${n})`,
-    verMenos: 'See less',
+    sinMercado: (n: string) => `There are no ${n} markets for this group.`,
     sinResultados: (q: string) => `No results for “${q}”`,
     revisa: 'Check the name or search by surname.',
     borrar: 'Clear search',
@@ -131,7 +118,7 @@ const T = {
 
 @Component({
   selector: 'gr-porra-page',
-  imports: [LocPipe, Page, GrAlert, GrIcon, GrSkeleton, GrDigitRoll, CoinBalance, OddsRow, ComoFunciona, PorraNavegacion, PerfilAtleta],
+  imports: [LocPipe, Page, GrAlert, GrIcon, GrSkeleton, GrDigitRoll, CoinBalance, ComoFunciona, PorraNavegacion, PerfilAtleta, MercadoResumen],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page [title]="t().porra" [juego]="true">
@@ -143,7 +130,7 @@ const T = {
           </nav>
           <div class="flex items-center justify-between gap-3">
             <h1 class="bg-[linear-gradient(180deg,#ff5a6e,#c8102e)] bg-clip-text pr-1.5 font-display text-[2rem] leading-none text-transparent uppercase italic">{{ t().porra }}</h1>
-            <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" [etiquetaMovil]="false" />
+            <gr-coin-balance [valor]="saldo()" moneda="porra" motivo="porra" [etiqueta]="etiquetaSaldo()" />
           </div>
           <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             @if (fan.cargada() && fan.yo(); as yo) {
@@ -168,24 +155,10 @@ const T = {
           <div class="flex flex-col gap-3" aria-busy="true">@for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="h-16 rounded-md" /> }</div>
         } @else if (store.error(); as e) {
           <gr-alert tone="warning" [title]="t().errorCarga">{{ e }}</gr-alert>
-        } @else if (vista() === 'hacer') {
-          <!-- jornada -->
-          @if (jornadas().length) {
-            <div class="flex flex-col gap-2">
-              <p class="font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">{{ t().jornada }}</p>
-              <div class="flex flex-wrap gap-2" role="group" [attr.aria-label]="t().jornada">
-                @for (j of jornadas(); track j.id) {
-                  <button type="button" class="flex min-h-11 flex-col items-start justify-center rounded-md border px-3 py-1.5 text-left transition-colors"
-                    [class]="j.id === jornadaActiva()?.id ? 'border-accent bg-accent/16' : 'border-line-subtle bg-bg-field hover:border-line-strong'"
-                    [attr.aria-pressed]="j.id === jornadaActiva()?.id" (click)="elegirJornada(j.id)">
-                    <span class="text-label-s text-text-primary">{{ diaCorto(j.dia, i18n.locale()) || j.nombre }}</span>
-                    <span class="text-[11px] leading-[1.3] text-text-tertiary">{{ nombreJornada(j) }}</span>
-                  </button>
-                }
-              </div>
-            </div>
-          }
-
+        } @else {
+          <!-- la navegación en dos pasos; su contenido (buscador, atletas, o los resúmenes) va debajo del paso de categorías -->
+          <gr-porra-navegacion [mercados]="store.mercadosDeNivel(prueba())" [sexo]="sexo()" [grupo]="grupo()" [prueba]="prueba()" [peso]="peso()">
+          @if (vista() === 'hacer') {
           <!-- buscador: filtra los atletas del mercado elegido -->
           <label class="relative block">
             <span class="sr-only">{{ t().busca }}</span>
@@ -194,12 +167,10 @@ const T = {
               [placeholder]="t().busca" autocomplete="off" [value]="q()" (input)="q.set($any($event.target).value)" />
           </label>
 
-          <gr-porra-navegacion [mercados]="store.mercados()" [sexo]="sexo()" [grupo]="grupo()" [prueba]="prueba()" [peso]="pesoActivo()" [conPesos]="true" />
-
           @if (mercadoActivo(); as m) {
             <section class="flex flex-col" [attr.aria-label]="etiquetaMercado(m)">
               <p class="flex items-center justify-between gap-2 pb-2 font-mono text-[11px] tracking-[0.08em] text-text-tertiary uppercase">
-                <span>{{ etiquetaMercado(m) }}@if (jornadaActiva(); as j) { · {{ diaCorto(j.dia, i18n.locale()) }} }</span>
+                <span>{{ etiquetaMercado(m) }}</span>
                 <span>{{ t().nAtletas(m.opciones.length) }} · {{ t().bote }} {{ monedas(m.bote) }}</span>
               </p>
               @if (cerradaM(m)) {
@@ -211,6 +182,8 @@ const T = {
                     <p class="flex items-center gap-2.5">
                       <gr-icon name="circle-check" [size]="18" class="shrink-0 text-accent-text" />
                       <span class="min-w-0 flex-1 truncate text-label-m text-text-primary">{{ o.nombre }}</span>
+                      @if (mias().get(m.id + ':' + o.atletaId); as mio) { <span class="inline-block shrink-0 rounded-pill border border-warning/50 px-2 py-0.5 text-[11px] leading-none text-warning">{{ t().tuPorra }} {{ monedas(mio) }}</span> }
+                      <span class="flex shrink-0 justify-end font-mono text-[1rem] font-bold text-text-primary"><gr-digit-roll [texto]="cuotaTxt(m, o)" [valor]="cuotaNum(m, o)" /></span>
                       <button type="button" class="-my-2 min-h-11 px-1 text-label-s text-text-secondary hover:text-text-primary" (click)="sel.set(null)">{{ t().cambiar }}</button>
                     </p>
                     @if (exito(); as ok) {
@@ -235,7 +208,7 @@ const T = {
                         </label>
                         <button type="button" class="flex size-11 items-center justify-center rounded-full border border-line-strong text-text-primary disabled:opacity-40" [attr.aria-label]="t().mas" [disabled]="importe() >= maximo()" (click)="paso(1)"><gr-icon name="plus" [size]="18" /></button>
                       </div>
-                      <p class="text-body-s text-text-primary" aria-live="polite">{{ t().recibiras(monedas(importe()), monedas(retorno())) }}</p>
+                      <p class="text-body-s text-text-primary" aria-live="polite">{{ t().recibiras(monedas(importe()), monedas(retorno()), importe(), retorno()) }}</p>
                       <p class="text-body-xs text-text-tertiary">{{ t().estimacion }}</p>
                       @if (sinSaldo()) {
                         <p class="text-body-xs text-accent-text" role="alert">{{ t().sinSaldo(monedas(saldo())) }}</p>
@@ -274,37 +247,19 @@ const T = {
           } @else {
             <p class="py-10 text-center text-body-s text-text-tertiary" role="status">{{ t().sinMercado(nivelTxt()) }}</p>
           }
-          <gr-perfil-atleta [opcion]="perfil()" [jornada]="jornadaActiva()?.id ?? ''" (cerrar)="perfil.set(null)" />
-        } @else {
-          <!-- En vivo: sexo → mercado → nivel, con los tres más apostados de cada mercado -->
-          <gr-porra-navegacion [mercados]="store.mercados()" [sexo]="sexo()" [grupo]="grupo()" [prueba]="prueba()" [peso]="pesoActivo()" />
-
-          @if (enVivo().length) {
-            <p class="flex items-center gap-1.5 font-mono text-[12px] text-text-secondary">@let pj = t().porrasEnJuego(monedas(resumen().porras), monedas(resumen().bote));{{ pj[0] }}<span class="size-2.5 rounded-full bg-warning" aria-hidden="true"></span>{{ pj[1] }}</p>
-            @for (b of enVivo(); track b.m.id) {
-              <section class="flex flex-col gap-1 border-b border-line-subtle pb-4" [attr.aria-labelledby]="'vivo-' + b.m.id">
-                <h2 [id]="'vivo-' + b.m.id" class="flex items-center justify-between gap-3 text-label-m text-text-primary">
-                  <span>{{ etiquetaMercado(b.m) }}</span>
-                  <span class="font-mono text-[12px] font-normal text-text-secondary">{{ t().bote }} {{ monedas(b.m.bote) }}</span>
-                </h2>
-                @if (b.filas.length) {
-                  <ul class="flex flex-col" [attr.id]="'vivo-lista-' + b.m.id">
-                    @for (f of (expandidos().has(b.m.id) ? b.filas : b.top); track f.opcion.atletaId) {
-                      <li><gr-odds-row [opcion]="f.opcion" [bote]="b.m.bote" [total]="b.m.bote" [lider]="f.pos === 0 && f.opcion.apostado > 0" [activo]="false" /></li>
-                    }
-                  </ul>
-                  @if (b.filas.length > top) {
-                    <button type="button" class="mt-1 min-h-11 self-start px-1 text-label-s text-accent-text" [attr.aria-expanded]="expandidos().has(b.m.id)" [attr.aria-controls]="'vivo-lista-' + b.m.id"
-                      (click)="alternarVer(b.m.id)">{{ expandidos().has(b.m.id) ? t().verMenos : t().verMas(b.filas.length - top) }}</button>
-                  }
-                } @else {
-                  <p class="py-3 text-body-s text-text-tertiary">{{ t().sinAtletasMercado }}</p>
-                }
-              </section>
-            }
+          <gr-perfil-atleta [opcion]="perfil()" [jornada]="mercadoActivo()?.jornadaId ?? ''" (cerrar)="perfil.set(null)" />
           } @else {
-            <p class="py-10 text-center text-body-s text-text-tertiary" role="status">{{ t().sinMercado(nivelTxt()) }}</p>
+            <!-- En vivo: los tres más apostados del mercado elegido, con «Ver más» -->
+            @if (mercadosSel().length) {
+              <p class="flex items-center gap-1.5 font-mono text-[12px] text-text-secondary">@let pj = t().porrasEnJuego(monedas(resumen().porras), monedas(resumen().bote));{{ pj[0] }}<span class="size-2.5 rounded-full bg-warning" aria-hidden="true"></span>{{ pj[1] }}</p>
+              @for (m of mercadosSel(); track m.id) {
+                <gr-mercado-resumen [mercado]="m" [etiqueta]="etiquetaMercado(m)" />
+              }
+            } @else {
+              <p class="py-10 text-center text-body-s text-text-tertiary" role="status">{{ t().sinMercado(nivelTxt()) }}</p>
+            }
           }
+          </gr-porra-navegacion>
         }
 
         <p class="flex items-start gap-2 text-body-xs text-text-tertiary"><gr-icon name="lock" [size]="14" class="mt-0.5 shrink-0" />{{ t().aviso }}</p>
@@ -316,8 +271,6 @@ export class PorraPage {
   protected readonly i18n = inject(I18n);
   protected readonly t = this.i18n.dict(T);
   protected readonly monedas = (v: number | null | undefined) => monedas(v, this.i18n.locale());
-  protected readonly diaCorto = diaCorto;
-  protected readonly top = TOP_VIVO;
   protected readonly store = inject(PorraStore);
   protected readonly estado = inject(JuegosEstado);
   private readonly juegos = inject(Juegos);
@@ -334,13 +287,13 @@ export class PorraPage {
   protected readonly vista = toSignal(this.route.queryParamMap.pipe(map((p): Vista => (p.get('vista') === 'en-vivo' ? 'en-vivo' : 'hacer'))), { initialValue: 'hacer' as Vista });
   /** El estado de la navegación vive en la URL: ?sexo, ?grupo, ?prueba y ?peso (categoría). */
   private readonly qp = toSignal(this.route.queryParamMap, { initialValue: this.route.snapshot.queryParamMap });
-  protected readonly sexo = computed<Sexo>(() => (this.qp().get('sexo') === 'M' ? 'M' : 'F'));
-  protected readonly grupo = computed<Grupo>(() => {
-    const g = this.qp().get('grupo') ?? '';
-    return (GRUPOS as readonly string[]).includes(g) ? (g as Grupo) : 'categoria';
-  });
-  protected readonly prueba = computed<Prueba>(() => (this.qp().get('prueba') === 'aep3' ? 'aep3' : 'aep2'));
+  private readonly nav = computed(() => filtrosPorra(this.qp()));
+  protected readonly sexo = computed(() => this.nav().sexo);
+  protected readonly grupo = computed(() => this.nav().grupo);
+  protected readonly prueba = computed(() => this.nav().prueba);
   protected readonly nivelTxt = computed(() => PRUEBA_TXT[this.prueba()]);
+  /** «Saldo AEP-2»: el saldo es el de la jornada del nivel elegido. */
+  protected readonly etiquetaSaldo = computed(() => saldoNivelTxt(this.prueba(), this.i18n.lang()));
 
   protected readonly q = signal(this.route.snapshot.queryParamMap.get('q') ?? '');
   protected readonly sel = signal<{ mercadoId: string; atletaId: string } | null>(null);
@@ -351,13 +304,8 @@ export class PorraPage {
   protected readonly exito = signal<string | null>(null);
   /** El atleta cuyo perfil rápido (gr-sheet) está abierto. */
   protected readonly perfil = signal<OpcionMercado | null>(null);
-  /** Los mercados de «En vivo» con «Ver más» abierto. */
-  protected readonly expandidos = signal<Set<string>>(new Set());
 
-  /** Chips de jornada en orden cronológico (Sáb 19 · Dom 20); el store las guarda de la más reciente a la más antigua. */
-  protected readonly jornadas = computed(() => [...this.estado.jornadas()].sort((a, b) => a.dia.localeCompare(b.dia)));
-  protected readonly jornadaActiva = computed(() => this.store.jornada() ?? this.estado.jornada());
-  protected readonly saldo = computed(() => this.estado.saldoPorra());
+  protected readonly saldo = computed(() => this.store.saldoDe(this.prueba()));
   protected readonly minimo = computed(() => this.estado.porraMin());
   protected readonly maximo = computed(() => Math.max(this.minimo(), this.estado.porraMax()));
   protected readonly sinSaldo = computed(() => this.fan.conSesion() && this.importe() > this.saldo());
@@ -368,22 +316,17 @@ export class PorraPage {
   ]);
 
   private readonly ahora = signal(Date.now());
-  /** La jornada está cerrada o ya pasó la hora de cierre: no se puede hacer porra en ninguna categoría. */
-  private readonly soloLectura = computed(() => {
-    const j = this.jornadaActiva();
+  /** La jornada del mercado está cerrada o ya pasó su hora de cierre: no se puede hacer porra en él. */
+  private cerradaJornada(jornadaId?: string): boolean {
+    const j = this.estado.jornadas().find((x) => x.id === jornadaId);
     return j?.estado === 'cerrada' || (!!j?.cierreAt && Date.parse(j.cierreAt) <= this.ahora());
-  });
+  }
 
-  /** Los mercados del sexo, nivel y grupo elegidos (categorías de menos a más peso). */
-  protected readonly mercadosNivel = computed(() => mercadosDe(this.store.mercados(), this.sexo(), this.grupo(), this.prueba()));
-  /** El mercado que se ve: la categoría de ?peso (o la primera) en el grupo de categorías; el único del grupo si no. */
-  protected readonly mercadoActivo = computed<Mercado | null>(() => {
-    const l = this.mercadosNivel();
-    if (this.grupo() !== 'categoria') return l[0] ?? null;
-    const peso = this.qp().get('peso');
-    return l.find((m) => m.categoria === peso) ?? l[0] ?? null;
-  });
-  protected readonly pesoActivo = computed(() => this.mercadoActivo()?.categoria ?? '');
+  /** Los mercados que se ven con los filtros: en categorías, la de ?peso (o la primera); los demás grupos, todos. */
+  protected readonly mercadosSel = computed(() => mercadosSeleccion(this.store.mercadosDeNivel(this.prueba()), this.nav()));
+  /** El mercado de «Hacer porra». */
+  protected readonly mercadoActivo = computed<Mercado | null>(() => this.mercadosSel()[0] ?? null);
+  protected readonly peso = computed(() => this.nav().peso);
   /** Los atletas del mercado elegido, filtrados por el buscador y ordenados de la A a la Z. */
   protected readonly atletas = computed(() => {
     const m = this.mercadoActivo();
@@ -392,18 +335,8 @@ export class PorraPage {
     return m.opciones.filter((o) => !q || norm(o.nombre).includes(q)).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
   });
   protected readonly mias = computed(() => misPorras(this.store.apuestas()));
-  /** «En vivo»: por mercado, todos los atletas ordenados por lo apostado (los tres primeros se ven). */
-  protected readonly enVivo = computed(() =>
-    this.mercadosNivel().map((m) => {
-      const lang = this.i18n.lang();
-      const filas = [...m.opciones]
-        .sort((a, b) => b.apostado - a.apostado || a.nombre.localeCompare(b.nombre, 'es'))
-        .map((o, pos) => ({ pos, opcion: { ...o, sexoTxt: sexoTxt(m.sexo, lang), categoria: m.tipo === 'categoria' ? kg(m.categoria) : '' } }));
-      return { m, filas, top: filas.slice(0, TOP_VIVO) };
-    }),
-  );
   protected readonly resumen = computed(() => {
-    const ms = this.mercadosNivel();
+    const ms = this.mercadosSel();
     return { porras: ms.reduce((s, m) => s + m.apuestas, 0), bote: ms.reduce((s, m) => s + m.bote, 0) };
   });
   /** Lo que se cobraría si acierta el atleta elegido con el importe del boleto (parimutuel, la apuesta propia entra en el bote). */
@@ -437,6 +370,8 @@ export class PorraPage {
     });
 
     if (browser) {
+      // ambos niveles (AEP-2 y AEP-3) en vivo: el stream sin filtro de jornada
+      this.vivo.sinFiltroJornada();
       this.vivo.conectar();
       // los cambios en vivo se aplican en el cliente (como en la pestaña Porra del directo)
       seguirMercadosEnVivo((c) => this.store.aplicarCambio(c), () => void this.store.recargarMercados());
@@ -446,7 +381,7 @@ export class PorraPage {
       }, 20000);
       const reloj = setInterval(() => this.ahora.set(Date.now()), 1000);
       void this.fan.cargar().then(() => {
-        void this.estado.cargarCartera();
+        void this.store.cargarCarteras();
         void this.store.cargarApuestas();
       });
       inject(DestroyRef).onDestroy(() => {
@@ -461,17 +396,13 @@ export class PorraPage {
     void this.router.navigate([], { relativeTo: this.route, queryParams: { vista: v === 'en-vivo' ? 'en-vivo' : null }, queryParamsHandling: 'merge', replaceUrl: true });
   }
 
-  protected nombreJornada(j: Jornada): string {
-    return nombreJornadaLoc(j, this.i18n.locale());
-  }
-
-  /** «Masculino · −83 kg» en las categorías de peso; el título del mercado en los demás. */
+  /** «Masculino · −83 kg» en las categorías de peso; el título en los demás. */
   protected etiquetaMercado(m: Mercado): string {
-    return m.tipo === 'categoria' ? sexoTxt(m.sexo, this.i18n.lang()) + ' · ' + kg(m.categoria) : m.titulo;
+    return etiquetaDeMercado(m, this.i18n.lang());
   }
 
   protected cerradaM(m: Mercado): boolean {
-    return m.estado !== 'abierto' || this.soloLectura();
+    return m.estado !== 'abierto' || this.cerradaJornada(m.jornadaId);
   }
 
   protected cuotaNum(m: Mercado, o: OpcionMercado): number {
@@ -482,13 +413,6 @@ export class PorraPage {
   protected cuotaTxt(m: Mercado, o: OpcionMercado): string {
     const v = this.cuotaNum(m, o);
     return v > 0 ? cuota(v, this.i18n.lang()) : '—';
-  }
-
-  protected alternarVer(id: string): void {
-    const s = new Set(this.expandidos());
-    if (s.has(id)) s.delete(id);
-    else s.add(id);
-    this.expandidos.set(s);
   }
 
   protected escribir(e: Event): void {
@@ -509,29 +433,22 @@ export class PorraPage {
     }
     this.fijarImporte(Math.min(Math.max(this.minimo(), 500), this.maximo()));
     this.sel.set({ mercadoId: m.id, atletaId });
-    void this.estado.cargarCartera();
+    void this.store.cargarCarteras();
   }
 
   protected paso(dir: 1 | -1): void {
     this.fijarImporte(Math.min(this.maximo(), Math.max(this.minimo(), this.importe() + dir * 100)));
   }
 
-  protected elegirJornada(id: string): void {
-    this.estado.elegir(id);
-    this.sel.set(null);
-    void this.estado.cargarCartera();
-    void this.store.cargar();
-    void this.store.cargarApuestas();
-  }
-
+  /** La apuesta va con la jornada de su mercado; el saldo que se ve es el de ese nivel. */
   protected async confirmar(m: Mercado, atletaId: string, nombre: string): Promise<void> {
     this.enviando.set(true);
     this.errorPorra.set(null);
     try {
       const importe = this.importe();
-      await this.juegos.porraApostar(m.id, atletaId, importe, this.estado.jornadaActual());
+      await this.juegos.porraApostar(m.id, atletaId, importe, m.jornadaId);
       this.exito.set(this.t().hecha(this.monedas(importe), nombre));
-      await Promise.all([this.estado.cargarCartera(), this.store.recargarMercados(), this.store.cargarApuestas()]);
+      await Promise.all([this.store.cargarCarteras(), this.store.recargarMercados(), this.store.cargarApuestas()]);
     } catch (err) {
       this.errorPorra.set(mensajeError(err, this.i18n.lang()));
       if (codigoError(err).startsWith('SESION_FAN')) this.fan.sesionPerdida();

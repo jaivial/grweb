@@ -63,7 +63,7 @@ const FLIGHT: Record<BoFlight, string> = {
     @if (estado() === 'drop') {
       <p class="text-[12px] leading-[17px] text-accent-text">Suelta aquí · {{ ocupados() + 1 }}/{{ plazas() }}</p>
     } @else if (resto() > 0) {
-      <p class="text-[12px] leading-[17px] text-text-tertiary">+ {{ resto() }} atletas</p>
+      <p class="text-[12px] leading-[17px] text-text-tertiary">+ {{ resto() }} {{ resto() === 1 ? 'atleta' : 'atletas' }}</p>
     }
   `,
 })
