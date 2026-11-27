@@ -1,6 +1,7 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 import type { GrTone } from '@grcup/ui';
 
 /** Latest «handling gratis» request of an athlete (null without one). */
@@ -242,7 +243,7 @@ export class AtletasApi {
   subirActa(cid: string, file: File): Promise<Importacion> {
     const fd = new FormData();
     fd.append('file', file);
-    return firstValueFrom(this.http.post<Importacion>(`${this.base(cid)}/importaciones`, fd));
+    return firstValueFrom(this.http.post<Importacion>(`${this.base(cid)}/importaciones`, fd, { context: sinTimeout() }));
   }
   importacion(cid: string, id: string): Promise<Importacion> { return firstValueFrom(this.http.get<Importacion>(`${this.base(cid)}/importaciones/${id}/estado`)); }
   mapear(cid: string, id: string, mapeo: Record<string, string>): Promise<Importacion> {
@@ -252,7 +253,7 @@ export class AtletasApi {
 
   /** Downloads a protected file (CSV export, list template) with the bearer token. */
   async descargar(url: string, nombre: string): Promise<void> {
-    const blob = await firstValueFrom(this.http.get(url, { responseType: 'blob' }));
+    const blob = await firstValueFrom(this.http.get(url, { responseType: 'blob', context: sinTimeout() }));
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = nombre;

@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, PendingTas
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { GrAlert, GrIcon, GrSkeleton, type GrIconName } from '@grcup/ui';
+import { GrAlert, GrIcon, GrSkeleton, esConReanudacion, type GrIconName } from '@grcup/ui';
 import { Favoritos, cat } from '../core/atletas';
 import { Cms } from '../core/cms';
 import { COMPETITION_SLUG, Competition, FalloApi } from '../core/competition';
@@ -338,7 +338,6 @@ export class HorariosPage {
     });
     if (this.browser) {
       // Real time without notices: when the back office publishes or withdraws the schedule, reload in silence.
-      const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
       let t: ReturnType<typeof setTimeout> | undefined;
       const recargar = () => {
         clearTimeout(t);
@@ -348,10 +347,15 @@ export class HorariosPage {
           this.aplicar(await this.api.get(true));
         }, 400);
       };
-      for (const ev of EVENTOS_HORARIOS) es.addEventListener(ev, recargar);
+      // Reopened on every come-back: iOS Safari leaves the stream dead after a freeze.
+      const cerrar = esConReanudacion(() => {
+        const es = new EventSource(`/api/competiciones/${COMPETITION_SLUG}/stream`);
+        for (const ev of EVENTOS_HORARIOS) es.addEventListener(ev, recargar);
+        return es;
+      });
       inject(DestroyRef).onDestroy(() => {
         clearTimeout(t);
-        es.close();
+        cerrar();
       });
     }
   }

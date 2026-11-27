@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 import type { GrIconName, GrTone } from '@grcup/ui';
 import type { Competicion } from '../../core/api';
 
@@ -141,5 +142,5 @@ export class SistemaApi {
   eliminar(cid: string, confirmacion: string): Promise<unknown> { return firstValueFrom(this.http.request('DELETE', this.b(cid), { body: { confirmacion } })); }
   exportar(cid: string): Promise<Exportacion> { return firstValueFrom(this.http.post<Exportacion>(`${this.b(cid)}/exportaciones`, { tipo: 'completa' })); }
   exportaciones(cid: string): Promise<Exportacion[]> { return firstValueFrom(this.http.get<Exportacion[]>(`${this.b(cid)}/exportaciones`)); }
-  descargar(url: string): Promise<Blob> { return firstValueFrom(this.http.get(url, { responseType: 'blob' })); }
+  descargar(url: string): Promise<Blob> { return firstValueFrom(this.http.get(url, { responseType: 'blob', context: sinTimeout() })); }
 }

@@ -91,11 +91,28 @@ export class FanSession {
   cargar(forzar = false): Promise<Fan | null> {
     if (!this.browser) return Promise.resolve(null);
     if (this.pendiente && !forzar) return this.pendiente;
-    this.pendiente = firstValueFrom(this.http.get<Fan>(`${this.base}/yo`))
-      .then((f) => (this.yo.set(f ?? null), f ?? null))
-      .catch(() => (this.yo.set(null), null))
+    // Only the current ask writes the session: a dropped one (the tab came back) must not overwrite the new answer,
+    // and a failure is not an answer worth sharing (a frozen tab left the old one hanging forever).
+    const p: Promise<Fan | null> = firstValueFrom(this.http.get<Fan>(`${this.base}/yo`))
+      .then((f) => {
+        if (this.pendiente === p) this.yo.set(f ?? null);
+        return f ?? null;
+      })
+      .catch(() => {
+        if (this.pendiente === p) {
+          this.yo.set(null);
+          this.pendiente = null;
+        }
+        return null;
+      })
       .finally(() => this.cargada.set(true));
-    return this.pendiente;
+    this.pendiente = p;
+    return p;
+  }
+
+  /** A frozen tab (iOS Safari) leaves the session request hanging: drop it so the next one asks again. */
+  reanudar(): void {
+    this.pendiente = null;
   }
 
   abrirAcceso(motivo: string | null = null, volverA: string | null = null, email = ''): void {
