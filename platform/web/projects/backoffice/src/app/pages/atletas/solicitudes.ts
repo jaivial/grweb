@@ -147,6 +147,8 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
         <option value="">Coincidencia: todas</option>
         <option value="licencia">Licencia</option>
         <option value="email">Email</option>
+        <option value="telefono">Teléfono</option>
+        <option value="nacimiento">Nombre y fecha</option>
         <option value="nombre">Sugerida</option>
         <option value="ninguna">Sin coincidencia</option>
       </gr-select>

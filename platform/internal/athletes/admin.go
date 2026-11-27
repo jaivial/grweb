@@ -77,7 +77,7 @@ type filtrosAtletas struct {
 	Perfil    string
 	// Handling: solicitado (pendiente o en revisión) · aprobado · rechazado · vacío (cualquiera).
 	Handling string
-	// Padron: parcial (revisar) · sin (sin coincidencia o enlace manual) · error (la IA falló) · vacío (cualquiera).
+	// Padron: parcial (revisar) · duplicado (otra ficha con la misma fila) · sin (sin coincidencia o enlace manual) · error (la IA falló) · vacío (cualquiera).
 	Padron string
 	Q      string
 	Orden  string
@@ -97,14 +97,17 @@ type alcanceLista struct {
 
 // PadronEstado is the coincidence of an athlete with the AEP roll, in one line for the list and the record.
 type PadronEstado struct {
-	// Estado: auto (enlazado solo) · confirmada (lo confirmó el equipo) · parcial (revisar) · manual · sin.
-	Estado string `json:"estado" enum:"auto,confirmada,parcial,manual,sin"`
+	// Estado: auto (enlazado solo) · confirmada (lo confirmó el equipo) · parcial (revisar) · manual · sin ·
+	// duplicado (el padrón tiene una fila con este nombre en otra ficha).
+	Estado string `json:"estado" enum:"auto,confirmada,parcial,manual,sin,duplicado"`
 	// Origen is where it came from: exacto · ia · error_ia · staff (empty when nothing matched).
 	Origen    string   `json:"origen,omitempty"`
 	Confianza *float64 `json:"confianza,omitempty"`
 	// Campos are the fields that differ between the athlete and the row (categoria, anio…): the label names them
 	// instead of a percentage that says nothing about why the match is only a proposal.
 	Campos []string `json:"campos,omitempty"`
+	// Duplicado is the athlete that already has a row of the roll with this name (only in the «duplicado» state).
+	Duplicado *AtletaRef `json:"duplicado,omitempty"`
 }
 
 // padronDe reads the coincidence of every athlete of the competition (or of one, when uno is given) in one query: a
@@ -135,7 +138,8 @@ func (s *Svc) padronDe(ctx context.Context, cid uuid.UUID, uno *uuid.UUID) (map[
 		if err := rows.Scan(&id, &enlace, &estado, &origen, &conf, &det); err != nil {
 			return nil, err
 		}
-		p := PadronEstado{Estado: estado, Origen: origen, Confianza: conf, Campos: camposDetalle(det)}
+		d := detalleDecision(det)
+		p := PadronEstado{Estado: estado, Origen: origen, Confianza: conf, Campos: camposDetalle(d), Duplicado: d.Duplicado}
 		switch enlace {
 		case "auto":
 			p = PadronEstado{Estado: "auto", Origen: "exacto", Campos: p.Campos}
@@ -150,12 +154,18 @@ func (s *Svc) padronDe(ctx context.Context, cid uuid.UUID, uno *uuid.UUID) (map[
 	return out, rows.Err()
 }
 
-// camposDetalle reads the fields that differ from the stored detail of a decision (the ones the panel's table marks).
-func camposDetalle(det []byte) []string {
+// detalleDecision reads the stored detail of a decision (zero when there is none).
+func detalleDecision(det []byte) DetalleEmparejamiento {
 	var d DetalleEmparejamiento
-	if len(det) == 0 || json.Unmarshal(det, &d) != nil {
-		return nil
+	if len(det) == 0 {
+		return d
 	}
+	_ = json.Unmarshal(det, &d)
+	return d
+}
+
+// camposDetalle are the fields that differ from the stored detail of a decision (the ones the panel's table marks).
+func camposDetalle(d DetalleEmparejamiento) []string {
 	out := make([]string, 0, len(d.Discrepancias))
 	for _, x := range d.Discrepancias {
 		out = append(out, x.Campo)
@@ -171,6 +181,8 @@ func padronCoincide(p PadronEstado, filtro string) bool {
 	switch filtro {
 	case "parcial":
 		return p.Estado == "parcial"
+	case "duplicado":
+		return p.Estado == "duplicado"
 	case "sin":
 		return p.Estado == "sin" || p.Estado == "manual"
 	case "error":
@@ -369,7 +381,7 @@ func (s *Svc) registerAdmin() {
 		Jornada   string    `query:"jornada" doc:"Fecha (YYYY-MM-DD)"`
 		Perfil    string    `query:"perfil" enum:"incompleto,sin_foto,"`
 		Handling  string    `query:"handling" enum:"solicitado,aprobado,rechazado," doc:"Solicitudes de handling gratis"`
-		Padron    string    `query:"padron" enum:"parcial,sin,error," doc:"Coincidencia con el padrón AEP: parcial (revisar), sin, error de la IA"`
+		Padron    string    `query:"padron" enum:"parcial,duplicado,sin,error," doc:"Coincidencia con el padrón AEP: parcial (revisar), duplicado (otra ficha con la misma fila), sin, error de la IA"`
 		Q         string    `query:"q" maxLength:"80"`
 		Orden     string    `query:"orden" enum:"nombre,categoria,completo,reserva" default:"nombre"`
 		Dir       string    `query:"dir" enum:"asc,desc" default:"asc"`
