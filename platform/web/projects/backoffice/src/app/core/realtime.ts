@@ -15,6 +15,9 @@ export interface LiveEvent {
 
 class Retry extends Error {}
 
+/** The server writes a `: ping` comment every 15 s on the stream: two intervals without data mean it is dead. */
+const PING_MS = 15_000;
+
 /** Connection state shown by `bo-live-status` (Figma 48/50): offline after 3 failed attempts or without network. */
 export type RealtimeStatus = 'connected' | 'reconnecting' | 'offline' | 'paused';
 
@@ -92,7 +95,7 @@ export class Realtime {
    */
   reanudar(): void {
     if (!this.cid || !this.activo()) return;
-    const sano = this.connected() && this.ultimo && Date.now() - this.ultimo < 2 * 15_000;
+    const sano = this.connected() && this.ultimo > 0 && Date.now() - this.ultimo < 2 * PING_MS;
     if (sano) return;
     this.disconnect();
     this.fallos.set(0);
