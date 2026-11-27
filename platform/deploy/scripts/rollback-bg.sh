@@ -1,11 +1,23 @@
 #!/usr/bin/env bash
-# rollback-bg.sh <qa> — vuelve al color anterior (estado previo) sin construir nada: lo enciende con las réplicas que
-# tenía (grcup.dev/replicas-antes), pasa las mismas puertas, conmuta el edge y los enlaces, drena y apaga el color
-# que se abandona. Solo sirve hacia atrás de un solo paso (el previo es el último color apagado). Desde platform/.
+# rollback-bg.sh <qa|prod> [--confirmo-produccion] [--parar-qa] — vuelve al color anterior (estado previo) sin construir:
+# lo enciende con sus réplicas (grcup.dev/replicas-antes), pasa las mismas puertas, conmuta el edge y los enlaces,
+# drena y apaga el color que se abandona. Desde platform/.
 set -Eeuo pipefail
 cd "$(dirname "$0")/../.."
 . deploy/scripts/lib/colores.sh
-colores_init "${1:-}"
+ENTORNO=${1:-}
+shift || true
+CONFIRMO=0
+for a in "$@"; do
+  case "$a" in
+    --confirmo-produccion) CONFIRMO=1 ;;
+    --parar-qa) PARAR_QA=1 ;;
+    *) die "opción desconocida: $a" ;;
+  esac
+done
+colores_init "$ENTORNO"
+[ "$ENTORNO" = qa ] && [ "$PARAR_QA" = 1 ] && die "--parar-qa solo aplica a producción"
+colores_gates_prod
 colores_bloquear
 colores_memoria
 
@@ -15,6 +27,7 @@ read -r VIVO PREVIO < <(colores_estado_leer) || true
 [ "$PREVIO" != "$VIVO" ] || die "el previo es el vivo ($VIVO): revisa el estado"
 log "vivo=$VIVO · vuelvo a $PREVIO · drenaje ${DRAIN_SECONDS}s antes de apagar $VIVO"
 
+colores_holgura_pods "$PREVIO"
 colores_encender "$PREVIO"
 colores_esperar "${NS[$PREVIO]}"
 colores_puertas "$PREVIO"
@@ -29,4 +42,5 @@ colores_estado_escribir "$PREVIO" "$VIVO"
 sleep "$DRAIN_SECONDS"
 colores_apagar "$VIVO"
 colores_borde || log "⚠ el borde no responde tras apagar $VIVO: revisar"
+colores_salir
 log "✓ rollback: vivo=$PREVIO · $VIVO apagado"

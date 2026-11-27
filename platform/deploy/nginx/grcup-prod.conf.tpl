@@ -15,9 +15,8 @@ map $http_upgrade $grcup_connection { default upgrade; '' ''; }
 map $upstream_http_content_type $grcup_html_cache { ~^text/html "no-cache"; default ""; }
 
 # Keep-alive pools to the ClusterIPs (one TCP connection per request saturated TIME_WAIT/conntrack under load, ST1-R8-1).
-upstream grcup_gateway { server 10.43.241.10:8080; keepalive 256; keepalive_requests 10000; keepalive_timeout 60s; }
-upstream grcup_web { server 10.43.241.11:80; keepalive 64; }
-upstream grcup_bo { server 10.43.241.12:80; keepalive 32; }
+# Upstreams grcup_gateway, grcup_web y grcup_bo: /etc/nginx/conf.d/grcup-prod-upstream.conf (el color vivo; plantilla
+# deploy/nginx/grcup-prod-upstream.conf.tpl). No definirlos aquí: nginx-prod.sh solo se usa en una instalación nueva.
 
 # Alta de atleta (POST): límite por IP para que un formulario no se llene de peticiones (10 r/min, ráfaga de 5).
 limit_req_zone $binary_remote_addr zone=alta_atleta_prod:10m rate=10r/m;

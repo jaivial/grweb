@@ -60,4 +60,35 @@ color nuevo migra mientras el vivo sigue atendiendo. Por eso:
   `presupuesto.py`). Durante el solape se reservan ~2,6 CPU y ~2,5 GiB extra de requests de QA.
 - `generar.py` no reproduce los ajustes manuales de los manifiestos de `base/` (`prod-20261115`); no regenerar los
   servicios sin revisar el diff.
-- Producción sigue en el stack único del namespace `grcup` (`desplegar.sh prod`). Su migración a colores no está hecha.
+- Producción tiene su propio layout (ver abajo). Hasta que `instalar-bg.sh prod` se ejecute, sigue en el stack único
+  de `grcup` (`desplegar.sh prod`), que se niega a correr una vez existe el estado `grcup-colores`.
+
+## Producción (grscup.com)
+
+| Pieza | Namespace | IPs fijas (gateway / web / backoffice) |
+|---|---|---|
+| Capa compartida (`colores/prod/compartido`) | `grcup` | Postgres, Redis-puente (16380), evo-weai, juegos-worker, copias |
+| Color `blue` (`colores/prod/blue`) | `grcup-blue` | `10.43.242.10 / .11 / .12` |
+| Color `green` (`colores/prod/green`) | `grcup-green` | `10.43.241.10 / .11 / .12` (libres solo tras la migración) |
+
+- Valores de `overlays/prod` preservados: HPA y PDB (mínimos de producción intactos), quota, `grcup-prod`, hostPaths
+  de `/var/lib/grcup`, configuración (`DOMINIOS_CONFIRMADOS` en `componentes/prod/config.yaml`), Google y Stripe.
+- El webhook de evo-weai es la URL pública (`https://grscup.com`): pasa por el edge, así que no depende del color.
+  Messaging llama a evo-weai por su ExternalName de la capa compartida.
+- Edge: `/etc/nginx/conf.d/grcup-prod-upstream.conf` (plantilla `deploy/nginx/grcup-prod-upstream.conf.tpl`). Los
+  `proxy_pass` del vhost `grscup.com.conf` no cambian: solo se borran sus tres upstreams en línea
+  (`deploy/scripts/nginx-prod-upstream.sh`, una recarga, con copia y restauración).
+
+```bash
+deploy/scripts/instalar-bg.sh prod --confirmo-produccion [--parar-qa]   # UNA VEZ
+deploy/scripts/desplegar-bg.sh prod --confirmo-produccion [--parar-qa]
+deploy/scripts/rollback-bg.sh prod --confirmo-produccion [--parar-qa]
+deploy/scripts/estado-bg.sh prod
+```
+
+- Producción exige `--confirmo-produccion` y los mismos gates que `desplegar.sh prod` (dominios confirmados, Secrets).
+- El nodo cap a 110 pods. Antes de encender un color se cuentan sus réplicas mínimas (HPA) más 5 de margen. Si no cabe,
+  el script lo dice y pide `--parar-qa`: QA escala su color vivo a 0, se espera a que sus pods se vayan, y se restaura
+  al final (también si falla: trampa de salida).
+- Las imágenes ya presentes en el containerd de kraken no se reconstruyen (un tag es un commit).
+- Un Deployment sin progreso durante 90 s para el despliegue con sus pods, eventos y logs; tope total de 600 s.

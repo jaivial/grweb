@@ -5,6 +5,8 @@ namespace: grcup-qa
 resources:
   - namespace.yaml
   - ../../compartido
+  - ../../../base/mailpit # QA only: prod has no Mailpit
+  - permitir-mailpit.yaml
 patches:
   - path: recursos.yaml
   - target: { kind: StatefulSet, name: postgres }

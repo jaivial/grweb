@@ -1,0 +1,24 @@
+# Capa compartida de grcup (producción) vista desde un color: los nombres de siempre resuelven al Service real.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  type: ExternalName
+  externalName: postgres.grcup.svc.cluster.local
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+spec:
+  type: ExternalName
+  externalName: redis.grcup.svc.cluster.local
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: evo-weai
+spec:
+  type: ExternalName
+  externalName: evo-weai.grcup.svc.cluster.local

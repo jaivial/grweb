@@ -1,17 +1,31 @@
 #!/usr/bin/env bash
-# desplegar-bg.sh <qa> — blue/green de QA en kraken (desde platform/):
-#   1. imágenes: build y importación en kraken (sin registry); el color VIVO no se toca;
-#   2. capa compartida (grcup-qa) y color INACTIVO: apply, Secrets, réplicas y rollouts. Las migraciones corren en el
-#      arranque de los pods (goose, con su advisory lock): solo expand, ver platform/deploy/k8s/colores/README.md;
-#   3. puertas del inactivo en el clúster (gateway, rutas calientes, SSR, backoffice) y holgura de Postgres;
+# desplegar-bg.sh <qa|prod> [--confirmo-produccion] [--parar-qa] — blue/green (desde platform/):
+#   1. imágenes: build solo de las que faltan en kraken (containerd); el color VIVO no se toca;
+#   2. capa compartida y color INACTIVO: apply, Secrets, réplicas y rollouts (fallan a los 90 s sin progreso). Las
+#      migraciones corren en el arranque de los pods (goose, con su advisory lock): solo expand, ver colores/README.md;
+#   3. pods libres en el nodo (si no caben: se dice y se ofrece --parar-qa), puertas del inactivo en el clúster,
+#      holgura de Postgres;
 #   4. conmutación: upstream de nginx + ExternalName de la capa compartida; borde público con --resolve;
 #   5. drenaje DRAIN_SECONDS y apagado del color anterior (sus objetos se conservan: rollback-bg.sh).
-# Si algo falla antes de conmutar, se apaga lo nuevo y el vivo no se toca. Log: a stdout con hora.
+# Producción exige --confirmo-produccion y los gates de desplegar.sh prod. --parar-qa escala QA a 0 durante la
+# ventana y lo restaura al final (también si falla). Si algo falla antes de conmutar, se apaga lo nuevo.
 set -Eeuo pipefail
 cd "$(dirname "$0")/../.."
 . deploy/scripts/lib/imagenes.sh
 . deploy/scripts/lib/colores.sh
-colores_init "${1:-}"
+ENTORNO=${1:-}
+shift || true
+CONFIRMO=0
+for a in "$@"; do
+  case "$a" in
+    --confirmo-produccion) CONFIRMO=1 ;;
+    --parar-qa) PARAR_QA=1 ;;
+    *) die "opción desconocida: $a" ;;
+  esac
+done
+colores_init "$ENTORNO"
+[ "$ENTORNO" = qa ] && [ "$PARAR_QA" = 1 ] && die "--parar-qa solo aplica a producción"
+colores_gates_prod
 colores_bloquear
 colores_memoria
 
@@ -20,15 +34,12 @@ read -r VIVO PREVIO < <(colores_estado_leer) || true
 IDLE=$(otro "$VIVO")
 VERSION=$(version_build)
 SWITCHED=0
-trap 'rc=$?; colores_liberar; if [ "$rc" -ne 0 ] && [ "$SWITCHED" -eq 0 ]; then log "fallo antes de conmutar: apago $IDLE, $VIVO sigue vivo"; colores_apagar "$IDLE" || true; fi; exit "$rc"' EXIT
+trap 'rc=$?; if [ "$rc" -ne 0 ] && [ "$SWITCHED" -eq 0 ]; then log "fallo antes de conmutar: apago $IDLE, $VIVO sigue vivo"; colores_apagar "$IDLE" || true; fi; colores_salir; exit "$rc"' EXIT
 
 log "vivo=$VIVO · inactivo=$IDLE · versión $VERSION"
-# shellcheck disable=SC2086
-mapfile -t IMAGENES < <(construir_imagenes "$VERSION" $KUST_IMAGENES)
-importar_imagenes "${IMAGENES[@]}"
-
+preparar_imagenes "$VERSION" $KUST_IMAGENES >/dev/null
 colores_compartido "$VERSION"
-colores_aplicar "colores/qa/$IDLE" "$VERSION" "${NS[$IDLE]}"
+colores_aplicar "$COLORES_DIR/$IDLE" "$VERSION" "${NS[$IDLE]}"
 colores_secretos "${NS[$IDLE]}"
 colores_holgura_pods "$IDLE"
 colores_encender "$IDLE"
@@ -47,4 +58,4 @@ log "conmutado: vivo=$IDLE · drenaje ${DRAIN_SECONDS}s antes de apagar $VIVO"
 sleep "$DRAIN_SECONDS"
 colores_apagar "$VIVO"
 colores_borde || log "⚠ el borde no responde tras apagar $VIVO: revisar"
-log "✓ vivo=$IDLE · $VIVO apagado (rollback-bg.sh qa lo vuelve a encender)"
+log "✓ vivo=$IDLE · $VIVO apagado (rollback-bg.sh $ENTORNO lo vuelve a encender)"

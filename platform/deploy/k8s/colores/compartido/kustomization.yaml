@@ -8,7 +8,6 @@ resources:
   - ../../base/common
   - ../../base/postgres
   - ../../base/redis-bridge
-  - ../../base/mailpit
   - ../../base/evo-weai
   - ../../base/juegos-worker
   - permitir-colores.yaml
