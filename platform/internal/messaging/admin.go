@@ -14,7 +14,6 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/jaivial/grweb/platform/pkg/auth"
-	"github.com/jaivial/grweb/platform/pkg/crypto"
 	"github.com/jaivial/grweb/platform/pkg/db"
 	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/problem"
@@ -510,44 +509,9 @@ func (s *Svc) registerAdmin() {
 			if err := s.a.DB.QueryRow(ctx, `SELECT vars, contenido FROM mensajes WHERE id = $1`, in.ID).Scan(&vars, &enviado); err != nil {
 				return nil, err
 			}
-			// Access links (magic links, payment links, unsubscribe) belong to the recipient: never shown to staff,
-			// and a secret variable (an initial password) only shows as dots.
-			originales := vars
-			vars = crypto.OcultarVars(vars)
-			for k := range vars {
-				if varEnlacePersonal[k] && vars[k] != "" {
-					vars[k] = enlacePersonal
-				}
-			}
 			o := &verOut{}
 			o.Body.Mensaje = m
-			// A WhatsApp keeps the exact text it sent (Contenido.Cuerpo): no email layout.
-			if m.Canal == "whatsapp" {
-				texto := ""
-				switch {
-				case enviado != nil:
-					texto = enviado.Cuerpo
-				default: // still queued: the text it will send, with the secrets masked
-					if e, err := s.plantilla(ctx, in.CID, m.Plantilla); err == nil && e.WA != nil {
-						texto, _ = renderizarWA(e.WA.Texto, vars, e.Variables)
-					}
-				}
-				// The stored copy may keep the real personal links: masked here too.
-				for k, v := range originales {
-					if varEnlacePersonal[k] && v != "" {
-						texto = strings.ReplaceAll(texto, v, enlacePersonal)
-					}
-				}
-				o.Body.Texto = texto
-			} else if e, err := s.plantilla(ctx, in.CID, m.Plantilla); err == nil {
-				c := e.Contenido
-				if enviado != nil {
-					c = *enviado
-				}
-				if r, err := renderizarDe(e.Plantilla, c, vars, s.marca(ctx, in.CID)); err == nil {
-					o.Body.HTML, o.Body.Texto = r.HTML, r.Texto
-				}
-			}
+			_, o.Body.HTML, o.Body.Texto = s.contenidoVisible(ctx, in.CID, m.Canal, m.Plantilla, vars, enviado, nil)
 			return o, nil
 		})
 

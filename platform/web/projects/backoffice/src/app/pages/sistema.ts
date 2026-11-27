@@ -6,6 +6,7 @@ import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
 import { BoDrawer, BoPageHeader, BoTabs, Confirm, errText, type BoTab, BoTablaMovil } from '../shared/ui';
 import { WhatsAppApi, type EstadoWaInfo } from './sistema/whatsapp-api';
+import { sistemaTabs } from './sistema/tabs';
 import { ESTADO_COMP, ESTADO_INT, INTEG, MODULOS, SistemaApi, fecha, fechaDMA, hace, type CompSistema, type Exportacion, type Integracion, type Salud, type StripeConnect, type Webhooks } from './sistema/api';
 
 type GmailAviso = { tone: GrTone; icon: 'circle-check' | 'triangle-alert' | 'info'; titulo: string; texto: string; reintentar: boolean };
@@ -298,12 +299,11 @@ export class SistemaPage {
   protected readonly root = computed(() => !!this.auth.user()?.root);
   protected readonly puede = computed(() => this.auth.can(this.cid(), 'integraciones.config'));
   protected readonly objetivo = computed(() => this.comps()?.find((c) => c.id === this.objetivoId()) ?? this.comps()?.find((c) => c.id === this.cid()) ?? null);
-  protected readonly tabs = computed<BoTab[]>(() => [
-    { label: 'Competiciones', path: '../competiciones', count: this.comps()?.length ?? null },
-    { label: 'Integraciones', path: '../integraciones', count: this.integs() ? this.integs()!.filter((x) => x.estado !== 'sin_configurar').length : null },
-    { label: 'Salud', path: '../salud', count: this.salud() && this.problemas(this.salud()!) ? this.problemas(this.salud()!) : null },
-    { label: 'Zona peligrosa', path: '../zona-peligrosa' },
-  ]);
+  protected readonly tabs = computed<BoTab[]>(() => sistemaTabs({
+    competiciones: this.comps()?.length ?? null,
+    integraciones: this.integs() ? this.integs()!.filter((x) => x.estado !== 'sin_configurar').length : null,
+    salud: this.salud() && this.problemas(this.salud()!) ? this.problemas(this.salud()!) : null,
+  }));
 
   constructor() {
     const gmail = this.route.snapshot.queryParamMap.get('gmail');
