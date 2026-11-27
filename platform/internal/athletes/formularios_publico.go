@@ -273,7 +273,7 @@ func (s *Svc) accesoFormulario(ctx context.Context, tok string) (acceso, *proble
 	if err != nil {
 		return acceso{}, s.aProblema(err)
 	}
-	f, err := leeFormulario(ctx, s.a.DB, a.CID, fid, false)
+	f, err := leeFormulario(ctx, s.a.DB, a.CID, fid, sinBloqueo)
 	if err != nil {
 		return acceso{}, s.aProblema(err)
 	}
@@ -306,9 +306,10 @@ func (s *Svc) guardaRespuesta(ctx context.Context, a acceso, datos map[string]an
 	ahora := time.Now()
 	var out guardado
 	err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-		// El formulario se bloquea en la misma transacción que el guardado: guardaEdicion (que bloquea igual) no puede
-		// cambiar el esquema entre la validación y el INSERT. La respuesta se valida contra el esquema bloqueado (N-6).
-		fm, err := leeFormulario(ctx, tx, a.CID, a.Formulario.ID, true)
+		// El formulario se bloquea (FOR SHARE: los guardados comparten, un cambio del formulario espera) en la misma
+		// transacción que el guardado: guardaEdicion (FOR UPDATE) no puede cambiar el esquema entre la validación y el
+		// INSERT. La respuesta se valida contra el esquema bloqueado (N-6). Orden de bloqueo: ver modoBloqueo.
+		fm, err := leeFormulario(ctx, tx, a.CID, a.Formulario.ID, bloqueoCompartido)
 		if err != nil {
 			return err
 		}
@@ -504,6 +505,14 @@ func (s *Svc) subeArchivoFormulario(w http.ResponseWriter, req *http.Request) (a
 	if perr := estadoCerrado(a, time.Now()); perr != nil {
 		return archivoSubido{}, perr
 	}
+	// Plaza en el semáforo de subidas antes de leer el cuerpo: el archivo no llega a memoria sin plaza. Si no hay ninguna
+	// libre, 503 al momento. La plaza se libera al salir de la función, en cualquier camino.
+	select {
+	case subidasSimultaneas <- struct{}{}:
+		defer func() { <-subidasSimultaneas }()
+	default:
+		return archivoSubido{}, subidasOcupadas()
+	}
 	req.Body = http.MaxBytesReader(w, req.Body, bodylimit.Archivo)
 	if err := req.ParseMultipartForm(bodylimit.Archivo); err != nil {
 		var mb *http.MaxBytesError
@@ -542,13 +551,6 @@ func (s *Svc) subeArchivoFormulario(w http.ResponseWriter, req *http.Request) (a
 	if !ok || !mimePermitido(mime, cfg.Tipos) {
 		return archivoSubido{}, problem.Unprocessable("TIPO_NO_PERMITIDO", "Este tipo de archivo no está permitido en este campo.")
 	}
-	// Plaza en el semáforo de subidas: antes de tocar la base o el CDN. Si no hay ninguna libre, 503 al momento.
-	select {
-	case subidasSimultaneas <- struct{}{}:
-		defer func() { <-subidasSimultaneas }()
-	default:
-		return archivoSubido{}, subidasOcupadas()
-	}
 	st, err := s.storage(ctx, a.CID)
 	if err != nil {
 		return archivoSubido{}, archivoNoGuardado()
@@ -586,7 +588,7 @@ func (s *Svc) subeArchivoFormulario(w http.ResponseWriter, req *http.Request) (a
 		return archivoSubido{}, archivoNoGuardado()
 	}
 	// Paso 3: la fila pasa a «ok» con su url; solo entonces la respuesta puede referenciarla.
-	tag, err := s.a.DB.Exec(ctx, `UPDATE formulario_archivos SET url = $2, estado = 'ok' WHERE id = $1 AND estado = 'subiendo'`, id, u)
+	tag, err := s.a.DB.Exec(context.WithoutCancel(ctx), `UPDATE formulario_archivos SET url = $2, estado = 'ok' WHERE id = $1 AND estado = 'subiendo'`, id, u)
 	if err != nil {
 		return archivoSubido{}, s.aProblema(err)
 	}

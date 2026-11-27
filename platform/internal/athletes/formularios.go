@@ -86,12 +86,39 @@ func scanFormulario(r pgx.Row) (Formulario, error) {
 	return f, nil
 }
 
-// leeFormulario carga un formulario de la competición. Con lock=true lo bloquea hasta el fin de la transacción.
-func leeFormulario(ctx context.Context, q rowQuerier, cid, id uuid.UUID, lock bool) (Formulario, error) {
-	sql := selFormulario + ` WHERE id = $1 AND competition_id = $2`
-	if lock {
-		sql += ` FOR UPDATE`
+// modoBloqueo es el candado que leeFormulario pone sobre la fila del formulario hasta el fin de la transacción.
+//   - sinBloqueo: solo lectura (listados, la web pública, la audiencia de un envío mientras se construye).
+//   - bloqueoCompartido (FOR SHARE): guardados de respuestas. Varios pueden ir a la vez; solo esperan a un cambio del
+//     formulario (esquema, estado, borrado).
+//   - bloqueoExclusivo (FOR UPDATE): cambios del formulario (guardaEdicion, borrado) y la comprobación final de creaEnvio.
+//
+// Orden de bloqueo del módulo (lo respetan creaEnvio, guardaEdicion y guardaRespuesta): primero el advisory lock de envíos
+// (hashtext('formulario-envio:'||id)), después la fila del formulario, y al final las filas hijas. creaEnvio escribe sus
+// filas hijas antes de tomar el FOR UPDATE de la fila; guardaRespuesta solo escribe respuestas y referencia destinatarios
+// con FOR KEY SHARE, que no choca con el NO KEY UPDATE que creaEnvio toma sobre un destinatario existente.
+type modoBloqueo int
+
+const (
+	sinBloqueo modoBloqueo = iota
+	bloqueoCompartido
+	bloqueoExclusivo
+)
+
+// clausula es el sufijo SQL del modo (constantes fijas: nunca entra texto de usuario).
+func (m modoBloqueo) clausula() string {
+	switch m {
+	case bloqueoCompartido:
+		return ` FOR SHARE`
+	case bloqueoExclusivo:
+		return ` FOR UPDATE`
+	default:
+		return ""
 	}
+}
+
+// leeFormulario carga un formulario de la competición con el candado indicado (ver modoBloqueo).
+func leeFormulario(ctx context.Context, q rowQuerier, cid, id uuid.UUID, modo modoBloqueo) (Formulario, error) {
+	sql := selFormulario + ` WHERE id = $1 AND competition_id = $2` + modo.clausula()
 	f, err := scanFormulario(q.QueryRow(ctx, sql, id, cid))
 	if db.IsNoRows(err) {
 		return f, problem.NotFound("Formulario no encontrado.")
@@ -101,7 +128,7 @@ func leeFormulario(ctx context.Context, q rowQuerier, cid, id uuid.UUID, lock bo
 
 // formularioDe es la ficha de un formulario de la competición (solo lectura). La usa también la fase B2.
 func (s *Svc) formularioDe(ctx context.Context, cid, id uuid.UUID) (Formulario, error) {
-	return leeFormulario(ctx, s.a.DB, cid, id, false)
+	return leeFormulario(ctx, s.a.DB, cid, id, sinBloqueo)
 }
 
 // jsonFormulario serializa lo que se guarda en las columnas jsonb del formulario.
@@ -284,7 +311,7 @@ func (s *Svc) registerFormulariosAdmin() {
 				return nil, err
 			}
 			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				f, err := leeFormulario(ctx, tx, in.CID, in.ID, true)
+				f, err := leeFormulario(ctx, tx, in.CID, in.ID, bloqueoExclusivo)
 				if err != nil {
 					return err
 				}
@@ -314,7 +341,7 @@ func (s *Svc) registerFormulariosAdmin() {
 			}
 			nuevo := newID()
 			err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				f, err := leeFormulario(ctx, tx, in.CID, in.ID, false)
+				f, err := leeFormulario(ctx, tx, in.CID, in.ID, sinBloqueo)
 				if err != nil {
 					return err
 				}
@@ -432,7 +459,7 @@ func (s *Svc) creaFormulario(ctx context.Context, cid uuid.UUID, nombre string) 
 // guardaEdicion guarda la edición del formulario: 409 si la versión no coincide, 422 si el esquema no es válido, y una
 // versión nueva solo cuando el esquema cambia.
 func (s *Svc) guardaEdicion(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, b edicion) error {
-	cur, err := leeFormulario(ctx, tx, cid, id, true)
+	cur, err := leeFormulario(ctx, tx, cid, id, bloqueoExclusivo)
 	if err != nil {
 		return err
 	}

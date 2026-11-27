@@ -323,7 +323,18 @@ func (s *Svc) creaEnvio(ctx context.Context, cid, fid uuid.UUID, competicion str
 	var envioID uuid.UUID
 	reutilizado := false
 	err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-		fm, err := leeFormulario(ctx, tx, cid, fid, true)
+		// Orden de bloqueo del módulo (lo respetan creaEnvio, guardaEdicion y guardaRespuesta; ver modoBloqueo):
+		//  1) advisory lock de envíos del formulario: serializa los creaEnvio del mismo formulario, así que la comprobación de
+		//     clave y de envío reciente (check y luego insert) no puede cruzarse con otro envío;
+		//  2) lectura del formulario SIN candado durante toda la construcción del envío;
+		//  3) filas hijas (envío, destinatarios, entregas, outbox): aquí se toman los candados de fila;
+		//  4) FOR UPDATE del formulario solo al final, justo antes del cambio de estado, con el estado releído.
+		// guardaEdicion (FOR UPDATE) no espera a ningún envío, y guardaRespuesta (FOR SHARE) solo escribe respuestas y
+		// referencia destinatarios con FOR KEY SHARE, que no choca con el NO KEY UPDATE de creaEnvio. No hay ciclo.
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('formulario-envio:' || $1::text))`, fid.String()); err != nil {
+			return err
+		}
+		fm, err := leeFormulario(ctx, tx, cid, fid, sinBloqueo)
 		if err != nil {
 			return err
 		}
@@ -340,6 +351,9 @@ func (s *Svc) creaEnvio(ctx context.Context, cid, fid uuid.UUID, competicion str
 				return nil
 			}
 		}
+		if fm.Estado == "cerrado" {
+			return envioCerrado()
+		}
 		if !confirmado {
 			reciente, err := envioReciente(ctx, tx, fid, huella)
 			if err != nil {
@@ -351,9 +365,6 @@ func (s *Svc) creaEnvio(ctx context.Context, cid, fid uuid.UUID, competicion str
 					CreatedAt:    reciente.createdAt,
 				}
 			}
-		}
-		if fm.Estado == "cerrado" {
-			return problem.Conflict("FORMULARIO_CERRADO", "Este formulario está cerrado: ábrelo antes de enviarlo.")
 		}
 		atletas, err := s.audiencia(ctx, tx, cid, fid, f)
 		if err != nil {
@@ -398,7 +409,16 @@ func (s *Svc) creaEnvio(ctx context.Context, cid, fid uuid.UUID, competicion str
 		if _, err := tx.Exec(ctx, `UPDATE formulario_envios SET omitidos = $2 WHERE id = $1`, envioID, omitidos); err != nil {
 			return err
 		}
-		if fm.Estado == "borrador" {
+		// Último paso: el formulario se bloquea (FOR UPDATE) y se relee el estado. Si se cerró mientras se construía el envío,
+		// la transacción se deshace entera (destinatarios, entregas y outbox incluidos).
+		actual, err := leeFormulario(ctx, tx, cid, fid, bloqueoExclusivo)
+		if err != nil {
+			return err
+		}
+		if actual.Estado == "cerrado" {
+			return envioCerrado()
+		}
+		if actual.Estado == "borrador" {
 			if _, err := tx.Exec(ctx, `UPDATE formularios SET estado = 'activo', updated_at = now() WHERE id = $1`, fid); err != nil {
 				return err
 			}
@@ -556,8 +576,13 @@ func envioPorClave(ctx context.Context, tx pgx.Tx, fid uuid.UUID, clave string) 
 	return &e, nil
 }
 
+// envioCerrado es el 409 FORMULARIO_CERRADO de un envío (lo devuelve creaEnvio en dos momentos: antes y al final).
+func envioCerrado() *problem.Error {
+	return problem.Conflict("FORMULARIO_CERRADO", "Este formulario está cerrado: ábrelo antes de enviarlo.")
+}
+
 // envioReciente devuelve el envío más reciente del formulario con la misma huella y de hace menos de dos minutos (nil si
-// no hay ninguno). Lo que se consulta aquí se serializa con el FOR UPDATE de creaEnvio.
+// no hay ninguno). Lo que se consulta aquí se serializa con el advisory lock de creaEnvio (mismo formulario).
 func envioReciente(ctx context.Context, tx pgx.Tx, fid uuid.UUID, huella string) (*envioBreve, error) {
 	var e envioBreve
 	err := tx.QueryRow(ctx, `SELECT id, huella, created_at FROM formulario_envios

@@ -183,7 +183,7 @@ export class BoEnvioDialogo {
     });
     if (!ok) return;
     // Otro envío (canales o filtro distintos) lleva otra clave: con la misma, el servidor respondería 422 CLAVE_REUTILIZADA.
-    const firma = JSON.stringify([[...canales].sort(), [...(filtro.estados ?? [])].sort(), !!filtro.soloSinResponder]);
+    const firma = JSON.stringify([[...canales].sort(), [...(filtro.estados ?? [])].sort(), [...(filtro.atletas ?? [])].sort(), !!filtro.soloSinResponder]);
     if (firma !== this.claveFirma) {
       this.clave = nuevoUuid();
       this.claveFirma = firma;
