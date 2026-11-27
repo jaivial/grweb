@@ -239,7 +239,6 @@ refuse_if_legacy_running() {
   n=$(docker ps --filter label=com.docker.compose.project=grcup-h --filter status=running -q | wc -l)
   [ "$n" -eq 0 ] || die "el legado grcup-h tiene $n contenedores en marcha: no se despliega. Para parar lo que quede: docker compose -p grcup-h stop (NUNCA up: lo levantó en paralelo el 27-nov 17:02 y rompió el corte)"
 }
-}
 
 # Liberar el color que deja de ser vivo: solo tras el drenaje (clientes SSE/WS reconectan con Last-Event-ID).
 drain_and_stop() { # <web-anterior|""> <api-anterior|"">
