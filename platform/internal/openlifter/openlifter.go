@@ -72,6 +72,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.register()
 	s.registerPadron()
 	s.registerPreparadas()
+	s.registerHorario()
 	return nil
 }
 
