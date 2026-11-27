@@ -1272,7 +1272,10 @@ export class SolicitudesPage {
       await this.cargar();
       await this.recargarDetalle();
     } catch (e) {
+      // The alert of the conflict (412) and of the reason (422) lives in the panel: the dialog has to go, or the
+      // message stays behind the overlay and the rejection looks like it hung.
       this.gestionarError(e);
+      this.dialogo.set(null);
     } finally {
       this.ocupado.set(false);
     }
