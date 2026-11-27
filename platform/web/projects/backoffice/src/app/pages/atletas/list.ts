@@ -15,6 +15,7 @@ import { AtletasApi, HANDLING, cat, diaFecha, type ItemLista, type Lista } from 
 import { AccionNecesariaDialogo } from './accion-necesaria';
 import { PerfilExisteDialogo } from './perfil-existe';
 import { tabEnUrl } from '../../shared/tab-url';
+import { estadoCorto } from './padron-model';
 
 type Pestana = 'todos' | 'confirmados' | 'reserva' | 'bajas' | 'incidencias' | 'handling';
 
@@ -127,6 +128,12 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                 </gr-select>
               }
               <bo-toggle-row label="Perfil incompleto" description="Solo atletas con el perfil público sin completar" [value]="incompletos()" (changed)="incompletos.set($event); recargar(1)" />
+              <gr-select tipo="campo" [ngModel]="padronFiltro()" (ngModelChange)="padronFiltro.set($event); recargar(1)" aria-label="Coincidencia con el padrón AEP">
+                <option value="">Padrón AEP: cualquiera</option>
+                <option value="parcial">Parcial · revisar</option>
+                <option value="sin">Sin coincidencia</option>
+                <option value="error">Error de la IA</option>
+              </gr-select>
               <gr-select tipo="campo" [ngModel]="handling()" (ngModelChange)="handling.set($event); recargar(1)" aria-label="Handling">
                 <option value="">Handling: cualquiera</option>
                 <option value="solicitado">Handling solicitado (pendiente)</option>
@@ -155,6 +162,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                     <th class="w-32 px-3 py-3 font-normal">Estado AEP</th>
                     @if (pestana() === 'incidencias') { <th class="w-40 px-3 py-3 font-normal">Perfil público</th> } @else { <th boSort class="w-40 py-3" [sort]="sortDe('completo')" (toggle)="ordenar('completo')">Perfil público</th> }
                     <th class="w-24 px-3 py-3 font-normal">Imagen</th>
+                    <th class="w-24 px-3 py-3 font-normal">Padrón</th>
                     <th class="w-24 px-3 py-3 font-normal">Handling</th>
                     <th class="w-24 px-3 py-3 text-right font-normal">Seguidores</th>
                     <th [class]="pestana() === 'incidencias' ? 'w-36' : 'w-12'"><span class="sr-only">Acciones</span></th>
@@ -182,6 +190,10 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                       <td class="px-3 py-3"><span class="flex items-center gap-2"><span class="h-1.5 flex-1 rounded-pill bg-bg-raised"><span class="block h-full rounded-pill" [class]="a.completo >= 70 ? 'bg-success' : 'bg-warning'" [style.width.%]="a.completo"></span></span><span class="w-10 text-right text-mono-xs text-text-secondary">{{ a.completo }} %</span></span></td>
                       <td class="px-3 py-3 text-body-s" [class]="imagen[a.imagen].cls">{{ imagen[a.imagen].label }}</td>
                       <td class="px-3 py-3">
+                        @if (padron(a).tone === 'neutral') { <span class="text-text-muted" title="Sin coincidencia con el padrón AEP">–</span> }
+                        @else { <gr-badge [tone]="padron(a).tone" [title]="'Padrón AEP: ' + padron(a).l">{{ padron(a).l }}</gr-badge> }
+                      </td>
+                      <td class="px-3 py-3">
                         @if (a.handling; as h) { <gr-badge [tone]="HANDLING[h.estado].tone" [title]="'Handling ' + HANDLING[h.estado].l"><span class="sr-only">Handling </span>SÍ</gr-badge> }
                         @else { <span class="text-text-muted">–</span> }
                       </td>
@@ -193,8 +205,8 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                       </td>
                     </tr>
                   } @empty {
-                    @if (cargando()) { <tr><td colspan="12"><bo-skeleton class="[&>div]:rounded-none [&>div]:border-0" /></td></tr> }
-                    @else { <tr><td colspan="12" class="p-4"><bo-empty-state class="border-0" [kind]="filtrado() ? 'no-results' : 'no-data'" [title]="filtrado() ? 'Ningún atleta coincide con estos filtros' : 'Todavía no hay atletas'" [text]="filtrado() ? 'Prueba con otro nombre o limpia los filtros.' : 'Importa el acta de la AEP para empezar.'" /></td></tr> }
+                    @if (cargando()) { <tr><td colspan="13"><bo-skeleton class="[&>div]:rounded-none [&>div]:border-0" /></td></tr> }
+                    @else { <tr><td colspan="13" class="p-4"><bo-empty-state class="border-0" [kind]="filtrado() ? 'no-results' : 'no-data'" [title]="filtrado() ? 'Ningún atleta coincide con estos filtros' : 'Todavía no hay atletas'" [text]="filtrado() ? 'Prueba con otro nombre o limpia los filtros.' : 'Importa el acta de la AEP para empezar.'" /></td></tr> }
                   }
                 </tbody>
               </table>
@@ -210,6 +222,7 @@ const IMAGEN: Record<ItemLista['imagen'], { label: string; cls: string }> = {
                     </span>
                     <span class="flex shrink-0 flex-col items-end gap-1">
                       @if (a.handling; as h) { <gr-badge [tone]="HANDLING[h.estado].tone" [title]="'Handling ' + HANDLING[h.estado].l">Handling</gr-badge> }
+                      @if (a.padron.estado === 'parcial' || a.padron.origen === 'error_ia') { <gr-badge [tone]="padron(a).tone" title="Padrón AEP">Padrón: {{ padron(a).l }}</gr-badge> }
                       @if (a.incidencias && a.estado !== 'baja') { <gr-badge tone="warning">Revisar</gr-badge> } @else { <gr-badge [tone]="estado[a.estado].tone">{{ estado[a.estado].label }}</gr-badge> }
                     </span>
                   </a>
@@ -315,6 +328,9 @@ export class AtletasPage {
   protected readonly incompletos = signal(false);
   /** «Handling» filter: solicitado · aprobado · rechazado · cualquiera (empty). */
   protected readonly handling = signal('');
+  /** «Coincidencia AEP»: parcial (revisar) · sin · error de la IA · cualquiera (empty). */
+  protected readonly padronFiltro = signal('');
+  protected readonly padron = (a: ItemLista) => estadoCorto(a.padron ?? { estado: 'sin' });
   protected readonly HANDLING = HANDLING;
   protected readonly row = BO_ROW;
   protected readonly filtrado = computed(() => this.nFiltros() > 0);
@@ -322,9 +338,9 @@ export class AtletasPage {
   protected readonly filtros = signal(false);
   /** Exportar / Importar live in the «⋯» panel. */
   protected readonly acciones = signal(false);
-  protected readonly nFiltros = computed(() => [this.q(), this.sexo(), this.categoria(), this.jornada(), this.incompletos(), this.handling()].filter(Boolean).length);
+  protected readonly nFiltros = computed(() => [this.q(), this.sexo(), this.categoria(), this.jornada(), this.incompletos(), this.handling(), this.padronFiltro()].filter(Boolean).length);
   protected limpiar(): void {
-    this.q.set(''); this.sexo.set(''); this.categoria.set(''); this.jornada.set(''); this.incompletos.set(false); this.handling.set('');
+    this.q.set(''); this.sexo.set(''); this.categoria.set(''); this.jornada.set(''); this.incompletos.set(false); this.handling.set(''); this.padronFiltro.set('');
     void this.router.navigate([], { relativeTo: this.route, queryParams: { q: null }, queryParamsHandling: 'merge', replaceUrl: true });
     this.recargar(1);
   }
@@ -454,7 +470,7 @@ export class AtletasPage {
       } else {
         this.lista.set(await this.api.lista(cid, {
           pestana: this.pestana(), q: this.q(), sexo: this.sexo(), categoria: this.categoria(), jornada: this.jornada(), perfil: this.incompletos() ? 'incompleto' : '',
-          handling: this.handling(), orden: this.orden(), dir: this.dir(), pagina, por: this.por,
+          handling: this.handling(), padron: this.padronFiltro(), orden: this.orden(), dir: this.dir(), pagina, por: this.por,
         }));
       }
     } catch (e) {
@@ -501,7 +517,7 @@ export class AtletasPage {
     try {
       // The file repeats exactly what the table shows: tab, filters, search and order (or only the selection).
       const filtros = { pestana: this.pestana(), q: this.q().trim(), sexo: this.sexo(), categoria: this.categoria(), jornada: this.jornada(),
-        perfil: this.incompletos() ? 'incompleto' : '', handling: this.handling(), orden: this.orden(), dir: this.dir() };
+        perfil: this.incompletos() ? 'incompleto' : '', handling: this.handling(), padron: this.padronFiltro(), orden: this.orden(), dir: this.dir() };
       await this.api.exportar(cid, ids, ids.length ? {} : filtros);
     } catch (e) {
       this.toasts.error('No se pudo exportar', errText(e));

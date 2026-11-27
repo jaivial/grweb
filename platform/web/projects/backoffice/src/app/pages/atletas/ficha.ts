@@ -14,6 +14,8 @@ import { PerfilExisteDialogo } from './perfil-existe';
 import { BoDatePicker } from '../../shared/kit';
 import { ESTADO } from './list';
 import { ESTADO_MSG, EmailsApi, type Salida } from '../emails/api';
+import { PadronMatch } from './padron-match';
+import { estadoPadron, personaDeAtleta } from './padron-model';
 import { tabEnUrl } from '../../shared/tab-url';
 
 type Tab = 'perfil' | 'competicion' | 'comunicaciones' | 'historial';
@@ -23,7 +25,7 @@ const PUBLIC_WEB = webPublica();
 /** Athlete record (Figma page 55 · «Atletas · ficha (perfil público)»). */
 @Component({
   selector: 'bo-atleta-ficha',
-  imports: [AccionNecesariaDialogo, PerfilExisteDialogo, BoDatePicker, BoTabsMovil, GrSelect, GrTelefono, FormsModule, RouterLink, BoCount, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
+  imports: [PadronMatch, AccionNecesariaDialogo, PerfilExisteDialogo, BoDatePicker, BoTabsMovil, GrSelect, GrTelefono, FormsModule, RouterLink, BoCount, BoToggle, GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrInput, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let a = atleta();
@@ -38,7 +40,8 @@ const PUBLIC_WEB = webPublica();
               <span>{{ comps.current()?.nombreCorto }}</span><gr-icon name="chevron-right" [size]="12" /><span>Evento</span><gr-icon name="chevron-right" [size]="12" />
               <a routerLink=".." class="hover:text-text-primary">Atletas</a><gr-icon name="chevron-right" [size]="12" /><span class="text-text-secondary">{{ a.nombreCompleto }}</span>
             </nav>
-            <h1 class="mt-2 flex flex-wrap items-center gap-3 text-ui-h2">{{ a.nombreCompleto }} <gr-badge [tone]="estado[a.estado].tone">{{ estado[a.estado].label }}</gr-badge></h1>
+            <h1 class="mt-2 flex flex-wrap items-center gap-3 text-ui-h2">{{ a.nombreCompleto }} <gr-badge [tone]="estado[a.estado].tone">{{ estado[a.estado].label }}</gr-badge>
+              <gr-badge [tone]="padronTag().tone" [title]="'Padrón AEP'">{{ padronTag().l }}</gr-badge></h1>
             <p class="mt-1 text-body-s text-text-tertiary">{{ subtitulo() }}</p>
           </div>
           <div class="flex flex-wrap gap-2">
@@ -251,23 +254,29 @@ const PUBLIC_WEB = webPublica();
           }
           @case ('competicion') {
             <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_312px]">
-              <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
-                <h2 class="text-ui-h5">Datos de competición</h2>
-                <p class="mt-0.5 text-body-xs text-text-tertiary">Vienen del acta de la AEP{{ a.origen === 'manual' ? ' (este atleta se añadió a mano)' : '' }}: si los cambias aquí, el acta siguiente puede volver a cambiarlos.</p>
-                <div class="mt-4 grid gap-4 md:grid-cols-2">
-                  <gr-field label="Nombre" for="d-n"><input grInput id="d-n" [(ngModel)]="d.nombre" [disabled]="!canEdit()" /></gr-field>
-                  <gr-field label="Apellidos" for="d-a"><input grInput id="d-a" [(ngModel)]="d.apellidos" [disabled]="!canEdit()" /></gr-field>
-                  <gr-field label="Licencia AEP" for="d-l" [error]="errLicencia()"><input grInput id="d-l" [(ngModel)]="d.licencia" (ngModelChange)="errLicencia.set('')" [invalid]="!!errLicencia()" [attr.aria-describedby]="errLicencia() ? 'd-l-error' : null" [disabled]="!canEdit()" /></gr-field>
-                  <gr-field label="Fecha de nacimiento" for="d-f" [hint]="a.edad !== undefined ? a.edad + ' años el día de la competición' : null"><bo-date-picker tipo="date" id="d-f" [(ngModel)]="d.fechaNacimiento" [disabled]="!canEdit()" /></gr-field>
-                  <gr-field label="Sexo" for="d-s"><gr-select id="d-s" [(ngModel)]="d.sexo" [disabled]="!canEdit()"><option value="F">Femenino</option><option value="M">Masculino</option></gr-select></gr-field>
-                  <gr-field label="Categoría de peso" for="d-c"><gr-select id="d-c" [(ngModel)]="d.categoria" [disabled]="!canEdit()">@if (!d.categoria) { <option value="">Sin categoría</option> }@for (c of categorias(); track c) { <option [value]="c">{{ cat(c) }} kg</option> }@if (d.categoria && !categorias().includes(d.categoria)) { <option [value]="d.categoria">{{ d.categoria }} (no válida)</option> }</gr-select></gr-field>
-                  <gr-field label="División" for="d-d"><gr-select id="d-d" [(ngModel)]="d.division" [disabled]="!canEdit()">@for (v of divisiones; track v.value) { <option [value]="v.value">{{ v.label }}</option> }</gr-select></gr-field>
-                  <gr-field label="Estado" for="d-e"><gr-select id="d-e" [(ngModel)]="d.estado" [disabled]="!canEdit()"><option value="confirmado">Confirmado</option><option value="reserva">Reserva</option><option value="baja">Baja</option></gr-select></gr-field>
-                  <gr-field label="Competición" for="d-p"><gr-select id="d-p" aria-label="Competición" [(ngModel)]="d.prueba" [disabled]="!canEdit()"><option value="">Aún no lo sabe</option><option value="aep2">AEP-2</option><option value="aep3">AEP-3</option></gr-select></gr-field>
-                  <gr-field label="Club" for="d-club"><input grInput id="d-club" [(ngModel)]="d.club" [disabled]="!canEdit()" /></gr-field>
-                  <gr-field label="Ciudad" for="d-city"><input grInput id="d-city" [(ngModel)]="d.ciudad" [disabled]="!canEdit()" /></gr-field>
-                </div>
-              </section>
+              <div class="flex min-w-0 flex-col gap-6">
+                <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                  <bo-padron-match [cid]="comps.current()?.id ?? ''" [atletaId]="a.id" [persona]="persona()" [canEdit]="canEdit()"
+                    [atletaVersion]="a.version" (cambiado)="cargar(true)" />
+                </section>
+                <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
+                  <h2 class="text-ui-h5">Datos de competición</h2>
+                  <p class="mt-0.5 text-body-xs text-text-tertiary">Vienen del acta de la AEP{{ a.origen === 'manual' ? ' (este atleta se añadió a mano)' : '' }}: si los cambias aquí, el acta siguiente puede volver a cambiarlos.</p>
+                  <div class="mt-4 grid gap-4 md:grid-cols-2">
+                    <gr-field label="Nombre" for="d-n"><input grInput id="d-n" [(ngModel)]="d.nombre" [disabled]="!canEdit()" /></gr-field>
+                    <gr-field label="Apellidos" for="d-a"><input grInput id="d-a" [(ngModel)]="d.apellidos" [disabled]="!canEdit()" /></gr-field>
+                    <gr-field label="Licencia AEP" for="d-l" [error]="errLicencia()"><input grInput id="d-l" [(ngModel)]="d.licencia" (ngModelChange)="errLicencia.set('')" [invalid]="!!errLicencia()" [attr.aria-describedby]="errLicencia() ? 'd-l-error' : null" [disabled]="!canEdit()" /></gr-field>
+                    <gr-field label="Fecha de nacimiento" for="d-f" [hint]="a.edad !== undefined ? a.edad + ' años el día de la competición' : null"><bo-date-picker tipo="date" id="d-f" [(ngModel)]="d.fechaNacimiento" [disabled]="!canEdit()" /></gr-field>
+                    <gr-field label="Sexo" for="d-s"><gr-select id="d-s" [(ngModel)]="d.sexo" [disabled]="!canEdit()"><option value="F">Femenino</option><option value="M">Masculino</option></gr-select></gr-field>
+                    <gr-field label="Categoría de peso" for="d-c"><gr-select id="d-c" [(ngModel)]="d.categoria" [disabled]="!canEdit()">@if (!d.categoria) { <option value="">Sin categoría</option> }@for (c of categorias(); track c) { <option [value]="c">{{ cat(c) }} kg</option> }@if (d.categoria && !categorias().includes(d.categoria)) { <option [value]="d.categoria">{{ d.categoria }} (no válida)</option> }</gr-select></gr-field>
+                    <gr-field label="División" for="d-d"><gr-select id="d-d" [(ngModel)]="d.division" [disabled]="!canEdit()">@for (v of divisiones; track v.value) { <option [value]="v.value">{{ v.label }}</option> }</gr-select></gr-field>
+                    <gr-field label="Estado" for="d-e"><gr-select id="d-e" [(ngModel)]="d.estado" [disabled]="!canEdit()"><option value="confirmado">Confirmado</option><option value="reserva">Reserva</option><option value="baja">Baja</option></gr-select></gr-field>
+                    <gr-field label="Competición" for="d-p"><gr-select id="d-p" aria-label="Competición" [(ngModel)]="d.prueba" [disabled]="!canEdit()"><option value="">Aún no lo sabe</option><option value="aep2">AEP-2</option><option value="aep3">AEP-3</option></gr-select></gr-field>
+                    <gr-field label="Club" for="d-club"><input grInput id="d-club" [(ngModel)]="d.club" [disabled]="!canEdit()" /></gr-field>
+                    <gr-field label="Ciudad" for="d-city"><input grInput id="d-city" [(ngModel)]="d.ciudad" [disabled]="!canEdit()" /></gr-field>
+                  </div>
+                </section>
+              </div>
               <aside class="flex flex-col gap-6">
                 <section class="rounded-lg border border-line-subtle bg-bg-card p-5">
                   <h2 class="text-ui-h5">Pesaje</h2>
@@ -422,6 +431,12 @@ export class AtletaFichaPage {
   protected whatsapp = false;
 
   protected readonly canEdit = computed(() => this.auth.can(this.comps.current()?.id, 'atletas.editar'));
+  /** La coincidencia con el padrón AEP, para la etiqueta de la cabecera (la sección la lee entera). */
+  protected readonly padronTag = computed(() => estadoPadron(this.atleta()?.padron ?? { estado: 'sin' }));
+  protected readonly persona = computed(() => {
+    const a = this.atleta();
+    return a ? personaDeAtleta(a) : { nombre: '', apellidos: '', sexo: '', categoria: '', division: '', nivel: '' };
+  });
   protected readonly canWeigh = computed(() => this.auth.can(this.comps.current()?.id, 'checkin.escanear') || this.canEdit());
   /** The outbox of messaging needs its own permission. */
   protected readonly puedeVerComs = computed(() => this.auth.can(this.comps.current()?.id, 'campanas.enviar'));

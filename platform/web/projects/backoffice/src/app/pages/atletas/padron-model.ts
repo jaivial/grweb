@@ -1,0 +1,135 @@
+import { cat, type Atleta } from './api';
+import type { SolicitudDetalle } from './solicitudes-api';
+import type { GrTone } from '@grcup/ui';
+
+/** Estado de la coincidencia de un atleta con el padrón de la AEP (lo que guarda el emparejamiento). */
+export type EstadoPadron = 'sin' | 'auto' | 'parcial' | 'manual' | 'confirmada' | 'descartada';
+
+/** Una fila del padrón AEP (inscripciones_aep). */
+export interface FilaPadron {
+  id: string;
+  nombre: string;
+  apellidos: string;
+  sexo: 'F' | 'M';
+  anio: number;
+  club?: string;
+  division: string;
+  equipamiento: 'raw' | 'equipado';
+  categoria: string;
+  totalAnterior?: number;
+  openlifterLifterId?: number;
+  atletaId?: string;
+  estadoEnlace: 'pendiente' | 'auto' | 'sugerido' | 'manual' | 'rechazado';
+  nivel: string;
+}
+
+/** Diferencia entre lo declarado y la fila del padrón (la calcula el servidor, en código). */
+export interface DiscrepanciaPadron {
+  campo: 'sexo' | 'anio' | 'categoria' | 'division' | 'nivel';
+  solicitud: string;
+  padron: string;
+}
+
+export interface DetallePadron {
+  coincide: Record<string, boolean>;
+  discrepancias: DiscrepanciaPadron[];
+  nivelAep: string[];
+  notasIa: string[];
+  motivo: string;
+}
+
+/** Una decisión del registro de emparejamientos. */
+export interface LogPadron {
+  id: string;
+  inscripcionId?: string;
+  decision: string;
+  origen: string;
+  confianza?: number;
+  modelo: string;
+  aplicadoPor: string;
+  createdAt: string;
+}
+
+/** La coincidencia de una solicitud (o de un atleta) con el padrón. */
+export interface EmparejamientoPadron {
+  estado: EstadoPadron;
+  origen: string;
+  confianza?: number;
+  inscripcion?: FilaPadron;
+  detalle: DetallePadron;
+  log: LogPadron[];
+  /** El alta de la que salió el atleta (la ficha la usa para reintentar y para el registro). */
+  solicitudId?: string;
+}
+
+/** Los datos de la persona tal como los compara el emparejamiento. */
+export interface PersonaPadron {
+  nombre: string;
+  apellidos: string;
+  sexo: string;
+  anio?: number;
+  club?: string;
+  categoria: string;
+  division: string;
+  nivel: string;
+}
+
+/** Estado compacto de la coincidencia, como lo devuelven la lista y la cabecera de la ficha. */
+export interface PadronEstado {
+  estado: EstadoPadron;
+  origen?: string;
+  confianza?: number;
+}
+
+/** Texto y color de cada estado: verde enlazado, ámbar parcial, gris sin coincidencia, rojo error de la IA. */
+export const PADRON: Record<EstadoPadron, { l: string; tone: GrTone }> = {
+  auto: { l: 'Enlazado', tone: 'success' },
+  confirmada: { l: 'Confirmado', tone: 'success' },
+  parcial: { l: 'Parcial · revisar', tone: 'warning' },
+  manual: { l: 'Sin coincidencia', tone: 'neutral' },
+  descartada: { l: 'Descartada · revisar', tone: 'neutral' },
+  sin: { l: 'Sin coincidencia', tone: 'neutral' },
+};
+
+/** Etiqueta del estado con la confianza y el aviso de que la IA falló (que no es lo mismo que «no hay nadie»). */
+export function estadoPadron(e: { estado: EstadoPadron; origen?: string; confianza?: number }): { l: string; tone: GrTone } {
+  const p = PADRON[e.estado] ?? PADRON.sin;
+  if (e.origen === 'error_ia' && (e.estado === 'parcial' || e.estado === 'manual')) return { l: 'Error IA · revisar', tone: 'danger' };
+  if (!e.confianza || (e.estado !== 'auto' && e.estado !== 'parcial' && e.estado !== 'confirmada')) return p;
+  const pct = Math.round(e.confianza * 100);
+  return { l: `${p.l} · ${pct} %`, tone: p.tone };
+}
+
+/** La misma etiqueta, corta, para la columna de la lista de atletas. */
+export function estadoCorto(e: { estado: EstadoPadron; origen?: string }): { l: string; tone: GrTone } {
+  const p = PADRON[e.estado] ?? PADRON.sin;
+  if (e.origen === 'error_ia') return { l: 'Error IA', tone: 'danger' };
+  return { l: { auto: 'Auto', confirmada: 'Staff', parcial: 'Parcial', manual: 'Sin', descartada: 'Sin', sin: 'Sin' }[e.estado ?? 'sin'] ?? 'Sin', tone: p.tone };
+}
+
+/** Etiqueta de una decisión del registro. */
+export const DECISION: Record<string, string> = {
+  auto: 'Enlazado solo', parcial: 'Parcial', confirmada: 'Confirmada', descartada: 'Descartada', manual: 'Sin candidato',
+  sugerido: 'Propuesta', aceptado: 'Aceptada', corregido: 'Corregida', rechazado: 'Rechazada',
+};
+export const ORIGEN: Record<string, string> = {
+  exacto: 'sin IA', ia: 'IA', error_ia: 'error de la IA', sin_candidatos: 'sin candidatos', staff: 'equipo', revision: 'revisión',
+};
+
+const anio = (f?: string) => (f ? Number(String(f).slice(0, 4)) || undefined : undefined);
+
+/** La persona de una solicitud de alta (los datos que se comparan con el padrón). */
+export function personaDeSolicitud(d: SolicitudDetalle): PersonaPadron {
+  return { nombre: d.nombre, apellidos: d.apellidos, sexo: d.sexo, anio: anio(d.fechaNacimiento), club: d.club,
+    categoria: d.categoria, division: '', nivel: d.prueba };
+}
+
+/** La persona de un atleta (su ficha) para compararla con el padrón. */
+export function personaDeAtleta(a: Atleta): PersonaPadron {
+  return { nombre: a.nombre, apellidos: a.apellidos, sexo: a.sexo, anio: anio(a.fechaNacimiento), club: a.club,
+    categoria: a.categoria, division: a.division, nivel: a.prueba };
+}
+
+/** «−63» o «AEP-2» listos para leer. */
+export const nivelTexto = (n: string) => (n ? n.toUpperCase().replace('AEP', 'AEP-') : '—');
+export const categoriaTexto = (c: string) => (c ? `${cat(c)} kg` : '—');

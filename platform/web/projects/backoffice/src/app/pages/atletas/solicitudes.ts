@@ -20,6 +20,8 @@ import { CAMPOS, CONSENTIMIENTOS, MATCH, estadoDe, matchTone, matchTxt, nombreCo
 import { SolicitudesLista } from './solicitudes-lista';
 import { SolicitudesDialogo } from './solicitudes-dialogo';
 import { SolicitudesCupos } from './solicitudes-cupos';
+import { PadronMatch } from './padron-match';
+import { personaDeSolicitud } from './padron-model';
 
 type Pestana = 'todas' | 'pendiente' | 'revision' | 'menor' | 'aprobada' | 'rechazada';
 type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
@@ -30,7 +32,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
  */
 @Component({
   selector: 'bo-solicitudes',
-  imports: [A11yModule, FormsModule, RouterLink, SolicitudesLista, SolicitudesDialogo, SolicitudesCupos, BoPageHeader, BoTabs, BoSheet, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, GrSkeleton],
+  imports: [A11yModule, FormsModule, RouterLink, PadronMatch, SolicitudesLista, SolicitudesDialogo, SolicitudesCupos, BoPageHeader, BoTabs, BoSheet, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'onEscape($event)' },
   template: `
@@ -472,6 +474,11 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
 
           @if (esAlta()) {
           <section>
+            <bo-padron-match [cid]="cid()" [solicitudId]="d.id" [version]="d.version" [persona]="personaPadron()" [canEdit]="puede()"
+              (cambiado)="recargarDetalle()" />
+          </section>
+
+          <section>
             <h3 class="text-label-xs text-text-muted uppercase">Coincidencia y enlazado</h3>
             <div class="mt-2 flex flex-wrap items-center gap-2">
               <gr-badge [tone]="matchTone(d.match)">{{ match(d.match) }}</gr-badge>
@@ -747,6 +754,11 @@ export class SolicitudesPage {
   /** A sign-up from the public form (photo, fields, match, consents, edits). */
   protected readonly esAlta = computed(() => !this.esCambio() && !this.esAutorizacion() && !this.esHandling());
   protected readonly valorTexto = valorTexto;
+  /** Los datos de la solicitud tal como se comparan con el padrón AEP. */
+  protected readonly personaPadron = computed(() => {
+    const d = this.detalle();
+    return d ? personaDeSolicitud(d) : { nombre: '', apellidos: '', sexo: '', categoria: '', division: '', nivel: '' };
+  });
   protected esPdf(url: string): boolean {
     return /\.pdf($|[?#])/i.test(url);
   }
