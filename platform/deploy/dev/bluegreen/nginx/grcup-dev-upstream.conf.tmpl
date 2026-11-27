@@ -10,3 +10,14 @@ upstream grcup_api {
     server 127.0.0.1:@API_PORT@;
     keepalive 16;
 }
+
+# Comprobación por contenido de la recarga (lib.sh, nginx_reload_ok): responde los colores que esta config lleva.
+server {
+    listen 127.0.0.1:18398;
+    server_name _;
+    location = /__color {
+        default_type text/plain;
+        return 200 "web=@WEB_COLOR@ api=@API_COLOR@\n";
+    }
+    location / { return 404; }
+}

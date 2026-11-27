@@ -24,6 +24,7 @@ declare -A PORT_CHAT=([blue]=18302 [green]=18312)
 declare -A PORT_CHAT_LOAD=([blue]=18301 [green]=18311)
 declare -A PORT_WEB=([blue]=4200 [green]=4201)
 SSR_API_PORT=18399
+COLOR_CHECK_PORT=18398
 
 # Rutas del compose y versión de la fuente desplegada (las fija checkout_src; por defecto, el HEAD de DEPLOY_SRC).
 if [ -e "$DEPLOY_SRC/.git" ]; then
@@ -181,7 +182,8 @@ ssr_stop() { systemctl --user stop "grcup-dev-web@$1.service" >/dev/null 2>&1 ||
 render_upstream() { # <color-web> <color-api> → ruta de un fichero temporal con el upstream
   local f
   f=$(mktemp)
-  sed -e "s/@WEB_PORT@/${PORT_WEB[$1]}/" -e "s/@API_PORT@/${PORT_GW[$2]}/" "$BG_DIR/nginx/grcup-dev-upstream.conf.tmpl" > "$f"
+  sed -e "s/@WEB_PORT@/${PORT_WEB[$1]}/" -e "s/@API_PORT@/${PORT_GW[$2]}/" -e "s/@WEB_COLOR@/$1/" -e "s/@API_COLOR@/$2/" \
+    "$BG_DIR/nginx/grcup-dev-upstream.conf.tmpl" > "$f"
   printf '%s\n' "$f"
 }
 
@@ -196,35 +198,47 @@ nginx_prepare() {
   systemctl is-active --quiet nginx || die "nginx no está activo bajo systemd: no se conmuta (revísalo a mano, no arrancar nginx a mano)"
   [ "$(systemctl show -p MainPID --value nginx)" != 0 ] || die "nginx sin MainPID de systemd"
   sudo chown root:root "$NGINX_DIR"
-  sudo semanage port -a -t http_port_t -p tcp "$SSR_API_PORT" 2>/dev/null \
-    || sudo semanage port -m -t http_port_t -p tcp "$SSR_API_PORT" 2>/dev/null || true
+  for p in "$SSR_API_PORT" "$COLOR_CHECK_PORT"; do
+    sudo semanage port -a -t http_port_t -p tcp "$p" 2>/dev/null \
+      || sudo semanage port -m -t http_port_t -p tcp "$p" 2>/dev/null || true
+  done
   if [ "$(getsebool httpd_can_network_connect | awk '{print $3}')" != on ]; then
     sudo setsebool -P httpd_can_network_connect on
   fi
   sudo restorecon -R /etc/nginx
 }
 
-# nginx -t, recarga por systemd, unidad activa y listener de la config nueva. Falso = la config no está cargada.
-nginx_reload_ok() {
+# Lo que sirve nginx ahora mismo en el puerto de comprobación ("web=<c> api=<c>"); vacío si no responde.
+color_served() { curl -s -m 2 "http://127.0.0.1:${COLOR_CHECK_PORT}/__color" 2>/dev/null || true; }
+
+# nginx -t, recarga por systemd, unidad activa y, por contenido, que sirve el par de colores pedido. La recarga es
+# asíncrona (workers nuevos, los viejos drenan): se sondea cada 0.25 s hasta 10 s. Sin argumento solo recarga.
+nginx_reload_ok() { # [<"web=<c> api=<c>">]
   sudo nginx -t >/dev/null 2>&1 || { log "nginx -t falla"; return 1; }
   sudo systemctl reload nginx || { log "systemctl reload nginx falló"; return 1; }
-  sleep 1
   systemctl is-active --quiet nginx || { log "nginx no está activo tras recargar"; return 1; }
-  ss -ltn | grep -q "127.0.0.1:${SSR_API_PORT} " || { log "la config nueva no cargó (sin listener ${SSR_API_PORT})"; return 1; }
+  [ -n "${1:-}" ] || return 0
+  for _ in $(seq 40); do
+    [ "$(color_served)" = "$1" ] && return 0
+    sleep 0.25
+  done
+  log "la config nueva no cargó: se esperaba «$1», sirve «$(color_served)»"
+  return 1
 }
 
 # Pone las puertas en estos colores: escribe, valida, recarga por systemd y comprueba. Si algo falla, restaura el anterior.
 nginx_apply() { # <web> <api>
-  local new prev
+  local new prev prev_served
   nginx_prepare
+  prev_served=$(color_served)
   new=$(render_upstream "$1" "$2")
   prev=$(mktemp)
   sudo cat "$UPSTREAM_CONF" > "$prev" 2>/dev/null || : > "$prev"
   nginx_put "$new" "$UPSTREAM_CONF"
   rm -f "$new"
-  if ! nginx_reload_ok; then
+  if ! nginx_reload_ok "web=$1 api=$2"; then
     nginx_put "$prev" "$UPSTREAM_CONF"
-    nginx_reload_ok || true
+    nginx_reload_ok "$prev_served" || true
     rm -f "$prev"
     log "nginx rechaza web=$1 api=$2: upstream anterior restaurado"
     return 1

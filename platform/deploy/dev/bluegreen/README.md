@@ -53,7 +53,7 @@ son los del checkout desde el que se ejecutan. El compose y el código salen del
    `Host: grcup-qa.menustudioai.com` 200. Antes de arrancar el inactivo, Postgres tiene que tener ~80 conexiones libres
    (`max_connections=200`: dos colores en el solape). Si falla, para lo nuevo y sale con código ≠ 0. El vivo no se toca.
 4. Conmutación: se reescribe el upstream (root, `restorecon`), `nginx -t`, `systemctl reload nginx` (nginx tiene que estar bajo systemd), y se comprueba que la config nueva cargó
-   (listener 127.0.0.1:18399). Si falla algo, se restaura el upstream anterior. Después se comprueba el borde
+   (`GET http://127.0.0.1:18398/__color` devuelve el par de colores pedido, sondeo de 10 s). Si falla algo, se restaura el upstream anterior. Después se comprueba el borde
    (`https://grcup-qa…/` y `/api/competiciones/grcup`). Si falla, vuelve el color anterior.
 5. Backoffice: `mv -T` del symlink y poda de releases.
 6. Drenaje de 60 s (los clientes SSE y WS reconectan con `Last-Event-ID`). Después se paran el stack y la unidad SSR
@@ -97,4 +97,4 @@ Los seeds (`*-seed`) son idempotentes (comprueban conteos antes de sembrar) y se
 | `nginx/snippets/*.inc` | `/etc/nginx/grcup-dev/` |
 | `systemd/grcup-dev-web@.service` | `~/.config/systemd/user/` (+ `~/grcup-dev/ssr/<color>.env` con `PORT`) |
 
-SELinux: `/etc/nginx` y `/srv/grcup-dev` se etiquetan con `restorecon` tras cada escritura; `conf.d` es de root; el puerto 18399 es `http_port_t` (`semanage port`); `httpd_can_network_connect` on. Los scripts lo comprueban en `nginx_prepare`.
+SELinux: `/etc/nginx` y `/srv/grcup-dev` se etiquetan con `restorecon` tras cada escritura; `conf.d` es de root; los puertos 18399 y 18398 son `http_port_t` (`semanage port`); `httpd_can_network_connect` on. Los scripts lo comprueban en `nginx_prepare`.
