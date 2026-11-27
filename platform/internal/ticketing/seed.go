@@ -86,10 +86,15 @@ func (s *Svc) seedGRCup(ctx context.Context, a *app.App, _ []string) error {
 		}
 		// ins reports false when the random code already exists (try another one).
 		ins := func(sid uuid.UUID, cod, nom, ape, email, origen, estado string, personas, dentro int, hace time.Duration) (bool, error) {
-			tag, err := tx.Exec(ctx, `INSERT INTO entradas (id, competition_id, sesion_id, codigo, nombre, apellidos, email, personas, dentro, estado, origen, consentimientos, created_at)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT (competition_id, codigo) DO NOTHING`, newID(), c.ID, sid, cod, nom, ape, email, personas, dentro, estado, origen,
+			id := newID()
+			tag, err := tx.Exec(ctx, `INSERT INTO entradas (id, competition_id, sesion_id, codigo, nombre, apellidos, email, personas, estado, origen, consentimientos, created_at)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT (competition_id, codigo) DO NOTHING`, id, c.ID, sid, cod, nom, ape, email, personas, estado, origen,
 				map[string]any{"privacidad": "ejemplo", "novedades": r.IntN(2) == 0}, time.Now().Add(-hace))
-			return err == nil && tag.RowsAffected() == 1, err
+			if err != nil || tag.RowsAffected() != 1 {
+				return false, err
+			}
+			_, err = tx.Exec(ctx, `INSERT INTO entrada_sesiones (entrada_id, sesion_id, dentro) VALUES ($1,$2,$3)`, id, sid, dentro)
+			return err == nil, err
 		}
 		// The bookings of the design.
 		figma := []struct {

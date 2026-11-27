@@ -56,15 +56,14 @@ type sesionRow struct {
 	Publicada, ListaEspera            bool
 	Usadas, Ofertas, EnEspera, Dentro int
 	Reservas, Version                 int
-	Fin1                              time.Time // two-day ticket (dosDias): end of the first day; zero otherwise
 }
 
 const selSesion = `SELECT s.id, s.nombre, s.detalle, s.inicio, s.fin, s.puertas, s.aforo, s.max_por_reserva, s.orden, s.apertura_at, s.cierre_at, s.publicada, s.lista_espera,
-	(SELECT COALESCE(sum(personas), 0) FROM entradas e WHERE (e.sesion_id = s.id OR e.sesion2_id = s.id) AND e.estado <> 'anulada')::int,
+	(SELECT COALESCE(sum(e.personas), 0) FROM entrada_sesiones es JOIN entradas e ON e.id = es.entrada_id WHERE es.sesion_id = s.id AND e.estado <> 'anulada')::int,
 	(SELECT COALESCE(sum(personas), 0) FROM lista_espera l WHERE l.sesion_id = s.id AND l.estado = 'oferta' AND l.oferta_expira_at > now())::int,
 	(SELECT count(*) FROM lista_espera l WHERE l.sesion_id = s.id AND l.estado IN ('en_espera', 'oferta'))::int,
-	(SELECT COALESCE(sum(CASE WHEN e.sesion2_id = s.id THEN e.dentro2 ELSE e.dentro END), 0) FROM entradas e WHERE (e.sesion_id = s.id OR e.sesion2_id = s.id) AND e.estado <> 'anulada')::int,
-	(SELECT count(*) FROM entradas e WHERE (e.sesion_id = s.id OR e.sesion2_id = s.id) AND e.estado <> 'anulada')::int,
+	(SELECT COALESCE(sum(es.dentro), 0) FROM entrada_sesiones es JOIN entradas e ON e.id = es.entrada_id WHERE es.sesion_id = s.id AND e.estado <> 'anulada')::int,
+	(SELECT count(*) FROM entrada_sesiones es JOIN entradas e ON e.id = es.entrada_id WHERE es.sesion_id = s.id AND e.estado <> 'anulada')::int,
 	s.version FROM sesiones s`
 
 func scanSesion(r pgx.CollectableRow) (sesionRow, error) {
@@ -119,8 +118,8 @@ type Entradas struct {
 
 // ReservaIn is the public form.
 type ReservaIn struct {
-	SesionID         uuid.UUID         `json:"sesionId"`
-	Sesion2ID        *uuid.UUID        `json:"sesion2Id,omitempty" doc:"Segunda sesión (los dos días): una sola entrada y un QR para ambas"`
+	SesionID         *uuid.UUID        `json:"sesionId,omitempty" doc:"Primer día de la entrada (los clientes actuales envían sesionIds)"`
+	SesionIDs        []uuid.UUID       `json:"sesionIds,omitempty" maxItems:"6" doc:"Días de la entrada (uno o varios: un solo QR)"`
 	Nombre           string            `json:"nombre" minLength:"1" maxLength:"80"`
 	Apellidos        string            `json:"apellidos" minLength:"1" maxLength:"120"`
 	Email            string            `json:"email" maxLength:"254"`
@@ -186,8 +185,9 @@ func (s *Svc) registerPublic() {
 				o.Sesiones = append(o.Sesiones, p)
 				o.Plazas += x.Aforo
 			}
-			// Unique people: a two-day ticket counts once, not once per session (BIZ-169).
-			if err := s.a.DB.QueryRow(ctx, `SELECT COALESCE(sum(personas), 0)::int FROM entradas WHERE (sesion_id = ANY($1) OR sesion2_id = ANY($1)) AND estado <> 'anulada'`, ids).Scan(&o.Personas); err != nil {
+			// Unique people: a multi-day ticket counts once, not once per session (BIZ-169).
+			if err := s.a.DB.QueryRow(ctx, `SELECT COALESCE(sum(personas), 0)::int FROM entradas e WHERE e.estado <> 'anulada'
+				AND EXISTS (SELECT 1 FROM entrada_sesiones es WHERE es.entrada_id = e.id AND es.sesion_id = ANY($1))`, ids).Scan(&o.Personas); err != nil {
 				return nil, err
 			}
 			return &struct {
@@ -231,14 +231,21 @@ func (s *Svc) registerPublic() {
 			out := Reservada{}
 			var antes uuid.UUID
 			err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
-				ids := []uuid.UUID{b.SesionID}
-				if b.Sesion2ID != nil {
-					if *b.Sesion2ID == b.SesionID {
-						return problem.Unprocessable("SESIONES_IGUALES", "Elige dos sesiones distintas.")
-					}
-					ids = append(ids, *b.Sesion2ID)
+				// One ticket may cover several days: `sesionId` (the first day, older clients) and `sesionIds` are merged,
+				// without duplicates (a cached web sending both must not book a day twice).
+				var ids []uuid.UUID
+				if b.SesionID != nil {
+					ids = append(ids, *b.SesionID)
 				}
-				// Lock in a stable order so two «both days» bookings never deadlock.
+				for _, sid := range b.SesionIDs {
+					if sid != uuid.Nil && !slices.Contains(ids, sid) {
+						ids = append(ids, sid)
+					}
+				}
+				if len(ids) == 0 {
+					return problem.Unprocessable("SESION_REQUERIDA", "Elige al menos un día.")
+				}
+				// Lock in a stable order so two multi-day bookings never deadlock.
 				orden := slices.Clone(ids)
 				slices.SortFunc(orden, func(a, b uuid.UUID) int { return strings.Compare(a.String(), b.String()) })
 				bloq := map[uuid.UUID]sesionRow{}
@@ -265,7 +272,8 @@ func (s *Svc) registerPublic() {
 					}
 					// One ticket per address and session: a repeated reservation re-sends the link instead (after this
 					// transaction, so the email is not rolled back with it).
-					if err := tx.QueryRow(ctx, `SELECT id FROM entradas WHERE (sesion_id = $1 OR sesion2_id = $1) AND email = $2 AND estado <> 'anulada'`, x.ID, e).Scan(&antes); err == nil {
+					if err := tx.QueryRow(ctx, `SELECT e.id FROM entradas e JOIN entrada_sesiones es ON es.entrada_id = e.id
+						WHERE es.sesion_id = $1 AND e.email = $2 AND e.estado <> 'anulada' LIMIT 1`, x.ID, e).Scan(&antes); err == nil {
 						return errYaTiene
 					}
 					if libres := x.Aforo - x.Usadas - x.Ofertas; b.Personas > libres {
@@ -275,12 +283,14 @@ func (s *Svc) registerPublic() {
 						return problem.Conflict("AGOTADA", fmt.Sprintf("Solo quedan %d plazas en «%s».", libres, x.Nombre))
 					}
 				}
-				x := bloq[b.SesionID]
+				// The first day is the earliest of the chosen ones.
+				slices.SortFunc(ids, func(a, b uuid.UUID) int { return bloq[a].Inicio.Compare(bloq[b].Inicio) })
+				x := bloq[ids[0]]
 				n := nuevaEntrada{nombre: b.Nombre, apellidos: b.Apellidos, email: e, telefono: b.Telefono, personas: b.Personas,
 					origen: b.Origen, utm: b.Utm, cons: map[string]any{"privacidad": s.legalVersion(ctx, c.ID), "novedades": b.Novedades, "ip": anonIP(ip), "at": time.Now()}}
-				if b.Sesion2ID != nil {
-					y := bloq[*b.Sesion2ID]
-					n.sesion2 = &y
+				for _, sid := range ids[1:] {
+					y := bloq[sid]
+					n.sesiones = append(n.sesiones, y)
 				}
 				id, cod, tok, err := s.crearEntrada(ctx, tx, c, x, n)
 				if err != nil {
@@ -555,7 +565,7 @@ type nuevaEntrada struct {
 	cons                                             map[string]any
 	manual                                           bool
 	sinEmail                                         bool
-	sesion2                                          *sesionRow // «both days»: the same ticket also counts for this session
+	sesiones                                         []sesionRow // the other days of the ticket (the first one comes in `x`)
 }
 
 // crearEntrada stores a ticket with a unique code and a «Mi entrada» token and queues its confirmation email.
@@ -568,21 +578,17 @@ func (s *Svc) crearEntrada(ctx context.Context, tx pgx.Tx, c compref.Comp, x ses
 	if n.cons == nil {
 		n.cons = map[string]any{}
 	}
+	xs := append([]sesionRow{x}, n.sesiones...)
 	var cod string
-	var sid2 *uuid.UUID
-	if n.sesion2 != nil {
-		sid2 = &n.sesion2.ID
-		x = dosDias(x, *n.sesion2)
-	}
 	for range 8 {
 		cod = nuevoCodigo()
 		_, err := tx.Exec(ctx, `SAVEPOINT cod`)
 		if err != nil {
 			return id, "", "", err
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO entradas (id, competition_id, sesion_id, codigo, nombre, apellidos, email, telefono, personas, origen, utm, consentimientos, manual, nota, token_hash, sesion2_id)
-			VALUES ($1,$2,$3,$4,$5,$6,NULLIF($7,''),$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
-			id, c.ID, x.ID, cod, strings.TrimSpace(n.nombre), strings.TrimSpace(n.apellidos), n.email, strings.TrimSpace(n.telefono), n.personas, orDefault(n.origen, "web"), n.utm, n.cons, n.manual, n.nota, hashToken(tok), sid2)
+		_, err = tx.Exec(ctx, `INSERT INTO entradas (id, competition_id, sesion_id, codigo, nombre, apellidos, email, telefono, personas, origen, utm, consentimientos, manual, nota, token_hash)
+			VALUES ($1,$2,$3,$4,$5,$6,NULLIF($7,''),$8,$9,$10,$11,$12,$13,$14,$15)`,
+			id, c.ID, x.ID, cod, strings.TrimSpace(n.nombre), strings.TrimSpace(n.apellidos), n.email, strings.TrimSpace(n.telefono), n.personas, orDefault(n.origen, "web"), n.utm, n.cons, n.manual, n.nota, hashToken(tok))
 		if err == nil {
 			break
 		}
@@ -593,24 +599,55 @@ func (s *Svc) crearEntrada(ctx context.Context, tx pgx.Tx, c compref.Comp, x ses
 			return id, "", "", err
 		}
 	}
+	// One row per day: the capacity of each day counts this ticket and the door tracks its people per day.
+	if _, err := tx.Exec(ctx, `INSERT INTO entrada_sesiones (entrada_id, sesion_id) SELECT $1, unnest($2::uuid[])`, id, idsDe(xs)); err != nil {
+		return id, "", "", err
+	}
 	if n.email == "" || n.sinEmail {
 		return id, cod, tok, nil
 	}
-	return id, cod, tok, email(ctx, tx, c.ID, n.email, "entrada-confirmada", s.varsEntrada(c, x, cod, tok, n.nombre, n.apellidos, n.personas))
+	return id, cod, tok, email(ctx, tx, c.ID, n.email, "entrada-confirmada", s.varsEntrada(c, xs, cod, tok, n.nombre, n.apellidos, n.personas))
 }
 
-func (s *Svc) varsEntrada(c compref.Comp, x sesionRow, cod, tok, nombre, apellidos string, personas int) map[string]string {
+func idsDe(xs []sesionRow) []uuid.UUID {
+	out := make([]uuid.UUID, len(xs))
+	for i, x := range xs {
+		out[i] = x.ID
+	}
+	return out
+}
+
+func (s *Svc) varsEntrada(c compref.Comp, xs []sesionRow, cod, tok, nombre, apellidos string, personas int) map[string]string {
 	acomp := ""
 	if personas > 1 {
 		acomp = fmt.Sprintf(" + %d acompañante%s", personas-1, map[bool]string{true: "s"}[personas > 2])
 	}
-	dia, hasta := diaTxt(x.Inicio), hm(x.Fin)
-	if !x.Fin1.IsZero() { // two days (BIZ-163): «Sáb 19 y Dom 20 dic, los dos días … (hasta las 13:00 el sábado y las 14:00 el domingo)»
-		dia, hasta = "los dos días", hm(x.Fin1)+" el "+diasSemana[x.Fin1.In(madrid).Weekday()]+" y las "+hm(x.Fin)+" el "+diasSemana[x.Fin.In(madrid).Weekday()]
+	corto := variosDias(xs)
+	dia, hasta := diaTxt(corto.Inicio), hm(corto.Fin)
+	if len(xs) > 1 { // one ticket for several days: «los 3 días … (13:00 el viernes, 13:00 el sábado y 14:00 el domingo)»
+		dia = dias(len(xs))
+		partes := make([]string, len(xs))
+		for i, x := range xs {
+			partes[i] = hm(x.Fin) + " el " + diasSemana[x.Fin.In(madrid).Weekday()]
+		}
+		hasta = strings.Join(partes[:len(partes)-1], ", ") + " y " + partes[len(partes)-1]
 	}
-	return map[string]string{"nombre": strings.TrimSpace(nombre), "titular": strings.TrimSpace(nombre+" "+apellidos) + acomp, "sesion": x.Nombre, "dia": dia,
-		"puertas": hm(x.Puertas), "hasta": hasta, "personas": fmt.Sprint(personas), "codigo": cod, "qr": s.qrURL(c.Slug, c.ID, cod),
+	return map[string]string{"nombre": strings.TrimSpace(nombre), "titular": strings.TrimSpace(nombre+" "+apellidos) + acomp, "sesion": corto.Nombre, "dia": dia,
+		"puertas": hm(xs[0].Puertas), "hasta": hasta, "personas": fmt.Sprint(personas), "codigo": cod, "qr": s.qrURL(c.Slug, c.ID, cod),
 		"enlace": s.webURL + "/mi-entrada?t=" + tok, "lugar": lugar(c)}
+}
+
+// «los dos días», «los tres días»… in the emails.
+func dias(n int) string {
+	switch n {
+	case 2:
+		return "los dos días"
+	case 3:
+		return "los tres días"
+	case 4:
+		return "los cuatro días"
+	}
+	return fmt.Sprintf("los %d días", n)
 }
 
 // lugar is «Sede, Ciudad», without repeating the city when the venue name already has it (BIZ-170).

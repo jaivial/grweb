@@ -142,21 +142,22 @@ func admin(x sesionRow, now time.Time) SesionAdmin {
 
 // Entrada is a row of «Reservas».
 type Entrada struct {
-	ID        uuid.UUID `json:"id"`
-	Codigo    string    `json:"codigo"`
-	Nombre    string    `json:"nombre"`
-	Apellidos string    `json:"apellidos"`
-	Email     string    `json:"email"`
-	Telefono  string    `json:"telefono"`
-	SesionID  uuid.UUID `json:"sesionId"`
-	Sesion    string    `json:"sesion"`
-	Personas  int       `json:"personas"`
-	Dentro    int       `json:"dentro"`
-	Estado    string    `json:"estado"`
-	Origen    string    `json:"origen"`
-	Manual    bool      `json:"manual"`
-	Nota      string    `json:"nota"`
-	Novedades bool      `json:"novedades"`
+	ID        uuid.UUID   `json:"id"`
+	Codigo    string      `json:"codigo"`
+	Nombre    string      `json:"nombre"`
+	Apellidos string      `json:"apellidos"`
+	Email     string      `json:"email"`
+	Telefono  string      `json:"telefono"`
+	SesionID  uuid.UUID   `json:"sesionId" doc:"Primer día de la entrada"`
+	Sesion    string      `json:"sesion" doc:"Días de la entrada («Sábado 19 · jornada + Domingo 20 · jornada»)"`
+	SesionIDs []uuid.UUID `json:"sesionIds" doc:"Todos los días de la entrada"`
+	Personas  int         `json:"personas"`
+	Dentro    int         `json:"dentro" doc:"Personas dentro sumando todos los días"`
+	Estado    string      `json:"estado"`
+	Origen    string      `json:"origen"`
+	Manual    bool        `json:"manual"`
+	Nota      string      `json:"nota"`
+	Novedades bool        `json:"novedades"`
 	// NovedadesEstado: «si» once the double opt-in is confirmed in crm, «pendiente» while waiting for it.
 	NovedadesEstado string         `json:"novedadesEstado" enum:"si,pendiente,no"`
 	EmailRebotado   bool           `json:"emailRebotado" doc:"El email de la entrada rebotó"`
@@ -165,14 +166,17 @@ type Entrada struct {
 	CreatedAt       time.Time      `json:"createdAt"`
 }
 
-const selEntrada = `SELECT e.id, e.codigo, e.nombre, e.apellidos, COALESCE(e.email::text, ''), e.telefono, e.sesion_id, s.nombre, e.personas, e.dentro, e.estado, e.origen, e.manual, e.nota,
-	e.consentimientos, e.motivo, e.created_at, e.email_rebotado_at IS NOT NULL, e.novedades_confirmada_at IS NOT NULL FROM entradas e JOIN sesiones s ON s.id = e.sesion_id`
+const selEntrada = `SELECT e.id, e.codigo, e.nombre, e.apellidos, COALESCE(e.email::text, ''), e.telefono, e.sesion_id,
+	(SELECT string_agg(s2.nombre, ' + ' ORDER BY s2.inicio) FROM entrada_sesiones es JOIN sesiones s2 ON s2.id = es.sesion_id WHERE es.entrada_id = e.id), e.personas,
+	(SELECT COALESCE(sum(es.dentro), 0) FROM entrada_sesiones es WHERE es.entrada_id = e.id), e.estado, e.origen, e.manual, e.nota,
+	e.consentimientos, e.motivo, e.created_at, e.email_rebotado_at IS NOT NULL, e.novedades_confirmada_at IS NOT NULL,
+	(SELECT COALESCE(array_agg(es.sesion_id), '{}') FROM entrada_sesiones es WHERE es.entrada_id = e.id) FROM entradas e JOIN sesiones s ON s.id = e.sesion_id`
 
 func scanEntrada(r pgx.CollectableRow) (Entrada, error) {
 	var e Entrada
 	var confirmada bool
 	err := r.Scan(&e.ID, &e.Codigo, &e.Nombre, &e.Apellidos, &e.Email, &e.Telefono, &e.SesionID, &e.Sesion, &e.Personas, &e.Dentro, &e.Estado, &e.Origen, &e.Manual, &e.Nota, &e.Cons, &e.Motivo, &e.CreatedAt,
-		&e.EmailRebotado, &confirmada)
+		&e.EmailRebotado, &confirmada, &e.SesionIDs)
 	e.Novedades, _ = e.Cons["novedades"].(bool)
 	e.NovedadesEstado = "no"
 	if e.Novedades {
@@ -213,7 +217,7 @@ func filtro(in listaIn) (string, []any) {
 		w = append(w, strings.ReplaceAll(c, "?", fmt.Sprintf("$%d", len(args))))
 	}
 	if id, err := uuid.Parse(in.Sesion); err == nil {
-		add("(e.sesion_id = ? OR e.sesion2_id = ?)", id)
+		add("EXISTS (SELECT 1 FROM entrada_sesiones es WHERE es.entrada_id = e.id AND es.sesion_id = ?)", id)
 	}
 	if in.Estado != "" {
 		add("e.estado = ?", in.Estado)
@@ -430,7 +434,7 @@ func (s *Svc) registerAdmin() {
 				return nil, err
 			}
 			var n int
-			_ = s.a.DB.QueryRow(ctx, `SELECT count(*) FROM entradas WHERE sesion_id = $1`, in.ID).Scan(&n)
+			_ = s.a.DB.QueryRow(ctx, `SELECT count(*) FROM entrada_sesiones WHERE sesion_id = $1`, in.ID).Scan(&n)
 			if n > 0 {
 				return nil, problem.Conflict("SESION_CON_RESERVAS", fmt.Sprintf("Tiene %d reservas: anúlalas o muévelas antes, o despublícala.", n))
 			}
@@ -619,6 +623,15 @@ func (s *Svc) registerAdmin() {
 					if err != nil {
 						return err
 					}
+					// A one-day ticket moves to another day; a multi-day ticket does not fit in a single session.
+					var varias int
+					if err := tx.QueryRow(ctx, `SELECT count(*) FROM (SELECT es.entrada_id FROM entrada_sesiones es JOIN entradas e ON e.id = es.entrada_id
+						WHERE es.entrada_id = ANY($1) AND e.competition_id = $2 AND e.estado = 'reservada' GROUP BY es.entrada_id HAVING count(*) > 1) t`, b.IDs, in.CID).Scan(&varias); err != nil {
+						return err
+					}
+					if varias > 0 {
+						return problem.Conflict("VARIOS_DIAS", fmt.Sprintf("%d de las entradas elegidas cubren varios días y no caben en una sola sesión. Mueve solo las de un día.", varias))
+					}
 					var total int
 					if err := tx.QueryRow(ctx, `SELECT COALESCE(sum(personas), 0) FROM entradas WHERE competition_id = $1 AND id = ANY($2) AND estado = 'reservada' AND sesion_id <> $3`, in.CID, b.IDs, x.ID).Scan(&total); err != nil {
 						return err
@@ -634,6 +647,11 @@ func (s *Svc) registerAdmin() {
 					ids, err := pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
 					if err != nil {
 						return err
+					}
+					if len(ids) > 0 {
+						if _, err := tx.Exec(ctx, `UPDATE entrada_sesiones SET sesion_id = $3 WHERE entrada_id = ANY($1) AND sesion_id <> $3`, ids, x.ID); err != nil {
+							return err
+						}
 					}
 					o.Body.Afectadas, o.Body.Personas = len(ids), total
 					if b.Avisar {

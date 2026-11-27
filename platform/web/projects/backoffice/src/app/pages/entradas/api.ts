@@ -15,7 +15,7 @@ export interface Resumen {
   sesiones: Sesion[]; ajustes: Ajustes; pestanas: Record<'sesiones' | 'reservas' | 'espera', number>; pabellon?: DiaPabellon[];
 }
 export interface Entrada {
-  id: string; codigo: string; nombre: string; apellidos: string; email: string; telefono: string; sesionId: string; sesion: string; personas: number; dentro: number;
+  id: string; codigo: string; nombre: string; apellidos: string; email: string; telefono: string; sesionId: string; sesion: string; sesionIds: string[]; personas: number; dentro: number;
   estado: 'reservada' | 'usada' | 'anulada'; origen: string; manual: boolean; nota: string; novedades: boolean; novedadesEstado?: 'si' | 'pendiente' | 'no'; emailRebotado?: boolean; consentimientos: Record<string, unknown>; motivo?: string; createdAt: string;
 }
 export interface Escaneo { id: string; codigo: string; nombre: string; puesto: string; usuario: string; resultado: Resultado['resultado']; personas: number; total?: number; acumulado?: number; puestoAnterior?: string; offline: boolean; at: string }
