@@ -2,7 +2,6 @@ package live
 
 import (
 	"context"
-	"math"
 	"net/http"
 	"sort"
 	"strconv"
@@ -12,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/jaivial/grweb/platform/pkg/ipfgl"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
@@ -333,19 +333,6 @@ var movs = []string{"sq", "bp", "dl"}
 
 // ---- results ----
 
-// GL points (IPF GL formula, classic powerlifting, 2020 coefficients).
-func puntosGL(sexo string, bw, total float64) float64 {
-	a, b, c := 1199.72839, 1025.18162, 0.00921
-	if sexo == "F" {
-		a, b, c = 610.32796, 1045.59282, 0.03048
-	}
-	d := a - b*math.Exp(-c*bw)
-	if d <= 0 {
-		return 0
-	}
-	return math.Round(total*100/d*100) / 100
-}
-
 // Celda is one attempt of a results row (public).
 type Celda struct {
 	Peso      float64 `json:"peso"`
@@ -504,8 +491,9 @@ func clasificar(p *plan, t tabla, recs []record, k string, publico bool) Categor
 		if todos {
 			f.Total = &total
 			if a.PesoCorporal != nil {
-				g := puntosGL(a.Sexo, *a.PesoCorporal, total)
-				f.GL = &g
+				if g, ok := ipfgl.Puntos(total, *a.PesoCorporal, a.Sexo, false, false); ok {
+					f.GL = &g
+				}
 			}
 			for _, r := range recs {
 				if r.Sexo == a.Sexo && r.Categoria == a.Categoria && r.Mov == "total" && total > r.Peso {
