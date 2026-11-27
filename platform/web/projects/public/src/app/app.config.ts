@@ -7,7 +7,7 @@ import { Competition, apiBaseInterceptor, noEncontradoInterceptor } from './core
 import { FanSession } from './core/fan';
 import { langInterceptor } from './core/i18n';
 import { colaInterceptor } from './core/cola';
-import { GR_LANG, alReanudar, grHttpTimeoutInterceptor, grViewTransitions } from '@grcup/ui';
+import { GR_LANG, alReanudar, grHttpTimeoutInterceptor, grRecargaTrasDespliegue, grViewTransitions } from '@grcup/ui';
 import { I18n } from './core/i18n';
 
 export const appConfig: ApplicationConfig = {
@@ -17,7 +17,7 @@ export const appConfig: ApplicationConfig = {
     // The 12 s cut goes last (closest to the network): the waiting room of colaInterceptor is not counted in it.
     provideHttpClient(withFetch(), withInterceptors([langInterceptor, noEncontradoInterceptor, apiBaseInterceptor, colaInterceptor, grHttpTimeoutInterceptor])),
     // Position restoration is done in App (instant, after the page settles): html{scroll-behavior:smooth} broke the router's own.
-    provideRouter(routes, withInMemoryScrolling({ anchorScrolling: 'enabled', scrollPositionRestoration: 'disabled' }), withComponentInputBinding(), grViewTransitions()),
+    provideRouter(routes, withInMemoryScrolling({ anchorScrolling: 'enabled', scrollPositionRestoration: 'disabled' }), withComponentInputBinding(), grViewTransitions(), grRecargaTrasDespliegue()),
     provideClientHydration(withEventReplay(), withIncrementalHydration(), withHttpTransferCacheOptions({ includePostRequests: false })),
     // New page → top, subscribed before bootstrap: a click replayed during hydration navigates before App listens to Scroll.
     provideAppInitializer(() => {

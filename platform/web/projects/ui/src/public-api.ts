@@ -11,6 +11,7 @@ export * from './lib/toast';
 export * from './lib/estados';
 export * from './lib/transiciones';
 export * from './lib/resume';
+export * from './lib/despliegue';
 export * from './lib/http-timeout';
 export * from './lib/popover';
 export * from './lib/format';
