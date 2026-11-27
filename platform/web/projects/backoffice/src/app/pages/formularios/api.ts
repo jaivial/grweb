@@ -113,6 +113,7 @@ export interface Envio {
   createdAt: string;
   email: CanalEstado;
   whatsapp: CanalEstado;
+  version: number;
 }
 
 export interface Filtro {

@@ -78,6 +78,7 @@ type Envio struct {
 	CreatedAt time.Time   `json:"createdAt"`
 	Email     CanalEstado `json:"email"`
 	WhatsApp  CanalEstado `json:"whatsapp"`
+	Version   int         `json:"version" doc:"Versión del formulario con la que se preparó el envío"`
 }
 
 // atletaEnvio es un atleta candidato a la invitación, con lo que decide qué canal le toca.
@@ -324,15 +325,20 @@ func (s *Svc) creaEnvio(ctx context.Context, cid, fid uuid.UUID, competicion str
 	reutilizado := false
 	err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 		// Orden de bloqueo del módulo (lo respetan creaEnvio, guardaEdicion y guardaRespuesta; ver modoBloqueo):
-		//  1) advisory lock de envíos del formulario: serializa los creaEnvio del mismo formulario, así que la comprobación de
-		//     clave y de envío reciente (check y luego insert) no puede cruzarse con otro envío;
-		//  2) lectura del formulario SIN candado durante toda la construcción del envío;
+		//  1) advisory lock de envíos del formulario, NO bloqueante: si otro envío del mismo formulario lo tiene, responde
+		//     409 ENVIO_EN_CURSO en vez de esperar. Así la comprobación de clave y de envío reciente (check y luego insert)
+		//     no puede cruzarse con otro envío;
+		//  2) lectura del formulario SIN candado durante toda la construcción del envío (se guarda su versión);
 		//  3) filas hijas (envío, destinatarios, entregas, outbox): aquí se toman los candados de fila;
-		//  4) FOR UPDATE del formulario solo al final, justo antes del cambio de estado, con el estado releído.
+		//  4) FOR UPDATE del formulario solo al final, con el estado y la versión releídos.
 		// guardaEdicion (FOR UPDATE) no espera a ningún envío, y guardaRespuesta (FOR SHARE) solo escribe respuestas y
 		// referencia destinatarios con FOR KEY SHARE, que no choca con el NO KEY UPDATE de creaEnvio. No hay ciclo.
-		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('formulario-envio:' || $1::text))`, fid.String()); err != nil {
+		var libre bool
+		if err := tx.QueryRow(ctx, `SELECT pg_try_advisory_xact_lock(hashtext('formulario-envio:' || $1::text))`, fid.String()).Scan(&libre); err != nil {
 			return err
+		}
+		if !libre {
+			return problem.Conflict("ENVIO_EN_CURSO", "Ya se está preparando un envío de este formulario. Espera unos segundos.")
 		}
 		fm, err := leeFormulario(ctx, tx, cid, fid, sinBloqueo)
 		if err != nil {
@@ -385,8 +391,8 @@ func (s *Svc) creaEnvio(ctx context.Context, cid, fid uuid.UUID, competicion str
 			claveDB = &clave
 		}
 		envioID = newID()
-		if _, err := tx.Exec(ctx, `INSERT INTO formulario_envios (id, formulario_id, competition_id, canales, filtro, total, creado_por, clave_idempotencia, huella)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, envioID, fid, cid, canales, filtro, len(atletas), actor(ctx), claveDB, huella); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO formulario_envios (id, formulario_id, competition_id, canales, filtro, total, creado_por, clave_idempotencia, huella, version)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`, envioID, fid, cid, canales, filtro, len(atletas), actor(ctx), claveDB, huella, fm.Version); err != nil {
 			return err
 		}
 		dids, err := destinatariosDe(ctx, tx, cid, fid, atletas)
@@ -409,7 +415,7 @@ func (s *Svc) creaEnvio(ctx context.Context, cid, fid uuid.UUID, competicion str
 		if _, err := tx.Exec(ctx, `UPDATE formulario_envios SET omitidos = $2 WHERE id = $1`, envioID, omitidos); err != nil {
 			return err
 		}
-		// Último paso: el formulario se bloquea (FOR UPDATE) y se relee el estado. Si se cerró mientras se construía el envío,
+		// Último paso: el formulario se bloquea (FOR UPDATE) y se relee el estado y la versión. Si se cerró o cambió el esquema mientras se construía el envío,
 		// la transacción se deshace entera (destinatarios, entregas y outbox incluidos).
 		actual, err := leeFormulario(ctx, tx, cid, fid, bloqueoExclusivo)
 		if err != nil {
@@ -417,6 +423,9 @@ func (s *Svc) creaEnvio(ctx context.Context, cid, fid uuid.UUID, competicion str
 		}
 		if actual.Estado == "cerrado" {
 			return envioCerrado()
+		}
+		if actual.Version != fm.Version {
+			return problem.Conflict("FORMULARIO_CAMBIADO", "El formulario ha cambiado mientras se preparaba el envío. Vuelve a enviarlo.")
 		}
 		if actual.Estado == "borrador" {
 			if _, err := tx.Exec(ctx, `UPDATE formularios SET estado = 'activo', updated_at = now() WHERE id = $1`, fid); err != nil {
@@ -625,7 +634,7 @@ func (s *Svc) estadoEnvios(ctx context.Context, cid, fid uuid.UUID) ([]Envio, er
 // cargaEnvios lee los envíos del formulario y sus entregas de la base (sin estado de messaging). Cada entrega indica si
 // su evento ya salió del outbox de athletes (outbox.published_at).
 func cargaEnvios(ctx context.Context, q consulta, fid uuid.UUID) ([]Envio, []entregaFila, error) {
-	rows, err := q.Query(ctx, `SELECT id, canales, filtro, total, omitidos, creado_por, created_at FROM formulario_envios
+	rows, err := q.Query(ctx, `SELECT id, canales, filtro, total, omitidos, creado_por, created_at, version FROM formulario_envios
 		WHERE formulario_id = $1 ORDER BY created_at DESC, id`, fid)
 	if err != nil {
 		return nil, nil, err
@@ -634,7 +643,7 @@ func cargaEnvios(ctx context.Context, q consulta, fid uuid.UUID) ([]Envio, []ent
 	for rows.Next() {
 		var e Envio
 		var filtro []byte
-		if err := rows.Scan(&e.ID, &e.Canales, &filtro, &e.Total, &e.Omitidos, &e.CreadoPor, &e.CreatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.Canales, &filtro, &e.Total, &e.Omitidos, &e.CreadoPor, &e.CreatedAt, &e.Version); err != nil {
 			rows.Close()
 			return nil, nil, err
 		}

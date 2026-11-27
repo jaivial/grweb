@@ -17,7 +17,7 @@ CREATE TABLE formularios (
 );
 CREATE INDEX formularios_competicion ON formularios (competition_id, updated_at DESC);
 
--- Cada versión del esquema (se crea al guardar un esquema distinto): las respuestas siguen siendo legibles.
+-- Cada versión del formulario (se crea con cualquier cambio guardado, con su esquema): las respuestas siguen siendo legibles.
 CREATE TABLE formulario_versiones (
     formulario_id uuid        NOT NULL REFERENCES formularios (id) ON DELETE CASCADE,
     version       int         NOT NULL CHECK (version >= 1),
@@ -34,6 +34,8 @@ CREATE TABLE formulario_envios (
     filtro         jsonb       NOT NULL DEFAULT '{}' CHECK (jsonb_typeof(filtro) = 'object'),
     total          int         NOT NULL DEFAULT 0 CHECK (total >= 0),
     omitidos       int         NOT NULL DEFAULT 0 CHECK (omitidos >= 0),
+    -- Versión del formulario con la que se preparó el envío (formularios.version al leerlo en creaEnvio).
+    version        int         NOT NULL DEFAULT 1,
     creado_por     text        NOT NULL DEFAULT '',
     created_at     timestamptz NOT NULL DEFAULT now(),
     -- Idempotency-Key del POST de envío: el mismo formulario y la misma clave devuelven el envío ya creado.

@@ -231,6 +231,8 @@ export class BoEnvioDialogo {
   private textoError(e: unknown, p: Problem): string {
     if (e instanceof TimeoutError) return 'Tarda más de lo normal. Vuelve a pulsar Enviar: si ya se creó, no se duplicará.';
     if (p.code === 'CLAVE_REUTILIZADA') return 'Este envío ha cambiado mientras lo preparabas. Vuelve a pulsar Enviar para confirmarlo.';
+    if (p.code === 'ENVIO_EN_CURSO') return 'Ya se está preparando un envío de este formulario. Espera unos segundos.';
+    if (p.code === 'FORMULARIO_CAMBIADO') return 'El formulario ha cambiado mientras se preparaba el envío. Vuelve a enviarlo.';
     if (p.status === 409) return 'El formulario está cerrado y no admite envíos. Cámbialo a activo desde la cabecera para enviarlo.';
     return errText(e, 'Prueba de nuevo en unos segundos.');
   }

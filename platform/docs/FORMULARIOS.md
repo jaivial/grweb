@@ -99,7 +99,7 @@ formularios              id uuid PK, competition_id uuid, nombre text, estado te
                          creado_por text, created_at, updated_at
 formulario_versiones     formulario_id uuid FK ON DELETE CASCADE, version int, esquema jsonb, created_at, PK (formulario_id, version)
 formulario_envios        id uuid PK, formulario_id FK CASCADE, competition_id, canales text[], filtro jsonb, total int,
-                         omitidos int, creado_por text, created_at, clave_idempotencia text NULL (UNIQUE con formulario_id), huella text NOT NULL (sha256 hex de los canales ordenados y del filtro canónico)
+                         omitidos int, creado_por text, created_at, clave_idempotencia text NULL (UNIQUE con formulario_id), huella text NOT NULL (sha256 hex de los canales ordenados y del filtro canónico), version int NOT NULL DEFAULT 1 (versión del formulario con la que se preparó el envío)
 formulario_destinatarios id uuid PK, formulario_id FK CASCADE, competition_id, atleta_id uuid, created_at, abierto_at timestamptz NULL,
                          UNIQUE (formulario_id, atleta_id)
 formulario_archivos      id uuid PK, destinatario_id uuid FK CASCADE, campo_id text, url text, nombre text, tamano bigint, tipo text,
@@ -114,7 +114,7 @@ formulario_respuestas    id uuid PK, formulario_id FK CASCADE, destinatario_id u
 - Índices: `formularios (competition_id, updated_at DESC)`, `formulario_respuestas (formulario_id, estado)`, `formulario_entregas (envio_id)`.
 - `email` jsonb = `{ "asunto": "...", "preheader": "...", "intro": "..." }`; `whatsapp` jsonb = `{ "texto": "..." }`.
   Variables admitidas en estos textos: `{{nombre}}`, `{{competicion}}`, `{{formulario}}` (título).
-- Al guardar, si cambia `esquema`, `version++` e insertar en `formulario_versiones`. Cada respuesta guarda la `version`
+- Al guardar, si cambia cualquier contenido (`nombre`, `esquema`, `email` o `whatsapp`), `version++` e insertar en `formulario_versiones` el esquema de esa versión (aunque no haya cambiado); un guardado sin cambios no sube la versión. Cada respuesta guarda la `version`
   con la que se contestó: así los datos siguen siendo legibles aunque el formulario cambie (uso futuro).
 - **Un destinatario por (formulario, atleta)** y **una respuesta por destinatario**. Reenviar reutiliza el mismo enlace.
 
@@ -154,7 +154,7 @@ Filtro            = { estados?: ("confirmado"|"reserva")[], atletas?: uuid[], so
 | `POST   /{id}/estado` | `{ estado }` | `Formulario` |
 | `POST   /previsualizar` | `{ esquema, email }` | `{ emailHtml, asunto, soloWeb, whatsappTexto }` (token ficticio, `action` desactivado) |
 | `GET    /{id}/audiencia?estados=confirmado,reserva&soloSinResponder=true` | — | `{ total, email, whatsapp }` (email = con email; whatsapp = con teléfono y consentimiento de WhatsApp) |
-| `POST   /{id}/envios` | cabecera opcional `Idempotency-Key` (≤ 80 caracteres) · `{ canales, filtro, confirmarDuplicado? }` | 201 `Envio` (estado pasa a `activo`; 409 si `cerrado`). Con la misma `Idempotency-Key` y la misma huella (canales + filtro): **200** con el `Envio` ya creado, sin encolar nada. Con la misma clave y otra huella: **422 `CLAVE_REUTILIZADA`**. Sin `confirmarDuplicado: true`: **409 `ENVIO_DUPLICADO`** (con `createdAt` del envío igual) si ya hay un envío con la misma huella de hace menos de 2 minutos, tenga o no clave. 422 `CLAVE_DEMASIADO_LARGA` si la clave pasa de 80 caracteres |
+| `POST   /{id}/envios` | cabecera opcional `Idempotency-Key` (≤ 80 caracteres) · `{ canales, filtro, confirmarDuplicado? }` | 201 `Envio` (estado pasa a `activo`; 409 si `cerrado`). Con la misma `Idempotency-Key` y la misma huella (canales + filtro): **200** con el `Envio` ya creado, sin encolar nada. Con la misma clave y otra huella: **422 `CLAVE_REUTILIZADA`**. Sin `confirmarDuplicado: true`: **409 `ENVIO_DUPLICADO`** (con `createdAt` del envío igual) si ya hay un envío con la misma huella de hace menos de 2 minutos, tenga o no clave. 422 `CLAVE_DEMASIADO_LARGA` si la clave pasa de 80 caracteres. 409 `ENVIO_EN_CURSO` si otro envío del mismo formulario se está preparando (no espera: reintentar con la misma clave). 409 `FORMULARIO_CAMBIADO` si la versión del formulario cambió mientras se preparaba el envío (se deshace todo) |
 | `GET    /{id}/envios` | — | `Envio[]` |
 | `GET    /{id}/estadisticas` | — | `Estadisticas` |
 | `GET    /{id}/respuestas?estado=&q=&page=&size=` | — | `{ items: RespuestaFila[], total }` (`sin_respuesta` = destinatarios sin fila de respuesta) |
@@ -289,7 +289,7 @@ Decisiones y límites conocidos tras la revisión del backend (I-1 a I-5, M-1 a 
 
 - **Email fusionado (I-1):** `mezclaEmail` (formularios_publico.go) parte de lo guardado; `LeerFormEmail` solo trae claves con valor. Ver §5.1.
 - **Archivos ligados a subidas (I-2):** tabla `formulario_archivos`; `resuelveArchivos`/`archivosDelCampo` aceptan solo filas del destinatario y campo. Se quitó `archivosPropios`.
-- **Idempotencia (I-3):** `Idempotency-Key` → columna `clave_idempotencia` con índice único; replay 200 sin encolar. Sin clave, `ENVIO_DUPLICADO` (409) para el mismo canal+filtro en 2 minutos. Un advisory lock por formulario (`hashtext('formulario-envio:'||id)`) serializa los envíos; la fila del formulario solo se bloquea `FOR UPDATE` al final de `creaEnvio`.
+- **Idempotencia (I-3):** `Idempotency-Key` → columna `clave_idempotencia` con índice único; replay 200 sin encolar. Sin clave, `ENVIO_DUPLICADO` (409) para el mismo canal+filtro en 2 minutos. Un advisory lock por formulario (`hashtext('formulario-envio:'||id)`, no bloqueante) impide dos envíos a la vez: el segundo recibe 409 `ENVIO_EN_CURSO` en vez de esperar; la fila del formulario solo se bloquea `FOR UPDATE` al final de `creaEnvio`.
 - **Contrato de esquema con respuestas (I-4):** `formularios.RompeRespuestas` (pkg/formularios/cambios.go), solo si `formulario_respuestas` tiene filas.
 - **Consentimiento en lote (I-5):** `audiencia` resuelve el consentimiento de WhatsApp en la misma consulta (lateral sobre la última alta aprobada), con la regla de `consentimientoWA`. No hay consultas por atleta en `audiencia`; `creaEnvio` escribe destinatarios en un `INSERT ... unnest`, entregas en otro, y los eventos de outbox en un lote (`events.QueueBatch`).
 - **HTML del email una vez por envío (M-1):** `planEntregas` compila `CompilarEmailHTML` una vez con marcadores aleatorios por envío (`marcador`), y `sustituye` cambia solo la acción y el enlace de cada destinatario (escapados).
@@ -305,7 +305,8 @@ Decisiones y límites conocidos tras la revisión del backend (I-1 a I-5, M-1 a 
 
 **Revisión de la iteración 2 (PR #726):**
 
-- **Huella y envíos duplicados (I-2, M-1):** `formulario_envios.huella` = sha256 hex de los canales ordenados y del filtro canónico (`huellaEnvio`). Misma clave + misma huella → 200 (replay); misma clave + otra huella → 422 `CLAVE_REUTILIZADA`. Sin `confirmarDuplicado`, un envío con la misma huella de hace menos de 2 minutos → 409 `ENVIO_DUPLICADO` con `createdAt`, con o sin clave. Con `confirmarDuplicado: true` se crea. El diálogo del backoffice regenera la clave cuando cambian canales o filtro, y tras el aviso de duplicado reintenta con clave nueva y `confirmarDuplicado: true`.
+- **Huella y envíos duplicados (I-2, M-1):** `formulario_envios.huella` = sha256 hex de los canales ordenados y del filtro canónico (`huellaEnvio`). Misma clave + misma huella → 200 (replay); misma clave + otra huella → 422 `CLAVE_REUTILIZADA`. Sin `confirmarDuplicado`, un envío con la misma huella de hace menos de 2 minutos → 409 `ENVIO_DUPLICADO` con `createdAt`, con o sin clave. Con `confirmarDuplicado: true` se crea. El diálogo del backoffice regenera la clave cuando cambian canales o filtro (estados, atletas o soloSinResponder: la huella los incluye todos), y tras el aviso de duplicado reintenta con clave nueva y `confirmarDuplicado: true`.
+- **Envío en curso y versión (M-N1, M-N2):** `formulario_envios.version` guarda la `version` del formulario que leyó `creaEnvio` y se expone en el `Envio` (`version`, camelCase en JSON). Si al final de la transacción la versión ha cambiado (lo sube `guardaEdicion` con cualquier cambio de nombre, esquema, email o WhatsApp), 409 `FORMULARIO_CAMBIADO` y se deshace todo: el diálogo lo muestra y el reintento con la misma clave crea el envío de nuevo.
 - **Corte del envío (N-7):** la petición de envío corta a los 30 s; el diálogo entonces vuelve a estar disponible. Repetir con la misma clave no duplica.
 - **Clave de idempotencia sin `crypto.randomUUID` (N-5):** `nuevoUuid()` (backoffice `shared/uuid.ts`) cae a `crypto.getRandomValues` fuera de contextos seguros.
 - **Primer guardado y email (M-2, M-3):** ver §5.1 (insert-only sin respuesta, `actualizadoAt` en el email, `?revisar=1` en conflicto).

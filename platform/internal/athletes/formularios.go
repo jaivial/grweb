@@ -457,7 +457,8 @@ func (s *Svc) creaFormulario(ctx context.Context, cid uuid.UUID, nombre string) 
 }
 
 // guardaEdicion guarda la edición del formulario: 409 si la versión no coincide, 422 si el esquema no es válido, y una
-// versión nueva solo cuando el esquema cambia.
+// versión nueva (con su fila en formulario_versiones) cuando cambia cualquier contenido: nombre, esquema, email o WhatsApp.
+// Un guardado sin cambios no sube la versión.
 func (s *Svc) guardaEdicion(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, b edicion) error {
 	cur, err := leeFormulario(ctx, tx, cid, id, bloqueoExclusivo)
 	if err != nil {
@@ -485,12 +486,12 @@ func (s *Svc) guardaEdicion(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, b
 	if err != nil {
 		return err
 	}
-	curJSON, err := json.Marshal(cur.Esquema)
+	curEsqJSON, curEmJSON, curWaJSON, err := jsonFormulario(cur.Esquema, cur.Email, cur.WhatsApp)
 	if err != nil {
 		return err
 	}
 	version := cur.Version
-	if !bytes.Equal(curJSON, esqJSON) {
+	if b.Nombre != cur.Nombre || !bytes.Equal(curEsqJSON, esqJSON) || !bytes.Equal(curEmJSON, emJSON) || !bytes.Equal(curWaJSON, waJSON) {
 		version++
 		if _, err := tx.Exec(ctx, `INSERT INTO formulario_versiones (formulario_id, version, esquema) VALUES ($1, $2, $3)`, id, version, esqJSON); err != nil {
 			return err
