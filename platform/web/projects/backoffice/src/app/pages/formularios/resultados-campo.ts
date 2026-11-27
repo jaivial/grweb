@@ -32,6 +32,8 @@ import { porcentaje } from './formato';
       } @else { <p class="text-body-s text-text-tertiary">Aún sin respuestas.</p> }
     } @else if (campo().media !== undefined) {
       <p class="flex items-baseline gap-2"><span class="font-sans text-[32px] leading-none font-bold tabular-nums">{{ media() }}</span><span class="text-body-xs text-text-tertiary">media de {{ campo().respondidas }} {{ campo().respondidas === 1 ? 'respuesta' : 'respuestas' }}</span></p>
+    } @else if (campo().tipo === 'archivo') {
+      <p class="text-body-s text-text-tertiary">{{ campo().respondidas }} {{ campo().respondidas === 1 ? 'archivo' : 'archivos' }}</p>
     } @else {
       <p class="text-body-s text-text-tertiary">{{ campo().respondidas }} {{ campo().respondidas === 1 ? 'respuesta de texto' : 'respuestas de texto' }}</p>
     }

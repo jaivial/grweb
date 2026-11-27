@@ -7,6 +7,8 @@ import { sinTimeout } from '@grcup/ui';
 
 /** Corte de la petición de crear un envío (el resto de POST usan el corte global de 12 s, que aquí no aplica). */
 export const ENVIO_TIMEOUT_MS = 30_000;
+/** Corte de la petición al asistente IA: igual que el cliente MiniMax del servicio ai (internal/ai/ai.go, 90 s). */
+export const IA_TIMEOUT_MS = 90_000;
 
 export type TipoCampo =
   | 'titulo' | 'parrafo' | 'imagen' | 'separador'
@@ -283,7 +285,7 @@ export class FormulariosApi {
   }
   /** Assistant: edits a working copy with tools and returns it; nothing is saved (the editor applies it as one undoable change). */
   ia(cid: string, b: EntradaIA): Promise<RespuestaIA> {
-    return firstValueFrom(this.http.post<RespuestaIA>(`/api/admin/competiciones/${cid}/ia/formulario`, b, { context: sinTimeout() }));
+    return firstValueFrom(this.http.post<RespuestaIA>(`/api/admin/competiciones/${cid}/ia/formulario`, b, { context: sinTimeout() }).pipe(timeout(IA_TIMEOUT_MS)));
   }
   /** Authenticated CSV download (bearer token via the HTTP interceptor), saved as `formulario-<slug>.csv`. */
   async descargarCsv(cid: string, id: string, nombre: string): Promise<void> {

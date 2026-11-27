@@ -172,7 +172,7 @@ export class FormularioEditorPage {
    */
   private mensajeGuardado(e: unknown, campos: Campo[]): string {
     const p = problemOf(e);
-    if (!p.errors?.length) return p.detail ?? 'No se ha podido guardar. Revisa los campos e inténtalo de nuevo.';
+    if (!p.errors?.length) return p.detail ? nombrarCampos(p.detail, campos) : 'No se ha podido guardar. Revisa los campos e inténtalo de nuevo.';
     const generico = 'No se ha podido guardar. Revisa los campos del formulario e inténtalo de nuevo.';
     const i = Number(p.errors[0].location?.match(/campos\.(\d+)/)?.[1]);
     const campo = Number.isInteger(i) ? campos[i] : undefined;
@@ -233,6 +233,19 @@ export class FormularioEditorPage {
       this.store.seleccionar(null);
     }
   }
+}
+
+/**
+ * The server names a draft field by its position («campo 14: …», «campo 3 («Nombre»): …»). Each mention becomes the
+ * field's own label, or «Campo sin título (n.º N)» when the field has none, so the person can find it.
+ */
+function nombrarCampos(texto: string, campos: Campo[]): string {
+  return texto.replace(/campo (\d+)(?: \(«[^»]*»\))?/g, (mencion, n: string) => {
+    const campo = campos[Number(n) - 1];
+    if (!campo) return mencion;
+    const etiqueta = campo.etiqueta.replace(/\*+/g, '').trim().slice(0, 40);
+    return etiqueta ? `«${etiqueta}»` : `Campo sin título (n.º ${n})`;
+  });
 }
 
 /** True when the key press belongs to a text field (let the browser handle it). */

@@ -100,7 +100,7 @@ export class BoFlowNodeCard {
   template: `
     @if (imagen()) { <img [src]="imagen()" alt="" class="h-40 w-full object-cover" /> }
     <div class="px-2 pt-2 pb-1.5">
-      <p class="text-[14px] leading-[20px] whitespace-pre-line" [innerHTML]="html()"></p>
+      <p class="text-[14px] leading-[20px] whitespace-pre-line [overflow-wrap:anywhere]" [innerHTML]="html()"></p>
       <p class="mt-0.5 flex items-center justify-end gap-1 text-[12px] text-[#8696a0]">{{ hora() }}<gr-icon name="check-check" [size]="14" class="text-[#53bdeb]" /></p>
     </div>
     @for (b of botones(); track b) {

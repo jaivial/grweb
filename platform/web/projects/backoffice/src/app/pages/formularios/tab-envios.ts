@@ -33,8 +33,8 @@ const REFRESCO_MS = 10_000;
       @if (error()) { <gr-alert tone="danger" title="No hemos podido cargar los envíos"><button grButton size="s" (click)="cargar()">Reintentar</button></gr-alert> }
       @if (lista(); as l) {
         @if (!l.length) {
-          <gr-empty icon="send" title="Aún no hay envíos">Envía el formulario a los atletas por email o WhatsApp. Los mensajes salen al ritmo anti-spam.
-            <button grButton variant="primary" class="mt-4" (click)="dialogo.set(true)">Nuevo envío</button></gr-empty>
+          <gr-empty icon="send" title="Aún no hay envíos" text="Envía el formulario a los atletas por email o WhatsApp. Los mensajes salen al ritmo anti-spam.">
+            <button grButton variant="primary" (click)="dialogo.set(true)">Nuevo envío</button></gr-empty>
         } @else {
           <div class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
             <table boTablaMovil class="w-full min-w-[860px] text-left text-body-s">
