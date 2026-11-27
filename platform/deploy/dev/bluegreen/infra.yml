@@ -11,9 +11,11 @@ services:
   postgres:
     <<: *infra
     image: postgres:17-alpine
-    mem_limit: 512m
-    memswap_limit: 512m
+    mem_limit: 1g
+    memswap_limit: 1g
     cpus: 2.0
+    # Dos colores conviven en el solape: ~62 conexiones por color (pools ≤10 por servicio). 100 no basta.
+    command: ["postgres", "-c", "max_connections=200"]
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: dev-postgres
