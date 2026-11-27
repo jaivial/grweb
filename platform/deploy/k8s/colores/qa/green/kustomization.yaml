@@ -1,0 +1,20 @@
+# QA · color green (namespace grcup-qa-green). IPs fijas del color: nginx de QA las apunta mientras green está vivo.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: grcup-qa-green
+resources:
+  - namespace.yaml
+  - ../comun
+patches:
+  - target: { kind: Service, name: gateway }
+    patch: |-
+      - { op: add, path: /spec/clusterIP, value: 10.43.237.10 }
+  - target: { kind: Service, name: web }
+    patch: |-
+      - { op: add, path: /spec/clusterIP, value: 10.43.237.11 }
+  - target: { kind: Service, name: backoffice }
+    patch: |-
+      - { op: add, path: /spec/clusterIP, value: 10.43.237.12 }
+  - target: { kind: Service, name: chat-ws }
+    patch: |-
+      - { op: add, path: /spec/clusterIP, value: 10.43.237.13 }

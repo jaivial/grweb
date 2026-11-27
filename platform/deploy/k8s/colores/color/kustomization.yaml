@@ -1,0 +1,29 @@
+# Un color (blue o green): todos los servicios sin estado ni singleton. Cada color vive en su propio namespace con los
+# mismos nombres de Service, así que las URLs internas (http://identity:8080, …) no cambian entre colores.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base/common
+  - ../../base/ai
+  - ../../base/athletes
+  - ../../base/audit
+  - ../../base/backoffice
+  - ../../base/chat
+  - ../../base/cms
+  - ../../base/competition
+  - ../../base/crm
+  - ../../base/donaciones
+  - ../../base/fans
+  - ../../base/gateway
+  - ../../base/identity
+  - ../../base/juegos
+  - ../../base/live
+  - ../../base/messaging
+  - ../../base/openlifter
+  - ../../base/patrocinio
+  - ../../base/raffle
+  - ../../base/realtime
+  - ../../base/schedule
+  - ../../base/ticketing
+  - ../../base/web
+  - permitir-compartido.yaml

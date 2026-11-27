@@ -1,0 +1,13 @@
+# Presupuesto de la capa compartida: igual que el de QA antes de los colores (durante la migración comparte namespace
+# con el stack antiguo, que cuenta en la misma cuota). prod-20261115 (deploy/k8s/presupuesto.py).
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: grcup-quota
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 5Gi
+    limits.cpu: "16"
+    limits.memory: 15Gi
+    pods: "60"

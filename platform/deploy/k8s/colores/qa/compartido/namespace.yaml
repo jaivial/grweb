@@ -4,3 +4,4 @@ metadata:
   name: grcup-qa
   labels:
     app.kubernetes.io/part-of: grcup
+    grcup.dev/compartido: "true"
