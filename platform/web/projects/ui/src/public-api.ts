@@ -20,3 +20,4 @@ export * from './lib/video';
 export * from './lib/web';
 export * from './lib/cdn';
 export * from './lib/lang';
+export * from './lib/confetti';

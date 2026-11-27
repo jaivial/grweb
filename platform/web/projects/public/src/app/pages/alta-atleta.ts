@@ -4,7 +4,7 @@ import { MARCAS_PERFIL, MAX_BIO, MAX_FRASE, MAX_MARCA, esMenorDe, pruebaEnFoco, 
 import { isPlatformBrowser } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, PLATFORM_ID, PendingTasks, afterNextRender, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { GrButton, GrIcon, GrSelect, GrSkeleton, GrTelefono } from '@grcup/ui';
+import { GrButton, GrIcon, GrSelect, GrSkeleton, GrSwitch, GrTelefono } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import { AltchaConfig } from '../core/altcha';
 import { Cms } from '../core/cms';
@@ -20,7 +20,6 @@ import { AltaFoto, type FotoAlta } from './alta-atleta-foto';
 import { AltaExito } from './alta-atleta-exito';
 import { AltaAviso } from './alta-atleta-aviso';
 import { AltaFaq, FAQS } from './alta-atleta-faq';
-import { HandlerGratis } from './handler-gratis';
 
 /** Configuración del alta (CONTRATOS §1): módulo, textos legales, reto antibots y token de tiempo. */
 interface ConfigAlta {
@@ -62,7 +61,7 @@ const BORRADOR = 'grcup:alta-atleta:borrador';
  */
 @Component({
   selector: 'gr-alta-atleta-page',
-  imports: [Page, FormsModule, GrButton, GrIcon, GrSelect, GrSkeleton, GrTelefono, Related, Community, GrAltcha, AltaFoto, AltaExito, AltaAviso, AltaFaq, HandlerGratis, LocPipe],
+  imports: [Page, FormsModule, GrButton, GrIcon, GrSelect, GrSkeleton, GrTelefono, Related, Community, GrAltcha, AltaFoto, AltaExito, AltaAviso, AltaFaq, GrSwitch, LocPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <gr-page
@@ -247,14 +246,12 @@ const BORRADOR = 'grcup:alta-atleta:borrador';
                           [attr.aria-invalid]="!!err()['entrenador']" [attr.aria-describedby]="err()['entrenador'] ? 'e-entrenador' : null" />
                         @if (err()['entrenador']; as e) { <p id="e-entrenador" class="flex items-center gap-1.5 text-body-s text-accent-text"><gr-icon name="circle-alert" [size]="14" />{{ e }}</p> }
                       </div>
-                      <label class="flex min-h-11 items-start gap-2.5 py-1 text-body-s text-text-secondary">
-                        <span class="relative -mt-px flex size-6 shrink-0 items-center justify-center">
-                          <input type="checkbox" name="asignarHandler" [(ngModel)]="asignarHandler"
-                            class="peer size-[22px] cursor-pointer appearance-none rounded-[5px] border border-line-strong bg-bg-base checked:border-accent checked:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-text" />
-                          @if (asignarHandler) { <gr-icon name="check" [size]="14" class="pointer-events-none absolute text-white" /> }
-                        </span>
-                        <span>{{ t().asignarHandler }}</span>
-                      </label>
+                      <div class="flex min-w-0 flex-col gap-2">
+                        <span class="text-label-s">{{ t().handlerTitulo }}</span>
+                        <gr-switch [(checked)]="handler" [label]="t().handlerTitulo" describedBy="handler-txt">
+                          <span id="handler-txt" class="block text-body-s text-text-tertiary">{{ t().handlerTxt }}</span>
+                        </gr-switch>
+                      </div>
                     </fieldset>
 
                     <!-- Tu foto -->
@@ -387,7 +384,6 @@ const BORRADOR = 'grcup:alta-atleta:borrador';
         </div>
 
         <!-- Preguntas frecuentes -->
-        <gr-handler-gratis />
         <gr-alta-faq />
         <div class="mt-18 flex flex-col gap-18 md:mt-24 md:gap-24">
           <gr-related nivel="h3" [items]="t().relacionados" />
@@ -470,7 +466,7 @@ export class AltaAtletaPage {
     terminos: false, privacidad: false, imagen: false, novedades: false, whatsapp: false,
   };
   protected foto: FotoAlta | null = null;
-  protected asignarHandler = false;
+  protected handler = false;
   private intentado = false;
   /** Momento en el que se pidió la configuración (el token de tiempo debe tener al menos 3 s). */
   private configEn = 0;
@@ -719,7 +715,7 @@ export class AltaAtletaPage {
       club: this.d.club.trim(),
       ciudad: this.d.ciudad.trim(),
       entrenador: this.d.entrenador.trim(),
-      asignarHandler: this.asignarHandler,
+      handler: this.handler,
       frase: this.d.frase.trim(),
       bio: this.d.bio.trim(),
       instagram: this.esMenor() ? '' : this.d.instagram.trim(),
@@ -990,7 +986,8 @@ const T_ES = {
   categoria: 'Categoría de peso *', selCat: 'Seleccionar categoría', catSexo: 'Elige primero tu sexo para ver las categorías.',
   catNota: 'Las categorías −43 kg (mujeres) y −53 kg (hombres) son solo para sub-júnior y júnior.',
   competicion: 'Competición', queCompeticion: '¿En qué competición compites?', completa: 'Completa · sin plazas',
-  clubPh: 'Escribe tu club', ciudad: 'Ciudad', entrenador: 'Entrenador/a (opcional)', entrenadorPh: 'Tu entrenador/a', asignarHandler: 'No tengo handler / Asignadme uno',
+  clubPh: 'Escribe tu club', ciudad: 'Ciudad', entrenador: 'Entrenador/a (opcional)', entrenadorPh: 'Tu entrenador/a', handlerTitulo: '¿Necesitas handler?',
+  handlerTxt: 'Activa el interruptor para solicitar handler gratuito por el equipo de GR Strength.',
   tuFoto: 'Tu foto', tuPerfil: 'Tu perfil', frase: 'Frase de presentación (opcional)', frasePh: 'Una frase para tu ficha',
   bio: 'Sobre ti (opcional)', bioPh: 'Cuéntale a la gente quién eres en dos líneas', instagram: 'Instagram (opcional)', instagramPh: '@tuusuario',
   instagramMenor: 'A los menores de 18 no les pedimos Instagram: el campo se oculta y no se publica nunca.',
@@ -1047,7 +1044,8 @@ const T = {
     categoria: 'Weight class *', selCat: 'Select weight class', catSexo: 'Choose your sex first to see the weight classes.',
     catNota: 'The −43 kg (women) and −53 kg (men) classes are for sub-juniors and juniors only.',
     competicion: 'Competition', queCompeticion: 'Which competition are you entering?', completa: 'Full · no places left',
-    clubPh: 'Enter your club', ciudad: 'City', entrenador: 'Coach (optional)', entrenadorPh: 'Your coach', asignarHandler: "I don't have a handler / Assign me one",
+    clubPh: 'Enter your club', ciudad: 'City', entrenador: 'Coach (optional)', entrenadorPh: 'Your coach', handlerTitulo: 'Do you need a handler?',
+    handlerTxt: 'Turn on the switch to ask for a free handler from the GR Strength team.',
     tuFoto: 'Your photo', tuPerfil: 'Your profile', frase: 'Tagline (optional)', frasePh: 'A line for your profile',
     bio: 'About you (optional)', bioPh: 'Tell people who you are in two lines', instagram: 'Instagram (optional)', instagramPh: '@yourusername',
     instagramMenor: "We don't ask under-18s for Instagram: the field is hidden and never published.",

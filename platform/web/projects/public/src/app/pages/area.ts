@@ -16,6 +16,7 @@ import { I18n, LocPipe, divisionEn } from '../core/i18n';
 import { Seo } from '../core/seo';
 import { Footer, Navbar } from '../layout/layout';
 import { AreaAcreditacionPage } from './area-acreditacion';
+import { AreaHandlingPage } from './area-handling';
 import { AreaHorariosPage } from './area-horarios';
 import { AreaPerfilPage } from './area-perfil';
 
@@ -112,6 +113,7 @@ const T = {
     editar: "Editar mi perfil",
     verHorarios: "Ver mis horarios",
     postBuilder: "Post builder",
+    handling: "Handling gratis",
     verResultados: "Ver mis resultados",
     escribeEmailPass: "Escribe tu email y tu contraseña.",
     demasiados: "Demasiados intentos. Espera unos minutos.",
@@ -252,6 +254,7 @@ const T = {
     editar: "Edit my profile",
     verHorarios: "View my schedule",
     postBuilder: "Post builder",
+    handling: "Free handling",
     verResultados: "View my results",
     escribeEmailPass: "Enter your email and password.",
     demasiados: "Too many attempts. Please wait a few minutes.",
@@ -311,7 +314,7 @@ const T = {
 /** /area-atleta (Figma page 42): password-less access, panel, profile editor and weigh-in preview. Not indexed. */
 @Component({
   selector: 'gr-area-atleta',
-  imports: [RouterLink, LocPipe, FormsModule, NgTemplateOutlet, Navbar, Footer, GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, AreaPerfilPage, AreaHorariosPage, AreaAcreditacionPage],
+  imports: [RouterLink, LocPipe, FormsModule, NgTemplateOutlet, Navbar, Footer, GrAlert, GrButton, GrField, GrIcon, GrInput, GrSkeleton, AreaPerfilPage, AreaHorariosPage, AreaAcreditacionPage, AreaHandlingPage],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let p = panel();
@@ -378,7 +381,7 @@ const T = {
                   <button type="button" class="inline-flex h-11 items-center gap-2 rounded-sm px-4 text-label-m text-text-tertiary hover:bg-white/5 hover:text-text-primary focus-visible:outline-2 focus-visible:outline-accent" (click)="salir()"><gr-icon name="log-out" [size]="18" />{{ t().salir }}</button>
                 </div>
               </header>
-              <nav class="mt-4 grid grid-cols-2 gap-3 md:mt-6 md:grid-cols-5 md:gap-4" [attr.aria-label]="t().accesos">
+              <nav class="mt-4 grid grid-cols-2 gap-3 md:mt-6 md:grid-cols-3 md:gap-4 lg:grid-cols-6" [attr.aria-label]="t().accesos">
                 @for (x of accesos(); track x.id) {
                   <a [routerLink]="x.ruta ? (x.ruta | loc) : ('/area-atleta' | loc)" [queryParams]="x.vista ? { vista: x.vista } : (x.query ?? {})" [class]="x.ancho ? tileAncho : tile"><span [class]="tileIcono"><gr-icon [name]="x.icono" [size]="26" /></span><span class="text-[15px] leading-tight font-semibold md:text-[17px]">{{ x.texto }}</span></a>
                 }
@@ -482,6 +485,10 @@ const T = {
             @if (p) { <gr-area-acreditacion [panel]="p" /> }
           }
 
+          @case ('handling') {
+            <gr-area-handling />
+          }
+
           @case ('pesaje') {
             @if (p) {
               <div class="mx-auto max-w-xl">
@@ -579,11 +586,12 @@ export class AreaAtletaPage {
   protected readonly tileAncho = this.tile + ' max-md:col-span-2 max-md:aspect-auto max-md:py-5';
   protected readonly tileIcono = 'flex size-14 items-center justify-center rounded-lg bg-accent/16 text-accent-text transition-colors group-hover:bg-accent/24 md:size-16';
   /** Los accesos rápidos son URLs: cada subpágina del área tiene la suya (`?vista=…`) y atrás/adelante funcionan. */
-  protected readonly accesos: Signal<{ id: string; texto: string; icono: 'pencil' | 'qr' | 'calendar' | 'instagram' | 'trophy'; vista?: AreaVista; ruta?: string; query?: Record<string, string>; ancho?: boolean }[]> = computed(() => [
+  protected readonly accesos: Signal<{ id: string; texto: string; icono: 'pencil' | 'qr' | 'calendar' | 'instagram' | 'trophy' | 'users'; vista?: AreaVista; ruta?: string; query?: Record<string, string>; ancho?: boolean }[]> = computed(() => [
     { id: 'perfil', texto: this.t().editar, icono: 'pencil', vista: 'perfil' },
     { id: 'acreditacion', texto: this.t().miAcreditacion, icono: 'qr', vista: 'acreditacion' },
     { id: 'horarios', texto: this.t().verHorarios, icono: 'calendar', vista: 'horarios' },
     { id: 'post', texto: this.t().postBuilder, icono: 'instagram', vista: 'post' },
+    { id: 'handling', texto: this.t().handling, icono: 'users', vista: 'handling' },
     // los resultados de esta edición filtrados por el nombre del atleta (no hay página de resultados por atleta)
     { id: 'resultados', texto: this.t().verResultados, icono: 'trophy', ruta: '/resultados' + (this.anioComp() ? '/' + this.anioComp() : ''), query: this.anioComp() && this.panel()?.atleta.nombreCompleto ? { q: this.panel()!.atleta.nombreCompleto } : undefined, ancho: true },
   ]);
