@@ -1,9 +1,12 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
 import { sinTimeout } from '@grcup/ui';
 
 // Contract: platform/docs/FORMULARIOS.md §2 (esquema), §4 (admin API), §7 (asistente IA). camelCase JSON.
+
+/** Corte de la petición de crear un envío (el resto de POST usan el corte global de 12 s, que aquí no aplica). */
+export const ENVIO_TIMEOUT_MS = 30_000;
 
 export type TipoCampo =
   | 'titulo' | 'parrafo' | 'imagen' | 'separador'
@@ -226,11 +229,16 @@ export class FormulariosApi {
     return firstValueFrom(this.http.get<Audiencia>(`${this.base(cid)}/${id}/audiencia`, { params: p }));
   }
   /**
-   * Crea el envío. `clave` es la Idempotency-Key del diálogo: con la misma clave, un reintento recibe 200 con el envío
-   * ya creado (sin encolar nada); sin clave, el servidor responde 409 ENVIO_DUPLICADO si hay un envío igual hace poco.
+   * Crea el envío. `clave` es la Idempotency-Key del diálogo: con la misma clave y los mismos canales y filtro, un
+   * reintento recibe 200 con el envío ya creado (sin encolar nada); con otros, 422 CLAVE_REUTILIZADA. Sin
+   * `confirmarDuplicado`, 409 ENVIO_DUPLICADO (con `createdAt`) si hay un envío igual hace menos de 2 minutos.
+   * Corta a los 30 s (TimeoutError): repetir con la misma clave no duplica el envío.
    */
-  crearEnvio(cid: string, id: string, b: { canales: CanalFormulario[]; filtro: Filtro }, clave: string): Promise<Envio> {
-    return firstValueFrom(this.http.post<Envio>(`${this.base(cid)}/${id}/envios`, b, { headers: { 'Idempotency-Key': clave } }));
+  crearEnvio(cid: string, id: string, b: { canales: CanalFormulario[]; filtro: Filtro; confirmarDuplicado?: boolean }, clave: string): Promise<Envio> {
+    return firstValueFrom(
+      this.http.post<Envio>(`${this.base(cid)}/${id}/envios`, b, { headers: { 'Idempotency-Key': clave }, context: sinTimeout() })
+        .pipe(timeout(ENVIO_TIMEOUT_MS)),
+    );
   }
   envios(cid: string, id: string): Promise<Envio[]> {
     return firstValueFrom(this.http.get<Envio[]>(`${this.base(cid)}/${id}/envios`));

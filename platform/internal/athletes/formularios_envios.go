@@ -3,6 +3,7 @@ package athletes
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -168,8 +169,9 @@ func (s *Svc) registerFormulariosEnvios() {
 		ID    uuid.UUID `path:"id"`
 		Clave string    `header:"Idempotency-Key" maxLength:"80" doc:"Clave para repetir el envío sin duplicarlo (hasta 80 caracteres). Misma clave: se devuelve el envío ya creado (200)."`
 		Body  struct {
-			Canales []string    `json:"canales" maxItems:"2" doc:"email y/o whatsapp"`
-			Filtro  FiltroEnvio `json:"filtro"`
+			Canales            []string    `json:"canales" maxItems:"2" doc:"email y/o whatsapp"`
+			Filtro             FiltroEnvio `json:"filtro"`
+			ConfirmarDuplicado bool        `json:"confirmarDuplicado" doc:"true: crear aunque ya exista un envio igual hace menos de 2 minutos (tras el 409 ENVIO_DUPLICADO)"`
 		}
 	}
 	type envioOut struct {
@@ -197,7 +199,7 @@ func (s *Svc) registerFormulariosEnvios() {
 			if err != nil {
 				return nil, err
 			}
-			id, reutilizado, err := s.creaEnvio(ctx, in.CID, in.ID, c.Nombre, canales, in.Body.Filtro, clave)
+			id, reutilizado, err := s.creaEnvio(ctx, in.CID, in.ID, c.Nombre, canales, in.Body.Filtro, clave, in.Body.ConfirmarDuplicado)
 			if err != nil {
 				return nil, err
 			}
@@ -312,10 +314,15 @@ func contaAudiencia(lista []atletaEnvio, f FiltroEnvio) AudienciaFormulario {
 // atleta. Con clave (Idempotency-Key) y un envío ya creado con ella, se devuelve ese envío (reutilizado=true) sin encolar.
 // Sin clave, un envío igual (mismos canales y filtro) de hace menos de dos minutos es 409 ENVIO_DUPLICADO. Un formulario
 // cerrado no admite envíos.
-func (s *Svc) creaEnvio(ctx context.Context, cid, fid uuid.UUID, competicion string, canales []string, f FiltroEnvio, clave string) (uuid.UUID, bool, error) {
+func (s *Svc) creaEnvio(ctx context.Context, cid, fid uuid.UUID, competicion string, canales []string, f FiltroEnvio, clave string, confirmado bool) (uuid.UUID, bool, error) {
+	f = canonicoFiltro(f)
+	huella, err := huellaEnvio(canales, f)
+	if err != nil {
+		return uuid.Nil, false, err
+	}
 	var envioID uuid.UUID
 	reutilizado := false
-	err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+	err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 		fm, err := leeFormulario(ctx, tx, cid, fid, true)
 		if err != nil {
 			return err
@@ -325,17 +332,24 @@ func (s *Svc) creaEnvio(ctx context.Context, cid, fid uuid.UUID, competicion str
 			if err != nil {
 				return err
 			}
-			if previo != uuid.Nil {
-				envioID, reutilizado = previo, true
+			if previo != nil {
+				if previo.huella != huella {
+					return problem.Unprocessable("CLAVE_REUTILIZADA", "Esa clave ya se usó para un envío con otros canales o filtro. Vuelve a pulsar Enviar para crear uno nuevo.")
+				}
+				envioID, reutilizado = previo.id, true
 				return nil
 			}
-		} else {
-			reciente, err := hayEnvioReciente(ctx, tx, fid, canales, f)
+		}
+		if !confirmado {
+			reciente, err := envioReciente(ctx, tx, fid, huella)
 			if err != nil {
 				return err
 			}
-			if reciente {
-				return problem.Conflict("ENVIO_DUPLICADO", "Este mismo envío ya se creó hace menos de dos minutos. Espera un momento o cambia los canales o el filtro.")
+			if reciente != nil {
+				return &envioDuplicado{
+					problemaBase: problem.Conflict("ENVIO_DUPLICADO", "Ya se ha creado un envío igual hace menos de dos minutos. Confirma que quieres enviarlo otra vez."),
+					CreatedAt:    reciente.createdAt,
+				}
 			}
 		}
 		if fm.Estado == "cerrado" {
@@ -360,8 +374,8 @@ func (s *Svc) creaEnvio(ctx context.Context, cid, fid uuid.UUID, competicion str
 			claveDB = &clave
 		}
 		envioID = newID()
-		if _, err := tx.Exec(ctx, `INSERT INTO formulario_envios (id, formulario_id, competition_id, canales, filtro, total, creado_por, clave_idempotencia)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, envioID, fid, cid, canales, filtro, len(atletas), actor(ctx), claveDB); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO formulario_envios (id, formulario_id, competition_id, canales, filtro, total, creado_por, clave_idempotencia, huella)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, envioID, fid, cid, canales, filtro, len(atletas), actor(ctx), claveDB, huella); err != nil {
 			return err
 		}
 		dids, err := destinatariosDe(ctx, tx, cid, fid, atletas)
@@ -489,26 +503,73 @@ func insertaEntregas(ctx context.Context, tx pgx.Tx, envio uuid.UUID, entregas [
 	return err
 }
 
-// envioPorClave devuelve el envío que ya se creó con esa Idempotency-Key en el formulario (uuid.Nil si no hay ninguno).
-func envioPorClave(ctx context.Context, tx pgx.Tx, fid uuid.UUID, clave string) (uuid.UUID, error) {
-	var id uuid.UUID
-	err := tx.QueryRow(ctx, `SELECT id FROM formulario_envios WHERE formulario_id = $1 AND clave_idempotencia = $2`, fid, clave).Scan(&id)
-	if db.IsNoRows(err) {
-		return uuid.Nil, nil
-	}
-	return id, err
+// envioBreve son los datos de un envío que hacen falta para repetirlo (clave) o para avisar de un duplicado (huella).
+type envioBreve struct {
+	id        uuid.UUID
+	huella    string
+	createdAt time.Time
 }
 
-// hayEnvioReciente dice si el formulario tiene ya un envío con los mismos canales y filtro de hace menos de dos minutos.
-func hayEnvioReciente(ctx context.Context, tx pgx.Tx, fid uuid.UUID, canales []string, f FiltroEnvio) (bool, error) {
-	filtro, err := json.Marshal(f)
+// problemaBase es problem.Error con otro nombre de campo: un campo llamado Error taparía el método Error() del error.
+type problemaBase = problem.Error
+
+// envioDuplicado es el 409 ENVIO_DUPLICADO: el problema más la hora del envío igual que ya existe (createdAt).
+type envioDuplicado struct {
+	*problemaBase
+	CreatedAt time.Time `json:"createdAt" doc:"Cuándo se creó el envío igual"`
+}
+
+// canonicoFiltro devuelve el filtro en forma canónica: estados y atletas ordenados y sin repetidos. Dos filtros con los
+// mismos atletas y estados son el mismo envío, aunque lleguen en otro orden.
+func canonicoFiltro(f FiltroEnvio) FiltroEnvio {
+	out := FiltroEnvio{Estados: slices.Clone(f.Estados), Atletas: slices.Clone(f.Atletas), SoloSinResponder: f.SoloSinResponder}
+	slices.Sort(out.Estados)
+	out.Estados = slices.Compact(out.Estados)
+	slices.SortFunc(out.Atletas, func(a, b uuid.UUID) int { return strings.Compare(a.String(), b.String()) })
+	out.Atletas = slices.Compact(out.Atletas)
+	return out
+}
+
+// huellaEnvio es el sha256 (hex) de los canales ordenados y del filtro canónico (JSON): identifica un envío igual.
+func huellaEnvio(canales []string, f FiltroEnvio) (string, error) {
+	j, err := json.Marshal(canonicoFiltro(f))
 	if err != nil {
-		return false, err
+		return "", err
 	}
-	var existe bool
-	err = tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM formulario_envios WHERE formulario_id = $1 AND canales = $2::text[]
-		AND filtro = $3::jsonb AND created_at > now() - interval '2 minutes')`, fid, canales, filtro).Scan(&existe)
-	return existe, err
+	c := slices.Clone(canales)
+	slices.Sort(c)
+	sum := sha256.Sum256([]byte(strings.Join(c, ",") + "\n" + string(j)))
+	return hex.EncodeToString(sum[:]), nil
+}
+
+// envioPorClave devuelve el envío que ya se creó con esa Idempotency-Key en el formulario (nil si no hay ninguno).
+func envioPorClave(ctx context.Context, tx pgx.Tx, fid uuid.UUID, clave string) (*envioBreve, error) {
+	var e envioBreve
+	err := tx.QueryRow(ctx, `SELECT id, huella, created_at FROM formulario_envios WHERE formulario_id = $1 AND clave_idempotencia = $2`,
+		fid, clave).Scan(&e.id, &e.huella, &e.createdAt)
+	if db.IsNoRows(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &e, nil
+}
+
+// envioReciente devuelve el envío más reciente del formulario con la misma huella y de hace menos de dos minutos (nil si
+// no hay ninguno). Lo que se consulta aquí se serializa con el FOR UPDATE de creaEnvio.
+func envioReciente(ctx context.Context, tx pgx.Tx, fid uuid.UUID, huella string) (*envioBreve, error) {
+	var e envioBreve
+	err := tx.QueryRow(ctx, `SELECT id, huella, created_at FROM formulario_envios
+		WHERE formulario_id = $1 AND huella = $2 AND created_at > now() - interval '2 minutes'
+		ORDER BY created_at DESC LIMIT 1`, fid, huella).Scan(&e.id, &e.huella, &e.createdAt)
+	if db.IsNoRows(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &e, nil
 }
 
 // estadoEnvios devuelve los envíos del formulario con el estado de cada canal, según messaging.

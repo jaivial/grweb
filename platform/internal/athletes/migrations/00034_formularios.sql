@@ -37,10 +37,14 @@ CREATE TABLE formulario_envios (
     creado_por     text        NOT NULL DEFAULT '',
     created_at     timestamptz NOT NULL DEFAULT now(),
     -- Idempotency-Key del POST de envío: el mismo formulario y la misma clave devuelven el envío ya creado.
-    clave_idempotencia text    NULL CHECK (clave_idempotencia IS NULL OR char_length(clave_idempotencia) BETWEEN 1 AND 80)
+    clave_idempotencia text    NULL CHECK (clave_idempotencia IS NULL OR char_length(clave_idempotencia) BETWEEN 1 AND 80),
+    -- Huella del envío: sha256 hex de los canales ordenados y del filtro canónico. Una clave repetida con otra huella es
+    -- un error (422), y un envío igual hace menos de dos minutos pide confirmación (409).
+    huella         text        NOT NULL CHECK (char_length(huella) = 64)
 );
 CREATE INDEX formulario_envios_formulario ON formulario_envios (formulario_id, created_at DESC);
 CREATE UNIQUE INDEX formulario_envios_idempotencia ON formulario_envios (formulario_id, clave_idempotencia);
+CREATE INDEX formulario_envios_huella ON formulario_envios (formulario_id, huella, created_at DESC);
 
 -- Un destinatario por (formulario, atleta). Su token se deriva con la clave del servicio: no se guarda.
 CREATE TABLE formulario_destinatarios (
@@ -54,17 +58,20 @@ CREATE TABLE formulario_destinatarios (
 );
 CREATE INDEX formulario_destinatarios_atleta ON formulario_destinatarios (atleta_id);
 
--- Archivos subidos por un destinatario en un campo de archivo. Cada fila la crea la subida (con su url en el CDN, bajo
--- una ruta no adivinable); la respuesta solo acepta archivos que existan aquí para ese destinatario y campo.
+-- Archivos subidos por un destinatario en un campo de archivo. La subida reserva su fila en estado 'subiendo' (url vacía)
+-- antes de enviar el archivo al CDN, y la pasa a 'ok' con su url cuando el CDN responde (o la borra si falla). La
+-- respuesta solo acepta archivos 'ok' que existan aquí para ese destinatario y campo.
 CREATE TABLE formulario_archivos (
     id              uuid        PRIMARY KEY,
     destinatario_id uuid        NOT NULL REFERENCES formulario_destinatarios (id) ON DELETE CASCADE,
     campo_id        text        NOT NULL CHECK (char_length(campo_id) BETWEEN 1 AND 40),
-    url             text        NOT NULL CHECK (char_length(url) BETWEEN 1 AND 2000),
+    url             text        NOT NULL CHECK (char_length(url) <= 2000),
     nombre          text        NOT NULL CHECK (char_length(nombre) <= 255),
     tamano          bigint      NOT NULL CHECK (tamano >= 0),
     tipo            text        NOT NULL,
-    created_at      timestamptz NOT NULL DEFAULT now()
+    estado          text        NOT NULL DEFAULT 'subiendo' CHECK (estado IN ('subiendo', 'ok')),
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    CHECK ((estado = 'ok' AND char_length(url) BETWEEN 1 AND 2000) OR (estado = 'subiendo' AND url = ''))
 );
 CREATE INDEX formulario_archivos_destinatario ON formulario_archivos (destinatario_id, campo_id, created_at);
 

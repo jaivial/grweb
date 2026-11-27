@@ -163,7 +163,7 @@ func (s *Svc) porCampo(ctx context.Context, fid uuid.UUID, e formularios.Esquema
 			WHERE r.formulario_id = $1 AND jsonb_typeof(kv.value) <> 'array'
 			GROUP BY 1, 2, 3
 			UNION ALL
-			SELECT kv.key, 'elemento', el.valor, count(*)
+			SELECT kv.key, 'elemento', COALESCE(el.valor, ''), count(*)
 			FROM formulario_respuestas r CROSS JOIN LATERAL jsonb_each(r.datos) AS kv
 			CROSS JOIN LATERAL jsonb_array_elements_text(CASE WHEN jsonb_typeof(kv.value) = 'array' THEN kv.value ELSE '[]'::jsonb END) AS el(valor)
 			WHERE r.formulario_id = $1 AND jsonb_typeof(kv.value) = 'array'
@@ -230,7 +230,7 @@ func llenaCampo(cs *CampoEstadistica, c formularios.Campo, vals []valorCampo) {
 			no += v.n
 		case v.clase == "string" && eleccion && v.texto != "":
 			cuentas[v.texto] += v.n
-		case v.clase == "elemento":
+		case v.clase == "elemento" && v.texto != "":
 			cuentas[v.texto] += v.n
 		case v.clase == "lista":
 			lista += v.n

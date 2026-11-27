@@ -2,10 +2,12 @@ import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { GrAlert, GrButton, GrIcon, GrSkeleton, GrToasts, fmtNumber } from '@grcup/ui';
+import { TimeoutError } from 'rxjs';
 import { Competitions } from '../../core/competitions';
-import { problemOf } from '../../core/api';
+import { problemOf, type Problem } from '../../core/api';
 import { BoCheckbox } from '../../shared/kit';
 import { Confirm, errText } from '../../shared/ui';
+import { nuevoUuid } from '../../shared/uuid';
 import { FormulariosApi, type Audiencia, type CanalFormulario, type Envio, type Filtro, type Formulario } from './api';
 
 type Estado = 'confirmado' | 'reserva';
@@ -15,6 +17,7 @@ const ESTADOS: { v: Estado; label: string }[] = [
 ];
 const DEBOUNCE_MS = 300;
 const COLA_RITMO = 'Los mensajes entran en la Cola de envío y salen al ritmo anti-spam: WhatsApp 1 cada 30–60 s, 40/h, 150/día, nunca de 22:00 a 09:00.';
+const hora = (iso: string): string => (iso ? new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '');
 
 /**
  * «Nuevo envío» dialog: channels, filter and a live audience (per channel). Confirms before creating the send: the
@@ -109,10 +112,12 @@ export class BoEnvioDialogo {
   private t: ReturnType<typeof setTimeout> | undefined;
   private seq = 0;
   /**
-   * Idempotency-Key de este diálogo: una por apertura (el padre recrea el diálogo al abrirlo) y la misma en cada reintento,
-   * para que un doble clic o una respuesta perdida no creen dos envíos.
+   * Idempotency-Key del envío en curso. Cambia cuando cambian los canales o el filtro (otro envío) y al reintentar tras
+   * el aviso de duplicado; mientras no cambien, un reintento (doble clic, corte de red) reutiliza la misma clave.
    */
-  private readonly clave = crypto.randomUUID();
+  private clave = nuevoUuid();
+  /** Canales y filtro a los que corresponde la clave actual. */
+  private claveFirma = '';
 
   constructor() {
     this.actualizarAudiencia();
@@ -168,6 +173,7 @@ export class BoEnvioDialogo {
     clearTimeout(this.t);
     const a = await this.cargarAudiencia();
     const canales = this.canales();
+    const filtro = this.filtro();
     const mensajes = a ? (this.email() ? a.email : 0) + (this.whatsapp() ? a.whatsapp : 0) : null;
     const ok = await this.confirm.ask({
       title: `¿Enviar «${this.formulario().nombre}»?`,
@@ -176,19 +182,56 @@ export class BoEnvioDialogo {
       confirm: 'Enviar',
     });
     if (!ok) return;
+    // Otro envío (canales o filtro distintos) lleva otra clave: con la misma, el servidor respondería 422 CLAVE_REUTILIZADA.
+    const firma = JSON.stringify([[...canales].sort(), [...(filtro.estados ?? [])].sort(), !!filtro.soloSinResponder]);
+    if (firma !== this.claveFirma) {
+      this.clave = nuevoUuid();
+      this.claveFirma = firma;
+    }
+    await this.enviarCon(canales, filtro, false);
+  }
+
+  /** Crea el envío. `confirmado`: el usuario ya aceptó el aviso de envío duplicado (se envía con confirmarDuplicado). */
+  private async enviarCon(canales: CanalFormulario[], filtro: Filtro, confirmado: boolean): Promise<void> {
     this.enviando.set(true);
     this.error.set('');
+    let duplicadoA: string | null = null;
     try {
-      const envio = await this.api.crearEnvio(this.cid(), this.formulario().id, { canales, filtro: this.filtro() }, this.clave);
+      const envio = await this.api.crearEnvio(this.cid(), this.formulario().id, { canales, filtro, confirmarDuplicado: confirmado }, this.clave);
       this.toasts.success('Envío creado', 'Los mensajes están en la Cola de envío');
       this.enviado.emit(envio);
     } catch (e) {
-      const p = problemOf(e);
-      this.error.set(p.code === 'ENVIO_DUPLICADO' ? 'Ya se ha creado un envío igual hace un momento.' : p.status === 409
-        ? 'El formulario está cerrado y no admite envíos. Cámbialo a activo desde la cabecera para enviarlo.'
-        : errText(e, 'Prueba de nuevo en unos segundos.'));
+      const p = problemOf(e) as Problem & { createdAt?: string };
+      if (p.code === 'ENVIO_DUPLICADO') {
+        duplicadoA = p.createdAt ?? '';
+      } else {
+        // Clave reutilizada con otros canales o filtro: se renueva; el usuario vuelve a pulsar Enviar.
+        if (p.code === 'CLAVE_REUTILIZADA') this.clave = nuevoUuid();
+        this.error.set(this.textoError(e, p));
+      }
     } finally {
       this.enviando.set(false);
     }
+    // Fuera del try: el aviso de confirmación no debe quedar con el envío «en curso».
+    if (duplicadoA !== null) await this.preguntarDuplicado(canales, filtro, duplicadoA);
+  }
+
+  /** 409 ENVIO_DUPLICADO: ya hay un envío igual hace menos de dos minutos. Se confirma antes de crear otro (clave nueva). */
+  private async preguntarDuplicado(canales: CanalFormulario[], filtro: Filtro, creadoAt: string): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: '¿Enviar otra vez?',
+      text: `Ya se ha creado un envío igual a las ${hora(creadoAt)}. ¿Quieres enviarlo otra vez?`,
+      confirm: 'Enviar otra vez',
+    });
+    if (!ok) return;
+    this.clave = nuevoUuid();
+    await this.enviarCon(canales, filtro, true);
+  }
+
+  private textoError(e: unknown, p: Problem): string {
+    if (e instanceof TimeoutError) return 'Tarda más de lo normal. Vuelve a pulsar Enviar: si ya se creó, no se duplicará.';
+    if (p.code === 'CLAVE_REUTILIZADA') return 'Este envío ha cambiado mientras lo preparabas. Vuelve a pulsar Enviar para confirmarlo.';
+    if (p.status === 409) return 'El formulario está cerrado y no admite envíos. Cámbialo a activo desde la cabecera para enviarlo.';
+    return errText(e, 'Prueba de nuevo en unos segundos.');
   }
 }
