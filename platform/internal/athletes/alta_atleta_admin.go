@@ -142,6 +142,7 @@ type DetalleSolicitud struct {
 	Ciudad          string        `json:"ciudad"`
 	Entrenador      string        `json:"entrenador"`
 	Prueba          string        `json:"prueba"`
+	Categoria       string        `json:"categoria"`
 	Frase           string        `json:"frase"`
 	Bio             string        `json:"bio"`
 	Instagram       string        `json:"instagram"`
@@ -580,7 +581,7 @@ func (s *Svc) detalleSolicitud(ctx context.Context, cid, id uuid.UUID) (DetalleS
 	}
 	d := DetalleSolicitud{
 		ItemSolicitud: s.itemSolicitud(cid, sol),
-		Licencia:      sol.Licencia, Telefono: sol.Telefono, Sexo: sol.Sexo, Ciudad: sol.Ciudad, Entrenador: sol.Entrenador, Prueba: sol.Prueba,
+		Licencia:      sol.Licencia, Telefono: sol.Telefono, Sexo: sol.Sexo, Ciudad: sol.Ciudad, Entrenador: sol.Entrenador, Prueba: sol.Prueba, Categoria: sol.Categoria,
 		Frase: sol.Frase, Bio: sol.Bio, Instagram: sol.Instagram, Historial: sol.Historial,
 		MarcaSQ: sol.MarcaSQ, MarcaBP: sol.MarcaBP, MarcaDL: sol.MarcaDL,
 		FocalX: int(sol.FocalX), FocalY: int(sol.FocalY),
@@ -631,7 +632,7 @@ func (s *Svc) detalleSolicitud(ctx context.Context, cid, id uuid.UUID) (DetalleS
 		if err == nil {
 			actual := s.enlaceDe(a)
 			d.Atleta = &actual
-			// A change request already carries its own before/after snapshot: the 17-field comparison is for altas.
+			// A change request already carries its own before/after snapshot: the 18-field comparison is for altas.
 			if sol.Tipo == "alta" {
 				d.Diferencias = diferencias(actual, sol)
 			}
@@ -677,6 +678,7 @@ func diferencias(a AtletaEnlace, sol solicitud) []Diferencia {
 	add("telefono", "Teléfono", a.Telefono, sol.Telefono)
 	add("sexo", "Sexo", a.Sexo, sol.Sexo)
 	add("fechaNacimiento", "Fecha de nacimiento", a.FechaNacimiento, fechaTexto(sol.FechaNacimiento))
+	add("categoria", "Categoría de peso", a.Categoria, sol.Categoria)
 	add("licencia", "Licencia AEP", a.Licencia, sol.Licencia)
 	add("club", "Club", a.Club, sol.Club)
 	add("ciudad", "Ciudad", a.Ciudad, sol.Ciudad)
@@ -739,7 +741,7 @@ func (s *Svc) lockSolicitud(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, i
 			&sol.Telefono, &sol.Sexo, &sol.FechaNacimiento, &sol.Club, &sol.Ciudad, &sol.Frase, &sol.Bio, &sol.Instagram,
 			&sol.Entrenador, &sol.Historial, &sol.MarcaSQ, &sol.MarcaBP, &sol.MarcaDL, &sol.FocalX, &sol.FocalY, &sol.EsMenor,
 			&sol.FotoClave, &sol.FotoSHA256, &sol.AutorizacionClave, &sol.Estado, &sol.Notas, &sol.MotivoRechazo, &sol.RevisadoAt,
-			&sol.RevisadoPor, &sol.Consentimientos, &sol.ConsentimientoAt, &sol.IP, &sol.UserAgent, &sol.Version, &sol.CreatedAt, &sol.UpdatedAt, &sol.Prueba)
+			&sol.RevisadoPor, &sol.Consentimientos, &sol.ConsentimientoAt, &sol.IP, &sol.UserAgent, &sol.Version, &sol.CreatedAt, &sol.UpdatedAt, &sol.Prueba, &sol.Categoria)
 	if err == pgx.ErrNoRows {
 		return sol, problem.NotFound("Esa solicitud no existe.")
 	}
@@ -932,6 +934,12 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 				return err
 			}
 		}
+		// The declared weight class fills an empty one: a class the team already set is never overwritten.
+		if sol.Categoria != "" {
+			if _, err := tx.Exec(ctx, `UPDATE atletas SET categoria = $3 WHERE competition_id = $1 AND id = $2 AND categoria = ''`, cid, *destino, sol.Categoria); err != nil {
+				return err
+			}
+		}
 		slug, err := s.actualizaPerfil(ctx, tx, cid, *destino, sol, cambios, perfilNuevo)
 		if err != nil {
 			return err
@@ -1060,8 +1068,8 @@ func (s *Svc) creaAtleta(ctx context.Context, tx pgx.Tx, cid uuid.UUID, anio int
 		division = DivisionPorEdad(*sol.FechaNacimiento, anio)
 	}
 	_, err := tx.Exec(ctx, `INSERT INTO atletas (id, competition_id, licencia, nombre, apellidos, email, telefono, sexo, fecha_nacimiento,
-		categoria, division, club, ciudad, estado, origen) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'',$10,$11,$12,'confirmado','manual')`,
-		id, cid, sol.Licencia, sol.Nombre, sol.Apellidos, sol.Email, sol.Telefono, sol.Sexo, sol.FechaNacimiento, division, sol.Club, sol.Ciudad)
+		categoria, division, club, ciudad, estado, origen) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'confirmado','manual')`,
+		id, cid, sol.Licencia, sol.Nombre, sol.Apellidos, sol.Email, sol.Telefono, sol.Sexo, sol.FechaNacimiento, sol.Categoria, division, sol.Club, sol.Ciudad)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
