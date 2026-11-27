@@ -377,6 +377,7 @@ func (s *Svc) registerPublic() {
 			if err != nil {
 				return nil, err
 			}
+			invalidarMercadosVista(j.ID)
 			s.eventoClasificacion(ctx, c.ID, j.ID)
 			return o, nil
 		})

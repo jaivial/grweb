@@ -15,8 +15,8 @@ export const GRUPOS: readonly Grupo[] = ['categoria', 'gl', 'sq', 'bp', 'dl'];
 export const PRUEBAS: readonly Prueba[] = ['aep2', 'aep3'];
 export const PRUEBA_TXT: Record<Prueba, string> = { aep2: 'AEP-2', aep3: 'AEP-3' };
 
-/** El peso de la categoría como número para ordenar («-63» → 63, «84+» → 84.5). */
-export const pesoCategoria = (c: string | undefined): number => (c ? parseFloat(c.replace('-', '')) + (c.endsWith('+') ? 0.5 : 0) : 999);
+/** El peso de la categoría como número para ordenar («-63» → 63, «+84» → 84.5, «−120» → 120). */
+export const pesoCategoria = (c: string | undefined): number => (c ? parseFloat(c.replace(/[^\d.]/g, '')) + (c.includes('+') ? 0.5 : 0) : 999);
 
 /** Los mercados de un sexo, nivel y grupo (las categorías de menos a más peso). */
 export function mercadosDe(ms: Mercado[], sexo: Sexo, grupo: Grupo, prueba: Prueba): Mercado[] {
@@ -103,7 +103,7 @@ export class PorraNivel {
   selector: 'gr-porra-navegacion',
   imports: [RouterLink, LocPipe, PorraNivel],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-4' },
+  host: { class: 'flex flex-col gap-4 @container' },
   template: `
     <div class="flex rounded-pill border border-line-subtle bg-bg-surface p-1" role="group" [attr.aria-label]="t().sexo">
       @for (s of sexos(); track s.v) {
@@ -114,10 +114,10 @@ export class PorraNivel {
       }
     </div>
 
-    <nav [attr.aria-label]="t().mercados" class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
+    <nav [attr.aria-label]="t().mercados" class="grid grid-cols-2 gap-2 @[28rem]:grid-cols-3 @[44rem]:grid-cols-5">
       @for (g of grupos(); track g.v) {
         <a [routerLink]="ruta() | loc" [queryParams]="{ sexo: sexo(), grupo: g.v, prueba: prueba(), peso: null }" queryParamsHandling="merge"
-          class="flex min-h-24 flex-col justify-between gap-2 rounded-md border p-3 transition-colors"
+          class="flex min-h-24 flex-col justify-between gap-2 rounded-md border p-3 transition-colors last:col-span-2 @[44rem]:last:col-span-1"
           [class]="g.v === grupo() ? 'border-accent bg-accent-deep/40' : 'border-line-subtle bg-bg-card hover:border-line-strong'"
           [attr.aria-current]="g.v === grupo() ? 'true' : null">
           <span class="text-label-s text-text-primary">{{ g.l }}</span>
