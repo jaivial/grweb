@@ -10,6 +10,7 @@ import { Realtime } from '../../core/realtime';
 import { problemOf } from '../../core/api';
 import { BoPageHeader, BoTabs, errText, type BoTab } from '../../shared/ui';
 import { BoSheet } from '../../shared/kit';
+import { tabEnUrl } from '../../shared/tab-url';
 import { SolicitudesContador } from '../../core/solicitudes';
 import {
   SolicitudesApi,
@@ -103,8 +104,8 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
           @if (!visibles().length) {
             <section class="mx-auto w-full max-w-2xl rounded-lg border border-line-subtle bg-bg-card p-8 text-center">
               <span class="mx-auto flex size-12 items-center justify-center rounded-md bg-accent-deep/40 text-accent-text"><gr-icon name="user" [size]="22" /></span>
-              <h2 class="mt-4 text-ui-h4">{{ l.total ? 'Ninguna solicitud con esos filtros' : 'Aún no hay solicitudes de atleta' }}</h2>
-              <p class="mt-2 text-body-s text-text-tertiary">{{ l.total ? 'Prueba con otro filtro o con otra búsqueda.' : 'Cuando alguien envíe su alta desde el formulario público aparecerá aquí en vivo, con su foto y su coincidencia.' }}</p>
+              <h2 class="mt-4 text-ui-h4">{{ l.total || pestana() !== 'todas' ? 'Ninguna solicitud con esos filtros' : 'Aún no hay solicitudes de atleta' }}</h2>
+              <p class="mt-2 text-body-s text-text-tertiary">{{ l.total || pestana() !== 'todas' ? 'Prueba con otro filtro o con otra búsqueda.' : 'Cuando alguien envíe su alta desde el formulario público aparecerá aquí en vivo, con su foto y su coincidencia.' }}</p>
             </section>
           } @else {
             <bo-solicitudes-lista [items]="visibles()" [total]="l.total" [desde]="desde()" [hasta]="hasta()" [pagina]="pagina()" [paginas]="paginas()"
@@ -642,7 +643,13 @@ export class SolicitudesPage {
   protected readonly lista = signal<SolicitudLista | null | undefined>(undefined);
   protected readonly detalle = signal<SolicitudDetalle | null>(null);
   protected readonly abierto = signal(false);
-  protected readonly pestana = signal<Pestana>('todas');
+  protected readonly pestanas: { k: Pestana; l: string }[] = [
+    { k: 'todas', l: 'Todas' }, { k: 'pendiente', l: 'Nuevas' }, { k: 'revision', l: 'En revisión' },
+    { k: 'menor', l: 'Menor · sin autorización' }, { k: 'aprobada', l: 'Aprobadas' }, { k: 'rechazada', l: 'Rechazadas' },
+  ];
+  /** «Nuevas» on arrival; an explicit `?estado=` (also `todas`) wins and stays in the URL. */
+  protected readonly pestana = signal<Pestana>(((p) => (this.pestanas.some((t) => t.k === p) ? p : 'pendiente') as Pestana)(this.route.snapshot.queryParamMap.get('estado')));
+  private readonly estadoUrl = tabEnUrl(this.pestana, () => this.pestanas.map((t) => t.k), 'estado');
   protected readonly q = signal('');
   protected readonly fMatch = signal('');
   protected readonly fTipo = signal('');
@@ -679,18 +686,14 @@ export class SolicitudesPage {
   protected readonly por = signal(6);
   protected cambios = { frase: '', bio: '', instagram: '', club: '', ciudad: '', entrenador: '', marcaSQ: null as number | null, marcaBP: null as number | null, marcaDL: null as number | null };
 
-  protected readonly pestanas: { k: Pestana; l: string }[] = [
-    { k: 'todas', l: 'Todas' }, { k: 'pendiente', l: 'Nuevas' }, { k: 'revision', l: 'En revisión' },
-    { k: 'menor', l: 'Menor · sin autorización' }, { k: 'aprobada', l: 'Aprobadas' }, { k: 'rechazada', l: 'Rechazadas' },
-  ];
   /** BIZ-194: status, search and filters live in the «Filtros» panel; Exportar in the «⋯» panel. */
   protected readonly filtros = signal(false);
   protected readonly acciones = signal(false);
   protected readonly pestanaActual = computed(() => this.pestanas.find((t) => t.k === this.pestana())?.l ?? '');
-  protected readonly nFiltros = computed(() => [this.pestana() !== 'todas', this.q(), this.fMatch(), this.fTipo(), this.fMenor(), this.fRecibida()].filter(Boolean).length);
+  protected readonly nFiltros = computed(() => [this.pestana() !== 'pendiente', this.q(), this.fMatch(), this.fTipo(), this.fMenor(), this.fRecibida()].filter(Boolean).length);
   protected limpiar(): void {
     this.q.set(''); this.fMatch.set(''); this.fTipo.set(''); this.fMenor.set(''); this.fRecibida.set('');
-    this.irPestana('todas');
+    this.irPestana('pendiente');
   }
   protected readonly kpiEtiquetas = [{ l: 'Pendientes de revisar' }, { l: 'En revisión' }, { l: 'Aprobadas' }, { l: 'Rechazadas' }];
   protected readonly hace = fmtAgo;
@@ -829,6 +832,11 @@ export class SolicitudesPage {
     return `/${this.comps.current()?.slug ?? this.route.snapshot.paramMap.get('comp') ?? ''}/atletas/solicitudes`;
   }
 
+  /** The review lives in the URL without the filter: keep «Todas» (or any other status) linkable when closing it. */
+  private urlConEstado(path: string): string {
+    return this.pestana() === 'pendiente' ? path : `${path}?estado=${this.pestana()}`;
+  }
+
   /** «3 de 12» in the mobile header: place of the open request in the current list. */
   protected posicion(): string {
     const d = this.detalle();
@@ -961,7 +969,7 @@ export class SolicitudesPage {
   }
 
   protected async revisar(s: { id: string }, push = true): Promise<void> {
-    if (push && this.idDeUrl(this.location.path()) !== s.id) this.location.go(`${this.urlLista()}/${s.id}`);
+    if (push && this.idDeUrl(this.location.path()) !== s.id) this.location.go(this.urlConEstado(`${this.urlLista()}/${s.id}`));
     this.abierto.set(true);
     this.pendienteId.set(s.id);
     this.nuevas.update((n) => {
@@ -1036,7 +1044,7 @@ export class SolicitudesPage {
   });
 
   protected cerrar(push = true): void {
-    if (push && this.idDeUrl(this.location.path())) this.location.go(this.urlLista());
+    if (push && this.idDeUrl(this.location.path())) this.location.go(this.urlConEstado(this.urlLista()));
     this.abierto.set(false);
     this.detalle.set(null);
     this.dialogo.set(null);
