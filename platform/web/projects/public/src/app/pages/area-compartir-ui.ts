@@ -37,7 +37,7 @@ export interface Recorte {
   selector: 'gr-story-movil',
   imports: [GrIcon, GrTelefono],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'block w-[200px] md:w-[230px] lg:w-[240px] xl:w-[288px]' },
+  host: { class: 'block w-[200px] max-w-full md:w-[230px] lg:w-[240px] xl:w-[288px]' },
   template: `
     <gr-telefono>
       <!-- status bar: time and signal / wifi / battery flanking the Dynamic Island, as on a real iPhone -->
@@ -77,7 +77,7 @@ export interface Recorte {
               <span class="grid size-[8.14cqw] shrink-0 place-items-center rounded-full bg-white/25 text-[2.9cqw] font-semibold">{{ iniciales() }}</span>
             }
             <span class="flex min-w-0 items-center gap-[1.2cqw]">
-              <span class="truncate text-[3.31cqw] font-semibold">{{ handle() }}</span>
+              <span class="min-w-0 truncate text-[3.31cqw] font-semibold">{{ handle() }}</span>
               <span class="shrink-0 text-[3.05cqw] text-white/80">· 1 min</span>
             </span>
             <span class="ml-auto flex shrink-0 items-center gap-[2.6cqw]">
