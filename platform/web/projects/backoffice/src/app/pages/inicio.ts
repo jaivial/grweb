@@ -87,6 +87,11 @@ export class InicioPage {
   protected readonly pct = (a: number, b: number) => (b ? Math.round((100 * a) / b) : 0);
 
   protected readonly can = (perm: string) => this.auth.can(this.comp()?.id, perm);
+  /**
+   * State of the chip of «Actividad en directo»: «En directo» until the stream has been down 1,5 s, so loading the
+   * dashboard (the stream reopens) does not flash «Reconectando» (same grace as `bo-live-status`).
+   */
+  protected readonly directo = signal(true);
   protected readonly evento = computed(() => this.comp()?.estado === 'hoy');
   protected readonly taquilla = computed(() => this.can('checkin.escanear') && !this.can('evento.editar') && !this.can('entradas.gestionar'));
   protected readonly estado = computed(() => ESTADO[this.comp()?.estado ?? 'borrador']);
@@ -187,6 +192,14 @@ export class InicioPage {
   protected readonly ago = fmtAgo;
 
   constructor() {
+    effect((onCleanup) => {
+      if (this.live.connected()) {
+        this.directo.set(true);
+        return;
+      }
+      const t = setTimeout(() => this.directo.set(false), 1500);
+      onCleanup(() => clearTimeout(t));
+    });
     effect(() => {
       const c = this.comp();
       this.periodo(); // reload the KPIs when the period changes
