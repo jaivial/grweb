@@ -229,83 +229,108 @@ func (s *Svc) publicaFormulario(ctx context.Context, r row) (string, error) {
 	return st.Put(ctx, key, "image/png", png)
 }
 
+// publicaFirmada publishes a signed authorisation under a random key (it cannot be guessed) and answers its URL.
+func (s *Svc) publicaFirmada(ctx context.Context, cid uuid.UUID, datos []byte) (string, error) {
+	tipo := http.DetectContentType(datos)
+	ext, ok := tiposAutorizacion[tipo]
+	if !ok {
+		return "", errors.New("tipo de archivo no permitido")
+	}
+	st, err := s.storage(ctx, cid)
+	if err != nil {
+		return "", err
+	}
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	return st.Put(ctx, "autorizaciones/"+cid.String()+"/firmada-"+hex.EncodeToString(b)+ext, tipo, datos)
+}
+
+// solicitarOut is the answer of asking the guardian for the authorisation.
+type solicitarOut struct {
+	Body struct {
+		EnviadaAt     time.Time `json:"enviadaAt"`
+		Enlace        string    `json:"enlace"`
+		FormularioURL string    `json:"formularioUrl"`
+		Email         bool      `json:"email"`
+		WhatsApp      bool      `json:"whatsapp"`
+	}
+}
+
+// pideAutorizacion asks the guardian of a minor for the signed authorisation: the form and a personal link by email
+// (the form attached) and by WhatsApp when the athlete accepted it. The admin endpoint and the approval of an alta use it.
+func (s *Svc) pideAutorizacion(ctx context.Context, cid, atleta uuid.UUID, por string) (*solicitarOut, error) {
+	r, err := getRow(ctx, s.a.DB, cid, atleta)
+	if err != nil {
+		return nil, err
+	}
+	if !r.menor(s.compDate(ctx, cid)) {
+		return nil, problem.Conflict("NO_MENOR", "Este atleta no es menor de edad el día de la competición.")
+	}
+	if r.AutorizacionURL != "" {
+		return nil, problem.Conflict("YA_AUTORIZADO", "Este atleta ya tiene la autorización de su tutor.")
+	}
+	if e := s.estadoAutorizacion(ctx, r); e.Estado == "revision" {
+		return nil, problem.Conflict("EN_REVISION", "Ya ha subido una autorización: revísala en Solicitudes.")
+	}
+	correo := ""
+	if r.Email != nil {
+		correo = strings.TrimSpace(*r.Email)
+	}
+	// WhatsApp only with the consent of the alta, as every athlete notice; without it, email only.
+	wa := r.Telefono != "" && waAceptado(ctx, s.a.DB, cid, r.ID)
+	if correo == "" && !wa {
+		return nil, problem.Unprocessable("SIN_CONTACTO", "Este atleta no tiene email ni un teléfono con WhatsApp aceptado: añade su email en «Competición».")
+	}
+	form, err := s.publicaFormulario(ctx, r)
+	if err != nil {
+		s.a.Log.Error("no se ha podido publicar el formulario de autorización", "err", err, "atleta", r.ID.String())
+		return nil, noDisponible()
+	}
+	o := &solicitarOut{}
+	err = s.change(ctx, cid, "athletes.autorizacion_pedida", map[string]any{"id": r.ID, "nombre": r.nombreCompleto(), "por": por}, func(tx pgx.Tx) error {
+		token, err := s.emiteToken(ctx, tx, cid, r.ID, form)
+		if err != nil {
+			return err
+		}
+		o.Body.Enlace, o.Body.FormularioURL = s.enlaceAutorizacion(token), form
+		v := map[string]string{"nombre": r.Nombre, "competicion": eventoAutorizacion, "enlace": o.Body.Enlace, "formulario": form}
+		if correo != "" {
+			// The form travels as a real attachment (messaging fetches it at send time).
+			ve := map[string]string{"__adjunto": form, "__adjuntoNombre": "autorizacion-" + r.Slug + ".png"}
+			for k, x := range v {
+				ve[k] = x
+			}
+			if err := email(ctx, tx, cid, correo, "atleta-autorizacion-pedida", ve); err != nil {
+				return err
+			}
+			o.Body.Email = true
+		}
+		if wa {
+			if err := whatsapp(ctx, tx, cid, r.Telefono, false, "atleta-autorizacion-pedida", v, form); err != nil {
+				return err
+			}
+			o.Body.WhatsApp = true
+		}
+		return hist(ctx, tx, r.ID, "Autorización del tutor pedida", strings.Join(canales(o.Body.Email, o.Body.WhatsApp), " y "))
+	})
+	if err != nil {
+		return nil, err
+	}
+	o.Body.EnviadaAt = time.Now().UTC()
+	return o, nil
+}
+
 func (s *Svc) registerAutorizacion() {
 	api := s.a.API
 
-	type solicitarOut struct {
-		Body struct {
-			EnviadaAt     time.Time `json:"enviadaAt"`
-			Enlace        string    `json:"enlace"`
-			FormularioURL string    `json:"formularioUrl"`
-			Email         bool      `json:"email"`
-			WhatsApp      bool      `json:"whatsapp"`
-		}
-	}
 	huma.Register(api, huma.Operation{OperationID: "atletas-autorizacion-solicitar", Method: http.MethodPost, Path: "/api/admin/competiciones/{cid}/atletas/{id}/autorizacion/solicitar",
 		Summary: "Pedir al tutor la autorización de un atleta menor (email con el formulario adjunto + WhatsApp)", Tags: tagAdmin, Security: bearer},
 		func(ctx context.Context, in *idIn) (*solicitarOut, error) {
-			if _, err := auth.Require(ctx, in.CID.String(), "atletas.editar"); err != nil {
-				return nil, err
-			}
-			r, err := getRow(ctx, s.a.DB, in.CID, in.ID)
+			pr, err := auth.Require(ctx, in.CID.String(), "atletas.editar")
 			if err != nil {
 				return nil, err
 			}
-			if !r.menor(s.compDate(ctx, in.CID)) {
-				return nil, problem.Conflict("NO_MENOR", "Este atleta no es menor de edad el día de la competición.")
-			}
-			if r.AutorizacionURL != "" {
-				return nil, problem.Conflict("YA_AUTORIZADO", "Este atleta ya tiene la autorización de su tutor.")
-			}
-			if e := s.estadoAutorizacion(ctx, r); e.Estado == "revision" {
-				return nil, problem.Conflict("EN_REVISION", "Ya ha subido una autorización: revísala en Solicitudes.")
-			}
-			correo := ""
-			if r.Email != nil {
-				correo = strings.TrimSpace(*r.Email)
-			}
-			// WhatsApp only with the consent of the alta, as every athlete notice; without it, email only.
-			wa := r.Telefono != "" && waAceptado(ctx, s.a.DB, in.CID, r.ID)
-			if correo == "" && !wa {
-				return nil, problem.Unprocessable("SIN_CONTACTO", "Este atleta no tiene email ni un teléfono con WhatsApp aceptado: añade su email en «Competición».")
-			}
-			form, err := s.publicaFormulario(ctx, r)
-			if err != nil {
-				s.a.Log.Error("no se ha podido publicar el formulario de autorización", "err", err, "atleta", r.ID.String())
-				return nil, noDisponible()
-			}
-			o := &solicitarOut{}
-			err = s.change(ctx, in.CID, "athletes.autorizacion_pedida", map[string]any{"id": r.ID, "nombre": r.nombreCompleto()}, func(tx pgx.Tx) error {
-				token, err := s.emiteToken(ctx, tx, in.CID, r.ID, form)
-				if err != nil {
-					return err
-				}
-				o.Body.Enlace, o.Body.FormularioURL = s.enlaceAutorizacion(token), form
-				v := map[string]string{"nombre": r.Nombre, "competicion": eventoAutorizacion, "enlace": o.Body.Enlace, "formulario": form}
-				if correo != "" {
-					// The form travels as a real attachment (messaging fetches it at send time).
-					ve := map[string]string{"__adjunto": form, "__adjuntoNombre": "autorizacion-" + r.Slug + ".png"}
-					for k, x := range v {
-						ve[k] = x
-					}
-					if err := email(ctx, tx, in.CID, correo, "atleta-autorizacion-pedida", ve); err != nil {
-						return err
-					}
-					o.Body.Email = true
-				}
-				if wa {
-					if err := whatsapp(ctx, tx, in.CID, r.Telefono, false, "atleta-autorizacion-pedida", v, form); err != nil {
-						return err
-					}
-					o.Body.WhatsApp = true
-				}
-				return hist(ctx, tx, r.ID, "Autorización del tutor pedida", strings.Join(canales(o.Body.Email, o.Body.WhatsApp), " y "))
-			})
-			if err != nil {
-				return nil, err
-			}
-			o.Body.EnviadaAt = time.Now().UTC()
-			return o, nil
+			return s.pideAutorizacion(ctx, in.CID, in.ID, pr.Name)
 		})
 
 	pub := "/api/competiciones/{slug}/autorizacion/{token}"
@@ -409,19 +434,10 @@ func (s *Svc) subeAutorizacionTutor(w http.ResponseWriter, req *http.Request) (*
 	if len(datos) > maxAutorizacion {
 		return nil, grande
 	}
-	tipo := http.DetectContentType(datos)
-	ext, ok := tiposAutorizacion[tipo]
-	if !ok {
+	if _, ok := tiposAutorizacion[http.DetectContentType(datos)]; !ok {
 		return nil, problem.New(http.StatusUnsupportedMediaType, "TIPO_NO_PERMITIDO", "Sube una foto (JPG, PNG o WebP) o un PDF.")
 	}
-	st, err := s.storage(ctx, c.ID)
-	if err != nil {
-		s.a.Log.Error("no se ha podido preparar el almacenamiento", "err", err, "competicion", c.ID.String())
-		return nil, noDisponible()
-	}
-	b := make([]byte, 16)
-	_, _ = rand.Read(b)
-	url, err := st.Put(ctx, "autorizaciones/"+c.ID.String()+"/firmada-"+hex.EncodeToString(b)+ext, tipo, datos)
+	url, err := s.publicaFirmada(ctx, c.ID, datos)
 	if err != nil {
 		s.a.Log.Error("no se ha podido subir la autorización firmada", "err", err, "atleta", r.ID.String())
 		return nil, noDisponible()

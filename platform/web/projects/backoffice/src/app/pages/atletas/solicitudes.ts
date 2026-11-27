@@ -20,6 +20,8 @@ import { CAMPOS, CONSENTIMIENTOS, MATCH, estadoDe, matchTone, matchTxt, nombreCo
 import { SolicitudesLista } from './solicitudes-lista';
 import { SolicitudesDialogo } from './solicitudes-dialogo';
 import { SolicitudesCupos } from './solicitudes-cupos';
+import { PadronMatch } from './padron-match';
+import { personaDeSolicitud } from './padron-model';
 
 type Pestana = 'todas' | 'pendiente' | 'revision' | 'menor' | 'aprobada' | 'rechazada';
 type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
@@ -30,7 +32,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
  */
 @Component({
   selector: 'bo-solicitudes',
-  imports: [A11yModule, FormsModule, RouterLink, SolicitudesLista, SolicitudesDialogo, SolicitudesCupos, BoPageHeader, BoTabs, BoSheet, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, GrSkeleton],
+  imports: [A11yModule, FormsModule, RouterLink, PadronMatch, SolicitudesLista, SolicitudesDialogo, SolicitudesCupos, BoPageHeader, BoTabs, BoSheet, GrAlert, GrBadge, GrButton, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown.escape)': 'onEscape($event)' },
   template: `
@@ -393,7 +395,7 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
           }
           @if (d.esMenor && !esAutorizacion()) {
             <gr-alert [tone]="d.autorizacion ? 'success' : 'warning'" title="Menor de {{ d.edad }} años · {{ d.autorizacion ? 'autorización guardada' : 'falta autorización' }}">
-              {{ d.autorizacion ? 'La autorización firmada está guardada en privado.' : 'Aprobar permanece bloqueado hasta subir la autorización firmada de madre, padre o tutor.' }}
+              {{ d.autorizacion ? 'La autorización firmada está guardada en privado.' : 'Al aprobar se pide la autorización al tutor automáticamente. Si ya la tienes, súbela aquí.' }}
               <a alertAction [href]="correoAutorizacion()" class="mt-2 inline-flex h-9 items-center gap-1 text-label-s text-accent-text">Pedir autorización <gr-icon name="arrow-right" [size]="14" /></a>
             </gr-alert>
             <section class="flex flex-col gap-2">
@@ -472,7 +474,12 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
 
           @if (esAlta()) {
           <section>
-            <h3 class="text-label-xs text-text-muted uppercase">Coincidencia y enlazado</h3>
+            <bo-padron-match [cid]="cid()" [solicitudId]="d.id" [version]="d.version" [persona]="personaPadron()" [canEdit]="puede()"
+              (cambiado)="recargarDetalle()" />
+          </section>
+
+          <section>
+            <h3 class="text-label-xs text-text-muted uppercase">Ficha de atleta existente</h3>
             <div class="mt-2 flex flex-wrap items-center gap-2">
               <gr-badge [tone]="matchTone(d.match)">{{ match(d.match) }}</gr-badge>
               @if (d.atleta) {
@@ -593,14 +600,14 @@ type Dialogo = 'aprobar' | 'rechazar' | 'borrar' | null;
             <button grButton variant="danger" [disabled]="ocupado()" (click)="dialogo.set('borrar')">Borrar…</button>
           } @else {
             <!-- Mobile: Approve full width on top, the other two below; desktop: the three on one row. -->
-            <button grButton variant="primary" class="order-first w-full sm:order-last sm:w-auto" [disabled]="ocupado() || bloqueadoAprobar()" (click)="dialogo.set('aprobar')">{{ esAutorizacion() ? 'Aprobar autorización' : esCambio() ? 'Aprobar cambios' : esHandling() ? 'Aprobar handling' : 'Aprobar (ficha privada)' }}</button>
+            <button grButton variant="primary" class="order-first w-full sm:order-last sm:w-auto" [disabled]="ocupado()" (click)="dialogo.set('aprobar')">{{ esAutorizacion() ? 'Aprobar autorización' : esCambio() ? 'Aprobar cambios' : esHandling() ? 'Aprobar handling' : 'Aprobar (ficha privada)' }}</button>
             <button grButton class="flex-1 sm:flex-none" [disabled]="ocupado()" (click)="marcarRevision()">Marcar en revisión</button>
             <button grButton variant="danger" class="flex-1 sm:flex-none" [disabled]="ocupado()" (click)="dialogo.set('rechazar')">Rechazar…</button>
           }
         }
       </footer>
       @if (detalle()?.estado === 'rechazada') { <p class="shrink-0 bg-bg-card px-4 pb-4 text-body-xs text-text-tertiary sm:px-6">Borrar elimina la solicitud y sus datos · confirmación en dos pasos</p> }
-      @if (bloqueadoAprobar()) { <p class="shrink-0 bg-bg-card px-4 pb-4 text-body-xs text-warning sm:px-6">Aprobar se desbloquea al subir la autorización firmada.</p> }
+      @if (menorSinAutorizacion()) { <p class="shrink-0 bg-bg-card px-4 pb-4 text-body-xs text-text-tertiary sm:px-6">Al aprobar, se pide la autorización al tutor automáticamente por email y WhatsApp. Si ya la tiene, súbela arriba y se publicará.</p> }
     </aside>
     }
 
@@ -734,7 +741,7 @@ export class SolicitudesPage {
     const k = this.lista()?.kpis?.pendientesHoy ?? 0;
     return k > 0 ? `+${k}` : null;
   });
-  protected readonly bloqueadoAprobar = computed(() => {
+  protected readonly menorSinAutorizacion = computed(() => {
     const d = this.detalle();
     return !!d && d.esMenor && !d.autorizacion && d.tipo !== 'autorizacion';
   });
@@ -747,6 +754,11 @@ export class SolicitudesPage {
   /** A sign-up from the public form (photo, fields, match, consents, edits). */
   protected readonly esAlta = computed(() => !this.esCambio() && !this.esAutorizacion() && !this.esHandling());
   protected readonly valorTexto = valorTexto;
+  /** Los datos de la solicitud tal como se comparan con el padrón AEP. */
+  protected readonly personaPadron = computed(() => {
+    const d = this.detalle();
+    return d ? personaDeSolicitud(d) : { nombre: '', apellidos: '', sexo: '', categoria: '', division: '', nivel: '' };
+  });
   protected esPdf(url: string): boolean {
     return /\.pdf($|[?#])/i.test(url);
   }

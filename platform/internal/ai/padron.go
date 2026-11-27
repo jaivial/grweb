@@ -10,14 +10,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/jaivial/grweb/platform/pkg/auth"
+	"github.com/jaivial/grweb/platform/pkg/config"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
@@ -42,6 +45,10 @@ type RespuestaEmparejar struct {
 	Discrepancias []string        `json:"discrepancias"`
 	NivelAEP      []string        `json:"nivel_aep"`
 }
+
+// tiempoEmparejar is the budget of one answer of the model: athletes waits slightly longer, so this service is the
+// one that reports the timeout and the reason reaches the review panel.
+const tiempoEmparejar = 30 * time.Second
 
 const sistemaEmparejar = `Eres el asistente de inscripciones de una competición de powerlifting. Comparas UNA solicitud de alta de atleta con hasta 5 filas del padrón oficial de la AEP y dices si alguna es la misma persona.
 
@@ -151,14 +158,34 @@ func (s *Svc) registerPadron() {
 			if s.key == "" {
 				return nil, problem.New(http.StatusServiceUnavailable, "IA_NO_CONFIGURADA", "La IA no está configurada (MINIMAX_API_KEY).")
 			}
+			// QA only: a slow answer or a failure on demand, to see the «tardó demasiado» and «error de la IA» states of the
+			// panel without waiting for the model to fail. Both are off by default and never set by the deployment.
+			if config.Bool("AI_PADRON_FALLO", false) {
+				return nil, problem.New(http.StatusServiceUnavailable, "IA_NO_DISPONIBLE", "La IA no ha respondido (fallo simulado).")
+			}
+			if ms := config.Int("AI_PADRON_DEMORA_MS", 0); ms > 0 {
+				select {
+				case <-time.After(time.Duration(ms) * time.Millisecond):
+				case <-time.After(tiempoEmparejar):
+				case <-ctx.Done():
+					return nil, problem.New(http.StatusGatewayTimeout, "IA_TIEMPO", "La IA tardó demasiado (30 s) en responder.")
+				}
+			}
 			ids := map[string]bool{}
 			for _, c := range i.Body.Candidatos {
 				ids[c.ID] = true
 			}
 			entrada, _ := json.Marshal(map[string]any{"solicitud": i.Body.Solicitud, "candidatos": i.Body.Candidatos})
-			txt, err := s.textoModelo(ctx, sistemaEmparejar, string(entrada), 4000)
+			// A slow model never keeps the caller waiting forever: the timeout is answered here (504) and it is
+			// told apart from «not available», so the panel can say «tardó demasiado» instead of «no respondió».
+			tctx, cancel := context.WithTimeout(ctx, tiempoEmparejar)
+			defer cancel()
+			txt, err := s.textoModelo(tctx, sistemaEmparejar, string(entrada), 4000)
 			if err != nil {
-				s.a.Log.Warn("ia.emparejar_padron_fallo", "err", err)
+				s.a.Log.Warn("ia.emparejar_padron_fallo", "err", err, "tiempo_agotado", tctx.Err() != nil)
+				if tctx.Err() != nil || errors.Is(err, context.DeadlineExceeded) {
+					return nil, problem.New(http.StatusGatewayTimeout, "IA_TIEMPO", "La IA tardó demasiado (30 s) en responder.")
+				}
 				return nil, problem.New(http.StatusBadGateway, "IA_NO_DISPONIBLE", "La IA no ha respondido.")
 			}
 			r, err := leerRespuesta(txt, ids)

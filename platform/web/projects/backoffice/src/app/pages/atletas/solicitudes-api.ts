@@ -2,6 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { sinTimeout } from '@grcup/ui';
+import type { EmparejamientoPadron } from './padron-model';
 
 /** Estado of an «alta de atleta» request (athletes service). */
 export type EstadoSolicitud = 'pendiente' | 'revision' | 'aprobada' | 'rechazada';
@@ -217,6 +218,22 @@ export class SolicitudesApi {
   }
   candidatos(cid: string, q: string): Promise<Candidato[]> {
     return firstValueFrom(this.http.get<Candidato[]>(`${this.base(cid)}/candidatos`, { params: { q } }));
+  }
+  /** Coincidencia de la solicitud con el padrón de la AEP (estado, fila propuesta y registro). */
+  emparejamiento(cid: string, id: string): Promise<EmparejamientoPadron> {
+    return firstValueFrom(this.http.get<EmparejamientoPadron>(`${this.base(cid)}/${id}/emparejamiento`));
+  }
+  /** El equipo confirma la fila propuesta: si el alta sigue pendiente, la aprueba igual que el emparejamiento automático. */
+  confirmarPadron(cid: string, id: string, version: number, inscripcionId: string): Promise<EmparejamientoPadron> {
+    return firstValueFrom(this.http.post<EmparejamientoPadron>(`${this.base(cid)}/${id}/padron/confirmar`, { inscripcionId },
+      { headers: this.cab(version), context: sinTimeout() }));
+  }
+  descartarPadron(cid: string, id: string, version: number): Promise<EmparejamientoPadron> {
+    return firstValueFrom(this.http.post<EmparejamientoPadron>(`${this.base(cid)}/${id}/padron/descartar`, null, { headers: this.cab(version) }));
+  }
+  /** Vuelve a emparejar con la IA (la respuesta llega cuando la IA contesta o se agota su tiempo). */
+  reintentarPadron(cid: string, id: string): Promise<EmparejamientoPadron> {
+    return firstValueFrom(this.http.post<EmparejamientoPadron>(`${this.base(cid)}/${id}/padron/reintentar`, {}, { context: sinTimeout() }));
   }
 }
 

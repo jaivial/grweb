@@ -872,11 +872,6 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		}
 		fotoClave = sol.FotoClave
 		cons := sol.consentMap()
-		// A minor needs the signed authorisation of their guardian.
-		if sol.EsMenor && sol.AutorizacionClave == "" {
-			return problem.Unprocessable("AUTORIZACION_OBLIGATORIA",
-				"Es menor de edad: sube primero la autorización firmada de su madre, padre o tutor.")
-		}
 		// The athlete: the one the reviewer chose, the one of the match or a new one.
 		destino := atletaID
 		perfilNuevo := false
@@ -970,6 +965,17 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 				fotoPublicada = url
 			}
 		}
+		// The guardian's authorisation uploaded with the alta is published as the signed ones of the guardian are and
+		// the profile takes it. If it cannot be published the approval goes on and the guardian is asked (see below).
+		if sol.AutorizacionClave != "" {
+			if datos, err := os.ReadFile(s.fotoPrivada(sol.AutorizacionClave)); err != nil {
+				s.a.Log.Warn("no se ha podido leer la autorización del tutor del alta", "solicitud", id.String(), "err", err)
+			} else if url, err := s.publicaFirmada(ctx, cid, datos); err != nil {
+				s.a.Log.Warn("no se ha podido publicar la autorización del tutor del alta", "solicitud", id.String(), "err", err)
+			} else if _, err := tx.Exec(ctx, `UPDATE perfiles SET autorizacion_url = $2, updated_at = now() WHERE atleta_id = $1`, *destino, url); err != nil {
+				return err
+			}
+		}
 		// A público account with the same email becomes this athlete's account (no second account).
 		if err := unirCuentaFan(ctx, tx, cid, *destino, sol.Email, sol.Telefono, cuenta); err != nil {
 			return err
@@ -1033,6 +1039,15 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		if fotoPublicada != "" {
 			foto = "✓ Tu foto en blanco y negro ya está en tu ficha."
 		}
+		// A minor whose guardian's authorisation is still missing is told so: the request comes in its own message.
+		autorizacion := ""
+		rAut, err := getRow(ctx, tx, cid, *destino)
+		if err != nil {
+			return err
+		}
+		if rAut.menor(s.compDate(ctx, cid)) && rAut.AutorizacionURL == "" {
+			autorizacion = "✓ Tu ficha pública también necesita la autorización firmada de tu madre, padre o tutor: te enviaremos el formulario y el enlace en un mensaje aparte."
+		}
 		if avisarEmail || avisarWA {
 			urlArea, err = s.newAreaLinkTTL(ctx, tx, *destino, aprobadaLinkTTL)
 			if err != nil {
@@ -1046,13 +1061,13 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		}
 		if avisarEmail {
 			if err := email(ctx, tx, cid, sol.Email, "atleta-solicitud-aprobada", map[string]string{
-				"nombre": sol.Nombre, "prueba": prueba, "urlFicha": urlFicha, "privada": privada, "foto": foto, "urlArea": urlArea}); err != nil {
+				"nombre": sol.Nombre, "prueba": prueba, "urlFicha": urlFicha, "privada": privada, "autorizacion": autorizacion, "foto": foto, "urlArea": urlArea}); err != nil {
 				return err
 			}
 		}
 		if avisarWA {
 			if err := whatsapp(ctx, tx, cid, sol.Telefono, false, "atleta-solicitud-aprobada", map[string]string{
-				"nombre": sol.Nombre, "urlFicha": urlFicha, "privada": privada, "urlArea": urlArea}, ""); err != nil {
+				"nombre": sol.Nombre, "urlFicha": urlFicha, "privada": privada, "autorizacion": autorizacion, "urlArea": urlArea}, ""); err != nil {
 				return err
 			}
 		}
@@ -1072,6 +1087,13 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 	}
 	// The public list of athletes changed.
 	s.bump(ctx, cid)
+	// A minor approved without the guardian's authorisation (none uploaded, or it could not be published): it is asked
+	// now. Best effort: the approval stands even if the request cannot go out.
+	if r, err := getRow(ctx, s.a.DB, cid, out.Body.AtletaID); err == nil && r.menor(s.compDate(ctx, cid)) && r.AutorizacionURL == "" {
+		if _, err := s.pideAutorizacion(ctx, cid, r.ID, por); err != nil {
+			s.a.Log.Warn("alta aprobada sin pedir la autorización del tutor", "atleta", r.ID.String(), "err", err)
+		}
+	}
 	s.a.Log.Info("solicitud de atleta aprobada", "id", id.String(), "atleta", out.Body.AtletaID.String(), "revisor", por)
 	return out, nil
 }
@@ -1159,7 +1181,7 @@ func (s *Svc) actualizaPerfil(ctx context.Context, tx pgx.Tx, cid, atleta uuid.U
 		frase = COALESCE(NULLIF($2,''), frase), bio = COALESCE(NULLIF($3,''), bio), instagram = CASE WHEN $9 THEN '' ELSE COALESCE(NULLIF($4,''), instagram) END,
 		historial = COALESCE(NULLIF($5,''), historial), entrenador = COALESCE(NULLIF($10,''), entrenador),
 		marca_sq = COALESCE($6, marca_sq), marca_bp = COALESCE($7, marca_bp), marca_dl = COALESCE($8, marca_dl),
-		visible = CASE WHEN $9 OR NOT $11 OR $12 THEN false ELSE visible END, updated_at = now() WHERE atleta_id = $1`,
+		visible = CASE WHEN NOT $11 OR $12 THEN false ELSE visible END, updated_at = now() WHERE atleta_id = $1`,
 		atleta, frase, bio, instagram, historial, sq, bp, dl, sol.EsMenor, entrenador, sol.consent("imagen").Aceptado, nuevo); err != nil {
 		return "", err
 	}

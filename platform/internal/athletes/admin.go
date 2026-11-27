@@ -3,9 +3,11 @@ package athletes
 import (
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/mail"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -62,6 +64,8 @@ type ItemLista struct {
 	Pesaje         string       `json:"pesaje"`
 	// Handling is the latest «handling gratis» request of the athlete (nil: never asked).
 	Handling *HandlingAtleta `json:"handling,omitempty"`
+	// Padron is the coincidence with the AEP roll (auto · confirmada · parcial · manual · sin).
+	Padron PadronEstado `json:"padron"`
 }
 
 // filtrosAtletas are the filters of the list and of the CSV export: both work on the same scope.
@@ -73,9 +77,11 @@ type filtrosAtletas struct {
 	Perfil    string
 	// Handling: solicitado (pendiente o en revisión) · aprobado · rechazado · vacío (cualquiera).
 	Handling string
-	Q        string
-	Orden    string
-	Dir      string
+	// Padron: parcial (revisar) · sin (sin coincidencia o enlace manual) · error (la IA falló) · vacío (cualquiera).
+	Padron string
+	Q      string
+	Orden  string
+	Dir    string
 }
 
 // alcanceLista is the filtered scope of «Atletas»: every row that matches (all pages, not only the visible one),
@@ -85,7 +91,92 @@ type alcanceLista struct {
 	Filas    []row
 	Lista    Lista
 	Handling map[uuid.UUID]HandlingAtleta
+	Padron   map[uuid.UUID]PadronEstado
 	Fecha    time.Time
+}
+
+// PadronEstado is the coincidence of an athlete with the AEP roll, in one line for the list and the record.
+type PadronEstado struct {
+	// Estado: auto (enlazado solo) · confirmada (lo confirmó el equipo) · parcial (revisar) · manual · sin.
+	Estado string `json:"estado" enum:"auto,confirmada,parcial,manual,sin"`
+	// Origen is where it came from: exacto · ia · error_ia · staff (empty when nothing matched).
+	Origen    string   `json:"origen,omitempty"`
+	Confianza *float64 `json:"confianza,omitempty"`
+	// Campos are the fields that differ between the athlete and the row (categoria, anio…): the label names them
+	// instead of a percentage that says nothing about why the match is only a proposal.
+	Campos []string `json:"campos,omitempty"`
+}
+
+// padronDe reads the coincidence of every athlete of the competition (or of one, when uno is given) in one query: a
+// row already linked in the roll wins (that link is the answer), then the last decision of the alta request the
+// athlete came from.
+func (s *Svc) padronDe(ctx context.Context, cid uuid.UUID, uno *uuid.UUID) (map[uuid.UUID]PadronEstado, error) {
+	rows, err := s.a.DB.Query(ctx, `SELECT a.id, COALESCE(l.enlace, ''), COALESCE(s.estado, ''), COALESCE(s.origen, ''), s.confianza::float8,
+			COALESCE(s.detalle, '{}'::jsonb)
+		FROM atletas a
+		LEFT JOIN LATERAL (SELECT estado_enlace AS enlace FROM inscripciones_aep i
+			WHERE i.competition_id = a.competition_id AND i.atleta_id = a.id AND i.estado_enlace <> 'rechazado'
+			ORDER BY (i.estado_enlace = 'auto') DESC, i.updated_at DESC LIMIT 1) l ON true
+		LEFT JOIN LATERAL (SELECT padron_estado AS estado, padron_origen AS origen, padron_confianza AS confianza, padron_detalle AS detalle
+			FROM solicitudes_atleta so
+			WHERE so.competition_id = a.competition_id AND so.match_atleta_id = a.id AND so.tipo = 'alta' AND so.padron_estado <> ''
+			ORDER BY so.created_at DESC LIMIT 1) s ON true
+		WHERE a.competition_id = $1 AND ($2::uuid IS NULL OR a.id = $2)`, cid, uno)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[uuid.UUID]PadronEstado{}
+	for rows.Next() {
+		var id uuid.UUID
+		var enlace, estado, origen string
+		var conf *float64
+		var det []byte
+		if err := rows.Scan(&id, &enlace, &estado, &origen, &conf, &det); err != nil {
+			return nil, err
+		}
+		p := PadronEstado{Estado: estado, Origen: origen, Confianza: conf, Campos: camposDetalle(det)}
+		switch enlace {
+		case "auto":
+			p = PadronEstado{Estado: "auto", Origen: "exacto", Campos: p.Campos}
+		case "manual":
+			p = PadronEstado{Estado: "confirmada", Origen: "staff", Campos: p.Campos}
+		}
+		if p.Estado == "" {
+			p.Estado = "sin"
+		}
+		out[id] = p
+	}
+	return out, rows.Err()
+}
+
+// camposDetalle reads the fields that differ from the stored detail of a decision (the ones the panel's table marks).
+func camposDetalle(det []byte) []string {
+	var d DetalleEmparejamiento
+	if len(det) == 0 || json.Unmarshal(det, &d) != nil {
+		return nil
+	}
+	out := make([]string, 0, len(d.Discrepancias))
+	for _, x := range d.Discrepancias {
+		out = append(out, x.Campo)
+	}
+	return out
+}
+
+// padronCoincide is the «Coincidencia AEP» filter of the list (and of its CSV export).
+func padronCoincide(p PadronEstado, filtro string) bool {
+	if p.Estado == "" {
+		p.Estado = "sin"
+	}
+	switch filtro {
+	case "parcial":
+		return p.Estado == "parcial"
+	case "sin":
+		return p.Estado == "sin" || p.Estado == "manual"
+	case "error":
+		return p.Origen == "error_ia"
+	}
+	return true
 }
 
 // handlingCoincide is the «Handling» filter of the list: only the athletes with a request in that state.
@@ -133,6 +224,11 @@ func (s *Svc) alcance(ctx context.Context, cid uuid.UUID, f filtrosAtletas) (alc
 	out := alcanceLista{Fecha: s.compDate(ctx, cid), Handling: handlingPor(ctx, s.a.DB, cid),
 		Lista: Lista{Pestanas: map[string]int{"todos": 0, "confirmados": 0, "reserva": 0, "bajas": 0, "incidencias": 0, "handling": 0},
 			Pruebas: map[string]int{"aep2": 0, "aep3": 0, "sin": 0}, Items: []ItemLista{}}}
+	padron, err := s.padronDe(ctx, cid, nil)
+	if err != nil {
+		return out, err
+	}
+	out.Padron = padron
 	all, err := listRows(ctx, s.a.DB, `a.competition_id = $1`, cid)
 	if err != nil {
 		return out, err
@@ -224,6 +320,9 @@ func (s *Svc) alcance(ctx context.Context, cid uuid.UUID, f filtrosAtletas) (alc
 		if !handlingCoincide(h, tieneHandling, f.Handling) {
 			continue
 		}
+		if !padronCoincide(out.Padron[r.ID], f.Padron) {
+			continue
+		}
 		if q != "" && !strings.Contains(fold(r.nombreCompleto()+" "+r.Club+" "+r.Licencia), q) {
 			continue
 		}
@@ -270,6 +369,7 @@ func (s *Svc) registerAdmin() {
 		Jornada   string    `query:"jornada" doc:"Fecha (YYYY-MM-DD)"`
 		Perfil    string    `query:"perfil" enum:"incompleto,sin_foto,"`
 		Handling  string    `query:"handling" enum:"solicitado,aprobado,rechazado," doc:"Solicitudes de handling gratis"`
+		Padron    string    `query:"padron" enum:"parcial,sin,error," doc:"Coincidencia con el padrón AEP: parcial (revisar), sin, error de la IA"`
 		Q         string    `query:"q" maxLength:"80"`
 		Orden     string    `query:"orden" enum:"nombre,categoria,completo,reserva" default:"nombre"`
 		Dir       string    `query:"dir" enum:"asc,desc" default:"asc"`
@@ -283,7 +383,7 @@ func (s *Svc) registerAdmin() {
 				return nil, err
 			}
 			a, err := s.alcance(ctx, in.CID, filtrosAtletas{Pestana: in.Pestana, Sexo: in.Sexo, Categoria: in.Categoria, Jornada: in.Jornada,
-				Perfil: in.Perfil, Handling: in.Handling, Q: in.Q, Orden: in.Orden, Dir: in.Dir})
+				Perfil: in.Perfil, Handling: in.Handling, Padron: in.Padron, Q: in.Q, Orden: in.Orden, Dir: in.Dir})
 			if err != nil {
 				return nil, err
 			}
@@ -295,7 +395,7 @@ func (s *Svc) registerAdmin() {
 				it := ItemLista{ID: r.ID, NombreCompleto: r.nombreCompleto(), Licencia: r.Licencia, Club: r.Club, Sexo: r.Sexo, Categoria: r.Categoria,
 					DivisionNombre: DivisionNombre(r.Division), Jornada: r.Jornada, Prueba: r.Prueba, Estado: r.Estado, OrdenReserva: r.OrdenReserva, Completo: r.completo(),
 					Imagen: imagenEstado(r, a.Fecha), FotoURL: r.FotoURL, Seguidores: r.Seguidores, Incidencias: len(r.incidencias(a.Fecha)), Avisos: r.incidencias(a.Fecha),
-					Edad: r.edad(a.Fecha), Pesaje: r.PesajeEstado}
+					Edad: r.edad(a.Fecha), Pesaje: r.PesajeEstado, Padron: a.Padron[r.ID]}
 				if h, ok := a.Handling[r.ID]; ok {
 					it.Handling = &h
 				}
@@ -751,7 +851,7 @@ func (s *Svc) registerAdmin() {
 		// sees is exactly what the file has (all pages, no pagination).
 		q := r.URL.Query()
 		f := filtrosAtletas{Pestana: q.Get("pestana"), Sexo: q.Get("sexo"), Categoria: q.Get("categoria"), Jornada: q.Get("jornada"),
-			Perfil: q.Get("perfil"), Handling: q.Get("handling"), Q: q.Get("q"), Orden: q.Get("orden"), Dir: q.Get("dir")}
+			Perfil: q.Get("perfil"), Handling: q.Get("handling"), Padron: q.Get("padron"), Q: q.Get("q"), Orden: q.Get("orden"), Dir: q.Get("dir")}
 		if f.Pestana == "" {
 			f.Pestana = "todos"
 		}
@@ -783,7 +883,7 @@ func (s *Svc) registerAdmin() {
 		_, _ = w.Write([]byte("\ufeff")) // Excel-friendly UTF-8
 		cw := csv.NewWriter(w)
 		cw.Comma = ';'
-		head := []string{"Licencia", "Nombre", "Apellidos", "Sexo", "Categoría", "División", "Club", "Estado", "Fecha", "Peso", "Perfil %", "Handling"}
+		head := []string{"Licencia", "Nombre", "Apellidos", "Sexo", "Categoría", "División", "Club", "Estado", "Fecha", "Peso", "Perfil %", "Handling", "Padrón AEP"}
 		if personal {
 			head = append(head, "Email", "Teléfono")
 		}
@@ -791,13 +891,17 @@ func (s *Svc) registerAdmin() {
 		for _, a := range list {
 			// Free-text columns (typed in the AEP list or by athletes) are neutralised against formulas.
 			h, ok := alc.Handling[a.ID]
-			rec := []string{csvSafe(a.Licencia), csvSafe(a.Nombre), csvSafe(a.Apellidos), a.Sexo, a.Categoria, DivisionNombre(a.Division), csvSafe(a.Club), a.Estado, a.Jornada, kg(a.PesoCorporal), strconv.Itoa(a.completo()), handlingCSV(h, ok)}
+			padron := alc.Padron[a.ID].Estado
+			if padron == "" {
+				padron = "sin"
+			}
+			rec := []string{csvSafe(a.Licencia), csvSafe(a.Nombre), csvSafe(a.Apellidos), a.Sexo, a.Categoria, DivisionNombre(a.Division), csvSafe(a.Club), a.Estado, a.Jornada, kg(a.PesoCorporal), strconv.Itoa(a.completo()), handlingCSV(h, ok), padron}
 			if personal {
 				e := ""
 				if a.Email != nil {
 					e = *a.Email
 				}
-				rec = append(rec, csvSafe(e), csvSafe(a.Telefono))
+				rec = append(rec, csvSafe(e), csvTel(a.Telefono))
 			}
 			_ = cw.Write(rec)
 		}
@@ -823,6 +927,19 @@ func csvSafe(v string) string {
 		return "'" + v
 	}
 	return v
+}
+
+// reTelefono is a phone as the platform stores it: an optional «+» and then only digits and spaces. Nothing else can
+// follow that «+», so the cell cannot carry a formula (no operator, no reference, no DDE payload): the apostrophe that
+// csvSafe would add only breaks the number when the file is read back.
+var reTelefono = regexp.MustCompile(`^\+?[0-9 ]{6,20}$`)
+
+// csvTel exports a phone: clean when it is a phone and neutralised (with the apostrophe) when it is not.
+func csvTel(v string) string {
+	if reTelefono.MatchString(v) {
+		return v
+	}
+	return csvSafe(v)
 }
 
 // validMedio accepts media of the library (/api/medios/…) or https URLs.
@@ -1087,6 +1204,8 @@ type Ficha struct {
 	Whatsapp *ConsentimientoWA `json:"whatsapp,omitempty"`
 	// Handling is the latest «handling gratis» request of the athlete (nil: never asked).
 	Handling *HandlingAtleta `json:"handling,omitempty"`
+	// Padron is the coincidence with the AEP roll, for the badge of the header (the section reads /padron).
+	Padron PadronEstado `json:"padron"`
 }
 
 // ConsentimientoWA is the recorded consent to the WhatsApp notices.
@@ -1143,6 +1262,9 @@ func (s *Svc) ficha(ctx context.Context, cid, id uuid.UUID) (Ficha, error) {
 	f.Autorizacion = s.estadoAutorizacion(ctx, r)
 	f.Whatsapp = consentimientoWA(ctx, s.a.DB, cid, id)
 	f.Handling = handlingDe(ctx, s.a.DB, cid, id)
+	if p, err := s.padronDe(ctx, cid, &id); err == nil {
+		f.Padron = p[id]
+	}
 	return f, nil
 }
 
