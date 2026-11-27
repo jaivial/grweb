@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { GrButton, GrIcon, GrSkeleton, confetti } from '@grcup/ui';
@@ -20,7 +20,8 @@ const T = {
     pregunta: '¿Necesitas handler?',
     texto: 'El equipo de GR Strength te acompaña en la competición: te ayuda con las alturas, los intentos y los tiempos del día. Es gratis.',
     pedir: 'Solicitar handling',
-    ok: '¡Recibido! El equipo de GR Strength ha recibido tu interés y se pondrá en contacto contigo pronto.',
+    recibido: '¡Recibido!',
+    ok: 'El equipo de GR Strength ha recibido tu interés y se pondrá en contacto contigo pronto.',
     revision: 'Tu solicitud está en revisión',
     revisionTxt: 'El equipo de GR Strength la revisa y se pondrá en contacto contigo.',
     aprobada: '¡Ya tienes handler!',
@@ -35,7 +36,8 @@ const T = {
     pregunta: 'Do you need a handler?',
     texto: 'The GR Strength team is with you at the competition: they help with rack heights, attempts and the timing of the day. It is free.',
     pedir: 'Request handling',
-    ok: 'Got it! The GR Strength team has your request and will get in touch with you soon.',
+    recibido: 'Got it!',
+    ok: 'The GR Strength team has your request and will get in touch with you soon.',
     revision: 'Your request is under review',
     revisionTxt: 'The GR Strength team is reviewing it and will get in touch with you.',
     aprobada: 'You have a handler!',
@@ -60,6 +62,11 @@ const T = {
       @if (!e()) {
         <gr-skeleton class="mt-5 h-40 rounded-lg" />
         <span class="sr-only">{{ t().cargando }}</span>
+      } @else if (recien()) {
+        <section class="mt-5 flex items-start gap-3 rounded-lg border border-success/40 bg-success/8 p-6" role="status">
+          <gr-icon name="circle-check" [size]="22" class="mt-0.5 shrink-0 text-success" />
+          <p class="min-w-0"><span class="block text-label-m text-success">{{ t().recibido }}</span><span class="block text-body-s text-text-secondary">{{ t().ok }}</span></p>
+        </section>
       } @else {
         <section class="mt-5 flex flex-col gap-4 rounded-lg border border-line-subtle bg-bg-card p-6">
           @switch (e()!.estado) {
@@ -100,6 +107,8 @@ export class AreaHandlingPage {
   protected readonly t = this.i18n.dict(T);
   protected readonly e = signal<Estado | null>(null);
   protected readonly enviando = signal(false);
+  /** Se acaba de pedir: la vista enseña solo el éxito (al volver, el estado del servidor manda). */
+  protected readonly recien = signal(false);
   protected readonly aviso = signal('');
 
   constructor() {
@@ -125,11 +134,13 @@ export class AreaHandlingPage {
     this.aviso.set('');
     try {
       this.e.set(this.normaliza(await firstValueFrom(this.http.post<Estado>(`${AREA_API}/handling`, {}))));
+      this.recien.set(true);
       confetti();
-      this.aviso.set(this.t().ok);
     } catch (err) {
-      this.aviso.set(textoError(err, this.t().error, this.i18n.lang()));
+      // Otra pestaña la ha pedido a la vez (409 HANDLING_EN_CURSO): la vista pasa a «en revisión», que es la verdad.
       await this.cargar();
+      const enCurso = err instanceof HttpErrorResponse && err.status === 409 && this.e()?.estado === 'pendiente';
+      if (!enCurso) this.aviso.set(textoError(err, this.t().error, this.i18n.lang()));
     } finally {
       this.enviando.set(false);
     }
