@@ -36,8 +36,7 @@ restaurar_legado() {
   systemctl --user daemon-reload
   systemctl --user enable grcup-dev-web.service >/dev/null 2>&1 || true
   systemctl --user start grcup-dev-web.service || log "la unidad legado no arrancó"
-  docker compose -p grcup-h -f "$LEG_COMPOSE" -f "$LEG_OVERRIDE" up -d --no-build \
-    || log "el legado no arrancó: revisa docker compose -p grcup-h"
+  log "legado: NO se vuelve a levantar grcup-h (regla: nunca compose up sobre el legado). Si hace falta, decidirlo a mano."
 }
 
 on_exit() {
