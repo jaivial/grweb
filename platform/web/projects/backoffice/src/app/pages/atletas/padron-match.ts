@@ -62,9 +62,14 @@ interface FilaComparada {
           @if (f.estadoEnlace === 'sugerido') {
             <p class="text-body-xs text-text-tertiary">Esta fila está reservada como propuesta: nadie la ha enlazado todavía.</p>
           }
-        } @else {
+        } @else if (e.estado === 'manual') {
+          <!-- Solo aquí se comparó y no había nadie: en «sin comparar» o «descartada» no hay búsqueda que contar. -->
           <p class="rounded-md border border-dashed border-line-strong px-3 py-4 text-center text-body-s text-text-tertiary">
             Ninguna fila del padrón con el nombre, el sexo y el año de {{ persona().nombre }}. Búscala a mano si crees que está en la lista.
+          </p>
+        } @else if (e.estado === 'descartada') {
+          <p class="rounded-md border border-dashed border-line-strong px-3 py-4 text-center text-body-s text-text-tertiary">
+            La coincidencia se descartó y no queda fila propuesta. Busca otra a mano si hace falta.
           </p>
         }
 
