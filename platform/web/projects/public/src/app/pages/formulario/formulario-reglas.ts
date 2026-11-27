@@ -11,8 +11,17 @@ export const esBloque = (t: TipoCampo): boolean => BLOQUES.includes(t);
 export const esGrupo = (t: TipoCampo): boolean => GRUPOS.includes(t);
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const TELEFONO = /^\+?[\d\s().-]+$/;
+/** Espejo de `reTelefono` en platform/pkg/formularios/respuesta.go (misma clase de caracteres y longitud). */
+const TELEFONO = /^\+?[0-9 ().-]{6,30}$/;
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Espejo de `maxTexto` en platform/pkg/formularios/respuesta.go: límite de los textos sin `validacion.maxLargo`. */
+const MAX_TEXTO: Partial<Record<TipoCampo, number>> = { texto_corto: 200, texto_largo: 5000, email: 254, telefono: 30 };
+
+/** Longitud máxima efectiva de un campo de texto: la del esquema o, si no la fija, la del backend. Null = sin límite. */
+export function maxLargoDe(c: Campo): number | null {
+  return c.validacion?.maxLargo ?? MAX_TEXTO[c.tipo] ?? null;
+}
 
 /** Sin respuesta para el tipo del campo (un `false` o un `0` sí son respuestas). */
 function vacio(c: Campo, v: unknown): boolean {
@@ -41,8 +50,11 @@ function mensajeVacio(c: Campo, m: Val): string {
 
 function textoValido(c: Campo, s: string, m: Val): string | null {
   const v = c.validacion;
-  if (v?.minLargo != null && s.length < v.minLargo) return m.minLargo(v.minLargo);
-  if (v?.maxLargo != null && s.length > v.maxLargo) return m.maxLargo(v.maxLargo);
+  // Se cuentan puntos de código (como utf8.RuneCountInString en el backend), no unidades UTF-16.
+  const largo = [...s].length;
+  if (v?.minLargo != null && largo < v.minLargo) return m.minLargo(v.minLargo);
+  const max = maxLargoDe(c);
+  if (max != null && largo > max) return m.maxLargo(max);
   if (v?.patron) {
     try {
       if (!new RegExp(v.patron).test(s)) return m.patron;
@@ -60,7 +72,7 @@ export function validarCampo(c: Campo, v: unknown, m: Val): string | null {
   if (TEXTO_LIBRE.includes(c.tipo) || c.tipo === 'texto_largo') {
     const s = String(v).trim();
     if (c.tipo === 'email' && !EMAIL.test(s)) return m.email;
-    if (c.tipo === 'telefono' && (!TELEFONO.test(s) || s.replace(/\D/g, '').length < 6)) return m.telefono;
+    if (c.tipo === 'telefono' && !TELEFONO.test(s)) return m.telefono;
     if (c.tipo === 'fecha' && (!FECHA.test(s) || Number.isNaN(Date.parse(s)))) return m.fecha;
     return textoValido(c, s, m);
   }

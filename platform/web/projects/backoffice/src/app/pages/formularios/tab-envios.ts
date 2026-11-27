@@ -101,29 +101,49 @@ export class BoFormEnvios {
   protected readonly error = signal(false);
   protected readonly dialogo = signal(false);
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
+  /** Tracks the form id only: saves and status changes of the same form do not reload the tab. */
+  private readonly formularioId = computed(() => this.formulario().id);
   /** Some channel still has messages waiting: the table keeps refreshing. */
   protected readonly enCola = computed(() => (this.lista() ?? []).some((e) => e.email.enCola > 0 || e.whatsapp.enCola > 0));
   private refresco: ReturnType<typeof setTimeout> | undefined;
+  /** Number of the latest load: the answer of an older, overlapped load is dropped. */
+  private turno = 0;
+  private destruido = false;
 
   constructor() {
     effect(() => {
-      const id = this.formulario().id;
+      const id = this.formularioId();
       if (!this.cid() || !id) return;
       untracked(() => void this.cargar());
     });
-    inject(DestroyRef).onDestroy(() => clearTimeout(this.refresco));
+    inject(DestroyRef).onDestroy(() => {
+      this.destruido = true;
+      clearTimeout(this.refresco);
+    });
   }
 
+  /**
+   * Single live load: an overlapped call (send, form change, retry) makes the earlier answer stale, and only the latest
+   * load schedules the next refresh, so one timer runs at a time.
+   */
   protected async cargar(): Promise<void> {
+    const mine = ++this.turno;
     clearTimeout(this.refresco);
     try {
-      this.lista.set(await this.api.envios(this.cid(), this.formulario().id));
+      const lista = await this.api.envios(this.cid(), this.formularioId());
+      if (this.obsoleta(mine)) return;
+      this.lista.set(lista);
       this.error.set(false);
     } catch {
+      if (this.obsoleta(mine)) return;
       this.error.set(true);
       if (!this.lista()) this.lista.set(null);
     }
     if (this.enCola()) this.refresco = setTimeout(() => void this.cargar(), REFRESCO_MS);
+  }
+
+  private obsoleta(mine: number): boolean {
+    return mine !== this.turno || this.destruido;
   }
 
   /** A send moves a draft to active on the server: the editor header follows. */

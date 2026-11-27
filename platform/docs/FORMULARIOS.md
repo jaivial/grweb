@@ -99,9 +99,11 @@ formularios              id uuid PK, competition_id uuid, nombre text, estado te
                          creado_por text, created_at, updated_at
 formulario_versiones     formulario_id uuid FK ON DELETE CASCADE, version int, esquema jsonb, created_at, PK (formulario_id, version)
 formulario_envios        id uuid PK, formulario_id FK CASCADE, competition_id, canales text[], filtro jsonb, total int,
-                         omitidos int, creado_por text, created_at
+                         omitidos int, creado_por text, created_at, clave_idempotencia text NULL (UNIQUE con formulario_id)
 formulario_destinatarios id uuid PK, formulario_id FK CASCADE, competition_id, atleta_id uuid, created_at, abierto_at timestamptz NULL,
                          UNIQUE (formulario_id, atleta_id)
+formulario_archivos      id uuid PK, destinatario_id uuid FK CASCADE, campo_id text, url text, nombre text, tamano bigint, tipo text,
+                         created_at. Una fila por archivo subido; la respuesta solo acepta archivos de su destinatario y campo.
 formulario_entregas      id uuid PK, envio_id FK CASCADE, destinatario_id FK CASCADE, canal text CHECK (email|whatsapp),
                          evento_id uuid NULL UNIQUE, estado text CHECK (encolado|omitido) , motivo text DEFAULT '', created_at
 formulario_respuestas    id uuid PK, formulario_id FK CASCADE, destinatario_id uuid UNIQUE FK CASCADE, atleta_id uuid, competition_id,
@@ -146,13 +148,13 @@ Filtro            = { estados?: ("confirmado"|"reserva")[], atletas?: uuid[], so
 | `GET    ` | — | `FormularioResumen[]` |
 | `POST   ` | `{ nombre }` | 201 `Formulario` (esquema base: título + 1 `texto_corto`) |
 | `GET    /{id}` | — | `Formulario` |
-| `PUT    /{id}` | `{ nombre, esquema, email, whatsapp, version }` | `Formulario` (409 si `version` no coincide; 422 con detalle si `Validar` falla) |
+| `PUT    /{id}` | `{ nombre, esquema, email, whatsapp, version }` | `Formulario` (409 si `version` no coincide; 422 `ESQUEMA_NO_VALIDO` si `Validar` falla; 422 `CAMPO_CON_RESPUESTAS` si el formulario tiene respuestas y se quita un campo o una opción, o cambia el tipo de un campo: el mensaje nombra el campo y sugiere cerrar y duplicar. Añadir campos u opciones y editar textos sí se permite) |
 | `DELETE /{id}` | — | 204 (409 si ya tiene envíos: ciérralo) |
 | `POST   /{id}/duplicar` | — | 201 `Formulario` |
 | `POST   /{id}/estado` | `{ estado }` | `Formulario` |
 | `POST   /previsualizar` | `{ esquema, email }` | `{ emailHtml, asunto, soloWeb, whatsappTexto }` (token ficticio, `action` desactivado) |
 | `GET    /{id}/audiencia?estados=confirmado,reserva&soloSinResponder=true` | — | `{ total, email, whatsapp }` (email = con email; whatsapp = con teléfono y consentimiento de WhatsApp) |
-| `POST   /{id}/envios` | `{ canales, filtro }` | 201 `Envio` (estado pasa a `activo`; 409 si `cerrado`) |
+| `POST   /{id}/envios` | cabecera opcional `Idempotency-Key` (≤ 80 caracteres) · `{ canales, filtro }` | 201 `Envio` (estado pasa a `activo`; 409 si `cerrado`). Con la misma `Idempotency-Key` en el mismo formulario: **200** con el `Envio` ya creado, sin encolar nada. Sin clave: 409 `ENVIO_DUPLICADO` si ya hay un envío con los mismos canales y filtro de hace menos de 2 minutos. 422 `CLAVE_DEMASIADO_LARGA` si la clave pasa de 80 caracteres |
 | `GET    /{id}/envios` | — | `Envio[]` |
 | `GET    /{id}/estadisticas` | — | `Estadisticas` |
 | `GET    /{id}/respuestas?estado=&q=&page=&size=` | — | `{ items: RespuestaFila[], total }` (`sin_respuesta` = destinatarios sin fila de respuesta) |
@@ -168,12 +170,22 @@ y agrega: `enCola` = en_cola+enviando+reintentando, `enviados` = enviado, `falli
 
 | Método y ruta | Entrada | Salida |
 |---|---|---|
-| `GET  /api/formularios/{token}` | — | `{ competicion: { nombre, slug }, formulario: { titulo, esquema, soloWeb }, atleta: { nombre }, respuesta: { estado, datos, archivos, enviadoAt } \| null, cerrado, puedeEditar }` · marca `abierto_at` la 1.ª vez · 404 si el token no es válido |
-| `PUT  /api/formularios/{token}` | `{ datos, enviar: boolean }` | `{ estado, porcentaje, errores: Record<campoId, string> }` · `enviar=false` = autoguardado parcial (sin validar obligatorios); `enviar=true` valida todo → `completa` o 422 con `errores` · 409 si cerrado o ya completa y `!permiteEditar` |
-| `POST /api/formularios/{token}/email` | `application/x-www-form-urlencoded` desde el cliente de correo; nombres `f_<campoId>` (multivalor repetido; casilla = `on`; si_no = `si`/`no`) | 303 → `{PUBLIC_WEB_URL}/formularios/{token}?enviado=1`, o `?revisar=1` si faltan obligatorios (se guarda como parcial con `origen=email`) |
-| `POST /api/formularios/{token}/archivos` | multipart `campoId` + `archivo` | `{ url, nombre, tamano, tipo }` · tipos y tamaño según el campo · se sube a BunnyCDN con el `storage(ctx,cid)` de athletes en `formularios/{formularioId}/{destinatarioId}/<uuid>.<ext>` |
+| `GET  /api/formularios/{token}` | — | `{ competicion: { nombre, slug }, formulario: { titulo, esquema, soloWeb }, atleta: { nombre }, respuesta: { estado, datos, archivos, enviadoAt, actualizadoAt } \| null, cerrado, puedeEditar }` · marca `abierto_at` la 1.ª vez · 404 si el token no es válido · `cerrado: true` también si el atleta está en estado `baja` |
+| `PUT  /api/formularios/{token}` | `{ datos, enviar: boolean, actualizadoAt?: RFC3339 }` | `{ estado, porcentaje, errores: Record<campoId, string>, actualizadoAt }` · `enviar=false` = autoguardado parcial (sin validar obligatorios); `enviar=true` valida todo → `completa` o 422 con `errores` · 409 `FORMULARIO_CERRADO` si el formulario está cerrado o el atleta está en `baja` (un único código para ambos casos), `YA_ENVIADO` (como antes) · 409 `RESPUESTA_CAMBIADA` si `actualizadoAt` viene y no coincide con la versión guardada (ver §5.1) |
+| `POST /api/formularios/{token}/email` | `application/x-www-form-urlencoded` desde el cliente de correo; nombres `f_<campoId>` (multivalor repetido; casilla = `on`; si_no = `si`/`no`) | 303 → `{PUBLIC_WEB_URL}/formularios/{token}?enviado=1`, o `?revisar=1` si faltan obligatorios (se guarda como parcial con `origen=email`). **Fusiona**: parte de la respuesta guardada y solo cambia los campos que llegan con valor (§5.1) |
+| `POST /api/formularios/{token}/archivos` | multipart `campoId` + `archivo` | `{ id, url, nombre, tamano, tipo }` · `id` es la clave del archivo: el cliente la envía luego en `datos[campoId]` · tipos y tamaño según el campo · límite `maxArchivos` contado de forma atómica (§5.1) · se sube a BunnyCDN con el `storage(ctx,cid)` de athletes en `formularios/{formularioId}/{destinatarioId}/<uuid>.<ext>` y crea su fila en `formulario_archivos` |
 
-- Rate limit por IP + token con `pkg/ratelimit` (como el resto de públicos).
+- Rate limit por IP + token con `pkg/ratelimit` (como el resto de públicos). Un token con otra forma (no 43 caracteres base64url) responde 404 antes de contar nada.
+
+### 5.1 Reglas de guardado (público)
+
+- **Archivos (`datos[campoId]`):** cada elemento es `{ id }` (el que devolvió la subida) o, por compatibilidad, `{ url }` exacta. El servidor acepta solo archivos de **este** destinatario y **este** campo, y toma `url`, `nombre`, `tamano` y `tipo` de la fila: nunca del cliente. Un elemento ajeno o repetido hace que ese campo reciba el error «Uno de los archivos no es válido. Vuelve a subirlo.».
+- **`maxArchivos`:** la subida bloquea (`pg_advisory_xact_lock` por destinatario y campo) y cuenta solo los archivos del campo que la respuesta **guardada** referencia (su `url` está en `archivos`). Quitar un archivo y guardar libera la plaza; dos subidas simultáneas no superan el límite. Aparte, tope anti-abuso: las subidas de las últimas 24 h que la respuesta no referencia no pueden llegar a `maxArchivos × 5`; si llegan, 422 `DEMASIADAS_SUBIDAS`. El cliente guarda lo pendiente antes de subir, para que quitar y volver a subir no bloquee.
+- **Concurrencia (`actualizadoAt`):** `GET` devuelve `respuesta.actualizadoAt` (RFC3339Nano). El `PUT` puede enviar ese valor de vuelta; si la respuesta guardada ya tiene otra versión, 409 `RESPUESTA_CAMBIADA` (la comparación se repite dentro del propio upsert). Sin `actualizadoAt` se guarda como antes (último que escribe gana). El `PUT` devuelve su `actualizadoAt` nuevo.
+- **Email fusionado:** el `POST .../email` parte de `datos` guardados y solo sobrescribe las claves que llegan con valor no vacío: las listas, si llega al menos un valor; las casillas y los si/no, si llegan en el formulario. Luego valida la respuesta entera. Consecuencia conocida: un email no puede **desmarcar** una casilla ni borrar un texto (eso se hace en la web).
+- **Baja:** un atleta en estado `baja` ve el formulario como cerrado (`cerrado: true`, `puedeEditar: false`) y el `PUT`, el `email` y la subida responden 409 `FORMULARIO_CERRADO`, igual que un formulario cerrado.
+
+- Ajustes de la respuesta del `PUT`: el `errores` del 422 (`enviar=true`) incluye también `actualizadoAt` (la forma de `guardado`).
 - `Porcentaje` = campos con respuesta / campos que admiten respuesta × 100 (enteros).
 
 ## 6. Email (messaging)
@@ -233,7 +245,7 @@ Decisiones donde el contrato dejaba hueco o no encajaba del todo (el contrato ma
 - **`PUT` con `enviar=true` y errores:** 422 con `{code, detail, estado, porcentaje, errores}`. Lo válido se guarda igualmente como `parcial`, para no perder lo escrito.
 - **Autoguardado y `completa`:** una respuesta pasa a `completa` solo al enviar sin errores, o al autoguardar una respuesta ya completa que sigue cumpliendo los obligatorios.
 - **Público `cerrado`:** también es `true` cuando el formulario está en `borrador` (solo se rellena en `activo`).
-- **Archivos:** la `url` de cada archivo debe contener la carpeta del destinatario (`formularios/<formularioId>/<destinatarioId>/` en el CDN; `formularios-<formularioId>-<destinatarioId>-` en el volumen local de QA).
+- **Archivos:** cada subida crea una fila en `formulario_archivos` (B4 · §5.1); la respuesta solo acepta archivos de su destinatario y campo, por id o url exacta. La ruta del CDN `formularios/<formularioId>/<destinatarioId>/` ya no es una comprobación de seguridad.
 - **`pkg/bodylimit`:** nueva constante `Archivo` (21 MB) y regla `POST /api/formularios/*/archivos`.
 - **Límites por defecto** cuando el campo no fija `validacion.maxLargo`: texto_corto 200, texto_largo 5000, email 254, telefono 30, fecha 10 caracteres.
 - **`NuevoID(prefijo)`:** acepta «c» u «o» (añade el `_`); también acepta «c_» y «o_».
@@ -266,3 +278,23 @@ Desviaciones y decisiones de la fase de envíos, estadísticas y previsualizaci�
 - Límites de email/WhatsApp que el contrato no fija y el asistente comprueba: asunto 160, preheader 200, introducción 1000, WhatsApp 1000 caracteres. Athletes debe aplicar los mismos (o más laxos) al guardar.
 - Sin evento `ia.diseno` para formularios (no está en el contrato).
 - Pendiente: `editar_opciones`/`editar_campo` aceptan `opciones` también en tipos sin opciones; `Validar` las ignora y quedan guardadas. Conviene que el editor no lo ofrezca o que athletes las descarte al guardar.
+
+## Implementación (B4 · revisión de bloqueantes de PR #726)
+
+Decisiones y límites conocidos tras la revisión del backend (I-1 a I-5, M-1 a M-7 y notas):
+
+- **Email fusionado (I-1):** `mezclaEmail` (formularios_publico.go) parte de lo guardado; `LeerFormEmail` solo trae claves con valor. Ver §5.1.
+- **Archivos ligados a subidas (I-2):** tabla `formulario_archivos`; `resuelveArchivos`/`archivosDelCampo` aceptan solo filas del destinatario y campo. Se quitó `archivosPropios`.
+- **Idempotencia (I-3):** `Idempotency-Key` → columna `clave_idempotencia` con índice único; replay 200 sin encolar. Sin clave, `ENVIO_DUPLICADO` (409) para el mismo canal+filtro en 2 minutos. El bloqueo `FOR UPDATE` del formulario serializa dos envíos a la vez.
+- **Contrato de esquema con respuestas (I-4):** `formularios.RompeRespuestas` (pkg/formularios/cambios.go), solo si `formulario_respuestas` tiene filas.
+- **Consentimiento en lote (I-5):** `audiencia` resuelve el consentimiento de WhatsApp en la misma consulta (lateral sobre la última alta aprobada), con la regla de `consentimientoWA`. No hay consultas por atleta en `audiencia`; `creaEnvio` escribe destinatarios en un `INSERT ... unnest`, entregas en otro, y los eventos de outbox en un lote (`events.QueueBatch`).
+- **HTML del email una vez por envío (M-1):** `planEntregas` compila `CompilarEmailHTML` una vez con marcadores aleatorios por envío (`marcador`), y `sustituye` cambia solo la acción y el enlace de cada destinatario (escapados).
+- **Coste del HTML (M-2, límite conocido):** `formulario_html` sigue copiándose en cada evento y en `mensajes.vars`. Se deja así a propósito: el tamaño de audiencia es de cientos de atletas (tope duro: 5000) y el cambio a una referencia por versión tocaría messaging. Revisar si una audiencia pasa de unos miles.
+- **Estadísticas en una consulta (M-3):** `porCampo` agrupa por clave y valor con `jsonb_each` (y elementos de listas) y `llenaCampo` lo mapea en Go.
+- **Entregas no vistas por messaging (M-4):** cuenta como omitida solo si pasan 30 minutos desde la creación de la entrega **y** su evento ya tiene `outbox.published_at` (LEFT JOIN a `outbox`). Si la fila del outbox desaparece, la entrega cuenta como «en cola» (conservador).
+- **Archivos en el CDN (M-5):** la subida se hace dentro de la transacción con el candado por destinatario y campo. Los archivos viven en el CDN bajo rutas no adivinables (`formularios/<f>/<d>/<uuid>.<ext>`, con el mismo criterio que los demás documentos de atletas, que también son públicos por URL). Una subida que no llega a insertar su fila deja el objeto huérfano en el CDN (no hay limpieza automática).
+- **Concurrencia (M-6):** ver §5.1 (`actualizadoAt` + `RESPUESTA_CAMBIADA`).
+- **Atletas en baja (M-7):** el enlace responde como cerrado; el error de escritura es `FORMULARIO_CERRADO`, el mismo código que un formulario cerrado (el frontend maneja un único código).
+- **Nits:** `celdasSeguras` no prefija números válidos; los tokens con otra forma se rechazan antes de contar intentos (`FormaValida`); la serie diaria de completas usa solo `enviado_at`.
+- **Fuera de alcance de esta revisión:** `internal/ai/formulario_tools.go` (opciones en tipos sin opciones, nit B3).
+

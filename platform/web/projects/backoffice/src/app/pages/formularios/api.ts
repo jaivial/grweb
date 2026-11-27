@@ -225,8 +225,12 @@ export class FormulariosApi {
     if (f.soloSinResponder) p = p.set('soloSinResponder', 'true');
     return firstValueFrom(this.http.get<Audiencia>(`${this.base(cid)}/${id}/audiencia`, { params: p }));
   }
-  crearEnvio(cid: string, id: string, b: { canales: CanalFormulario[]; filtro: Filtro }): Promise<Envio> {
-    return firstValueFrom(this.http.post<Envio>(`${this.base(cid)}/${id}/envios`, b));
+  /**
+   * Crea el envío. `clave` es la Idempotency-Key del diálogo: con la misma clave, un reintento recibe 200 con el envío
+   * ya creado (sin encolar nada); sin clave, el servidor responde 409 ENVIO_DUPLICADO si hay un envío igual hace poco.
+   */
+  crearEnvio(cid: string, id: string, b: { canales: CanalFormulario[]; filtro: Filtro }, clave: string): Promise<Envio> {
+    return firstValueFrom(this.http.post<Envio>(`${this.base(cid)}/${id}/envios`, b, { headers: { 'Idempotency-Key': clave } }));
   }
   envios(cid: string, id: string): Promise<Envio[]> {
     return firstValueFrom(this.http.get<Envio[]>(`${this.base(cid)}/${id}/envios`));

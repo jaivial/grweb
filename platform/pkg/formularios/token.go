@@ -17,6 +17,16 @@ func Token(clave []byte, id uuid.UUID) string {
 	return base64.RawURLEncoding.EncodeToString(buf)
 }
 
+// FormaValida dice si un texto tiene la forma de un token (32 bytes en base64url, 43 caracteres) sin comprobar la firma.
+// Se mira antes de contar intentos, para que tokens inventados no creen claves de límite de peticiones.
+func FormaValida(tok string) bool {
+	if len(tok) != 43 {
+		return false
+	}
+	b, err := base64.RawURLEncoding.DecodeString(tok)
+	return err == nil && len(b) == 32
+}
+
 // LeerToken devuelve el destinatario de un token válido. La firma se compara en tiempo constante.
 func LeerToken(clave []byte, tok string) (uuid.UUID, bool) {
 	var id uuid.UUID

@@ -14,6 +14,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/jaivial/grweb/platform/pkg/bodylimit"
 	"github.com/jaivial/grweb/platform/pkg/db"
@@ -45,12 +46,14 @@ type FormularioAtleta struct {
 	Nombre string `json:"nombre"`
 }
 
-// FormularioRespuesta es la respuesta que ve el destinatario.
+// FormularioRespuesta es la respuesta que ve el destinatario. actualizadoAt es la versión que el PUT devuelve de vuelta
+// para detectar un guardado sobre una respuesta cambiada en otro sitio (M-6).
 type FormularioRespuesta struct {
-	Estado    string             `json:"estado"`
-	Datos     map[string]any     `json:"datos"`
-	Archivos  []ArchivoRespuesta `json:"archivos"`
-	EnviadoAt *time.Time         `json:"enviadoAt"`
+	Estado        string             `json:"estado"`
+	Datos         map[string]any     `json:"datos"`
+	Archivos      []ArchivoRespuesta `json:"archivos"`
+	EnviadoAt     *time.Time         `json:"enviadoAt"`
+	ActualizadoAt time.Time          `json:"actualizadoAt"`
 }
 
 // FormularioPublico es lo que devuelve GET /api/formularios/{token}.
@@ -64,28 +67,33 @@ type FormularioPublico struct {
 }
 
 // acceso es lo que deja ver y cambiar el enlace: el destinatario, su atleta, su formulario y su respuesta, si la hay.
+// Baja marca a un atleta dado de baja en la competición: su enlace responde como un formulario cerrado (M-7).
 type acceso struct {
 	Destinatario uuid.UUID
 	Atleta       uuid.UUID
 	Nombre       string
 	CID          uuid.UUID
+	Baja         bool
 	Formulario   Formulario
 	Respuesta    *FormularioRespuesta
 }
 
-// guardado es el resultado de guardar: estado, porcentaje y errores por campo.
+// guardado es el resultado de guardar: estado, porcentaje, errores por campo y la versión guardada (actualizadoAt).
 type guardado struct {
-	Estado     string            `json:"estado"`
-	Porcentaje int               `json:"porcentaje"`
-	Errores    map[string]string `json:"errores"`
+	Estado        string            `json:"estado"`
+	Porcentaje    int               `json:"porcentaje"`
+	Errores       map[string]string `json:"errores"`
+	ActualizadoAt time.Time         `json:"actualizadoAt"`
 }
 
-// archivoSubido es el archivo que devuelve la subida; el cliente lo incluye luego en datos[campoId].
+// archivoSubido es el archivo que devuelve la subida. El cliente lo incluye luego en datos[campoId] con su id (o su url,
+// por compatibilidad): url, nombre, tamaño y tipo los toma el servidor de la fila que creó la subida.
 type archivoSubido struct {
-	URL    string `json:"url"`
-	Nombre string `json:"nombre"`
-	Tamano int64  `json:"tamano"`
-	Tipo   string `json:"tipo"`
+	ID     uuid.UUID `json:"id"`
+	URL    string    `json:"url"`
+	Nombre string    `json:"nombre"`
+	Tamano int64     `json:"tamano"`
+	Tipo   string    `json:"tipo"`
 }
 
 // extensiones son los tipos de archivo que admite una subida (el tipo lo detecta el contenido, no el nombre).
@@ -124,13 +132,13 @@ func (s *Svc) registerFormulariosPublico() {
 				Formulario:  FormularioInfo{Titulo: a.Formulario.Esquema.Ajustes.Titulo, Esquema: a.Formulario.Esquema, SoloWeb: a.Formulario.SoloWeb},
 				Atleta:      FormularioAtleta{Nombre: a.Nombre},
 				Respuesta:   a.Respuesta,
-				Cerrado:     cerrado(a.Formulario, ahora),
+				Cerrado:     a.Baja || cerrado(a.Formulario, ahora),
 				PuedeEditar: puedeEditar(a, ahora),
 			}}, nil
 		})
 
 	// Autoguardado (enviar=false) y envío (enviar=true). Con enviar y errores: 422 con los errores por campo (lo válido
-	// queda guardado como parcial).
+	// queda guardado como parcial). actualizadoAt (opcional) es la versión que el cliente tiene: si ya no coincide, 409.
 	s.a.Mux.HandleFunc("PUT /api/formularios/{token}", func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		tok := req.PathValue("token")
@@ -139,8 +147,9 @@ func (s *Svc) registerFormulariosPublico() {
 			return
 		}
 		var in struct {
-			Datos  map[string]any `json:"datos"`
-			Enviar bool           `json:"enviar"`
+			Datos         map[string]any `json:"datos"`
+			Enviar        bool           `json:"enviar"`
+			ActualizadoAt *time.Time     `json:"actualizadoAt"`
 		}
 		if err := json.NewDecoder(req.Body).Decode(&in); err != nil {
 			problem.Write(w, problem.BadRequest("JSON_NO_VALIDO", "Los datos del formulario no son válidos."))
@@ -151,7 +160,7 @@ func (s *Svc) registerFormulariosPublico() {
 			problem.Write(w, perr)
 			return
 		}
-		g, perr := s.guardaRespuesta(ctx, a, in.Datos, in.Enviar, "web")
+		g, perr := s.guardaRespuesta(ctx, a, in.Datos, in.Enviar, "web", in.ActualizadoAt)
 		if perr != nil {
 			problem.Write(w, perr)
 			return
@@ -186,7 +195,8 @@ func (s *Svc) registerFormulariosPublico() {
 			http.Redirect(w, req, web, http.StatusSeeOther)
 			return
 		}
-		g, perr := s.guardaRespuesta(ctx, a, formularios.LeerFormEmail(a.Formulario.Esquema, req.PostForm), true, "email")
+		datos := mezclaEmail(a.Respuesta, formularios.LeerFormEmail(a.Formulario.Esquema, req.PostForm))
+		g, perr := s.guardaRespuesta(ctx, a, datos, true, "email", nil)
 		if perr != nil {
 			http.Redirect(w, req, web, http.StatusSeeOther)
 			return
@@ -208,6 +218,20 @@ func (s *Svc) registerFormulariosPublico() {
 	})
 }
 
+// mezclaEmail parte de lo guardado y pone encima lo que llega por el email: un email solo cambia lo que trae (I-1).
+func mezclaEmail(previa *FormularioRespuesta, nuevos map[string]any) map[string]any {
+	out := map[string]any{}
+	if previa != nil {
+		for k, v := range previa.Datos {
+			out[k] = v
+		}
+	}
+	for k, v := range nuevos {
+		out[k] = v
+	}
+	return out
+}
+
 // accesoFormulario resuelve el enlace: 404 TOKEN_INVALIDO si no es un token válido o su destinatario ya no existe.
 func (s *Svc) accesoFormulario(ctx context.Context, tok string) (acceso, *problem.Error) {
 	did, ok := formularios.LeerToken(s.autKey, tok)
@@ -218,12 +242,13 @@ func (s *Svc) accesoFormulario(ctx context.Context, tok string) (acceso, *proble
 	var fid uuid.UUID
 	var rEstado string
 	var rDatos, rArchivos []byte
-	var rEnviado *time.Time
-	err := s.a.DB.QueryRow(ctx, `SELECT d.competition_id, d.formulario_id, d.atleta_id, a.nombre, COALESCE(r.estado, ''), r.datos, r.archivos, r.enviado_at
+	var rEnviado, rActualizado *time.Time
+	err := s.a.DB.QueryRow(ctx, `SELECT d.competition_id, d.formulario_id, d.atleta_id, a.nombre, COALESCE(a.estado, '') = 'baja',
+		COALESCE(r.estado, ''), r.datos, r.archivos, r.enviado_at, r.updated_at
 		FROM formulario_destinatarios d
 		JOIN atletas a ON a.id = d.atleta_id
 		LEFT JOIN formulario_respuestas r ON r.destinatario_id = d.id
-		WHERE d.id = $1`, did).Scan(&a.CID, &fid, &a.Atleta, &a.Nombre, &rEstado, &rDatos, &rArchivos, &rEnviado)
+		WHERE d.id = $1`, did).Scan(&a.CID, &fid, &a.Atleta, &a.Nombre, &a.Baja, &rEstado, &rDatos, &rArchivos, &rEnviado, &rActualizado)
 	if db.IsNoRows(err) {
 		return acceso{}, tokenInvalido()
 	}
@@ -237,6 +262,9 @@ func (s *Svc) accesoFormulario(ctx context.Context, tok string) (acceso, *proble
 	a.Formulario = f
 	if rEstado != "" {
 		r := &FormularioRespuesta{Estado: rEstado, Datos: map[string]any{}, Archivos: []ArchivoRespuesta{}, EnviadoAt: rEnviado}
+		if rActualizado != nil {
+			r.ActualizadoAt = *rActualizado
+		}
 		if err := json.Unmarshal(rDatos, &r.Datos); err != nil {
 			return acceso{}, s.aProblema(err)
 		}
@@ -253,23 +281,26 @@ func (s *Svc) accesoFormulario(ctx context.Context, tok string) (acceso, *proble
 
 // guardaRespuesta valida y guarda lo que escribe el destinatario (autoguardado si !enviar). La respuesta queda
 // «completa» al enviar sin errores, o al autoguardar una respuesta ya completa que sigue cumpliendo los obligatorios.
-// Los archivos solo valen si su url es de este destinatario.
-func (s *Svc) guardaRespuesta(ctx context.Context, a acceso, datos map[string]any, enviar bool, origen string) (guardado, *problem.Error) {
-	if perr := estadoCerrado(a, time.Now()); perr != nil {
+// Los archivos se resuelven contra la tabla formulario_archivos (resuelveArchivos). esperado, si no es nil, es la
+// versión que el cliente tiene: si la respuesta ya cambió, 409 RESPUESTA_CAMBIADA (la comprobación se repite dentro del
+// propio upsert, así que dos guardados a la vez no se pisan).
+func (s *Svc) guardaRespuesta(ctx context.Context, a acceso, datos map[string]any, enviar bool, origen string, esperado *time.Time) (guardado, *problem.Error) {
+	ahora := time.Now()
+	if perr := estadoCerrado(a, ahora); perr != nil {
 		return guardado{}, perr
 	}
+	if esperado != nil && (a.Respuesta == nil || !a.Respuesta.ActualizadoAt.Equal(*esperado)) {
+		return guardado{}, respuestaCambiada()
+	}
 	esq := a.Formulario.Esquema
-	limpios, errores := formularios.ValidarRespuesta(esq, datos, enviar)
-	fid, did := a.Formulario.ID.String(), a.Destinatario.String()
-	for _, c := range esq.Campos {
-		lista, ok := limpios[c.ID].([]any)
-		if c.Tipo != formularios.TipoArchivo || !ok {
-			continue
-		}
-		if !archivosPropios(lista, fid, did) {
-			delete(limpios, c.ID)
-			errores[c.ID] = "Uno de los archivos no es válido. Vuelve a subirlo."
-		}
+	resueltos, errArchivos, perr := s.resuelveArchivos(ctx, a, datos)
+	if perr != nil {
+		return guardado{}, perr
+	}
+	limpios, errores := formularios.ValidarRespuesta(esq, resueltos, enviar)
+	for campo, msg := range errArchivos {
+		errores[campo] = msg
+		delete(limpios, campo)
 	}
 	_, faltan := formularios.ValidarRespuesta(esq, limpios, true)
 	estado := "parcial"
@@ -278,7 +309,6 @@ func (s *Svc) guardaRespuesta(ctx context.Context, a acceso, datos map[string]an
 	}
 	var enviadoAt *time.Time
 	if estado == "completa" && enviar {
-		ahora := time.Now()
 		enviadoAt = &ahora
 	}
 	porcentaje := formularios.Porcentaje(esq, limpios)
@@ -290,21 +320,139 @@ func (s *Svc) guardaRespuesta(ctx context.Context, a acceso, datos map[string]an
 	if err != nil {
 		return guardado{}, s.aProblema(err)
 	}
-	_, err = s.a.DB.Exec(ctx, `INSERT INTO formulario_respuestas (id, formulario_id, destinatario_id, atleta_id, competition_id, version, datos, archivos, estado, porcentaje, origen, enviado_at)
+	var actualizado time.Time
+	err = s.a.DB.QueryRow(ctx, `INSERT INTO formulario_respuestas (id, formulario_id, destinatario_id, atleta_id, competition_id, version, datos, archivos, estado, porcentaje, origen, enviado_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		ON CONFLICT (destinatario_id) DO UPDATE SET version = EXCLUDED.version, datos = EXCLUDED.datos, archivos = EXCLUDED.archivos,
 			estado = EXCLUDED.estado, porcentaje = EXCLUDED.porcentaje, origen = EXCLUDED.origen,
-			enviado_at = COALESCE(EXCLUDED.enviado_at, formulario_respuestas.enviado_at), updated_at = now()`,
-		newID(), a.Formulario.ID, a.Destinatario, a.Atleta, a.CID, a.Formulario.Version, datosJSON, archivosJSON, estado, porcentaje, origen, enviadoAt)
+			enviado_at = COALESCE(EXCLUDED.enviado_at, formulario_respuestas.enviado_at), updated_at = now()
+		WHERE $13::timestamptz IS NULL OR formulario_respuestas.updated_at = $13::timestamptz
+		RETURNING updated_at`,
+		newID(), a.Formulario.ID, a.Destinatario, a.Atleta, a.CID, a.Formulario.Version, datosJSON, archivosJSON, estado, porcentaje, origen, enviadoAt, esperado).Scan(&actualizado)
+	if db.IsNoRows(err) {
+		// El ON CONFLICT no ha actualizado: la versión guardada ya no es la que el cliente tiene.
+		return guardado{}, respuestaCambiada()
+	}
 	if err != nil {
 		return guardado{}, s.aProblema(err)
 	}
 	s.marcaAbierto(ctx, a.Destinatario)
-	return guardado{Estado: estado, Porcentaje: porcentaje, Errores: errores}, nil
+	return guardado{Estado: estado, Porcentaje: porcentaje, Errores: errores, ActualizadoAt: actualizado}, nil
 }
 
-// subeArchivoFormulario valida el archivo (tipo por contenido, tamaño y número por campo) y lo sube al CDN en
-// formularios/{formularioId}/{destinatarioId}/<uuid>.<ext>. Devuelve la url; la respuesta se guarda con el PUT.
+// resuelveArchivos sustituye, en cada campo de archivo, lo que manda el cliente por los archivos que este destinatario
+// subió de verdad a ese campo. url, nombre, tamaño y tipo salen de la fila; el cliente solo aporta el id (o la url,
+// por compatibilidad). Un campo con algún elemento ajeno o desconocido se quita y recibe un error; el resto no cambia.
+func (s *Svc) resuelveArchivos(ctx context.Context, a acceso, datos map[string]any) (map[string]any, map[string]string, *problem.Error) {
+	out := make(map[string]any, len(datos))
+	for k, v := range datos {
+		out[k] = v
+	}
+	errores := map[string]string{}
+	for _, c := range a.Formulario.Esquema.Campos {
+		if c.Tipo != formularios.TipoArchivo {
+			continue
+		}
+		lista, ok := datos[c.ID].([]any)
+		if !ok {
+			continue
+		}
+		resueltos, valido, err := s.archivosDelCampo(ctx, a.Destinatario, c.ID, lista)
+		if err != nil {
+			return nil, nil, s.aProblema(err)
+		}
+		if !valido {
+			delete(out, c.ID)
+			errores[c.ID] = "Uno de los archivos no es válido. Vuelve a subirlo."
+			continue
+		}
+		out[c.ID] = resueltos
+	}
+	return out, errores, nil
+}
+
+// archivosDelCampo devuelve la forma guardada de los archivos de un campo. valido=false si algún elemento no es un
+// archivo subido por este destinatario a este campo, o si aparece dos veces.
+func (s *Svc) archivosDelCampo(ctx context.Context, did uuid.UUID, campo string, lista []any) ([]any, bool, error) {
+	if len(lista) == 0 {
+		return []any{}, true, nil
+	}
+	type referencia struct {
+		id  uuid.UUID
+		url string
+		por string // "id" o "url"
+	}
+	refs := make([]referencia, 0, len(lista))
+	ids := []uuid.UUID{}
+	urls := []string{}
+	for _, it := range lista {
+		m, ok := it.(map[string]any)
+		if !ok {
+			return nil, false, nil
+		}
+		if sid, ok := m["id"].(string); ok && sid != "" {
+			id, err := uuid.Parse(sid)
+			if err != nil {
+				return nil, false, nil
+			}
+			refs = append(refs, referencia{id: id, por: "id"})
+			ids = append(ids, id)
+			continue
+		}
+		if u, ok := m["url"].(string); ok && u != "" {
+			refs = append(refs, referencia{url: u, por: "url"})
+			urls = append(urls, u)
+			continue
+		}
+		return nil, false, nil
+	}
+	rows, err := s.a.DB.Query(ctx, `SELECT id, url, nombre, tamano, tipo FROM formulario_archivos
+		WHERE destinatario_id = $1 AND campo_id = $2 AND (id = ANY($3::uuid[]) OR url = ANY($4::text[]))`, did, campo, ids, urls)
+	if err != nil {
+		return nil, false, err
+	}
+	defer rows.Close()
+	porID := map[uuid.UUID]map[string]any{}
+	porURL := map[string]map[string]any{}
+	for rows.Next() {
+		var id uuid.UUID
+		var u, nombre, tipo string
+		var tamano int64
+		if err := rows.Scan(&id, &u, &nombre, &tamano, &tipo); err != nil {
+			return nil, false, err
+		}
+		item := map[string]any{"id": id.String(), "url": u, "nombre": nombre, "tamano": float64(tamano), "tipo": tipo}
+		porID[id] = item
+		porURL[u] = item
+	}
+	if err := rows.Err(); err != nil {
+		return nil, false, err
+	}
+	out := make([]any, 0, len(refs))
+	vistos := map[uuid.UUID]bool{}
+	for _, r := range refs {
+		var item map[string]any
+		if r.por == "id" {
+			item = porID[r.id]
+		} else {
+			item = porURL[r.url]
+		}
+		if item == nil {
+			return nil, false, nil
+		}
+		id, _ := uuid.Parse(item["id"].(string))
+		if vistos[id] {
+			return nil, false, nil
+		}
+		vistos[id] = true
+		out = append(out, item)
+	}
+	return out, true, nil
+}
+
+// subeArchivoFormulario valida el archivo (tipo por contenido, tamaño y número por campo), lo sube al CDN en
+// formularios/{formularioId}/{destinatarioId}/<uuid>.<ext> y crea su fila en formulario_archivos. Todo en una transacción
+// con un candado por (destinatario, campo): así dos subidas a la vez no superan maxArchivos. La respuesta se guarda con el PUT.
 func (s *Svc) subeArchivoFormulario(w http.ResponseWriter, req *http.Request) (archivoSubido, *problem.Error) {
 	ctx := req.Context()
 	tok := req.PathValue("token")
@@ -356,51 +504,66 @@ func (s *Svc) subeArchivoFormulario(w http.ResponseWriter, req *http.Request) (a
 	if !ok || !mimePermitido(mime, cfg.Tipos) {
 		return archivoSubido{}, problem.Unprocessable("TIPO_NO_PERMITIDO", "Este tipo de archivo no está permitido en este campo.")
 	}
-	usados, err := s.archivosUsados(ctx, a.Destinatario, campo.ID)
+	st, err := s.storage(ctx, a.CID)
+	if err != nil {
+		return archivoSubido{}, archivoNoGuardado()
+	}
+	var subido archivoSubido
+	err = db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, a.Destinatario.String()+"|"+campo.ID); err != nil {
+			return err
+		}
+		referenciados, sueltas, err := contaArchivos(ctx, tx, a.Destinatario, campo.ID)
+		if err != nil {
+			return err
+		}
+		if referenciados >= cfg.MaxArchivos {
+			return problem.Unprocessable("LIMITE_ARCHIVOS", fmt.Sprintf("Puedes subir como máximo %d archivo(s) en este campo.", cfg.MaxArchivos))
+		}
+		if sueltas >= cfg.MaxArchivos*5 {
+			return problem.Unprocessable("DEMASIADAS_SUBIDAS", "Has subido demasiados archivos en este campo sin guardarlos. Revisa el formulario o inténtalo de nuevo en 24 horas.")
+		}
+		clave := "formularios/" + a.Formulario.ID.String() + "/" + a.Destinatario.String() + "/" + newID().String() + ext
+		u, err := st.Put(ctx, clave, mime, data)
+		if err != nil {
+			s.a.Log.Warn("formularios: subir archivo", "err", err)
+			return archivoNoGuardado()
+		}
+		subido = archivoSubido{ID: newID(), URL: u, Nombre: nombreArchivo(fh.Filename), Tamano: int64(len(data)), Tipo: mime}
+		_, err = tx.Exec(ctx, `INSERT INTO formulario_archivos (id, destinatario_id, campo_id, url, nombre, tamano, tipo)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`, subido.ID, a.Destinatario, campo.ID, subido.URL, subido.Nombre, subido.Tamano, subido.Tipo)
+		return err
+	})
 	if err != nil {
 		return archivoSubido{}, s.aProblema(err)
 	}
-	if usados >= cfg.MaxArchivos {
-		return archivoSubido{}, problem.Unprocessable("LIMITE_ARCHIVOS", fmt.Sprintf("Puedes subir como máximo %d archivo(s) en este campo.", cfg.MaxArchivos))
-	}
-	st, err := s.storage(ctx, a.CID)
-	if err != nil {
-		return archivoSubido{}, problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No hemos podido guardar el archivo. Inténtalo en unos minutos.")
-	}
-	clave := "formularios/" + a.Formulario.ID.String() + "/" + a.Destinatario.String() + "/" + newID().String() + ext
-	u, err := st.Put(ctx, clave, mime, data)
-	if err != nil {
-		s.a.Log.Warn("formularios: subir archivo", "err", err)
-		return archivoSubido{}, problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No hemos podido guardar el archivo. Inténtalo en unos minutos.")
-	}
-	return archivoSubido{URL: u, Nombre: nombreArchivo(fh.Filename), Tamano: int64(len(data)), Tipo: mime}, nil
+	return subido, nil
 }
 
-// archivosUsados cuenta los archivos que ya tiene el destinatario en ese campo.
-func (s *Svc) archivosUsados(ctx context.Context, did uuid.UUID, campoID string) (int, error) {
-	var raw []byte
-	err := s.a.DB.QueryRow(ctx, `SELECT archivos FROM formulario_respuestas WHERE destinatario_id = $1`, did).Scan(&raw)
-	if db.IsNoRows(err) {
-		return 0, nil
-	}
-	if err != nil {
-		return 0, err
-	}
-	var lista []ArchivoRespuesta
-	if err := json.Unmarshal(raw, &lista); err != nil {
-		return 0, err
-	}
-	n := 0
-	for _, x := range lista {
-		if x.CampoID == campoID {
-			n++
-		}
-	}
-	return n, nil
+// contaArchivos devuelve, para un destinatario y un campo, dos cuentas de la subida de archivos:
+//   - referenciados: archivos que la respuesta guardada tiene ahora mismo en ese campo (su url está en la columna
+//     archivos). Es lo que cuenta para maxArchivos: quitar un archivo y guardar libera su plaza.
+//   - sueltas: subidas de las últimas 24 horas que la respuesta guardada no referencia (subidas sin guardar). No
+//     cuentan para maxArchivos; solo acotan el abuso (maxArchivos*5 por 24 horas).
+func contaArchivos(ctx context.Context, tx pgx.Tx, did uuid.UUID, campo string) (referenciados, sueltas int, err error) {
+	err = tx.QueryRow(ctx, `WITH ref AS (
+			SELECT x ->> 'url' AS url FROM formulario_respuestas r CROSS JOIN LATERAL jsonb_array_elements(r.archivos) AS x
+			WHERE r.destinatario_id = $1 AND x ->> 'campoId' = $2)
+		SELECT
+			(SELECT count(*)::int FROM formulario_archivos f WHERE f.destinatario_id = $1 AND f.campo_id = $2
+				AND EXISTS (SELECT 1 FROM ref WHERE ref.url = f.url)),
+			(SELECT count(*)::int FROM formulario_archivos f WHERE f.destinatario_id = $1 AND f.campo_id = $2
+				AND f.created_at > now() - interval '24 hours'
+				AND NOT EXISTS (SELECT 1 FROM ref WHERE ref.url = f.url))`, did, campo).Scan(&referenciados, &sueltas)
+	return referenciados, sueltas, err
 }
 
-// limitaFormulario cuenta un intento por IP y enlace (el token va en hash, no en claro, dentro de la clave).
+// limitaFormulario cuenta un intento por IP y enlace (el token va en hash, no en claro, dentro de la clave). Un token con
+// otra forma se rechaza antes de contar: así los tokens inventados no crean claves en Redis.
 func (s *Svc) limitaFormulario(ctx context.Context, accion, tok string, limite int64, ventana time.Duration) *problem.Error {
+	if !formularios.FormaValida(tok) {
+		return tokenInvalido()
+	}
 	clave := s.a.Keys.Of("rl", "formulario", accion, httpx.ClientIPFrom(ctx), hashToken(tok)[:16])
 	if lim, _ := ratelimit.Allow(ctx, s.a.Redis, clave, limite, ventana); !lim.Allowed {
 		return problem.TooMany("Has hecho demasiadas peticiones seguidas. Espera un rato antes de intentarlo otra vez.")
@@ -430,9 +593,9 @@ func cerrado(f Formulario, ahora time.Time) bool {
 	return f.Estado != "activo" || (f.Esquema.Ajustes.CierreAt != nil && !ahora.Before(*f.Esquema.Ajustes.CierreAt))
 }
 
-// puedeEditar: se puede guardar, y si ya se envió, el formulario permite editar.
+// puedeEditar: se puede guardar, y si ya se envió, el formulario permite editar. Un atleta dado de baja no puede.
 func puedeEditar(a acceso, ahora time.Time) bool {
-	if cerrado(a.Formulario, ahora) {
+	if a.Baja || cerrado(a.Formulario, ahora) {
 		return false
 	}
 	return a.Respuesta == nil || a.Respuesta.Estado != "completa" || a.Formulario.Esquema.Ajustes.PermiteEditar
@@ -440,13 +603,21 @@ func puedeEditar(a acceso, ahora time.Time) bool {
 
 // estadoCerrado es el error que corresponde a un enlace que no admite cambios (nil si sí los admite).
 func estadoCerrado(a acceso, ahora time.Time) *problem.Error {
-	if cerrado(a.Formulario, ahora) {
+	if a.Baja || cerrado(a.Formulario, ahora) {
 		return problem.Conflict("FORMULARIO_CERRADO", "Este formulario ya está cerrado.")
 	}
 	if !puedeEditar(a, ahora) {
 		return problem.Conflict("YA_ENVIADO", "Ya has enviado este formulario.")
 	}
 	return nil
+}
+
+func respuestaCambiada() *problem.Error {
+	return problem.Conflict("RESPUESTA_CAMBIADA", "Tus respuestas se han cambiado en otra pestaña o dispositivo. Recarga el formulario para ver la última versión.")
+}
+
+func archivoNoGuardado() *problem.Error {
+	return problem.New(http.StatusServiceUnavailable, "SERVICIO_NO_DISPONIBLE", "No hemos podido guardar el archivo. Inténtalo en unos minutos.")
 }
 
 // archivosDe aplana los archivos de los campos en la forma de la columna «archivos» (nunca nil).
@@ -470,23 +641,6 @@ func archivosDe(e formularios.Esquema, limpios map[string]any) []ArchivoRespuest
 		}
 	}
 	return out
-}
-
-// archivosPropios dice si todas las urls cuelgan de la carpeta de este destinatario: la ruta del CDN
-// («formularios/<f>/<d>/») o, en el volumen local, el nombre plano («formularios-<f>-<d>-»).
-func archivosPropios(lista []any, fid, did string) bool {
-	ruta, plano := "formularios/"+fid+"/"+did+"/", "formularios-"+fid+"-"+did+"-"
-	for _, it := range lista {
-		m, ok := it.(map[string]any)
-		if !ok {
-			return false
-		}
-		u, _ := m["url"].(string)
-		if !strings.Contains(u, ruta) && !strings.Contains(u, plano) {
-			return false
-		}
-	}
-	return true
 }
 
 func buscaCampo(e formularios.Esquema, id string) (formularios.Campo, bool) {

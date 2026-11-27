@@ -444,6 +444,16 @@ func (s *Svc) guardaEdicion(ctx context.Context, tx pgx.Tx, cid, id uuid.UUID, b
 	if err := formularios.Validar(esq); err != nil {
 		return problem.Unprocessable("ESQUEMA_NO_VALIDO", err.Error())
 	}
+	// Con respuestas, los ids de campo y de opción y el tipo de cada campo son el contrato de los datos guardados.
+	var conRespuestas bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM formulario_respuestas WHERE formulario_id = $1)`, id).Scan(&conRespuestas); err != nil {
+		return err
+	}
+	if conRespuestas {
+		if msg := formularios.RompeRespuestas(cur.Esquema, esq); msg != "" {
+			return problem.Unprocessable("CAMPO_CON_RESPUESTAS", msg)
+		}
+	}
 	esqJSON, emJSON, waJSON, err := jsonFormulario(esq, b.Email, b.WhatsApp)
 	if err != nil {
 		return err

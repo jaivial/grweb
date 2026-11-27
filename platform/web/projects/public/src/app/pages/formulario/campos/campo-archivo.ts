@@ -29,7 +29,7 @@ import { tamano, tiposLegibles } from '../formulario-reglas';
     }
     @if (subida(); as s) {
       <div class="mt-2 flex flex-col gap-2 text-[14px] text-[var(--f-texto)]">
-        <div class="flex justify-between gap-3"><span class="truncate">{{ t().subiendo(s.nombre) }}</span><span>{{ s.pct }} %</span></div>
+        <div class="flex items-center justify-between gap-3"><span class="truncate">{{ t().subiendo(s.nombre) }}</span><span class="flex shrink-0 items-center gap-3">{{ s.pct }} %<button type="button" class="min-h-11 underline focus-visible:ring-2 focus-visible:ring-[var(--f-acento)] focus-visible:outline-none" [attr.aria-label]="t().cancelarSubida(s.nombre)" (click)="cancelar.emit()">{{ t().cancelar }}</button></span></div>
         <div class="h-1.5 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--f-texto)_15%,transparent)]" role="progressbar"
           aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="s.pct" [attr.aria-label]="t().progreso">
           <div class="h-full rounded-full bg-[var(--f-acento)] transition-[width] duration-200 motion-reduce:transition-none" [style.width.%]="s.pct"></div>
@@ -61,6 +61,8 @@ export class FormArchivo {
   readonly subida = input<{ nombre: string; pct: number } | null>(null);
   readonly elegir = output<File[]>();
   readonly quitar = output<string>();
+  /** Cancela la subida en curso del campo (el contenedor corta la petición). */
+  readonly cancelar = output<void>();
 
   protected readonly t = inject(I18n).dict(TEXTOS);
   protected readonly arrastrando = signal(false);

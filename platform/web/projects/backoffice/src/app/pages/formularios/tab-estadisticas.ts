@@ -91,9 +91,12 @@ export class BoFormEstadisticas {
     ];
   });
 
+  /** Tracks the form id only, so saves of the same form do not reload the statistics. */
+  private readonly formularioId = computed(() => this.formulario().id);
+
   constructor() {
     effect(() => {
-      const id = this.formulario().id;
+      const id = this.formularioId();
       if (!this.cid() || !id) return;
       untracked(() => void this.cargar());
     });

@@ -54,7 +54,7 @@ const OPCION_TIPOS: ReadonlySet<TipoCampo> = new Set(['opcion_unica', 'desplegab
       } @else if (esValoracion()) {
         <gr-form-valoracion [campo]="campo()" [valor]="valor()" [error]="error()" (cambio)="cambio.emit($event)" />
       } @else if (esArchivo()) {
-        <gr-form-archivo [campo]="campo()" [valor]="valor()" [error]="error()" [subida]="subida()" (elegir)="elegirArchivos.emit($event)" (quitar)="quitarArchivo.emit($event)" />
+        <gr-form-archivo [campo]="campo()" [valor]="valor()" [error]="error()" [subida]="subida()" (elegir)="elegirArchivos.emit($event)" (quitar)="quitarArchivo.emit($event)" (cancelar)="cancelarSubida.emit()" />
       }
 
       @if (error()) {
@@ -76,6 +76,7 @@ export class FormCampo {
   readonly salida = output<void>();
   readonly elegirArchivos = output<File[]>();
   readonly quitarArchivo = output<string>();
+  readonly cancelarSubida = output<void>();
 
   protected readonly ctrl = computed(() => ctrlId(this.campo()));
   protected readonly completo = computed(() => this.campo().ancho !== 'mitad');

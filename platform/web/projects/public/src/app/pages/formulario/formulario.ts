@@ -3,18 +3,19 @@ import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, computed, 
 import { isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { GrAlert, GrButton, GrIcon, GrSkeleton } from '@grcup/ui';
-import { lastValueFrom, tap } from 'rxjs';
+import { Subscription } from 'rxjs';
 import { I18n } from '../../core/i18n';
 import { Seo } from '../../core/seo';
 import { Footer, Navbar } from '../../layout/layout';
-import { ArchivoSubido, Campo, Datos, Errores, FormularioPublico, FormulariosPublic, ResultadoGuardado } from './formulario-api';
+import { ArchivoSubido, ArchivoSubidoRespuesta, Campo, Datos, Errores, FormularioPublico, FormulariosPublic, ResultadoGuardado } from './formulario-api';
 import { errorArchivo, estiloTema, textoRico, validarCampo, validarTodo } from './formulario-reglas';
 import { TEXTOS } from './formulario-textos';
 import { FormCampo } from './campos/campo';
 
 type Vista = 'cargando' | 'formulario' | 'gracias' | 'cerrado' | 'invalido' | 'error';
 type Aviso = '' | 'revisar' | 'errores' | 'red' | 'cambiado';
-type Guardado = 'nada' | 'guardando' | 'ok' | 'error';
+/** `campos`: el servidor ha descartado valores no válidos al autoguardar (nunca se muestra «Guardado»). */
+type Guardado = 'nada' | 'guardando' | 'ok' | 'error' | 'campos';
 
 const AUTOGUARDADO_MS = 1500;
 
@@ -22,6 +23,18 @@ const AUTOGUARDADO_MS = 1500;
 function erroresDe(e: HttpErrorResponse): Errores {
   const cuerpo = e.error as { errores?: Errores } | null;
   return cuerpo?.errores ?? {};
+}
+
+/** Código estable de la API (`code`), o cadena vacía si el cuerpo no lo trae. */
+function codigoDe(e: HttpErrorResponse): string {
+  const cuerpo = e.error as { code?: string } | null;
+  return cuerpo?.code ?? '';
+}
+
+/** Versión guardada (`actualizadoAt`) que trae el cuerpo: la del PUT correcto o la del 422 de enviar. */
+function actualizadoDe(e: HttpErrorResponse): string | null {
+  const cuerpo = e.error as { actualizadoAt?: string } | null;
+  return cuerpo?.actualizadoAt ?? null;
 }
 
 /**
@@ -79,7 +92,7 @@ function erroresDe(e: HttpErrorResponse): Errores {
               <div class="mt-8 grid grid-cols-1 gap-x-5 gap-y-[var(--f-gap)] md:grid-cols-2">
                 @for (c of campos(); track c.id) {
                   <gr-form-campo [campo]="c" [valor]="valores()[c.id]" [error]="errores()[c.id] ?? null" [subida]="subidas()[c.id] ?? null"
-                    (cambio)="cambiar(c, $event)" (salida)="tocar(c)" (elegirArchivos)="subirArchivos(c, $event)" (quitarArchivo)="quitarArchivo(c, $event)" />
+                    (cambio)="cambiar(c, $event)" (salida)="tocar(c)" (elegirArchivos)="subirArchivos(c, $event)" (quitarArchivo)="quitarArchivo(c, $event)" (cancelarSubida)="cancelarSubida(c)" />
                 }
               </div>
 
@@ -90,6 +103,7 @@ function erroresDe(e: HttpErrorResponse): Errores {
                       @case ('guardando') { {{ t().guardando }} }
                       @case ('ok') { <gr-icon name="check" [size]="14" />{{ t().guardado }} }
                       @case ('error') { <gr-icon name="circle-alert" [size]="14" class="text-accent-text" />{{ t().noGuardado }} }
+                      @case ('campos') { <gr-icon name="circle-alert" [size]="14" class="text-accent-text" />{{ t().noGuardadoCampos }} }
                     }
                   }
                 </p>
@@ -120,6 +134,10 @@ export class FormularioPage {
   private temporizador: ReturnType<typeof setTimeout> | undefined;
   /** Las peticiones de guardado van en serie: un envío nunca adelanta a un autoguardado en vuelo. */
   private cola: Promise<void> = Promise.resolve();
+  /** Subida en curso por campo: su suscripción permite cancelarla. */
+  private readonly enCurso = new Map<string, Subscription>();
+  /** Tanda de archivos activa por campo: al cancelar se retira y la tanda deja de subir archivos. */
+  private readonly tandas = new Map<string, symbol>();
 
   protected readonly vista = signal<Vista>('cargando');
   protected readonly form = signal<FormularioPublico | null>(null);
@@ -134,6 +152,8 @@ export class FormularioPage {
   protected readonly editando = signal(false);
   protected readonly aviso = signal<Aviso>('');
   protected readonly anuncio = signal('');
+  /** Versión guardada de la respuesta (actualizadoAt): cada PUT la envía y se actualiza con su respuesta. */
+  private readonly actualizadoAt = signal<string | null>(null);
 
   protected readonly campos = computed(() => this.form()?.formulario.esquema.campos ?? []);
   protected readonly ajustes = computed(() => this.form()?.formulario.esquema.ajustes);
@@ -165,6 +185,10 @@ export class FormularioPage {
     this.destruir.onDestroy(() => {
       clearTimeout(this.temporizador);
       document.removeEventListener('visibilitychange', alOcultar);
+      // Las subidas en vuelo se cortan al salir de la página.
+      for (const s of this.enCurso.values()) s.unsubscribe();
+      this.enCurso.clear();
+      this.tandas.clear();
     });
     void this.cargar();
   }
@@ -222,8 +246,7 @@ export class FormularioPage {
         this.aviso.set('errores');
         this.enfocarPrimerError();
       } else if (err instanceof HttpErrorResponse && err.status === 409) {
-        this.aviso.set('cambiado');
-        await this.cargar();
+        await this.recargarTrasConflicto(codigoDe(err) === 'RESPUESTA_CAMBIADA');
       } else if (err instanceof HttpErrorResponse && err.status === 404) {
         this.vista.set('invalido');
       } else {
@@ -243,7 +266,11 @@ export class FormularioPage {
       this.fijarError(c.id, this.t().val.maxArchivos(max));
       if (hueco <= 0) return;
     }
+    const tanda = Symbol(c.id);
+    this.tandas.set(c.id, tanda);
+    await this.esperarGuardado();
     for (const f of lista.slice(0, hueco)) {
+      if (this.tandas.get(c.id) !== tanda) break; // cancelada
       const motivo = errorArchivo(f, cfg);
       if (motivo) {
         this.fijarError(c.id, motivo === 'tipo' ? this.t().val.tipo : this.t().val.tamano(cfg?.maxMb ?? 0));
@@ -251,6 +278,13 @@ export class FormularioPage {
       }
       await this.subirUno(c, f);
     }
+    if (this.tandas.get(c.id) === tanda) this.tandas.delete(c.id);
+  }
+
+  /** Cancela la subida del campo: corta la petición, quita el progreso y no sigue con los archivos restantes. */
+  protected cancelarSubida(c: Campo): void {
+    this.tandas.delete(c.id);
+    this.enCurso.get(c.id)?.unsubscribe();
   }
 
   protected quitarArchivo(c: Campo, url: string): void {
@@ -263,6 +297,7 @@ export class FormularioPage {
     this.seo.set({ title: f.formulario.titulo, description: this.t().seoDesc, path: '/formularios', robots: 'noindex' });
     this.valores.set(this.prefill(f));
     this.completa.set(f.respuesta?.estado === 'completa');
+    this.actualizadoAt.set(f.respuesta?.actualizadoAt ?? null);
     this.errores.set({});
     this.aviso.set('');
     if (f.cerrado) {
@@ -323,52 +358,118 @@ export class FormularioPage {
   private async autoguardar(): Promise<void> {
     this.guardado.set('guardando');
     try {
-      await this.encolar(false);
+      const r = await this.encolar(false);
+      if (Object.keys(r.errores).length) {
+        // El servidor no ha guardado esos valores (siguen en pantalla): se marcan y no se dice «Guardado».
+        this.errores.update((e) => ({ ...e, ...r.errores }));
+        this.guardado.set('campos');
+        return;
+      }
       this.guardado.set('ok');
     } catch (e) {
       this.guardado.set('error');
       if (e instanceof HttpErrorResponse && e.status === 409) {
-        this.aviso.set('cambiado');
-        await this.cargar();
+        await this.recargarTrasConflicto(codigoDe(e) === 'RESPUESTA_CAMBIADA');
       } else if (e instanceof HttpErrorResponse && e.status === 404) {
         this.vista.set('invalido');
       }
     }
   }
 
+  /** 409: otra sesión guardó antes. Se recarga y el aviso se pone después, porque cargar() lo limpia. */
+  private async recargarTrasConflicto(cambiada: boolean): Promise<void> {
+    await this.cargar();
+    if (cambiada) this.aviso.set('cambiado');
+  }
+
+  /** Antes de subir un archivo se guarda lo pendiente: el servidor cuenta solo los archivos de la respuesta guardada. */
+  private async esperarGuardado(): Promise<void> {
+    if (this.temporizador !== undefined) {
+      clearTimeout(this.temporizador);
+      this.temporizador = undefined;
+      await this.autoguardar();
+    }
+    await this.cola;
+  }
+
   private encolar(enviar: boolean): Promise<ResultadoGuardado> {
-    const paso = this.cola.then(() => this.api.guardar(this.token, this.valores(), enviar));
+    const paso = this.cola.then(() => this.guardarEnServidor(enviar));
     this.cola = paso.then(() => undefined, () => undefined);
     return paso;
   }
 
-  private async subirUno(c: Campo, f: File): Promise<void> {
+  /**
+   * Un PUT con la versión más reciente: actualizadoAt se lee al ejecutarse, después de los guardados anteriores de la cola.
+   * La versión que responde la API (también el 422 de enviar) pasa a ser la siguiente.
+   */
+  private guardarEnServidor(enviar: boolean): Promise<ResultadoGuardado> {
+    return this.api.guardar(this.token, this.valores(), enviar, this.actualizadoAt()).then(
+      (r) => {
+        this.actualizadoAt.set(r.actualizadoAt);
+        return r;
+      },
+      (e: unknown) => {
+        const nueva = e instanceof HttpErrorResponse ? actualizadoDe(e) : null;
+        if (nueva) this.actualizadoAt.set(nueva);
+        throw e;
+      },
+    );
+  }
+
+  /**
+   * Sube un archivo. La promesa se resuelve al terminar, con error o cancelada: el teardown de la suscripción limpia el
+   * progreso y la suscripción queda registrada para poder cancelarla (y para cortarla al destruir la página).
+   */
+  private subirUno(c: Campo, f: File): Promise<void> {
     this.subidas.update((s) => ({ ...s, [c.id]: { nombre: f.name, pct: 0 } }));
     this.fijarError(c.id, null);
-    const res: { archivo: ArchivoSubido | null } = { archivo: null };
-    try {
-      await lastValueFrom(
-        this.api.subirArchivo(this.token, c.id, f).pipe(
-          tap((ev) => {
-            if (ev.tipo === 'progreso') this.subidas.update((s) => ({ ...s, [c.id]: { nombre: f.name, pct: ev.pct } }));
-            else res.archivo = ev.archivo;
-          }),
-        ),
-      );
-      if (!res.archivo) throw new Error('sin respuesta');
-      const nuevo = res.archivo;
-      this.valores.update((d) => ({ ...d, [c.id]: [...this.archivosDe(c.id), nuevo] }));
-      this.programarGuardado();
-    } catch (e) {
-      if (e instanceof HttpErrorResponse && e.status === 404) this.vista.set('invalido');
-      else this.fijarError(c.id, this.t().noSubir);
-    } finally {
-      this.subidas.update((s) => {
-        const n = { ...s };
-        delete n[c.id];
-        return n;
+    return new Promise<void>((fin) => {
+      let archivo: ArchivoSubidoRespuesta | null = null;
+      const sub = this.api.subirArchivo(this.token, c.id, f).subscribe({
+        next: (ev) => {
+          if (ev.tipo === 'progreso') this.subidas.update((s) => ({ ...s, [c.id]: { nombre: f.name, pct: ev.pct } }));
+          else archivo = ev.archivo;
+        },
+        error: (e: unknown) => this.errorSubida(c, e),
+        complete: () => {
+          if (!archivo) {
+            this.fijarError(c.id, this.t().noSubir);
+            return;
+          }
+          const nuevo: ArchivoSubidoRespuesta = archivo;
+          this.valores.update((d) => ({ ...d, [c.id]: [...this.archivosDe(c.id), nuevo] }));
+          this.programarGuardado();
+        },
       });
+      this.enCurso.set(c.id, sub);
+      sub.add(() => {
+        this.enCurso.delete(c.id);
+        this.subidas.update((s) => {
+          const n = { ...s };
+          delete n[c.id];
+          return n;
+        });
+        fin();
+      });
+    });
+  }
+
+  /**
+   * Fallo de una subida. Límite y «demasiadas subidas» se explican en el campo; un enlace cerrado cambia la vista; un 409
+   * que no es de cierre (p. ej. ya enviado) recarga la respuesta para mostrar su estado real.
+   */
+  private errorSubida(c: Campo, e: unknown): void {
+    if (!(e instanceof HttpErrorResponse)) {
+      this.fijarError(c.id, this.t().noSubir);
+      return;
     }
+    const codigo = codigoDe(e);
+    if (e.status === 404) this.vista.set('invalido');
+    else if (e.status === 409 && codigo === 'FORMULARIO_CERRADO') this.vista.set('cerrado');
+    else if (e.status === 409) void this.cargar();
+    else if (codigo === 'DEMASIADAS_SUBIDAS') this.fijarError(c.id, this.t().val.demasiadasSubidas);
+    else if (codigo === 'LIMITE_ARCHIVOS') this.fijarError(c.id, this.t().val.maxArchivos(c.archivo?.maxArchivos ?? 1));
+    else this.fijarError(c.id, this.t().noSubir);
   }
 
   /** Lleva el foco y la vista al primer campo con error. */

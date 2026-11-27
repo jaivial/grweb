@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, afterNextRender, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrIcon, GrSkeleton, GrToasts } from '@grcup/ui';
 import { Competitions } from '../../core/competitions';
 import { BoPagination, BoSearch } from '../../shared/kit';
@@ -165,6 +165,8 @@ export class BoFormAtletas {
   protected readonly detalle = signal<RespuestaDetalle | null>(null);
   protected readonly detalleError = signal(false);
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
+  /** Tracks the form id only, so saves of the same form do not reload the answers. */
+  private readonly formularioId = computed(() => this.formulario().id);
   private peticion = 0;
   private seqDetalle = 0;
   private t: ReturnType<typeof setTimeout> | undefined;
@@ -173,10 +175,11 @@ export class BoFormAtletas {
 
   constructor() {
     effect(() => {
-      const id = this.formulario().id;
+      const id = this.formularioId();
       if (!this.cid() || !id) return;
       untracked(() => void this.cargar());
     });
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.t));
   }
 
   protected etiqueta(r: RespuestaFila) {

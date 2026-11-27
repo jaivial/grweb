@@ -353,14 +353,19 @@ func valorCSV(c formularios.Campo, v any) string {
 }
 
 // celdasSeguras evita la inyección de fórmulas en Excel: una celda que empieza por = + - @ o tabulador se prefija con
-// un apóstrofo.
+// un apóstrofo, salvo que sea un número válido (un -3 de una respuesta numérica no es una fórmula).
 func celdasSeguras(fila []string) []string {
 	for i, c := range fila {
-		if c != "" && strings.ContainsRune("=+-@\t\r", rune(c[0])) {
+		if c != "" && strings.ContainsRune("=+-@\t\r", rune(c[0])) && !esNumero(c) {
 			fila[i] = "'" + c
 		}
 	}
 	return fila
+}
+
+func esNumero(c string) bool {
+	_, err := strconv.ParseFloat(c, 64)
+	return err == nil
 }
 
 // escribeProblema responde un error de la API en un handler plano (los errores inesperados no salen al cliente).

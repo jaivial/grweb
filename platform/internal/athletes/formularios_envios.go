@@ -2,9 +2,13 @@ package athletes
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"html"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -14,6 +18,7 @@ import (
 
 	"github.com/jaivial/grweb/platform/pkg/auth"
 	"github.com/jaivial/grweb/platform/pkg/db"
+	"github.com/jaivial/grweb/platform/pkg/events"
 	"github.com/jaivial/grweb/platform/pkg/problem"
 )
 
@@ -25,9 +30,12 @@ import (
 // maxDestinatariosEnvio acota un envío: como mucho, 5000 atletas por envío.
 const maxDestinatariosEnvio = 5000
 
-// antiguedadOmitido: una entrega encolada que messaging ya no conoce, pasado este tiempo, cuenta como omitida (messaging
-// la descartó, p. ej. con la automatización apagada). Antes de eso sigue «en cola» (en el outbox de athletes).
-const antiguedadOmitido = 10 * time.Minute
+// antiguedadOmitido: una entrega encolada que messaging no conoce, pasados estos minutos desde que se creó y habiendo
+// salido ya del outbox de athletes, cuenta como omitida (messaging la descartó). Antes de eso sigue «en cola».
+const antiguedadOmitido = 30 * time.Minute
+
+// maxClaveIdempotencia es el largo máximo de la cabecera Idempotency-Key.
+const maxClaveIdempotencia = 80
 
 // consulta es lo que necesitan las lecturas: el pool o una transacción.
 type consulta interface {
@@ -77,17 +85,48 @@ type atletaEnvio struct {
 	Nombre    string
 	Email     string
 	Telefono  string
-	Consiente bool // consentimiento de WhatsApp (la ficha o la casilla del alta)
+	Consiente bool // consentimiento de WhatsApp (la ficha o la casilla del alta), como consentimientoWA
 	Completa  bool // ya tiene la respuesta completa a este formulario
 }
 
-// entregaFila es una entrega tal como está en la base; el estado lo pone messaging.
+// entregaFila es una entrega tal como está en la base; el estado lo pone messaging. publicado: su evento ya salió del
+// outbox de athletes (si messaging aún no lo conoce, eso decide si cuenta como omitida).
 type entregaFila struct {
-	envio  uuid.UUID
+	envio     uuid.UUID
+	canal     string
+	estado    string
+	evento    *uuid.UUID
+	creada    time.Time
+	publicado bool
+}
+
+// entregaNueva es una entrega antes de insertarla: encolada (con su evento) u omitida (con su motivo).
+type entregaNueva struct {
+	did    uuid.UUID
 	canal  string
+	evento uuid.UUID // uuid.Nil si la entrega está omitida
 	estado string
-	evento *uuid.UUID
-	creada time.Time
+	motivo string
+}
+
+// marcador son los textos que el HTML del formulario lleva en lugar de la acción y el enlace de cada destinatario. Se
+// compila una vez por envío y se cambian por destinatario. Son aleatorios por envío: no pueden aparecer en el texto de nadie.
+type marcador struct{ accion, enlace string }
+
+func nuevoMarcador() marcador {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b) // lectura de CSPRNG: no falla en Linux
+	x := hex.EncodeToString(b)
+	return marcador{accion: "fxaccion" + x, enlace: "fxenlace" + x}
+}
+
+// sustituye cambia en el HTML ya compilado los marcadores por la acción y el enlace de un destinatario (escapados).
+func (m marcador) sustituye(plantilla, accion, enlace string) string {
+	if plantilla == "" {
+		return ""
+	}
+	plantilla = strings.ReplaceAll(plantilla, m.accion, html.EscapeString(accion))
+	return strings.ReplaceAll(plantilla, m.enlace, html.EscapeString(enlace))
 }
 
 // registerFormulariosEnvios registra la audiencia, los envíos y su lista.
@@ -125,15 +164,17 @@ func (s *Svc) registerFormulariosEnvios() {
 		})
 
 	type envioIn struct {
-		CID  uuid.UUID `path:"cid"`
-		ID   uuid.UUID `path:"id"`
-		Body struct {
+		CID   uuid.UUID `path:"cid"`
+		ID    uuid.UUID `path:"id"`
+		Clave string    `header:"Idempotency-Key" maxLength:"80" doc:"Clave para repetir el envío sin duplicarlo (hasta 80 caracteres). Misma clave: se devuelve el envío ya creado (200)."`
+		Body  struct {
 			Canales []string    `json:"canales" maxItems:"2" doc:"email y/o whatsapp"`
 			Filtro  FiltroEnvio `json:"filtro"`
 		}
 	}
 	type envioOut struct {
-		Body Envio
+		Status int
+		Body   Envio
 	}
 	huma.Register(api, huma.Operation{OperationID: "formularios-envio", Method: http.MethodPost, Path: base + "/{id}/envios",
 		Summary: "Enviar la invitación: queda en la cola de messaging, con su ritmo anti-spam", Tags: tagAdmin, Security: bearer, DefaultStatus: http.StatusCreated},
@@ -148,15 +189,19 @@ func (s *Svc) registerFormulariosEnvios() {
 			if err := validaFiltro(&in.Body.Filtro); err != nil {
 				return nil, err
 			}
+			clave := strings.TrimSpace(in.Clave)
+			if n := len([]rune(clave)); n > maxClaveIdempotencia {
+				return nil, problem.Unprocessable("CLAVE_DEMASIADO_LARGA", fmt.Sprintf("La clave de idempotencia no puede tener más de %d caracteres.", maxClaveIdempotencia))
+			}
 			c, err := s.comps.ByID(ctx, in.CID)
 			if err != nil {
 				return nil, err
 			}
-			id, err := s.creaEnvio(ctx, in.CID, in.ID, c.Nombre, canales, in.Body.Filtro)
+			id, reutilizado, err := s.creaEnvio(ctx, in.CID, in.ID, c.Nombre, canales, in.Body.Filtro, clave)
 			if err != nil {
 				return nil, err
 			}
-			// Recién encolado: todo está «en cola» y no hace falta preguntar a messaging.
+			// Recién encolado (o ya encolado con esa clave): todo está «en cola» y no hace falta preguntar a messaging.
 			envs, entregas, err := cargaEnvios(ctx, s.a.DB, in.ID)
 			if err != nil {
 				return nil, err
@@ -164,7 +209,11 @@ func (s *Svc) registerFormulariosEnvios() {
 			aplicaEstados(envs, entregas, nil, time.Now(), false)
 			for _, e := range envs {
 				if e.ID == id {
-					return &envioOut{Body: e}, nil
+					out := &envioOut{Status: http.StatusCreated, Body: e}
+					if reutilizado {
+						out.Status = http.StatusOK
+					}
+					return out, nil
 				}
 			}
 			return nil, problem.NotFound("Envío no encontrado.")
@@ -194,47 +243,38 @@ func (s *Svc) registerFormulariosEnvios() {
 		})
 }
 
-// audiencia lista los atletas de la competición que cumplen el filtro (nunca «baja»). Con q una transacción, la lectura
-// va dentro de ella. El consentimiento de WhatsApp sigue la misma regla que el resto de la app (waAceptado).
+// audiencia lista los atletas de la competición que cumplen el filtro (nunca «baja»), con su consentimiento de WhatsApp
+// y si ya tienen la respuesta completa. Es una sola consulta: el consentimiento sigue la regla de consentimientoWA
+// (autorizacion.go → waAceptado): el registrado en la ficha (whatsapp_at); si no, que la ficha no lo retire
+// (whatsapp_origen = 'retirado') y que la última alta aprobada tenga la casilla de WhatsApp aceptada.
 func (s *Svc) audiencia(ctx context.Context, q consulta, cid, fid uuid.UUID, f FiltroEnvio) ([]atletaEnvio, error) {
 	atletas := f.Atletas
 	if atletas == nil {
 		atletas = []uuid.UUID{}
 	}
-	rows, err := q.Query(ctx, `SELECT a.id, a.nombre, COALESCE(a.email::text, ''), a.telefono, a.whatsapp_at IS NOT NULL, a.whatsapp_origen = 'retirado',
+	rows, err := q.Query(ctx, `SELECT a.id, a.nombre, COALESCE(a.email::text, ''), a.telefono,
+		a.whatsapp_at IS NOT NULL OR (COALESCE(a.whatsapp_origen, '') <> 'retirado'
+			AND COALESCE((alta.consentimientos::text::jsonb -> 'whatsapp' ->> 'aceptado') = 'true', false)),
 		EXISTS (SELECT 1 FROM formulario_respuestas r WHERE r.formulario_id = $2 AND r.atleta_id = a.id AND r.estado = 'completa')
 		FROM atletas a
+		LEFT JOIN LATERAL (SELECT s.consentimientos FROM solicitudes_atleta s
+			WHERE s.competition_id = a.competition_id AND s.match_atleta_id = a.id AND s.tipo = 'alta' AND s.estado = 'aprobada'
+			ORDER BY s.revisado_at DESC NULLS LAST LIMIT 1) alta ON true
 		WHERE a.competition_id = $1 AND a.estado = ANY($3) AND a.estado <> 'baja' AND (cardinality($4::uuid[]) = 0 OR a.id = ANY($4::uuid[]))
 		ORDER BY a.apellidos, a.nombre, a.id`, cid, fid, f.Estados, atletas)
 	if err != nil {
 		return nil, err
 	}
-	type fila struct {
-		atletaEnvio
-		retirado bool
-	}
-	var filas []fila
+	defer rows.Close()
+	var out []atletaEnvio
 	for rows.Next() {
-		var x fila
-		if err := rows.Scan(&x.ID, &x.Nombre, &x.Email, &x.Telefono, &x.Consiente, &x.retirado, &x.Completa); err != nil {
-			rows.Close()
+		var x atletaEnvio
+		if err := rows.Scan(&x.ID, &x.Nombre, &x.Email, &x.Telefono, &x.Consiente, &x.Completa); err != nil {
 			return nil, err
 		}
-		filas = append(filas, x)
+		out = append(out, x)
 	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	out := make([]atletaEnvio, 0, len(filas))
-	for _, x := range filas {
-		// Sin consentimiento en la ficha: se mira la casilla del alta aprobada (salvo que la ficha lo retire).
-		if !x.Consiente && !x.retirado && normTel(x.Telefono) != "" {
-			x.Consiente = waAceptado(ctx, q, cid, x.ID)
-		}
-		out = append(out, x.atletaEnvio)
-	}
-	return out, nil
+	return out, rows.Err()
 }
 
 // motivoOmision dice por qué un atleta no recibe la invitación por un canal («» = sí la recibe).
@@ -268,13 +308,35 @@ func contaAudiencia(lista []atletaEnvio, f FiltroEnvio) AudienciaFormulario {
 
 // creaEnvio registra un envío en una sola transacción: el formulario pasa a activo, cada atleta del filtro queda como
 // destinatario y cada canal como entrega, encolada (con el evento que messaging recibe) u omitida (con su motivo).
-// Un formulario cerrado no admite envíos.
-func (s *Svc) creaEnvio(ctx context.Context, cid, fid uuid.UUID, competicion string, canales []string, f FiltroEnvio) (uuid.UUID, error) {
-	envioID := newID()
+// Todo se escribe por lotes (un INSERT de destinatarios, un lote de outbox y un INSERT de entregas), sin una consulta por
+// atleta. Con clave (Idempotency-Key) y un envío ya creado con ella, se devuelve ese envío (reutilizado=true) sin encolar.
+// Sin clave, un envío igual (mismos canales y filtro) de hace menos de dos minutos es 409 ENVIO_DUPLICADO. Un formulario
+// cerrado no admite envíos.
+func (s *Svc) creaEnvio(ctx context.Context, cid, fid uuid.UUID, competicion string, canales []string, f FiltroEnvio, clave string) (uuid.UUID, bool, error) {
+	var envioID uuid.UUID
+	reutilizado := false
 	err := db.Tx(ctx, s.a.DB, func(tx pgx.Tx) error {
 		fm, err := leeFormulario(ctx, tx, cid, fid, true)
 		if err != nil {
 			return err
+		}
+		if clave != "" {
+			previo, err := envioPorClave(ctx, tx, fid, clave)
+			if err != nil {
+				return err
+			}
+			if previo != uuid.Nil {
+				envioID, reutilizado = previo, true
+				return nil
+			}
+		} else {
+			reciente, err := hayEnvioReciente(ctx, tx, fid, canales, f)
+			if err != nil {
+				return err
+			}
+			if reciente {
+				return problem.Conflict("ENVIO_DUPLICADO", "Este mismo envío ya se creó hace menos de dos minutos. Espera un momento o cambia los canales o el filtro.")
+			}
 		}
 		if fm.Estado == "cerrado" {
 			return problem.Conflict("FORMULARIO_CERRADO", "Este formulario está cerrado: ábrelo antes de enviarlo.")
@@ -293,36 +355,31 @@ func (s *Svc) creaEnvio(ctx context.Context, cid, fid uuid.UUID, competicion str
 		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO formulario_envios (id, formulario_id, competition_id, canales, filtro, total, creado_por)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)`, envioID, fid, cid, canales, filtro, len(atletas), actor(ctx)); err != nil {
+		var claveDB *string
+		if clave != "" {
+			claveDB = &clave
+		}
+		envioID = newID()
+		if _, err := tx.Exec(ctx, `INSERT INTO formulario_envios (id, formulario_id, competition_id, canales, filtro, total, creado_por, clave_idempotencia)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, envioID, fid, cid, canales, filtro, len(atletas), actor(ctx), claveDB); err != nil {
 			return err
 		}
-		omitidos := 0
-		for _, a := range atletas {
-			did, err := destinatarioDe(ctx, tx, cid, fid, a.ID)
-			if err != nil {
+		dids, err := destinatariosDe(ctx, tx, cid, fid, atletas)
+		if err != nil {
+			return err
+		}
+		entregas, evs, omitidos := s.planEntregas(ctx, cid, fm, competicion, canales, f, atletas, dids)
+		if len(evs) > 0 {
+			b := &pgx.Batch{}
+			if err := events.QueueBatch(b, evs...); err != nil {
 				return err
 			}
-			encolado := false
-			for _, canal := range canales {
-				if motivo := motivoOmision(a, canal, f.SoloSinResponder); motivo != "" {
-					if err := insertaEntrega(ctx, tx, envioID, did, canal, nil, motivo); err != nil {
-						return err
-					}
-					continue
-				}
-				evento, err := s.solicitaCanal(ctx, tx, cid, fm, competicion, a, did, canal)
-				if err != nil {
-					return err
-				}
-				if err := insertaEntrega(ctx, tx, envioID, did, canal, &evento, ""); err != nil {
-					return err
-				}
-				encolado = true
+			if err := tx.SendBatch(ctx, b).Close(); err != nil {
+				return err
 			}
-			if !encolado {
-				omitidos++
-			}
+		}
+		if err := insertaEntregas(ctx, tx, envioID, entregas); err != nil {
+			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE formulario_envios SET omitidos = $2 WHERE id = $1`, envioID, omitidos); err != nil {
 			return err
@@ -335,39 +392,123 @@ func (s *Svc) creaEnvio(ctx context.Context, cid, fid uuid.UUID, competicion str
 		return auditaFormulario(ctx, tx, cid, fid, "athletes.formulario_enviado",
 			map[string]any{"envio": envioID, "canales": canales, "total": len(atletas), "omitidos": omitidos})
 	})
-	return envioID, err
+	return envioID, reutilizado, err
 }
 
-// solicitaCanal encola para messaging la invitación de un destinatario por un canal y devuelve el id del evento.
-func (s *Svc) solicitaCanal(ctx context.Context, tx pgx.Tx, cid uuid.UUID, fm Formulario, competicion string, a atletaEnvio, did uuid.UUID, canal string) (uuid.UUID, error) {
+// planEntregas decide, en memoria, la entrega de cada atleta por cada canal y arma los eventos de las encoladas. El HTML
+// del formulario se compila una sola vez para el envío; por destinatario solo cambian la acción y el enlace.
+func (s *Svc) planEntregas(ctx context.Context, cid uuid.UUID, fm Formulario, competicion string, canales []string, f FiltroEnvio,
+	atletas []atletaEnvio, dids map[uuid.UUID]uuid.UUID) ([]entregaNueva, []events.Event, int) {
+	marca := nuevoMarcador()
+	plantillaHTML := ""
+	if slices.Contains(canales, "email") {
+		plantillaHTML = formularioEmail(fm, marca.accion, marca.enlace)
+	}
+	var entregas []entregaNueva
+	var evs []events.Event
+	omitidos := 0
+	for _, a := range atletas {
+		did := dids[a.ID]
+		encolado := false
+		for _, canal := range canales {
+			if motivo := motivoOmision(a, canal, f.SoloSinResponder); motivo != "" {
+				entregas = append(entregas, entregaNueva{did: did, canal: canal, estado: "omitido", motivo: motivo})
+				continue
+			}
+			ev := s.eventoInvitacion(ctx, cid, fm, competicion, a, did, canal, plantillaHTML, marca)
+			evs = append(evs, ev)
+			entregas = append(entregas, entregaNueva{did: did, canal: canal, evento: ev.ID, estado: "encolado"})
+			encolado = true
+		}
+		if !encolado {
+			omitidos++
+		}
+	}
+	return entregas, evs, omitidos
+}
+
+// eventoInvitacion arma (sin escribirlo) el evento que messaging recoge para la invitación de un destinatario por un canal.
+func (s *Svc) eventoInvitacion(ctx context.Context, cid uuid.UUID, fm Formulario, competicion string, a atletaEnvio, did uuid.UUID,
+	canal, plantillaHTML string, marca marcador) events.Event {
 	enlace, accion := s.enlacesFormulario(did)
 	vars, texto := varsInvitacion(fm, competicion, a.Nombre, enlace)
+	opts := []events.Option{events.Competition(cid.String()), events.Audience(events.Internal)}
 	if canal == "email" {
-		vars["formulario_html"] = formularioEmail(fm, accion, enlace)
-		return encolaMensaje(ctx, tx, cid, "athletes.email_solicitado", map[string]any{"para": a.Email, "plantilla": plantillaInvitacion, "vars": vars})
+		vars["formulario_html"] = marca.sustituye(plantillaHTML, accion, enlace)
+		return events.New(ctx, "athletes.email_solicitado", map[string]any{"para": a.Email, "plantilla": plantillaInvitacion, "vars": vars}, opts...)
 	}
-	return encolaMensaje(ctx, tx, cid, "athletes.whatsapp_solicitado", map[string]any{"para": normTel(a.Telefono), "organizadores": false,
-		"plantilla": plantillaInvitacion, "vars": map[string]string{"texto": texto}, "imagen": ""})
+	return events.New(ctx, "athletes.whatsapp_solicitado", map[string]any{"para": normTel(a.Telefono), "organizadores": false,
+		"plantilla": plantillaInvitacion, "vars": map[string]string{"texto": texto}, "imagen": ""}, opts...)
 }
 
-// destinatarioDe da de alta (o reutiliza) el destinatario de un atleta en el formulario: uno por par.
-func destinatarioDe(ctx context.Context, tx pgx.Tx, cid, fid, atleta uuid.UUID) (uuid.UUID, error) {
-	var did uuid.UUID
-	err := tx.QueryRow(ctx, `INSERT INTO formulario_destinatarios (id, formulario_id, competition_id, atleta_id) VALUES ($1, $2, $3, $4)
-		ON CONFLICT (formulario_id, atleta_id) DO UPDATE SET competition_id = EXCLUDED.competition_id RETURNING id`,
-		newID(), fid, cid, atleta).Scan(&did)
-	return did, err
+// destinatariosDe da de alta (o reutiliza) el destinatario de cada atleta del envío en una sola sentencia: uno por par.
+func destinatariosDe(ctx context.Context, tx pgx.Tx, cid, fid uuid.UUID, atletas []atletaEnvio) (map[uuid.UUID]uuid.UUID, error) {
+	nuevos := make([]uuid.UUID, len(atletas))
+	ids := make([]uuid.UUID, len(atletas))
+	for i, a := range atletas {
+		nuevos[i] = newID()
+		ids[i] = a.ID
+	}
+	rows, err := tx.Query(ctx, `INSERT INTO formulario_destinatarios (id, formulario_id, competition_id, atleta_id)
+		SELECT t.id, $1::uuid, $2::uuid, t.atleta FROM unnest($3::uuid[], $4::uuid[]) AS t(id, atleta)
+		ON CONFLICT (formulario_id, atleta_id) DO UPDATE SET competition_id = EXCLUDED.competition_id
+		RETURNING id, atleta_id`, fid, cid, nuevos, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[uuid.UUID]uuid.UUID, len(atletas))
+	for rows.Next() {
+		var did, atleta uuid.UUID
+		if err := rows.Scan(&did, &atleta); err != nil {
+			return nil, err
+		}
+		out[atleta] = did
+	}
+	return out, rows.Err()
 }
 
-// insertaEntrega guarda una entrega: encolada si tiene evento, omitida si no.
-func insertaEntrega(ctx context.Context, tx pgx.Tx, envio, did uuid.UUID, canal string, evento *uuid.UUID, motivo string) error {
-	estado := "encolado"
-	if evento == nil {
-		estado = "omitido"
+// insertaEntregas guarda todas las entregas del envío en un solo INSERT (encolada si tiene evento, omitida si no).
+func insertaEntregas(ctx context.Context, tx pgx.Tx, envio uuid.UUID, entregas []entregaNueva) error {
+	if len(entregas) == 0 {
+		return nil
+	}
+	ids := make([]uuid.UUID, len(entregas))
+	dids := make([]uuid.UUID, len(entregas))
+	canales := make([]string, len(entregas))
+	eventos := make([]uuid.UUID, len(entregas))
+	estados := make([]string, len(entregas))
+	motivos := make([]string, len(entregas))
+	for i, e := range entregas {
+		ids[i], dids[i], canales[i], eventos[i], estados[i], motivos[i] = newID(), e.did, e.canal, e.evento, e.estado, e.motivo
 	}
 	_, err := tx.Exec(ctx, `INSERT INTO formulario_entregas (id, envio_id, destinatario_id, canal, evento_id, estado, motivo)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)`, newID(), envio, did, canal, evento, estado, motivo)
+		SELECT t.id, $1::uuid, t.did, t.canal, NULLIF(t.evento, '00000000-0000-0000-0000-000000000000'::uuid), t.estado, t.motivo
+		FROM unnest($2::uuid[], $3::uuid[], $4::text[], $5::uuid[], $6::text[], $7::text[]) AS t(id, did, canal, evento, estado, motivo)`,
+		envio, ids, dids, canales, eventos, estados, motivos)
 	return err
+}
+
+// envioPorClave devuelve el envío que ya se creó con esa Idempotency-Key en el formulario (uuid.Nil si no hay ninguno).
+func envioPorClave(ctx context.Context, tx pgx.Tx, fid uuid.UUID, clave string) (uuid.UUID, error) {
+	var id uuid.UUID
+	err := tx.QueryRow(ctx, `SELECT id FROM formulario_envios WHERE formulario_id = $1 AND clave_idempotencia = $2`, fid, clave).Scan(&id)
+	if db.IsNoRows(err) {
+		return uuid.Nil, nil
+	}
+	return id, err
+}
+
+// hayEnvioReciente dice si el formulario tiene ya un envío con los mismos canales y filtro de hace menos de dos minutos.
+func hayEnvioReciente(ctx context.Context, tx pgx.Tx, fid uuid.UUID, canales []string, f FiltroEnvio) (bool, error) {
+	filtro, err := json.Marshal(f)
+	if err != nil {
+		return false, err
+	}
+	var existe bool
+	err = tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM formulario_envios WHERE formulario_id = $1 AND canales = $2::text[]
+		AND filtro = $3::jsonb AND created_at > now() - interval '2 minutes')`, fid, canales, filtro).Scan(&existe)
+	return existe, err
 }
 
 // estadoEnvios devuelve los envíos del formulario con el estado de cada canal, según messaging.
@@ -395,7 +536,8 @@ func (s *Svc) estadoEnvios(ctx context.Context, cid, fid uuid.UUID) ([]Envio, er
 	return envs, nil
 }
 
-// cargaEnvios lee los envíos del formulario y sus entregas de la base (sin estado de messaging).
+// cargaEnvios lee los envíos del formulario y sus entregas de la base (sin estado de messaging). Cada entrega indica si
+// su evento ya salió del outbox de athletes (outbox.published_at).
 func cargaEnvios(ctx context.Context, q consulta, fid uuid.UUID) ([]Envio, []entregaFila, error) {
 	rows, err := q.Query(ctx, `SELECT id, canales, filtro, total, omitidos, creado_por, created_at FROM formulario_envios
 		WHERE formulario_id = $1 ORDER BY created_at DESC, id`, fid)
@@ -420,8 +562,11 @@ func cargaEnvios(ctx context.Context, q consulta, fid uuid.UUID) ([]Envio, []ent
 	if err := rows.Err(); err != nil {
 		return nil, nil, err
 	}
-	rows, err = q.Query(ctx, `SELECT e.envio_id, e.canal, e.estado, e.evento_id, e.created_at FROM formulario_entregas e
-		JOIN formulario_envios v ON v.id = e.envio_id WHERE v.formulario_id = $1`, fid)
+	rows, err = q.Query(ctx, `SELECT e.envio_id, e.canal, e.estado, e.evento_id, e.created_at, o.published_at IS NOT NULL
+		FROM formulario_entregas e
+		JOIN formulario_envios v ON v.id = e.envio_id
+		LEFT JOIN outbox o ON o.id = e.evento_id
+		WHERE v.formulario_id = $1`, fid)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -429,7 +574,7 @@ func cargaEnvios(ctx context.Context, q consulta, fid uuid.UUID) ([]Envio, []ent
 	var entregas []entregaFila
 	for rows.Next() {
 		var x entregaFila
-		if err := rows.Scan(&x.envio, &x.canal, &x.estado, &x.evento, &x.creada); err != nil {
+		if err := rows.Scan(&x.envio, &x.canal, &x.estado, &x.evento, &x.creada, &x.publicado); err != nil {
 			return nil, nil, err
 		}
 		entregas = append(entregas, x)
@@ -438,9 +583,9 @@ func cargaEnvios(ctx context.Context, q consulta, fid uuid.UUID) ([]Envio, []ent
 }
 
 // aplicaEstados suma las entregas de cada envío por canal. Con consultada (messaging respondió), una entrega encolada
-// que messaging no conoce y que lleva más de antiguedadOmitido en la cola cuenta como omitida: messaging la descartó.
-// Lo demás sin estado cuenta como «en cola». Sin consultar a messaging, todo lo encolado cuenta como «en cola».
-// «omitido» (de athletes o de messaging) suma como omitido.
+// que messaging no conoce, creada hace más de antiguedadOmitido y cuyo evento ya salió del outbox de athletes, cuenta
+// como omitida: messaging la descartó. Lo demás sin estado cuenta como «en cola». Sin consultar a messaging, todo lo
+// encolado cuenta como «en cola». «omitido» (de athletes o de messaging) suma como omitido.
 func aplicaEstados(envs []Envio, entregas []entregaFila, estados map[uuid.UUID]string, ahora time.Time, consultada bool) {
 	limite := ahora.Add(-antiguedadOmitido)
 	idx := make(map[uuid.UUID]int, len(envs))
@@ -462,7 +607,7 @@ func aplicaEstados(envs []Envio, entregas []entregaFila, estados map[uuid.UUID]s
 		if e.evento != nil {
 			est, conocido = estados[*e.evento]
 		}
-		if !conocido && consultada && e.creada.Before(limite) {
+		if !conocido && consultada && e.publicado && e.creada.Before(limite) {
 			est = "omitido"
 		}
 		switch est {
@@ -499,7 +644,8 @@ func validaFiltro(f *FiltroEnvio) error {
 	return nil
 }
 
-// canalesValidos quita los repetidos y exige al menos un canal (email o whatsapp).
+// canalesValidos quita los repetidos, ordena los canales (así un envío con los mismos canales en otro orden es el mismo)
+// y exige al menos un canal (email o whatsapp).
 func canalesValidos(canales []string) ([]string, error) {
 	vistos := map[string]bool{}
 	out := []string{}
@@ -515,6 +661,7 @@ func canalesValidos(canales []string) ([]string, error) {
 	if len(out) == 0 {
 		return nil, problem.Unprocessable("SIN_CANALES", "Elige al menos un canal: email o WhatsApp.")
 	}
+	slices.Sort(out)
 	return out, nil
 }
 

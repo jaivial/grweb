@@ -148,6 +148,11 @@ export class FormularioEditorPage {
       const p = problemOf(e);
       if (p.status === 409 || p.code === 'CONFLICTO_EDICION') {
         this.conflicto.set(true);
+      } else if (p.code === 'CAMPO_CON_RESPUESTAS') {
+        // El borrador sigue sin guardar (no se marca como guardado): el admin ajusta el cambio o duplica el formulario.
+        const msg = p.detail ?? 'No se puede quitar ese campo o esa opción porque ya tiene respuestas.';
+        this.error.set(msg);
+        this.toasts.error(msg);
       } else {
         this.error.set(errText(e, 'No se ha podido guardar. Revisa los campos e inténtalo de nuevo.'));
       }
@@ -186,9 +191,10 @@ export class FormularioEditorPage {
     ev.returnValue = '';
   }
 
-  /** Ctrl+S saves on every tab; undo/redo, Delete and Escape only where the editor is focused (not in a text field). */
+  /** Ctrl+S saves on every tab; undo/redo, Delete and Escape only where the editor is focused (not in a text field). Nothing runs behind an open confirmation. */
   @HostListener('document:keydown', ['$event'])
   protected teclas(ev: KeyboardEvent): void {
+    if (this.confirm.current()) return;
     const mod = ev.ctrlKey || ev.metaKey;
     const k = ev.key.toLowerCase();
     if (mod && k === 's') {

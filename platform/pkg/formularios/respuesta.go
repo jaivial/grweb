@@ -70,9 +70,11 @@ func Porcentaje(e Esquema, datos map[string]any) int {
 	return (con*100 + total/2) / total
 }
 
-// LeerFormEmail convierte el POST urlencoded del formulario incrustado en el email (nombres f_<campoId>) en datos. Los
-// campos casilla y si_no se traducen (on / si / no), los numéricos se leen como número (si no lo son, queda el texto
-// para que ValidarRespuesta lo rechace) y los archivos no llegan por email.
+// LeerFormEmail convierte el POST urlencoded del formulario incrustado en el email (nombres f_<campoId>) en datos. Solo
+// trae las claves con un valor enviado: quien llama las mezcla sobre lo ya guardado, así que un email nunca borra una
+// respuesta que no vuelve a traer. Las casillas y los si/no se incluyen solo si llegan; una lista, si llega al menos un
+// valor; los numéricos se leen como número (si no lo son, queda el texto para que ValidarRespuesta lo rechace). Los
+// archivos no llegan por email.
 func LeerFormEmail(e Esquema, v url.Values) map[string]any {
 	datos := map[string]any{}
 	for _, c := range e.Campos {
@@ -80,19 +82,21 @@ func LeerFormEmail(e Esquema, v url.Values) map[string]any {
 			continue
 		}
 		vals := v["f_"+c.ID]
+		if len(vals) == 0 {
+			continue
+		}
 		switch c.Tipo {
 		case TipoCasilla:
-			datos[c.ID] = len(vals) > 0 && vals[0] == "on"
+			datos[c.ID] = vals[0] == "on"
 		case TipoSiNo:
-			if len(vals) > 0 {
-				switch vals[0] {
-				case "si":
-					datos[c.ID] = true
-				case "no":
-					datos[c.ID] = false
-				default:
-					datos[c.ID] = vals[0]
-				}
+			switch vals[0] {
+			case "si":
+				datos[c.ID] = true
+			case "no":
+				datos[c.ID] = false
+			case "":
+			default:
+				datos[c.ID] = vals[0]
 			}
 		case TipoCasillas, TipoSeleccionMultiple:
 			lista := []any{}
@@ -101,17 +105,21 @@ func LeerFormEmail(e Esquema, v url.Values) map[string]any {
 					lista = append(lista, x)
 				}
 			}
-			datos[c.ID] = lista
+			if len(lista) > 0 {
+				datos[c.ID] = lista
+			}
 		case TipoNumero, TipoEscala, TipoValoracion:
-			if len(vals) > 0 && strings.TrimSpace(vals[0]) != "" {
-				if f, err := strconv.ParseFloat(strings.TrimSpace(vals[0]), 64); err == nil {
-					datos[c.ID] = f
-				} else {
-					datos[c.ID] = vals[0]
-				}
+			txt := strings.TrimSpace(vals[0])
+			if txt == "" {
+				continue
+			}
+			if f, err := strconv.ParseFloat(txt, 64); err == nil {
+				datos[c.ID] = f
+			} else {
+				datos[c.ID] = vals[0]
 			}
 		default:
-			if len(vals) > 0 {
+			if strings.TrimSpace(vals[0]) != "" {
 				datos[c.ID] = vals[0]
 			}
 		}
@@ -280,7 +288,11 @@ func archivosValidos(c Campo, v any) (any, string) {
 		if !strings.HasPrefix(u, "https://") || len(u) > 2000 || utf8.RuneCountInString(nombre) > 255 || tamano < 0 {
 			return nil, "Archivo no válido."
 		}
-		out = append(out, map[string]any{"url": u, "nombre": nombre, "tamano": tamano, "tipo": tipo})
+		item := map[string]any{"url": u, "nombre": nombre, "tamano": tamano, "tipo": tipo}
+		if id, ok := m["id"].(string); ok && id != "" {
+			item["id"] = id
+		}
+		out = append(out, item)
 	}
 	return out, ""
 }

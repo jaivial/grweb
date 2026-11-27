@@ -31,6 +31,9 @@ export class FormularioStore {
   });
   readonly puedeDeshacer = computed(() => this.pasado().length > 0);
   readonly puedeRehacer = computed(() => this.futuro().length > 0);
+  /** Changes on every draft replacement (edit, undo, redo, load, save, AI result). Never goes back: equal revisions mean the same draft. */
+  private readonly revisionSig = signal(0);
+  readonly revision = this.revisionSig.asReadonly();
 
   /** JSON of the last saved (or loaded) draft: the dirty flag compares against it. */
   private readonly base = signal('');
@@ -43,7 +46,7 @@ export class FormularioStore {
   cargar(f: Formulario): void {
     const b = borradorDe(f);
     this.formulario.set(f);
-    this.draft.set(structuredClone(b));
+    this.fijarDraft(structuredClone(b));
     this.base.set(JSON.stringify(b));
     this.pasado.set([]);
     this.futuro.set([]);
@@ -59,7 +62,7 @@ export class FormularioStore {
     this.formulario.set(f);
     const b = borradorDe(f);
     const sinCambiosMientras = this.draft() !== null && JSON.stringify(this.draft()) === JSON.stringify(enviado);
-    if (sinCambiosMientras) this.draft.set(structuredClone(b));
+    if (sinCambiosMientras) this.fijarDraft(structuredClone(b));
     this.base.set(JSON.stringify(sinCambiosMientras ? b : enviado));
   }
 
@@ -134,10 +137,24 @@ export class FormularioStore {
     this.editarCampo(id, { opciones }, clave);
   }
 
-  /** Replaces the whole draft as ONE undoable change (the AI assistant's result). */
-  aplicarBorrador(b: Borrador): void {
+  /**
+   * Replaces the whole draft as ONE undoable change (the AI assistant's result). Returns the revision it produced: keep it
+   * to undo exactly this change later with `deshacerDesde`.
+   */
+  aplicarBorrador(b: Borrador): number {
     this.mutar(() => structuredClone(b));
     this.ajustarSeleccion();
+    return this.revisionSig();
+  }
+
+  /**
+   * Undoes the last change only if the draft is still the one produced at `revision` (no edit, undo or redo since).
+   * Returns false, changing nothing, otherwise: a later edit must not be lost by undoing an older step.
+   */
+  deshacerDesde(revision: number): boolean {
+    if (this.revisionSig() !== revision) return false;
+    this.deshacer();
+    return true;
   }
 
   seleccionar(id: string | null): void {
@@ -150,7 +167,7 @@ export class FormularioStore {
     if (!h.length || !actual) return;
     this.pasado.set(h.slice(0, -1));
     this.futuro.update((f) => [...f, actual]);
-    this.draft.set(h[h.length - 1]);
+    this.fijarDraft(h[h.length - 1]);
     this.claveActual = null;
     this.ajustarSeleccion();
   }
@@ -161,7 +178,7 @@ export class FormularioStore {
     if (!f.length || !actual) return;
     this.futuro.set(f.slice(0, -1));
     this.pasado.update((h) => [...h, actual].slice(-MAX_PASOS));
-    this.draft.set(f[f.length - 1]);
+    this.fijarDraft(f[f.length - 1]);
     this.claveActual = null;
     this.ajustarSeleccion();
   }
@@ -179,8 +196,14 @@ export class FormularioStore {
     }
     this.claveActual = clave;
     this.ultimoCambio = ahora;
-    this.draft.set(siguiente);
+    this.fijarDraft(siguiente);
     if (!agrupa) this.ajustarSeleccion();
+  }
+
+  /** The only place that replaces the draft: every replacement moves the revision. */
+  private fijarDraft(b: Borrador | null): void {
+    this.draft.set(b);
+    this.revisionSig.update((r) => r + 1);
   }
 
   private ajustarSeleccion(): void {

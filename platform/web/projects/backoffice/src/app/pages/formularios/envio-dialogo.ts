@@ -25,7 +25,7 @@ const COLA_RITMO = 'Los mensajes entran en la Cola de envío y salen al ritmo an
   imports: [A11yModule, RouterLink, BoCheckbox, GrAlert, GrButton, GrIcon, GrSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" (click)="cerrar.emit()" (keydown.escape)="cerrar.emit()">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" (click)="alCerrar()" (keydown.escape)="alCerrar()">
       <div class="flex max-h-[90dvh] w-full max-w-[560px] flex-col gap-5 overflow-y-auto rounded-xl border border-line-strong bg-bg-card p-6 shadow-card"
         role="dialog" aria-modal="true" aria-labelledby="envio-titulo" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()">
         <div class="flex items-start gap-3">
@@ -33,7 +33,7 @@ const COLA_RITMO = 'Los mensajes entran en la Cola de envío y salen al ritmo an
             <h2 id="envio-titulo" class="text-ui-h5">Nuevo envío</h2>
             <p class="mt-1 text-body-xs text-text-tertiary">«{{ formulario().nombre }}» · el enlace lleva a la web del formulario</p>
           </div>
-          <button type="button" class="-m-1 rounded-xs p-1 text-text-tertiary hover:text-text-primary focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]" aria-label="Cerrar" (click)="cerrar.emit()"><gr-icon name="x" [size]="18" /></button>
+          <button type="button" class="-m-1 rounded-xs p-1 text-text-tertiary hover:text-text-primary focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]" aria-label="Cerrar" (click)="alCerrar()"><gr-icon name="x" [size]="18" /></button>
         </div>
 
         <fieldset class="flex flex-col gap-1">
@@ -77,7 +77,7 @@ const COLA_RITMO = 'Los mensajes entran en la Cola de envío y salen al ritmo an
         @if (error()) { <gr-alert tone="danger" icon="circle-alert" title="No se ha podido crear el envío">{{ error() }}</gr-alert> }
 
         <div class="flex flex-wrap justify-end gap-2">
-          <button type="button" grButton variant="ghost" (click)="cerrar.emit()">Cancelar</button>
+          <button type="button" grButton variant="ghost" (click)="alCerrar()">Cancelar</button>
           <button type="button" grButton variant="primary" icon="send" [loading]="enviando()" [disabled]="!puedeEnviar()" (click)="enviar()">Enviar</button>
         </div>
       </div>
@@ -108,6 +108,11 @@ export class BoEnvioDialogo {
   protected readonly puedeEnviar = computed(() => (this.email() || this.whatsapp()) && this.estadosSel().length > 0 && !this.enviando());
   private t: ReturnType<typeof setTimeout> | undefined;
   private seq = 0;
+  /**
+   * Idempotency-Key de este diálogo: una por apertura (el padre recrea el diálogo al abrirlo) y la misma en cada reintento,
+   * para que un doble clic o una respuesta perdida no creen dos envíos.
+   */
+  private readonly clave = crypto.randomUUID();
 
   constructor() {
     this.actualizarAudiencia();
@@ -137,13 +142,15 @@ export class BoEnvioDialogo {
     return { estados: this.estadosSel(), soloSinResponder: this.soloSinResponder() };
   }
 
-  private async cargarAudiencia(): Promise<void> {
+  private async cargarAudiencia(): Promise<Audiencia | null> {
     const mine = ++this.seq;
     try {
       const a = await this.api.audiencia(this.cid(), this.formulario().id, this.filtro());
       if (mine === this.seq) this.audiencia.set(a);
+      return a;
     } catch {
       if (mine === this.seq) this.audiencia.set(null);
+      return null;
     }
   }
 
@@ -151,8 +158,15 @@ export class BoEnvioDialogo {
     return [...(this.email() ? (['email'] as CanalFormulario[]) : []), ...(this.whatsapp() ? (['whatsapp'] as CanalFormulario[]) : [])];
   }
 
+  /** Closing (backdrop, Escape, buttons) waits for a send in flight: its result must not go to a closed dialog. */
+  protected alCerrar(): void {
+    if (!this.enviando()) this.cerrar.emit();
+  }
+
   protected async enviar(): Promise<void> {
-    const a = this.audiencia();
+    // Fresh count: the debounced audience may still be pending, so the confirmation asks for the current filter.
+    clearTimeout(this.t);
+    const a = await this.cargarAudiencia();
     const canales = this.canales();
     const mensajes = a ? (this.email() ? a.email : 0) + (this.whatsapp() ? a.whatsapp : 0) : null;
     const ok = await this.confirm.ask({
@@ -165,11 +179,12 @@ export class BoEnvioDialogo {
     this.enviando.set(true);
     this.error.set('');
     try {
-      const envio = await this.api.crearEnvio(this.cid(), this.formulario().id, { canales, filtro: this.filtro() });
+      const envio = await this.api.crearEnvio(this.cid(), this.formulario().id, { canales, filtro: this.filtro() }, this.clave);
       this.toasts.success('Envío creado', 'Los mensajes están en la Cola de envío');
       this.enviado.emit(envio);
     } catch (e) {
-      this.error.set(problemOf(e).status === 409
+      const p = problemOf(e);
+      this.error.set(p.code === 'ENVIO_DUPLICADO' ? 'Ya se ha creado un envío igual hace un momento.' : p.status === 409
         ? 'El formulario está cerrado y no admite envíos. Cámbialo a activo desde la cabecera para enviarlo.'
         : errText(e, 'Prueba de nuevo en unos segundos.'));
     } finally {

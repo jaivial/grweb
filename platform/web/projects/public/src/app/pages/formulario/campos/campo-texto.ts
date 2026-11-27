@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { Campo } from '../formulario-api';
+import { maxLargoDe } from '../formulario-reglas';
 import { CLS_CONTROL, claseBorde, ctrlId, descrito } from './campo-base';
 
 /** Campos de texto de una línea o párrafo, correo, teléfono, número y fecha. Solo emite el valor; el contenedor gestiona el foco. */
@@ -32,8 +33,8 @@ export class FormTexto {
 
   protected readonly ctrl = computed(() => ctrlId(this.campo()));
   protected readonly descrito = computed(() => descrito(this.campo(), this.error()));
-  /** Longitud máxima del esquema (si la hay); el campo puede venir sin bloque de validación. */
-  protected readonly maxLargo = computed(() => this.campo().validacion?.maxLargo ?? null);
+  /** Longitud máxima efectiva (esquema o límite del backend); el campo puede venir sin bloque de validación. */
+  protected readonly maxLargo = computed(() => maxLargoDe(this.campo()));
   protected readonly clase = computed(() => {
     const base = CLS_CONTROL + ' ' + claseBorde(!!this.error());
     return this.campo().tipo === 'texto_largo' ? base + ' min-h-28 py-3' : base + ' h-12';
