@@ -75,7 +75,7 @@ const T = {
     ] as { titulo: string; items: MegaItem[] }[],
     /** Groups of the mobile menu (Figma «Mobile menu v3»): the footer columns, shorter. */
     grupos: [
-      { titulo: 'Competición', items: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },
+      { titulo: 'Competición', items: [{ label: 'Categorías de peso', href: '/categorias-de-peso' }, { label: 'Marcas mínimas', href: '/marcas-minimas' }, { label: 'Reglamento', href: '/reglamento' }, { label: 'Atletas', href: '/atletas' }, { label: 'Alta de atleta', href: '/alta-atleta' }] },
       { titulo: 'El campeonato', items: [{ label: 'Cómo será', href: '/#montaje' }, { label: 'Resultados', href: '/resultados' }, { label: 'Galería', href: '/galeria' }, { label: 'Edición 2025', href: '/ediciones/2025' }] },
       { titulo: 'Juegos', items: [{ label: 'GRS Fantasy', href: '/fantasy' }, { label: 'Porra', href: '/porra' }, { label: 'Rifa', href: '/sorteo' }] },
       { titulo: 'Visita y comunidad', items: [{ label: 'Cómo llegar', href: '/como-llegar' }, { label: 'Preguntas frecuentes', href: '/preguntas-frecuentes' }, { label: 'Blog', href: '/blog' }] },
@@ -128,7 +128,7 @@ const T = {
       ] },
     ],
     grupos: [
-      { titulo: 'Competition', items: [{ label: 'Weight classes', href: '/categorias-de-peso' }, { label: 'Qualifying totals', href: '/marcas-minimas' }, { label: 'Rules', href: '/reglamento' }, { label: 'Athlete sign-up', href: '/alta-atleta' }] },
+      { titulo: 'Competition', items: [{ label: 'Weight classes', href: '/categorias-de-peso' }, { label: 'Qualifying totals', href: '/marcas-minimas' }, { label: 'Rules', href: '/reglamento' }, { label: 'Athletes', href: '/atletas' }, { label: 'Athlete sign-up', href: '/alta-atleta' }] },
       { titulo: 'The championship', items: [{ label: 'What it will look like', href: '/#montaje' }, { label: 'Results', href: '/resultados' }, { label: 'Gallery', href: '/galeria' }, { label: '2025 edition', href: '/ediciones/2025' }] },
       { titulo: 'Games', items: [{ label: 'GRS Fantasy', href: '/fantasy' }, { label: 'Pool', href: '/porra' }, { label: 'Raffle', href: '/sorteo' }] },
       { titulo: 'Visit and community', items: [{ label: 'Getting there', href: '/como-llegar' }, { label: 'FAQ', href: '/preguntas-frecuentes' }, { label: 'Blog', href: '/blog' }] },
