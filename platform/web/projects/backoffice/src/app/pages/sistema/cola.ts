@@ -44,6 +44,11 @@ const dos = (n: number) => String(n).padStart(2, '0');
         </div>
         @if (error()) { <gr-error-state titulo="No se pudo cargar la cola de envío" texto="Comprueba la conexión y vuelve a intentarlo." (reintentar)="cargar()" /> }
         @else if (pagina(); as p) {
+          @if (p.pausa; as pz) {
+            <gr-alert tone="warning" icon="triangle-alert" [title]="(canal() === 'whatsapp' ? 'WhatsApp' : 'Email') + ' en pausa · siguiente intento a las ' + horaDe(pz.hasta)">
+              {{ pz.motivo }} Mientras tanto no sale nada por este canal y los mensajes no gastan intentos.
+            </gr-alert>
+          }
           <div class="overflow-x-auto rounded-lg border border-line-subtle bg-bg-card">
             <table boTablaMovil class="w-full min-w-[920px] text-left text-body-s">
               <thead class="text-label-xs text-text-tertiary uppercase">
@@ -63,8 +68,13 @@ const dos = (n: number) => String(n).padStart(2, '0');
                     <td class="px-4 py-3 font-mono text-mono-s break-all">{{ m.destino }}</td>
                     <td class="px-4 py-3 whitespace-nowrap">
                       @if (filtro() === 'pendientes') {
-                        <span class="font-mono text-mono-m tabular-nums" [class.text-accent-text]="enSegundos(m) <= 60">{{ cuentaAtras(m) }}</span>
-                        @if (m.proximoAt) { <span class="block text-body-xs text-text-tertiary">a las {{ horaDe(m.proximoAt) }}</span> }
+                        @if (p.pausa && m.estado !== 'enviando') {
+                          <span class="text-label-m text-warning">En pausa</span>
+                          <span class="block text-body-xs text-text-tertiary">reintento a las {{ horaDe(p.pausa.hasta) }}</span>
+                        } @else {
+                          <span class="font-mono text-mono-m tabular-nums" [class.text-accent-text]="enSegundos(m) <= 60">{{ cuentaAtras(m) }}</span>
+                          @if (salida(m); as s) { <span class="block text-body-xs text-text-tertiary">hacia las {{ horaDe(s) }}</span> }
+                        }
                       } @else { <span class="text-body-s text-text-secondary">{{ fechaHoraDe(filtro() === 'enviados' ? m.enviadoAt || m.updatedAt : m.updatedAt) }}</span> }
                     </td>
                     <td class="max-w-[420px] px-4 py-3">
@@ -218,10 +228,13 @@ export class SistemaColaPage {
     }
   }
   protected estado(e: string) { return ESTADO[e] ?? { l: e, tone: 'neutral' as GrTone }; }
-  /** Seconds until the message's turn (server clock). */
+  /** Estimated departure (its place in the queue); the worker's next look when there is no estimate. */
+  protected salida(m: ColaItem): string | undefined { return m.salidaAt || m.proximoAt; }
+  /** Seconds until the message goes out (server clock). */
   protected enSegundos(m: ColaItem): number {
-    if (!m.proximoAt) return 0;
-    return Math.ceil((new Date(m.proximoAt).getTime() - (this.ahora() + this.desfase)) / 1000);
+    const s = this.salida(m);
+    if (!s) return 0;
+    return Math.ceil((new Date(s).getTime() - (this.ahora() + this.desfase)) / 1000);
   }
   protected cuentaAtras(m: ColaItem): string {
     if (m.estado === 'enviando') return 'Enviando…';
@@ -229,7 +242,7 @@ export class SistemaColaPage {
     if (s <= 0) return 'Saliendo…';
     if (s < 3600) return `${dos(Math.floor(s / 60))}:${dos(s % 60)}`;
     if (s < 86400) return `${Math.floor(s / 3600)} h ${dos(Math.floor((s % 3600) / 60))} min`;
-    return fechaDMA(m.proximoAt);
+    return fechaDMA(this.salida(m));
   }
   protected horaDe(iso: string): string { return hora.format(new Date(iso)); }
   protected fechaHoraDe(iso?: string): string { return iso ? fechaHora.format(new Date(iso)) : ''; }

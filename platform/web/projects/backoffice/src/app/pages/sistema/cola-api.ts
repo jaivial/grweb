@@ -18,10 +18,14 @@ export interface ColaItem {
   detalle: string;
   prueba: boolean;
   proximoAt?: string;
+  /** Estimated departure: its place in the queue against the number's turn, caps and quiet hours. */
+  salidaAt?: string;
   enviadoAt?: string;
   createdAt: string;
   updatedAt: string;
 }
+/** The channel cannot send now (number unlinked or blocked, server down): next try at `hasta`. */
+export interface ColaPausa { motivo: string; hasta: string }
 export interface ColaCuentas { pendientes: number; fallidos: number; enviados: number }
 export interface ColaPagina {
   items: ColaItem[];
@@ -31,6 +35,7 @@ export interface ColaPagina {
   cuentas: Record<CanalCola, ColaCuentas>;
   /** Server time: the countdown does not trust the browser clock. */
   ahora: string;
+  pausa?: ColaPausa;
 }
 export interface IntentoCola { at: string; intento: number; estado: string; detalle: string; tecnico?: string }
 

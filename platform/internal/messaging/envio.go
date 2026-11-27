@@ -232,7 +232,8 @@ func (s *Svc) enviarLote(ctx context.Context, c envioCamp, canal string, porMin 
 			if canal == "whatsapp" {
 				causa = s.waMensaje(ctx, c.cid, err)
 			}
-			_ = s.a.Redis.Set(ctx, caido, causa, time.Minute).Err()
+			// NX: never shortens a longer pause of the channel (1 h after 10 tries in a row, worker.go).
+			_ = s.a.Redis.SetNX(ctx, caido, causa, time.Minute).Err()
 			det := "Servidor de email no disponible: "
 			msg := err.Error()
 			if canal == "whatsapp" {
@@ -255,6 +256,9 @@ func (s *Svc) enviarLote(ctx context.Context, c envioCamp, canal string, porMin 
 		}
 		if err == nil || (ew != nil && ew.codigo != 0) || ee != nil {
 			s.anotar(ctx, remitente, p.destino, canal == "whatsapp")
+			if canal == "whatsapp" {
+				s.a.Redis.Del(ctx, s.a.Keys.Of("messaging", "canal-pausas", c.cid.String(), "whatsapp")) // the number answered (worker.go)
+			}
 		}
 		s.resultado(ctx, c, canal, p, id, err, wa.Modo == "simulado")
 	}
