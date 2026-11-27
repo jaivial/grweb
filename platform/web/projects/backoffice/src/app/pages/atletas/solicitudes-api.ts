@@ -102,6 +102,8 @@ export interface SolicitudDetalle extends SolicitudItem {
   entrenador: string;
   /** aep2, aep3 o vacío («Aún no lo sé»). */
   prueba: string;
+  /** Weight class chosen in the sign-up form (e.g. «-63»), empty in a profile change. */
+  categoria: string;
   frase: string;
   bio: string;
   instagram: string;

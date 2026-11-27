@@ -533,6 +533,8 @@ func (s *Svc) creaCambioPerfil(ctx context.Context, r row, b DatoPerfil) (*Cambi
 		// The birth date stays optional for an athlete who never gave one (the rest of the profile can still change).
 		errs = slices.DeleteFunc(errs, func(e *huma.ErrorDetail) bool { return e.Location == "body.fechaNacimiento" })
 	}
+	// The weight class is only asked by the public form: an athlete editing their profile keeps theirs.
+	errs = slices.DeleteFunc(errs, func(e *huma.ErrorDetail) bool { return e.Location == "body.categoria" })
 	if len(errs) > 0 {
 		return nil, validacion("Revisa los campos marcados.", errs...)
 	}
