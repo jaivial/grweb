@@ -221,11 +221,11 @@ func renderizarCon(c Contenido, vars map[string]string, permitidas []string, m M
 	h := `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
 		`<title>` + html.EscapeString(asunto) + `</title></head><body style="margin:0;padding:0;background:#f2eeee;color:#3d3436;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">` +
 		`<span style="display:none;max-height:0;overflow:hidden;opacity:0">` + pre + `</span>` +
-		`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2eeee;color:#3d3436"><tr><td align="center" style="padding:24px 12px">` +
+		`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2eeee;color:#3d3436"><tr><td align="center" style="padding:` + margenEmail(bloque) + `">` +
 		`<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;color:#3d3436;border-radius:12px;overflow:hidden">` +
 		`<tr><td align="center" style="background:#141011;padding:20px 32px;text-align:center">` + logo + `</td></tr>` +
 		`<tr><td style="padding:32px 32px 16px"><h1 style="margin:0 0 20px;font-size:24px;line-height:30px;color:#141011">` + titulo + `</h1>` +
-		qr + imagen + strings.Join(parrafosHTML, "") + bloque + boton + pie + `</td></tr>` +
+		qr + imagen + strings.Join(parrafosHTML, "") + filaBloque(bloque) + boton + pie + `</td></tr>` +
 		`<tr><td style="padding:16px 32px 28px;border-top:1px solid #eee6e7;font-size:12px;line-height:18px;color:#9a8f91">` + html.EscapeString(nota) +
 		` <a href="` + html.EscapeString(m.Web) + `" style="color:#9a8f91">` + html.EscapeString(strings.TrimPrefix(strings.TrimPrefix(m.Web, "https://"), "http://")) + `</a></td></tr>` +
 		`</table></td></tr></table></body></html>`
@@ -281,4 +281,23 @@ func variablesOrdenadas(vs []string) []string {
 	out := append([]string(nil), vs...)
 	sort.Strings(out)
 	return out
+}
+
+// filaBloque saca el bloque (el formulario de la invitación) del relleno lateral de la tarjeta: cierra la celda del
+// cuerpo, lo pone en su propia fila a todo el ancho, sin relleno, y abre otra celda con el mismo relleno para el botón
+// y el pie. Así el formulario ocupa el 100 % del ancho del email (en el móvil, cada píxel cuenta).
+func filaBloque(bloque string) string {
+	if bloque == "" {
+		return ""
+	}
+	return `</td></tr><tr><td style="padding:0">` + bloque + `</td></tr><tr><td style="padding:16px 32px 0">`
+}
+
+// margenEmail es el relleno alrededor de la tarjeta: sin margen lateral cuando lleva formulario, para que ocupe todo
+// el ancho de la pantalla.
+func margenEmail(bloque string) string {
+	if bloque != "" {
+		return "16px 0"
+	}
+	return "24px 12px"
 }
