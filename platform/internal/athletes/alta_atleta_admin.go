@@ -205,7 +205,7 @@ type FiltrosLista struct {
 	CID    uuid.UUID `path:"cid"`
 	Estado string    `query:"estado" enum:"pendiente,revision,menor,aprobada,rechazada,todas" default:"todas"`
 	Tipo   string    `query:"tipo" enum:"todas,alta,cambio_perfil,autorizacion,handling" default:"todas"`
-	Match  string    `query:"match" enum:"licencia,email,telefono,nombre,manual,ninguna" default:""`
+	Match  string    `query:"match" enum:"licencia,email,telefono,nacimiento,nombre,manual,ninguna" default:""`
 	Menor  string    `query:"menor" enum:"si,no" default:""`
 	Q      string    `query:"q" maxLength:"80"`
 	Pagina int       `query:"pagina" minimum:"1" default:"1"`
@@ -530,6 +530,8 @@ func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, tipo, match string, menor 
 		where = append(where, "match_tipo = 'email'")
 	case "telefono":
 		where = append(where, "match_tipo = 'telefono'")
+	case "nacimiento":
+		where = append(where, "match_tipo = 'nacimiento'")
 	case "nombre":
 		where = append(where, "match_tipo = 'nombre'")
 	case "manual":
