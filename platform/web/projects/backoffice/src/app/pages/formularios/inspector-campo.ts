@@ -28,7 +28,7 @@ const TIPOS_ARCHIVO = [
     @let info = tipo();
     <header class="flex items-center gap-2">
       <span class="flex size-8 shrink-0 items-center justify-center rounded-sm bg-bg-raised text-text-secondary"><gr-icon [name]="info.icon" [size]="16" /></span>
-      <div class="min-w-0 flex-1"><p class="truncate text-label-m">{{ info.label }}</p><p class="font-mono text-mono-xs text-text-muted">{{ c.id }}</p></div>
+      <div class="min-w-0 flex-1"><p class="truncate text-label-m">{{ info.label }}</p></div>
       <button grButton variant="ghost" size="s" icon="copy" (click)="store.duplicar(c.id)" aria-label="Duplicar elemento"></button>
       <button grButton variant="ghost" size="s" icon="trash" (click)="store.borrar(c.id)" aria-label="Borrar elemento"></button>
     </header>
@@ -123,6 +123,11 @@ const TIPOS_ARCHIVO = [
           <gr-field label="Color de fondo"><div class="flex items-center gap-2"><input type="color" class="size-9 shrink-0 cursor-pointer rounded-xs border border-line-strong bg-transparent" [value]="c.estilo.fondo || '#ffffff'" (input)="estilo({ fondo: $any($event.target).value })" aria-label="Color de fondo" /><button grButton variant="ghost" size="s" (click)="estilo({ fondo: '' })">Sin fondo</button></div></gr-field>
         </div>
       </section>
+
+      <details class="border-t border-line-subtle pt-4">
+        <summary class="cursor-pointer text-label-s text-text-secondary">Avanzado</summary>
+        <p class="mt-2 text-body-xs text-text-tertiary">Identificador interno: <span class="font-mono text-mono-xs">{{ c.id }}</span></p>
+      </details>
     </div>
 
     <ng-template #rango>

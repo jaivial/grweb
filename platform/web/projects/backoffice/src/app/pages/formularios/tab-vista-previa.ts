@@ -29,7 +29,7 @@ const DEBOUNCE_MS = 600;
         @if (modo() === 'email' && previa()?.soloWeb) { <span class="text-body-xs text-text-tertiary">Solo web</span> }
       </div>
 
-      @if (error()) { <gr-alert tone="danger" title="No se ha podido generar la vista previa">{{ error() }}</gr-alert> }
+      @if (error() && modo() === 'email') { <gr-alert tone="danger" title="No se ha podido generar la vista previa">{{ error() }}</gr-alert> }
 
       @if (b) {
         @switch (modo()) {
@@ -91,10 +91,10 @@ export class FormularioTabVistaPrevia {
   private timer: ReturnType<typeof setTimeout> | undefined;
   protected readonly srcdoc = computed<SafeHtml>(() => this.sanitizer.bypassSecurityTrustHtml(this.previa()?.emailHtml ?? ''));
 
-  /** Text of the WhatsApp message with sample values; the server's default text when the draft has none. */
+  /** Text of the WhatsApp message with sample values: the server's text for the draft (it applies the default when the draft has none). */
   protected readonly textoWa = computed(() => {
     const b = this.store.draft();
-    const base = b?.whatsapp.texto?.trim() ? b.whatsapp.texto : (this.previa()?.whatsappTexto ?? '');
+    const base = this.previa()?.whatsappTexto ?? b?.whatsapp.texto ?? '';
     return base
       .replace(/\{\{\s*nombre\s*\}\}/g, 'Laura')
       .replace(/\{\{\s*competicion\s*\}\}/g, this.comps.current()?.nombre ?? '')
@@ -128,7 +128,7 @@ export class FormularioTabVistaPrevia {
     if (!b || !cid) return;
     const mine = ++this.seq;
     try {
-      const r = await this.api.previsualizar(cid, { esquema: b.esquema, email: b.email });
+      const r = await this.api.previsualizar(cid, { esquema: b.esquema, email: b.email, whatsapp: b.whatsapp });
       if (mine !== this.seq) return; // a newer request already answered
       this.previa.set(r);
       this.error.set('');

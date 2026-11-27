@@ -29,8 +29,8 @@ import { FormularioStore } from './store';
       </div>
 
       @if (b) {
-        <div class="grid items-start gap-4 lg:grid-cols-[240px_minmax(0,1fr)_320px]">
-          <aside class="order-2 h-fit rounded-lg border border-line-subtle bg-bg-card p-3 lg:sticky lg:top-20 lg:order-none" aria-label="Elementos y capas">
+        <div class="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[240px_minmax(0,1fr)_320px]">
+          <aside class="order-2 h-fit min-w-0 rounded-lg border border-line-subtle bg-bg-card p-3 lg:sticky lg:top-20 lg:order-none" aria-label="Elementos y capas">
             <bo-builder-paleta [campos]="b.esquema.campos" [seleccion]="store.seleccion()" (add)="anadir($event)" (seleccionar)="store.seleccionar($event)" (reordenar)="reordenarCapas($event)" />
           </aside>
 
@@ -40,7 +40,7 @@ import { FormularioStore } from './store';
               (seleccionar)="store.seleccionar($event)" (soltar)="soltar($event)" (accion)="accion($event)" />
           </section>
 
-          <aside class="order-3 h-fit rounded-lg border border-line-subtle bg-bg-card p-4 lg:sticky lg:top-20 lg:order-none" aria-label="Propiedades">
+          <aside class="order-3 h-fit min-w-0 rounded-lg border border-line-subtle bg-bg-card p-4 lg:sticky lg:top-20 lg:order-none" aria-label="Propiedades">
             @if (iaAbierta()) {
               <bo-ia-formulario (cerrar)="iaAbierta.set(false)" />
             } @else if (sel(); as c) {

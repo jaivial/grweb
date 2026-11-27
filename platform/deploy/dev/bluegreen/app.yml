@@ -13,6 +13,10 @@ x-env: &env
   INTERNAL_TOKEN_SECRET: dev-internal-secret-change-me
   LOG_LEVEL: info
   PPROF_ADDR: ":6060"
+  # Enlaces que el sistema escribe (email de invitación, acceso personal, enlace de login): apuntan a la web y al
+  # backoffice de QA, igual que deploy/k8s/base/common/config.yaml, no a localhost.
+  PUBLIC_WEB_URL: https://grcup-qa.menustudioai.com
+  BACKOFFICE_URL: https://grcup-qa-bo.menustudioai.com
 
 x-svc: &svc
   restart: unless-stopped
@@ -32,7 +36,7 @@ services:
     environment:
       <<: *env
       DATABASE_URL: postgres://grcup_identity:dev_identity@postgres:5432/grcup_identity?sslmode=disable
-      BACKOFFICE_URL: http://127.0.0.1:4201
+      BACKOFFICE_URL: https://grcup-qa-bo.menustudioai.com
       COOKIE_SECURE: "false"
 
   identity-bootstrap:

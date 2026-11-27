@@ -1,6 +1,6 @@
 import { Injectable, computed, signal } from '@angular/core';
 import type { Ajustes, Borrador, Campo, EstadoFormulario, Formulario, Opcion, Tema, TextosEmail, TipoCampo } from './api';
-import { campoNuevo, clonarCampo } from './catalogo';
+import { campoNuevo, clonarCampo, normalizarCampo } from './catalogo';
 import { cambiar, esSoloWeb, indiceDe, insertar, mover } from './esquema';
 
 const MAX_PASOS = 100;
@@ -95,13 +95,18 @@ export class FormularioStore {
     this.mutar((b) => ({ ...b, whatsapp: { texto } }), clave);
   }
 
-  /** Adds a new field of `tipo` at `indice` (default: after the selection, or at the end). Selects it; returns its id. */
+  /** Adds a new field of `tipo` at `indice` (default: after the selection, or at the end). Selects it; returns its id, or '' when there is no draft. */
   anadir(tipo: TipoCampo, indice?: number): string {
     const campo = campoNuevo(tipo);
-    const campos = this.campos();
-    const sel = indiceDe(campos, this.seleccion());
-    const destino = indice ?? (sel >= 0 ? sel + 1 : campos.length);
-    this.mutar((b) => ({ ...b, esquema: { ...b.esquema, campos: insertar(b.esquema.campos, campo, destino) } }));
+    // The position is computed from the draft being changed (not from a snapshot read before it): rapid successive adds
+    // each land after the previous one, none overwrites another.
+    const insertado = this.mutar((b) => {
+      const campos = b.esquema.campos;
+      const sel = indiceDe(campos, this.seleccion());
+      const destino = indice ?? (sel >= 0 ? sel + 1 : campos.length);
+      return { ...b, esquema: { ...b.esquema, campos: insertar(campos, campo, destino) } };
+    });
+    if (!insertado) return '';
     this.seleccion.set(campo.id);
     return campo.id;
   }
@@ -184,9 +189,9 @@ export class FormularioStore {
   }
 
   /** Applies a change: one history step per call, except successive calls with the same `clave` within the window. */
-  private mutar(fn: (b: Borrador) => Borrador, clave: string | null = null): void {
+  private mutar(fn: (b: Borrador) => Borrador, clave: string | null = null): boolean {
     const actual = this.draft();
-    if (!actual) return;
+    if (!actual) return false;
     const siguiente = fn(structuredClone(actual));
     const ahora = Date.now();
     const agrupa = clave !== null && clave === this.claveActual && ahora - this.ultimoCambio < VENTANA_MS;
@@ -198,6 +203,7 @@ export class FormularioStore {
     this.ultimoCambio = ahora;
     this.fijarDraft(siguiente);
     if (!agrupa) this.ajustarSeleccion();
+    return true;
   }
 
   /** The only place that replaces the draft: every replacement moves the revision. */
@@ -212,7 +218,7 @@ export class FormularioStore {
   }
 }
 
-/** The editable part of a form (what PUT receives). */
+/** The editable part of a form (what PUT receives). Fields are normalised here (see `normalizarCampo`) for draft and baseline alike. */
 export function borradorDe(f: Formulario): Borrador {
-  return { nombre: f.nombre, esquema: f.esquema, email: f.email, whatsapp: f.whatsapp };
+  return { nombre: f.nombre, esquema: { ...f.esquema, campos: f.esquema.campos.map(normalizarCampo) }, email: f.email, whatsapp: f.whatsapp };
 }

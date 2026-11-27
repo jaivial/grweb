@@ -3,6 +3,7 @@ import { Campo } from '../formulario-api';
 import { textoRico } from '../formulario-reglas';
 
 const ALIN: Record<string, string> = { izquierda: 'text-left', centro: 'text-center', derecha: 'text-right' };
+const ALIN_CSS: Record<string, string> = { izquierda: 'left', centro: 'center', derecha: 'right' };
 
 /** Bloques decorativos del formulario: título, párrafo, imagen y separador. No tienen respuesta. */
 @Component({
@@ -13,10 +14,10 @@ const ALIN: Record<string, string> = { izquierda: 'text-left', centro: 'text-cen
     @switch (campo().tipo) {
       @case ('titulo') {
         <h2 class="scroll-mt-28 leading-tight [font-family:var(--font-display)]"
-          [class]="clase()" [style.color]="color()" [style.background-color]="fondo()" [innerHTML]="html()"></h2>
+          [class]="clase()" [style.text-align]="alineacion()" [style.color]="color()" [style.background-color]="fondo()" [innerHTML]="html()"></h2>
       }
       @case ('parrafo') {
-        <p class="text-[16px] leading-relaxed text-[var(--f-texto)]" [class]="clase()" [innerHTML]="html()"></p>
+        <p class="text-[16px] leading-relaxed text-[var(--f-texto)]" [class]="clase()" [style.text-align]="alineacion()" [innerHTML]="html()"></p>
       }
       @case ('imagen') {
         @if (imagenValida()) {
@@ -33,6 +34,8 @@ export class FormBloque {
   readonly campo = input.required<Campo>();
 
   protected readonly html = computed(() => textoRico(this.campo().etiqueta));
+  /** Alignment set in the editor (`estilo.alinear`), applied inline so no class merge can drop it. */
+  protected readonly alineacion = computed(() => ALIN_CSS[this.campo().estilo?.alinear ?? 'izquierda'] ?? 'left');
   protected readonly clase = computed(() => {
     const e = this.campo().estilo;
     const tam = e?.tamano === 's' ? 'text-[15px]' : e?.tamano === 'l' ? 'text-[20px]' : 'text-[17px]';
