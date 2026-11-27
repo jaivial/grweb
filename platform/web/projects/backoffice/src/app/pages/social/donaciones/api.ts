@@ -1,6 +1,7 @@
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 
 /** Donaciones service (contrato §5). Admin: C/donaciones/* con permiso «sorteo.gestionar». */
 
@@ -98,7 +99,7 @@ export class DonacionesApi {
   }
 
   reembolsar(cid: string, id: string, motivo: string): Promise<Donacion> {
-    return firstValueFrom(this.http.post<Donacion>(`${this.b(cid)}/${id}/reembolso`, { motivo }));
+    return firstValueFrom(this.http.post<Donacion>(`${this.b(cid)}/${id}/reembolso`, { motivo }, { context: sinTimeout() }));
   }
 
   configPublica(slug: string): Promise<ConfigPublica> {

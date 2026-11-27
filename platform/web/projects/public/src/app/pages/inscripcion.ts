@@ -5,7 +5,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, P
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { GrAlert, GrButton, GrIcon, GrSkeleton, GrSelect, GrTelefono, esConReanudacion, telefonoValido } from '@grcup/ui';
+import { GrAlert, GrButton, GrIcon, GrSkeleton, GrSelect, GrTelefono, esConReanudacion, sinTimeout, telefonoValido } from '@grcup/ui';
 import { firstValueFrom } from 'rxjs';
 import { CATEGORIAS_IPF, cat } from '../core/atletas';
 import { COMPETITION_SLUG, Competition, type CompeticionPublica } from '../core/competition';
@@ -822,7 +822,7 @@ export class InscripcionPage {
         if ((this.cupon && !q?.cupon?.valido) || (this.referido && !q?.referido?.valido)) return this.error.set(this.t().revisaCodigos);
       }
       this.idem ||= crypto.randomUUID();
-      const r = await firstValueFrom(this.http.post<Estado>(base, { ...this.d, cupon: this.cupon, referido: this.referido, aceptaTerminos: true, aceptaPrivacidad: true, aceptaImagen: this.acepta.imagen }, { headers: { 'Idempotency-Key': this.idem } }));
+      const r = await firstValueFrom(this.http.post<Estado>(base, { ...this.d, cupon: this.cupon, referido: this.referido, aceptaTerminos: true, aceptaPrivacidad: true, aceptaImagen: this.acepta.imagen }, { headers: { 'Idempotency-Key': this.idem }, context: sinTimeout() }));
       this.idem = '';
       try { localStorage.removeItem(BORRADOR); } catch { /* ignore */ }
       if (r.checkoutUrl) location.href = r.checkoutUrl;
@@ -1085,7 +1085,7 @@ export class PagoSimuladoPage {
     this.pagando.set(true);
     this.mensaje.set('');
     try {
-      const r = await firstValueFrom(this.http.post<{ estado: string; mensaje?: string; redirect?: string }>(`${this.api}/pagar`, { tarjeta: this.tarjeta.replace(/\s/g, ''), email: this.email, tresDS }));
+      const r = await firstValueFrom(this.http.post<{ estado: string; mensaje?: string; redirect?: string }>(`${this.api}/pagar`, { tarjeta: this.tarjeta.replace(/\s/g, ''), email: this.email, tresDS }, { context: sinTimeout() }));
       if (r.estado === 'pagado' && r.redirect) {
         location.href = r.redirect;
         return;

@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 import { COMPETITION_SLUG } from './competition';
 import type { Lang } from './i18n';
 
@@ -100,6 +101,6 @@ export class Donaciones {
 
   /** Creates the donation and returns the URL of the payment gateway. */
   async donar(importe: number, mensaje: string, anonimo: boolean): Promise<DonacionCreada> {
-    return firstValueFrom(this.http.post<DonacionCreada>(`${this.base}`, { importe, mensaje, anonimo }));
+    return firstValueFrom(this.http.post<DonacionCreada>(`${this.base}`, { importe, mensaje, anonimo }, { context: sinTimeout() }));
   }
 }

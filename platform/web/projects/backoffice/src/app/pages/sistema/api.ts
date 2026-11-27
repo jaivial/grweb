@@ -137,10 +137,10 @@ export class SistemaApi {
   }
   archivar(cid: string): Promise<unknown> { return firstValueFrom(this.http.post(`${this.b(cid)}/archivar`, {})); }
   anonimizar(cid: string, confirmacion: string): Promise<{ estado: string; anonimizarAt: string; servicios: string[] }> {
-    return firstValueFrom(this.http.post<{ estado: string; anonimizarAt: string; servicios: string[] }>(`${this.b(cid)}/anonimizar`, { confirmacion }));
+    return firstValueFrom(this.http.post<{ estado: string; anonimizarAt: string; servicios: string[] }>(`${this.b(cid)}/anonimizar`, { confirmacion }, { context: sinTimeout() }));
   }
   eliminar(cid: string, confirmacion: string): Promise<unknown> { return firstValueFrom(this.http.request('DELETE', this.b(cid), { body: { confirmacion } })); }
-  exportar(cid: string): Promise<Exportacion> { return firstValueFrom(this.http.post<Exportacion>(`${this.b(cid)}/exportaciones`, { tipo: 'completa' })); }
+  exportar(cid: string): Promise<Exportacion> { return firstValueFrom(this.http.post<Exportacion>(`${this.b(cid)}/exportaciones`, { tipo: 'completa' }, { context: sinTimeout() })); }
   exportaciones(cid: string): Promise<Exportacion[]> { return firstValueFrom(this.http.get<Exportacion[]>(`${this.b(cid)}/exportaciones`)); }
   descargar(url: string): Promise<Blob> { return firstValueFrom(this.http.get(url, { responseType: 'blob', context: sinTimeout() })); }
 }

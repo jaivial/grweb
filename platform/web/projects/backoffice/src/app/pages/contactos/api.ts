@@ -86,7 +86,7 @@ export class ContactosApi {
     return firstValueFrom(this.http.get<AvisosEvento>(`${this.b(cid)}/avisos-evento`, { params: this.params(f) }));
   }
   crearAviso(cid: string, a: { evento: string; email: string; nombre: string }): Promise<AvisoEvento> {
-    return firstValueFrom(this.http.post<AvisoEvento>(`${this.b(cid)}/avisos-evento`, a));
+    return firstValueFrom(this.http.post<AvisoEvento>(`${this.b(cid)}/avisos-evento`, a, { context: sinTimeout() }));
   }
   editarAviso(cid: string, id: string, a: { email?: string; nombre?: string }): Promise<AvisoEvento> {
     return firstValueFrom(this.http.patch<AvisoEvento>(`${this.b(cid)}/avisos-evento/${id}`, a));

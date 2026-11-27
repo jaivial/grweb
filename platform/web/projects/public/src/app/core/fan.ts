@@ -4,6 +4,7 @@ import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core
 import { isPlatformBrowser } from '@angular/common';
 import { NavigationStart, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 import { COMPETITION_SLUG } from './competition';
 import { idiomaActual, type Lang } from './i18n';
 
@@ -128,7 +129,7 @@ export class FanSession {
 
   /** Asks for the magic link (always 202 when accepted). Throws HttpErrorResponse with `code` on errors. */
   async pedirAcceso(i: AccesoIn): Promise<void> {
-    await firstValueFrom(this.http.post(`${this.base}/acceso`, { ...i, next: i.next ?? this.volverA() ?? undefined }));
+    await firstValueFrom(this.http.post(`${this.base}/acceso`, { ...i, next: i.next ?? this.volverA() ?? undefined }, { context: sinTimeout() }));
   }
 
   /** Before creating an account: is the alias valid and free, and has the email no account yet? (per field, only the ones sent) */

@@ -26,6 +26,7 @@ import {
   GrSelect,
   GrSkeleton,
   GrToasts,
+  sinTimeout,
 } from '@grcup/ui';
 import { problemOf } from '../../core/api';
 import { Auth } from '../../core/auth';
@@ -1233,7 +1234,7 @@ export class EquipoPage {
   }
   protected async reenviar(i: Invitacion): Promise<void> {
     try {
-      await firstValueFrom(this.http.post(this.inv_(), { email: i.email, rolSlug: i.rolSlug }));
+      await firstValueFrom(this.http.post(this.inv_(), { email: i.email, rolSlug: i.rolSlug }, { context: sinTimeout() }));
       this.toasts.info(
         `Invitación reenviada a ${i.email}`,
         `Caduca en 7 días · rol ${i.rolNombre}`,

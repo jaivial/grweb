@@ -202,18 +202,18 @@ export class AtletasApi {
     return firstValueFrom(this.http.put<Atleta>(`${this.base(cid)}/${a.id}/perfil`, body, { headers: new HttpHeaders({ 'If-Match': `W/"${a.version}"` }) }));
   }
   crear(cid: string, body: unknown): Promise<Atleta> { return firstValueFrom(this.http.post<Atleta>(this.base(cid), body)); }
-  promocionar(cid: string, id: string, avisar: boolean): Promise<Atleta> { return firstValueFrom(this.http.post<Atleta>(`${this.base(cid)}/${id}/promocionar`, { avisar })); }
+  promocionar(cid: string, id: string, avisar: boolean): Promise<Atleta> { return firstValueFrom(this.http.post<Atleta>(`${this.base(cid)}/${id}/promocionar`, { avisar }, { context: sinTimeout() })); }
   pesaje(cid: string, id: string, body: unknown): Promise<{ categoriaOk: boolean; sugerencia: string; atleta: Atleta }> {
     return firstValueFrom(this.http.post<{ categoriaOk: boolean; sugerencia: string; atleta: Atleta }>(`${this.base(cid)}/${id}/pesaje`, body));
   }
   decidir(cid: string, id: string, accion: 'cambiar_categoria' | 'no_compite'): Promise<Atleta> { return firstValueFrom(this.http.post<Atleta>(`${this.base(cid)}/${id}/pesaje/decision`, { accion })); }
-  enlace(cid: string, id: string): Promise<{ enviado: boolean; caduca: string }> { return firstValueFrom(this.http.post<{ enviado: boolean; caduca: string }>(`${this.base(cid)}/${id}/enlace-area`, {})); }
+  enlace(cid: string, id: string): Promise<{ enviado: boolean; caduca: string }> { return firstValueFrom(this.http.post<{ enviado: boolean; caduca: string }>(`${this.base(cid)}/${id}/enlace-area`, {}, { context: sinTimeout() })); }
   /** Email + WhatsApp al menor con el formulario y el enlace para subir la autorización firmada. */
   pedirAutorizacion(cid: string, id: string): Promise<AutorizacionPedida> {
     return firstValueFrom(this.http.post<AutorizacionPedida>(`${this.base(cid)}/${id}/autorizacion/solicitar`, {}));
   }
   accionNecesaria(cid: string, body: { ids: string[]; accion: string; detalle: string; fecha: string; enlace: string }): Promise<{ emails: number; whatsapps: number; sinEmail: number }> {
-    return firstValueFrom(this.http.post<{ emails: number; whatsapps: number; sinEmail: number }>(`${this.base(cid)}/accion-necesaria`, body));
+    return firstValueFrom(this.http.post<{ emails: number; whatsapps: number; sinEmail: number }>(`${this.base(cid)}/accion-necesaria`, body, { context: sinTimeout() }));
   }
   /** «Tu perfil de atleta ya existe»: new initial password per athlete + email (and WhatsApp if asked). simular = only count. */
   perfilExiste(cid: string, body: PerfilExisteIn): Promise<PerfilExisteOut> {
@@ -230,7 +230,7 @@ export class AtletasApi {
   mapear(cid: string, id: string, mapeo: Record<string, string>): Promise<Importacion> {
     return firstValueFrom(this.http.put<Importacion>(`${this.base(cid)}/importaciones/${id}/mapeo`, { mapeo }));
   }
-  confirmar(cid: string, id: string): Promise<Importacion> { return firstValueFrom(this.http.post<Importacion>(`${this.base(cid)}/importaciones/${id}/confirmar`, {})); }
+  confirmar(cid: string, id: string): Promise<Importacion> { return firstValueFrom(this.http.post<Importacion>(`${this.base(cid)}/importaciones/${id}/confirmar`, {}, { context: sinTimeout() })); }
 
   /** Downloads a protected file (CSV export, list template) with the bearer token. */
   async descargar(url: string, nombre: string): Promise<void> {

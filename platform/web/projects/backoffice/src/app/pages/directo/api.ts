@@ -88,7 +88,7 @@ export class DirectoApi {
     return firstValueFrom(this.http.put<ResultadosAdmin>(`/api/admin/competiciones/${cid}/resultados/programar`, at ? { at } : {}));
   }
   publicar(cid: string, categorias: string[], avisar: boolean): Promise<{ publicadas: string[] }> {
-    return firstValueFrom(this.http.post<{ publicadas: string[] }>(`/api/admin/competiciones/${cid}/resultados/publicar`, { categorias, avisar }));
+    return firstValueFrom(this.http.post<{ publicadas: string[] }>(`/api/admin/competiciones/${cid}/resultados/publicar`, { categorias, avisar }, { context: sinTimeout() }));
   }
   retirar(cid: string, categoria: string): Promise<void> {
     return firstValueFrom(this.http.post<void>(`/api/admin/competiciones/${cid}/resultados/retirar`, { categoria }));
