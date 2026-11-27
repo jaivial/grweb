@@ -269,14 +269,26 @@ app.use((req, res, next) => {
  * The server listens on the port defined by the `PORT` environment variable, or defaults to 4000.
  */
 if (isMainModule(import.meta.url) || process.env['pm_id']) {
-  const port = process.env['PORT'] || 4000;
-  app.listen(port, (error) => {
+  const port = Number(process.env['PORT'] || 4000);
+  const host = process.env['HOST'];
+  const escuchar = (cb: (error?: Error) => void) => (host ? app.listen(port, host, cb) : app.listen(port, cb));
+  const server = escuchar((error) => {
     if (error) {
       throw error;
     }
 
-    console.log(`Node Express server listening on http://localhost:${port}`);
+    console.log(`Node Express server listening on http://${host ?? 'localhost'}:${port}`);
   });
+  // SIGTERM (systemd stop): stop accepting, let the renders in flight finish, exit before the unit's TimeoutStopSec (25 s).
+  const apagar = () => {
+    server.close(() => process.exit(0));
+    server.closeIdleConnections();
+    setTimeout(() => {
+      server.closeAllConnections();
+      process.exit(0);
+    }, 20_000).unref();
+  };
+  process.once('SIGTERM', apagar);
 }
 
 /**

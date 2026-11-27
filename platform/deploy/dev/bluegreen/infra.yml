@@ -1,0 +1,84 @@
+# Infra compartida del entorno local (proyecto compose grcup-infra). Nunca la recrea un redeploy.
+# Volúmenes = los del antiguo proyecto grcup-h (external: no se crean ni se borran; nunca `down -v`).
+# Una red de datos por color: cada stack de app solo ve su propio color más esta infra. Así el
+# nombre `identity` (o cualquier servicio) jamás resuelve a dos colores a la vez.
+# Uso: docker compose -p grcup-infra -f infra.yml up -d --wait   (lo hace lib.sh)
+
+x-infra: &infra
+  restart: unless-stopped
+
+services:
+  postgres:
+    <<: *infra
+    image: postgres:17-alpine
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 2.0
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: dev-postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../initdb:/docker-entrypoint-initdb.d:ro,z
+    networks: [data-blue, data-green]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      retries: 20
+
+  redis:
+    <<: *infra
+    image: redis:6.0-alpine
+    mem_limit: 128m
+    # Mismo límite que antes: volatile-lru evita que el kernel mate Redis (perf-20261115).
+    command: ["redis-server", "--requirepass", "dev-redis", "--appendonly", "no", "--maxmemory", "100mb", "--maxmemory-policy", "volatile-lru"]
+    networks: [data-blue, data-green]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "dev-redis", "ping"]
+      interval: 3s
+      retries: 20
+
+  mailpit:
+    <<: *infra
+    image: axllent/mailpit:v1.27
+    mem_limit: 256m
+    ports:
+      - "127.0.0.1:18325:8025"
+    networks: [data-blue, data-green]
+
+  # WhatsApp (evo-weai). Imagen propia (ver platform/deploy/dev/compose.yml).
+  evo-weai:
+    <<: *infra
+    image: grcup/evo-weai:v0.2.15
+    mem_limit: 256m
+    environment:
+      WEAI_API_KEY: dev-weai-api-key-change-me
+      WEAI_DATA_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      WEAI_HOST: 0.0.0.0
+      WEAI_PORT: "8080"
+      WEAI_DATABASE_PATH: /data/weai.db
+      WEAI_WEBHOOK_ALLOW_INTERNAL: "true"
+    volumes:
+      - weai-data:/data
+    ports:
+      - "127.0.0.1:18380:8080"
+    networks: [data-blue, data-green]
+    healthcheck:
+      test: ["CMD", "/bin/bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET / HTTP/1.0\\r\\n\\r\\n' >&3 && head -n 1 <&3 | grep -q '200'"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+networks:
+  data-blue:
+    name: grcup-data-blue
+  data-green:
+    name: grcup-data-green
+
+volumes:
+  pgdata:
+    external: true
+    name: grcup-h_pgdata
+  weai-data:
+    external: true
+    name: grcup-h_weai-data

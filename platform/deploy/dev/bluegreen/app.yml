@@ -1,0 +1,301 @@
+# Stack de aplicación de UN color (proyecto compose grcup-blue o grcup-green). Mismo fichero para los dos colores:
+# COLOR, GATEWAY_PORT, CHAT_PORT, CHAT_LOAD_PORT y VERSION los pone lib.sh. Postgres, Redis, Mailpit y evo-weai
+# viven en infra.yml. Los servicios se alcanzan por su nombre dentro de su color (red `default` del proyecto) y
+# por la red de datos del color (`grcup-data-<color>`, donde solo está la infra). Nunca se cruzan colores.
+# Migraciones y seeds corren al arrancar el stack (idempotentes); ver README.md (expand/contract).
+
+x-env: &env
+  SERVICE_ENV: dev
+  AUTO_MIGRATE: "true"
+  REDIS_ADDR: redis:6379
+  REDIS_PASSWORD: dev-redis
+  JWKS_URL: http://identity:8080/.well-known/jwks.json
+  INTERNAL_TOKEN_SECRET: dev-internal-secret-change-me
+  LOG_LEVEL: info
+  PPROF_ADDR: ":6060"
+
+x-svc: &svc
+  restart: unless-stopped
+  mem_limit: 256m
+  cpus: 1.0
+  networks: [default, data]
+
+x-seed: &seed
+  restart: on-failure
+  mem_limit: 256m
+  networks: [default, data]
+
+services:
+  identity:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: identity, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_identity:dev_identity@postgres:5432/grcup_identity?sslmode=disable
+      BACKOFFICE_URL: http://127.0.0.1:4201
+      COOKIE_SECURE: "false"
+
+  identity-bootstrap:
+    build: { context: ../../.., args: { SVC: identity, VERSION: "${VERSION:-dev}" } }
+    command: ["bootstrap-root"]
+    restart: "no"
+    mem_limit: 256m
+    networks: [default, data]
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_identity:dev_identity@postgres:5432/grcup_identity?sslmode=disable
+      ROOT_EMAIL: root@grcup.local
+      ROOT_PASSWORD: root-dev-password
+      ROOT_NOMBRE: Root (dev)
+
+  competition:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: competition, VERSION: "${VERSION:-dev}" } }
+    env_file: ["${GRCUP_LOCAL_ENV}/google-oauth.env", "${GRCUP_LOCAL_ENV}/stripe-connect.env", "${GRCUP_LOCAL_ENV}/bunny-grcup.env"]
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_competition:dev_competition@postgres:5432/grcup_competition?sslmode=disable
+
+  competition-seed:
+    <<: *seed
+    build: { context: ../../.., args: { SVC: competition, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    depends_on:
+      identity-bootstrap: { condition: service_completed_successfully }
+      identity: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_competition:dev_competition@postgres:5432/grcup_competition?sslmode=disable
+      ROOT_EMAIL: root@grcup.local
+
+  audit:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: audit, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_audit:dev_audit@postgres:5432/grcup_audit?sslmode=disable
+
+  realtime:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: realtime, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+
+  fans:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: fans, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_fans:dev_fans@postgres:5432/grcup_fans?sslmode=disable
+      COOKIE_SECURE: "false"
+
+  chat:
+    <<: *svc
+    mem_limit: 768m  # ~200 KiB por conexión (docs/carga/2026-11-08-chat.md)
+    cpus: 2.0
+    build: { context: ../../.., args: { SVC: chat, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_chat:dev_chat@postgres:5432/grcup_chat?sslmode=disable
+      CHAT_MAX_CONEXIONES: "10000"
+      CHAT_ORIGENES: "localhost:*,127.0.0.1:*"
+    ports:
+      - "127.0.0.1:${CHAT_PORT}:8080"
+
+  chat-load:
+    <<: *svc
+    mem_limit: 768m
+    build: { context: ../../.., args: { SVC: chat, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_chat:dev_chat@postgres:5432/grcup_chat?sslmode=disable
+      CHAT_MAX_CONEXIONES: "10000"
+      CHAT_ORIGENES: "localhost:*,127.0.0.1:*"
+    ports:
+      - "127.0.0.1:${CHAT_LOAD_PORT}:8080"
+
+  donaciones:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: donaciones, VERSION: "${VERSION:-dev}" } }
+    env_file: ["${GRCUP_LOCAL_ENV}/stripe-connect.env"]
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_donaciones:dev_donaciones@postgres:5432/grcup_donaciones?sslmode=disable
+
+  raffle:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: raffle, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_raffle:dev_raffle@postgres:5432/grcup_raffle?sslmode=disable
+
+  # Worker singleton por lock en Redis (lock:patrocinio:worker): los dos colores comparten Redis, un solo líder.
+  patrocinio:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: patrocinio, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_patrocinio:dev_patrocinio@postgres:5432/grcup_patrocinio?sslmode=disable
+
+  juegos:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: juegos, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_juegos:dev_juegos@postgres:5432/grcup_juegos?sslmode=disable
+
+  # Worker con líder en Redis (juegos:worker:lider): dos colores = un solo líder.
+  juegos-worker:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: juegos, VERSION: "${VERSION:-dev}" } }
+    command: ["worker"]
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_juegos:dev_juegos@postgres:5432/grcup_juegos?sslmode=disable
+
+  athletes:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: athletes, VERSION: "${VERSION:-dev}" } }
+    env_file: ["${GRCUP_LOCAL_ENV}/stripe-connect.env"]
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_athletes:dev_athletes@postgres:5432/grcup_athletes?sslmode=disable
+      ATLETAS_DIR: /data/atletas
+    volumes:
+      - atletas-data:/data/atletas
+
+  athletes-seed:
+    <<: *seed
+    build: { context: ../../.., args: { SVC: athletes, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    depends_on:
+      competition-seed: { condition: service_completed_successfully }
+      athletes: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_athletes:dev_athletes@postgres:5432/grcup_athletes?sslmode=disable
+
+  schedule:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: schedule, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_schedule:dev_schedule@postgres:5432/grcup_schedule?sslmode=disable
+
+  schedule-seed:
+    <<: *seed
+    build: { context: ../../.., args: { SVC: schedule, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    depends_on:
+      athletes-seed: { condition: service_completed_successfully }
+      schedule: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_schedule:dev_schedule@postgres:5432/grcup_schedule?sslmode=disable
+
+  live:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: live, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_live:dev_live@postgres:5432/grcup_live?sslmode=disable
+
+  live-seed:
+    <<: *seed
+    build: { context: ../../.., args: { SVC: live, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    depends_on:
+      competition-seed: { condition: service_completed_successfully }
+      live: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_live:dev_live@postgres:5432/grcup_live?sslmode=disable
+
+  cms:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: cms, VERSION: "${VERSION:-dev}" } }
+    env_file: ["${GRCUP_LOCAL_ENV}/bunny-grcup.env"]
+    volumes:
+      - cmsdata:/data/medios
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_cms:dev_cms@postgres:5432/grcup_cms?sslmode=disable
+
+  cms-seed:
+    <<: *seed
+    build: { context: ../../.., args: { SVC: cms, VERSION: "${VERSION:-dev}" } }
+    command: ["seed-grcup"]
+    depends_on:
+      competition-seed: { condition: service_completed_successfully }
+      cms: { condition: service_started }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_cms:dev_cms@postgres:5432/grcup_cms?sslmode=disable
+
+  messaging:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: messaging, VERSION: "${VERSION:-dev}" } }
+    env_file: ["${GRCUP_LOCAL_ENV}/google-oauth.env"]
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_messaging:dev_messaging@postgres:5432/grcup_messaging?sslmode=disable
+      # WhatsApp gestionado por la plataforma: el BO solo vincula el número (QR o código).
+      EVO_WEAI_URL: http://evo-weai:8080
+      EVO_WEAI_API_KEY: dev-weai-api-key-change-me
+
+  crm:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: crm, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_crm:dev_crm@postgres:5432/grcup_crm?sslmode=disable
+
+  # Asistente de campañas (MiniMax). La clave viene del shell (lib.sh la carga de ~/.env).
+  ai:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: ai, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      MINIMAX_API_KEY: ${MINIMAX_TOKEN_PLAN_API_KEY:-}
+      MINIMAX_BASE_URL: ${MINIMAX_TOKEN_PLAN_BASE_URL:-https://api.minimax.io/anthropic}
+
+  ticketing:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: ticketing, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_ticketing:dev_ticketing@postgres:5432/grcup_ticketing?sslmode=disable
+
+  openlifter:
+    <<: *svc
+    build: { context: ../../.., args: { SVC: openlifter, VERSION: "${VERSION:-dev}" } }
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://grcup_openlifter:dev_openlifter@postgres:5432/grcup_openlifter?sslmode=disable
+
+  gateway:
+    <<: *svc
+    cpus: 2.0
+    mem_limit: 512m  # = límite k8s; ~60-120 KiB por WS proxied
+    build: { context: ../../.., args: { SVC: gateway, VERSION: "${VERSION:-dev}" } }
+    env_file: ["${GRCUP_LOCAL_ENV}/loadtest.env"]  # X-GrCup-Carga para k6 local
+    environment:
+      <<: *env
+      UPSTREAMS: identity,competition,audit,realtime,fans,chat,donaciones,raffle,patrocinio,juegos,athletes,schedule,live,cms,messaging,crm,ai,ticketing,openlifter
+      CORS_ORIGINS: http://127.0.0.1:4200,http://127.0.0.1:4201,http://localhost:4200,http://localhost:4201
+      UPSTREAM_MAX_INFLIGHT: "128"
+    ports:
+      - "127.0.0.1:${GATEWAY_PORT}:8080"
+
+networks:
+  data:
+    external: true
+    name: grcup-data-${COLOR}
+
+volumes:
+  atletas-data:
+    external: true
+    name: grcup-h_atletas-data
+  cmsdata:
+    external: true
+    name: grcup-h_cmsdata

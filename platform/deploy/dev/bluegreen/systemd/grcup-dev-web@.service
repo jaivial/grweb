@@ -1,0 +1,19 @@
+# Servicio de usuario por color (instancia = blue | green). Puerto y datos en ~/grcup-dev/ssr/<color>.env (lo escribe lib.sh).
+# SIGTERM: el SSR deja de aceptar, termina los renders en vuelo y sale antes de TimeoutStopSec.
+[Unit]
+Description=GRS Cup web publica (SSR) %i en jaime-desktop
+After=network.target
+
+[Service]
+EnvironmentFile=%h/grcup-dev/ssr/%i.env
+Environment=NG_ALLOWED_HOSTS=grcup-qa.menustudioai.com NODE_ENV=production HOST=127.0.0.1 PUBLIC_ORIGIN=https://grcup-qa.menustudioai.com API_INTERNAL_URL=http://127.0.0.1:18399
+ExecStart=/usr/local/bin/node %h/grcup-dev/public-dist-%i/server/server.mjs
+KillSignal=SIGTERM
+TimeoutStopSec=25
+Restart=on-failure
+MemoryMax=1G
+IPAddressDeny=any
+IPAddressAllow=127.0.0.0/8
+
+[Install]
+WantedBy=default.target
