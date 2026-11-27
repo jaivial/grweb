@@ -29,15 +29,15 @@ import { ESTADOS_FORMULARIO } from './catalogo';
       @if (lista() === null) { <gr-alert tone="danger" title="No hemos podido cargar los formularios"><button grButton size="s" (click)="cargar()">Reintentar</button></gr-alert> }
       @else if (lista() === undefined) { <gr-skeleton class="h-72 rounded-lg" /> }
       @else if (!lista()!.length) {
-        <gr-empty icon="file-text" title="Aún no hay formularios">Crea uno para recoger datos de atletas o tutores: tallas, autorizaciones, preferencias o documentos.
-          @if (puedeEditar()) { <button grButton variant="primary" class="mt-4" (click)="nueva.set(true)">Nuevo formulario</button> }</gr-empty>
+        <gr-empty icon="file-text" title="Aún no hay formularios"><span class="block">Crea uno para recoger datos de atletas o tutores: tallas, autorizaciones, preferencias o documentos.</span>
+          @if (puedeEditar()) { <span class="mt-4 flex"><button grButton variant="primary" (click)="nueva.set(true)">Nuevo formulario</button></span> }</gr-empty>
       } @else {
         <ul class="divide-y divide-line-subtle rounded-lg border border-line-subtle bg-bg-card">
           @for (f of lista()!; track f.id) {
             <li class="relative flex items-start md:items-center">
               <a [routerLink]="['/', comps.current()?.slug, 'formularios', f.id]" class="flex min-w-0 flex-1 flex-col gap-3 py-4 pl-4 pr-1 hover:bg-bg-raised/60 md:flex-row md:items-center md:gap-5">
                 <span class="hidden size-9 shrink-0 items-center justify-center rounded-md bg-accent-deep/40 text-accent-text md:flex"><gr-icon name="file-text" [size]="16" /></span>
-                <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ f.nombre }}</span><span class="block truncate text-body-xs text-text-tertiary">{{ f.titulo || 'Sin título' }}</span></span>
+                <span class="min-w-0 flex-1"><span class="block truncate text-label-m">{{ f.nombre }}</span>@if (f.titulo && f.titulo !== f.nombre) { <span class="block truncate text-body-xs text-text-tertiary">{{ f.titulo }}</span> }</span>
                 <span class="flex flex-wrap items-center gap-1.5">
                   <gr-badge [tone]="est[f.estado].tone">{{ est[f.estado].l }}</gr-badge>
                   @if (f.soloWeb) { <gr-badge tone="info">Solo web</gr-badge> }

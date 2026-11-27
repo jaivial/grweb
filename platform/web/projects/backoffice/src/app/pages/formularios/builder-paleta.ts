@@ -30,7 +30,7 @@ export const PALETA_ID = 'fz-paleta';
                   class="flex h-[60px] cursor-grab flex-col items-center justify-center gap-1 rounded-md border border-line-subtle bg-bg-raised/40 text-[12px] text-text-secondary transition-colors hover:border-[#7c5cff]/60 hover:text-text-primary focus-visible:outline-2 focus-visible:outline-[#7c5cff] disabled:opacity-40 motion-reduce:transition-none"
                   [attr.aria-label]="'Añadir ' + t.label">
                   <gr-icon [name]="t.icon" [size]="16" class="text-text-tertiary" />
-                  <span class="max-w-full truncate px-1">{{ t.label }}</span>
+                  <span class="line-clamp-2 max-w-full px-1 text-center leading-tight" [attr.title]="t.label">{{ t.label }}</span>
                 </button>
               }
             </div>
