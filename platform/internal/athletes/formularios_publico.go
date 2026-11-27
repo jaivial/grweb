@@ -186,10 +186,16 @@ func (s *Svc) registerFormulariosPublico() {
 
 	// Envío desde el cliente de correo: el formulario incrustado (urlencoded, nombres f_<campoId>). Siempre acaba en 303
 	// hacia la web: ?enviado=1, ?revisar=1 si faltan obligatorios, o sin parámetro si el enlace ya no admite cambios.
-	s.a.Mux.HandleFunc("POST /api/formularios/{token}/email", func(w http.ResponseWriter, req *http.Request) {
+	// Algunos clientes (Gmail, por ejemplo) no hacen POST: abren la acción con GET y los campos en la query, así que
+	// el GET también se acepta; un GET sin campos f_ (abrir el enlace, un escáner) solo lleva a la web.
+	envioEmail := func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		tok := req.PathValue("token")
 		web := s.webURL + "/formularios/" + url.PathEscape(tok)
+		if req.Method == http.MethodGet && !tieneCamposEmail(req.URL.Query()) {
+			http.Redirect(w, req, web, http.StatusSeeOther)
+			return
+		}
 		if perr := s.limitaFormulario(ctx, "email", tok, 20, time.Hour); perr != nil {
 			problem.Write(w, perr)
 			return
@@ -203,7 +209,7 @@ func (s *Svc) registerFormulariosPublico() {
 			http.Redirect(w, req, web, http.StatusSeeOther)
 			return
 		}
-		datos := mezclaEmail(a.Respuesta, formularios.LeerFormEmail(a.Formulario.Esquema, req.PostForm))
+		datos := mezclaEmail(a.Respuesta, formularios.LeerFormEmail(a.Formulario.Esquema, req.Form))
 		// Versión que se leyó al empezar: si la respuesta cambió mientras tanto (web u otra pestaña), no se pisa (M-2).
 		var esperado *time.Time
 		if a.Respuesta != nil {
@@ -224,7 +230,9 @@ func (s *Svc) registerFormulariosPublico() {
 			return
 		}
 		http.Redirect(w, req, web+"?revisar=1", http.StatusSeeOther)
-	})
+	}
+	s.a.Mux.HandleFunc("POST /api/formularios/{token}/email", envioEmail)
+	s.a.Mux.HandleFunc("GET /api/formularios/{token}/email", envioEmail)
 
 	s.a.Mux.HandleFunc("POST /api/formularios/{token}/archivos", func(w http.ResponseWriter, req *http.Request) {
 		o, perr := s.subeArchivoFormulario(w, req)
@@ -763,4 +771,14 @@ func escribeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+// tieneCamposEmail dice si la query trae algún campo del formulario incrustado (f_<campoId>).
+func tieneCamposEmail(q url.Values) bool {
+	for k := range q {
+		if strings.HasPrefix(k, "f_") {
+			return true
+		}
+	}
+	return false
 }

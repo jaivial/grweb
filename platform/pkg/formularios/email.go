@@ -31,9 +31,10 @@ func CompilarEmailHTML(e Esquema, accion, enlace string) string {
 	}
 	var b strings.Builder
 	b.WriteString(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:` + t.fondo + `">` +
-		`<tr><td style="padding:16px">` +
+		// Sin margen lateral y poco relleno: el email ya tiene el suyo, y en el móvil cada píxel de ancho cuenta.
+		`<tr><td style="padding:12px 0">` +
 		`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:` + t.superficie + `;border-radius:` + strconv.Itoa(t.radio) + `px">` +
-		`<tr><td style="padding:24px;font-family:` + t.fuente + `;font-size:16px;color:` + t.texto + `">`)
+		`<tr><td style="padding:16px 12px;font-family:` + t.fuente + `;font-size:16px;color:` + t.texto + `">`)
 	b.WriteString(`<form action="` + esc(accion) + `" method="post" style="margin:0;padding:0">`)
 	if d := strings.TrimSpace(e.Ajustes.Descripcion); d != "" {
 		b.WriteString(`<p style="margin:0 0 ` + strconv.Itoa(t.gap) + `px;font-size:15px;line-height:1.5">` + formato(d) + `</p>`)

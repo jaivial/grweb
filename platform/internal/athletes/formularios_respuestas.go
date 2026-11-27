@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -15,6 +14,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/xuri/excelize/v2"
 
 	"github.com/jaivial/grweb/platform/pkg/auth"
 	"github.com/jaivial/grweb/platform/pkg/db"
@@ -147,8 +147,8 @@ func (s *Svc) registerFormulariosRespuestas() {
 			return &detalleOut{Body: d}, nil
 		})
 
-	// La exportación es un fichero: va como handler plano para servir el CSV con sus cabeceras.
-	s.a.Mux.HandleFunc("GET /api/admin/competiciones/{cid}/formularios/{id}/respuestas.csv", func(w http.ResponseWriter, req *http.Request) {
+	// La exportación es un fichero: va como handler plano para servir el CSV o el Excel con sus cabeceras.
+	exporta := func(w http.ResponseWriter, req *http.Request, xlsx bool) {
 		cid, err := uuid.Parse(req.PathValue("cid"))
 		if err != nil {
 			http.NotFound(w, req)
@@ -168,15 +168,33 @@ func (s *Svc) registerFormulariosRespuestas() {
 			escribeProblema(w, s, err)
 			return
 		}
-		data, err := s.csvRespuestas(req.Context(), cid, f)
+		filas, err := s.filasRespuestas(req.Context(), cid, f)
 		if err != nil {
 			escribeProblema(w, s, err)
 			return
 		}
-		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-		w.Header().Set("Content-Disposition", `attachment; filename="formulario-respuestas.csv"`)
+		tipo, nombre := "text/csv; charset=utf-8", "formulario-respuestas.csv"
+		var data []byte
+		if xlsx {
+			tipo, nombre = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "formulario-respuestas.xlsx"
+			data, err = xlsxRespuestas(filas)
+		} else {
+			data, err = csvRespuestas(filas)
+		}
+		if err != nil {
+			escribeProblema(w, s, err)
+			return
+		}
+		w.Header().Set("Content-Type", tipo)
+		w.Header().Set("Content-Disposition", `attachment; filename="`+nombre+`"`)
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write(data)
+	}
+	s.a.Mux.HandleFunc("GET /api/admin/competiciones/{cid}/formularios/{id}/respuestas.csv", func(w http.ResponseWriter, req *http.Request) {
+		exporta(w, req, false)
+	})
+	s.a.Mux.HandleFunc("GET /api/admin/competiciones/{cid}/formularios/{id}/respuestas.xlsx", func(w http.ResponseWriter, req *http.Request) {
+		exporta(w, req, true)
 	})
 }
 
@@ -256,8 +274,9 @@ func (s *Svc) respuestaDetalle(ctx context.Context, cid, fid, rid uuid.UUID) (Re
 	return d, nil
 }
 
-// csvRespuestas exporta las respuestas: una columna por cada campo que admite respuesta del formulario actual.
-func (s *Svc) csvRespuestas(ctx context.Context, cid uuid.UUID, f Formulario) ([]byte, error) {
+// filasRespuestas son las filas de la exportación (la primera es la cabecera): una fila por atleta que ha respondido y
+// una columna por cada campo que admite respuesta del formulario actual.
+func (s *Svc) filasRespuestas(ctx context.Context, cid uuid.UUID, f Formulario) ([][]string, error) {
 	var campos []formularios.Campo
 	cabecera := []string{"Nombre", "Apellidos", "Club", "Categoría", "Estado", "Porcentaje", "Origen", "Enviado", "Versión"}
 	for _, c := range f.Esquema.Campos {
@@ -273,12 +292,7 @@ func (s *Svc) csvRespuestas(ctx context.Context, cid uuid.UUID, f Formulario) ([
 		return nil, err
 	}
 	defer rows.Close()
-	var buf bytes.Buffer
-	buf.WriteString("\xEF\xBB\xBF") // BOM UTF-8: Excel lee bien las tildes
-	w := csv.NewWriter(&buf)
-	if err := w.Write(cabecera); err != nil {
-		return nil, err
-	}
+	filas := [][]string{cabecera}
 	for rows.Next() {
 		var nombre, apellidos, club, categoria, estado, origen string
 		var porcentaje, version int
@@ -298,12 +312,55 @@ func (s *Svc) csvRespuestas(ctx context.Context, cid uuid.UUID, f Formulario) ([
 		for _, c := range campos {
 			fila = append(fila, valorCSV(c, datos[c.ID]))
 		}
-		if err := w.Write(celdasSeguras(fila)); err != nil {
+		filas = append(filas, fila)
+	}
+	return filas, rows.Err()
+}
+
+// csvRespuestas escribe las filas como CSV (con BOM para que Excel lea bien las tildes).
+func csvRespuestas(filas [][]string) ([]byte, error) {
+	var buf bytes.Buffer
+	buf.WriteString("\xEF\xBB\xBF")
+	w := csv.NewWriter(&buf)
+	for i, fila := range filas {
+		if i > 0 {
+			fila = celdasSeguras(fila)
+		}
+		if err := w.Write(fila); err != nil {
 			return nil, err
 		}
 	}
 	w.Flush()
-	return buf.Bytes(), errors.Join(rows.Err(), w.Error())
+	return buf.Bytes(), w.Error()
+}
+
+// xlsxRespuestas escribe las filas como Excel: una hoja, cabecera en negrita y fija.
+func xlsxRespuestas(filas [][]string) ([]byte, error) {
+	x := excelize.NewFile()
+	defer x.Close()
+	hoja := x.GetSheetName(0)
+	for i, fila := range filas {
+		celda, _ := excelize.CoordinatesToCellName(1, i+1)
+		vals := make([]any, len(fila))
+		for j, v := range fila {
+			vals[j] = v
+		}
+		if err := x.SetSheetRow(hoja, celda, &vals); err != nil {
+			return nil, err
+		}
+	}
+	if len(filas) > 0 {
+		fin, _ := excelize.CoordinatesToCellName(len(filas[0]), 1)
+		if st, err := x.NewStyle(&excelize.Style{Font: &excelize.Font{Bold: true}}); err == nil {
+			_ = x.SetCellStyle(hoja, "A1", fin, st)
+		}
+		_ = x.SetPanes(hoja, &excelize.Panes{Freeze: true, YSplit: 1, TopLeftCell: "A2", ActivePane: "bottomLeft"})
+	}
+	var buf bytes.Buffer
+	if err := x.Write(&buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // valorCSV escribe una respuesta como texto: textos de las opciones, sí/no, números y nombres de archivo.
