@@ -1,5 +1,6 @@
 import { textoError } from '../core/errores';
 import { HttpClient, HttpErrorResponse, HttpEventType } from '@angular/common/http';
+import { sinTimeout } from '@grcup/ui';
 import { ChangeDetectionStrategy, Component, DestroyRef, PLATFORM_ID, computed, effect, inject, signal, untracked } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -504,7 +505,7 @@ export class AreaCompartirPage {
     fd.append('file', f);
     this.fichero.set(f.name);
     this.subida.set(0);
-    this.http.post<PanelStory>(api + '/foto', fd, { reportProgress: true, observe: 'events' }).subscribe({
+    this.http.post<PanelStory>(api + '/foto', fd, { reportProgress: true, observe: 'events', context: sinTimeout() }).subscribe({
       next: async (ev) => {
         if (ev.type === HttpEventType.UploadProgress) this.subida.set(Math.round((100 * ev.loaded) / (ev.total || f.size)));
         if (ev.type !== HttpEventType.Response || !ev.body) return;

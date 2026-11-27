@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, injec
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 import { GrAlert, GrBadge, GrButton, GrEmpty, GrField, GrIcon, GrIconButton, GrInput, GrKpi, GrSelect, GrSkeleton, GrToasts, type GrTone, fmtAgo } from '@grcup/ui';
 import { Auth } from '../core/auth';
 import { Competitions } from '../core/competitions';
@@ -400,7 +401,7 @@ export class VoluntariosPage {
       // private file in cms (not the public media library): it holds a minor's and their guardian's data
       const fd = new FormData();
       fd.append('file', f);
-      await firstValueFrom(this.http.post(`${this.base}/${v.id}/autorizacion`, fd));
+      await firstValueFrom(this.http.post(`${this.base}/${v.id}/autorizacion`, fd, { context: sinTimeout() }));
       this.asig.autorizacionUrl = `${this.base}/${v.id}/autorizacion`;
       this.toasts.success('Autorización subida');
       await this.cargar();
@@ -418,7 +419,7 @@ export class VoluntariosPage {
     if (!v) return;
     const ventana = window.open('', '_blank');
     try {
-      const blob = await firstValueFrom(this.http.get(`${this.base}/${v.id}/autorizacion`, { responseType: 'blob' }));
+      const blob = await firstValueFrom(this.http.get(`${this.base}/${v.id}/autorizacion`, { responseType: 'blob', context: sinTimeout() }));
       const url = URL.createObjectURL(blob);
       if (ventana) ventana.location.href = url; else window.open(url, '_blank');
       setTimeout(() => URL.revokeObjectURL(url), 60_000);

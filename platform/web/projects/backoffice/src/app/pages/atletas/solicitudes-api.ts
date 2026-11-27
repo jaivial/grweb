@@ -1,6 +1,7 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { sinTimeout } from '@grcup/ui';
 
 /** Estado of an «alta de atleta» request (athletes service). */
 export type EstadoSolicitud = 'pendiente' | 'revision' | 'aprobada' | 'rechazada';
@@ -186,7 +187,7 @@ export class SolicitudesApi {
   }
   /** Private photo (the session travels in the header, so it comes as a blob). */
   foto(cid: string, id: string): Promise<Blob> {
-    return firstValueFrom(this.http.get(`${this.base(cid)}/${id}/foto`, { responseType: 'blob' }));
+    return firstValueFrom(this.http.get(`${this.base(cid)}/${id}/foto`, { responseType: 'blob', context: sinTimeout() }));
   }
   marcar(cid: string, id: string, version: number, estado: 'revision'): Promise<SolicitudDetalle> {
     return firstValueFrom(this.http.post<SolicitudDetalle>(`${this.base(cid)}/${id}/estado`, { estado }, { headers: this.cab(version) }));
@@ -204,10 +205,10 @@ export class SolicitudesApi {
   subirAutorizacion(cid: string, id: string, file: File): Promise<unknown> {
     const fd = new FormData();
     fd.append('archivo', file);
-    return firstValueFrom(this.http.post(`${this.base(cid)}/${id}/autorizacion`, fd));
+    return firstValueFrom(this.http.post(`${this.base(cid)}/${id}/autorizacion`, fd, { context: sinTimeout() }));
   }
   autorizacion(cid: string, id: string): Promise<Blob> {
-    return firstValueFrom(this.http.get(`${this.base(cid)}/${id}/autorizacion`, { responseType: 'blob' }));
+    return firstValueFrom(this.http.get(`${this.base(cid)}/${id}/autorizacion`, { responseType: 'blob', context: sinTimeout() }));
   }
   borrar(cid: string, id: string): Promise<void> {
     return firstValueFrom(this.http.delete<void>(`${this.base(cid)}/${id}`));
