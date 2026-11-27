@@ -202,7 +202,7 @@ type AprobarOut struct {
 type FiltrosLista struct {
 	CID    uuid.UUID `path:"cid"`
 	Estado string    `query:"estado" enum:"pendiente,revision,menor,aprobada,rechazada,todas" default:"todas"`
-	Tipo   string    `query:"tipo" enum:"todas,alta,cambio_perfil,autorizacion" default:"todas"`
+	Tipo   string    `query:"tipo" enum:"todas,alta,cambio_perfil,autorizacion,handling" default:"todas"`
 	Match  string    `query:"match" enum:"licencia,email,nombre,manual,ninguna" default:""`
 	Menor  string    `query:"menor" enum:"si,no" default:""`
 	Q      string    `query:"q" maxLength:"80"`
@@ -352,6 +352,8 @@ func (s *Svc) registerAltaAtletaAdmin() {
 				return s.apruebaCambioPerfil(ctx, in.CID, in.ID, in.IfMatch, in.Body.AvisarEmail, in.Body.AvisarWhatsApp, pr.Name)
 			} else if err == nil && pre.Tipo == "autorizacion" {
 				return s.apruebaAutorizacion(ctx, in.CID, in.ID, in.IfMatch, in.Body.AvisarEmail, in.Body.AvisarWhatsApp, pr.Name)
+			} else if err == nil && pre.Tipo == "handling" {
+				return s.apruebaHandling(ctx, in.CID, in.ID, in.IfMatch, in.Body.AvisarEmail, in.Body.AvisarWhatsApp, pr.Name)
 			}
 			return s.apruebaSolicitud(ctx, in.CID, in.ID, in.IfMatch, in.Body.AtletaID, in.Body.Nuevo, cambios,
 				in.Body.AvisarEmail, in.Body.AvisarWhatsApp, pr.Name)
@@ -502,6 +504,8 @@ func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, tipo, match string, menor 
 		where = append(where, "tipo = 'cambio_perfil'")
 	case "autorizacion":
 		where = append(where, "tipo = 'autorizacion'")
+	case "handling":
+		where = append(where, "tipo = 'handling'")
 	}
 	switch estado {
 	case "pendiente":
@@ -983,6 +987,20 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 			cid, id, destino, por); err != nil {
 			return err
 		}
+		// «¿Necesitas handler?» del alta: la solicitud de handling del atleta, en la misma transacción. Si ya la
+		// pidió antes (o se la aprobaron), no se duplica; tras un rechazo sí puede volver a pedirla.
+		if sol.Handler {
+			if h := handlingDe(ctx, tx, cid, *destino); h == nil || h.Estado == "rechazada" {
+				r, err := getRow(ctx, tx, cid, *destino)
+				if err != nil {
+					return err
+				}
+				origen := "Alta de atleta (interruptor «¿Necesitas handler?»)"
+				if _, err := s.creaHandling(ctx, tx, cid, r, origen); err != nil {
+					return err
+				}
+			}
+		}
 		// The contact and its consents (crm).
 		if err := contacto(ctx, tx, cid, s.eventoContactoSolicitud(sol, cons)); err != nil {
 			return err
@@ -1319,6 +1337,16 @@ func (s *Svc) rechazaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm, moti
 				}
 			}
 			archivoRechazado = urlAutorizacion(sol)
+		case "handling":
+			para, tel = contactoActual(ctx, tx, sol)
+			plantilla = "handling-rechazada"
+			vars["urlArea"] = s.webURL + "/area-atleta?vista=handling"
+			waConsentido = sol.MatchAtletaID != nil && waAceptado(ctx, tx, cid, *sol.MatchAtletaID)
+			if sol.MatchAtletaID != nil {
+				if err := hist(ctx, tx, *sol.MatchAtletaID, "Solicitud de handling rechazada", "Motivo: "+motivo); err != nil {
+					return err
+				}
+			}
 		default:
 			vars["urlAlta"] = urlAviso
 		}
