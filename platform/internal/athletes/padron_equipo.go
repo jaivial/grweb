@@ -280,6 +280,9 @@ func (s *Svc) bloqueaYLee(ctx context.Context, tx pgx.Tx, cid, solID uuid.UUID, 
 		return solEmp{}, err
 	}
 	if p.Atleta != nil {
+		if sol.MatchAtletaID == nil || *sol.MatchAtletaID != *p.Atleta {
+			return solEmp{}, problem.Conflict("CONFLICTO_EDICION", "Esa ficha ya no es la de esta solicitud: recarga la ficha antes de contestar.")
+		}
 		if err := s.bloqueaAtleta(ctx, tx, cid, *p.Atleta, p.IfMatch); err != nil {
 			return solEmp{}, err
 		}
@@ -324,6 +327,10 @@ func (s *Svc) descartarPadronAtleta(ctx context.Context, cid, atleta uuid.UUID, 
 	}
 	return s.change(ctx, cid, "athletes.atleta_actualizado", map[string]any{"id": atleta}, func(tx pgx.Tx) error {
 		if err := s.bloqueaAtleta(ctx, tx, cid, atleta, ifm); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE atletas SET version = version + 1, updated_at = now() WHERE competition_id = $1 AND id = $2`,
+			cid, atleta); err != nil {
 			return err
 		}
 		return logEmparejamiento(ctx, tx, cid, nil, &atleta, nil, "descartada", "staff", nil, []byte(`{}`), []byte(`{}`),
