@@ -1528,6 +1528,13 @@ func (s *Svc) matchAtleta(ctx context.Context, cid uuid.UUID, d DatosAlta) (*uui
 			}
 		}
 	}
+	// The same person with another email (a typo in the domain, a second alta): the same phone and the same name say
+	// it is them, and the panel offers the record before anybody approves (never linked alone).
+	if d.Telefono != "" {
+		if id, ok, err := s.atletaPorTelefono(ctx, s.a.DB, cid, personaAtleta{Nombre: d.Nombre, Apellidos: d.Apellidos, Telefono: d.Telefono}); err == nil && ok {
+			return &id, tipoMatchTelefono
+		}
+	}
 	// Name suggestion (never linked automatically).
 	if d.Nombre != "" && d.Apellidos != "" {
 		var id uuid.UUID
@@ -1760,6 +1767,8 @@ func matchTexto(m string) string {
 		return "licencia"
 	case "email":
 		return "email"
+	case tipoMatchTelefono:
+		return "teléfono y nombre"
 	case "nombre":
 		return "sugerida (nombre y fecha de nacimiento)"
 	}

@@ -47,7 +47,7 @@ type ItemSolicitud struct {
 	Edad          *int       `json:"edad,omitempty"`
 	EsMenor       bool       `json:"esMenor"`
 	Autorizacion  bool       `json:"autorizacion"`
-	Match         string     `json:"match"`
+	Match         string     `json:"match" enum:"licencia,email,telefono,nacimiento,nombre,manual," doc:"licencia · email · telefono (mismo teléfono y nombre) · nacimiento (mismo nombre y fecha de nacimiento) · nombre (sugerida) · manual"`
 	AtletaID      *uuid.UUID `json:"atletaId,omitempty"`
 	Estado        string     `json:"estado"`
 	FotoMiniatura string     `json:"fotoMiniatura"`
@@ -205,7 +205,7 @@ type FiltrosLista struct {
 	CID    uuid.UUID `path:"cid"`
 	Estado string    `query:"estado" enum:"pendiente,revision,menor,aprobada,rechazada,todas" default:"todas"`
 	Tipo   string    `query:"tipo" enum:"todas,alta,cambio_perfil,autorizacion,handling" default:"todas"`
-	Match  string    `query:"match" enum:"licencia,email,nombre,manual,ninguna" default:""`
+	Match  string    `query:"match" enum:"licencia,email,telefono,nacimiento,nombre,manual,ninguna" default:""`
 	Menor  string    `query:"menor" enum:"si,no" default:""`
 	Q      string    `query:"q" maxLength:"80"`
 	Pagina int       `query:"pagina" minimum:"1" default:"1"`
@@ -528,6 +528,10 @@ func (s *Svc) filtrosSolicitud(cid uuid.UUID, estado, tipo, match string, menor 
 		where = append(where, "match_tipo = 'licencia'")
 	case "email":
 		where = append(where, "match_tipo = 'email'")
+	case "telefono":
+		where = append(where, "match_tipo = 'telefono'")
+	case "nacimiento":
+		where = append(where, "match_tipo = 'nacimiento'")
 	case "nombre":
 		where = append(where, "match_tipo = 'nombre'")
 	case "manual":
@@ -875,6 +879,11 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		// The athlete: the one the reviewer chose, the one of the match or a new one.
 		destino := atletaID
 		perfilNuevo := false
+		// matchTipo is the rule the link is written with (it goes to the request and names the link in the record of
+		// the athlete): the pre-match of the form, the rule applied on approval, or the team choosing the athlete.
+		matchTipo := sol.MatchTipo
+		// elegido: the reviewer sent an athlete that is not the one the request already proposed.
+		elegido := atletaID != nil && (sol.MatchAtletaID == nil || *atletaID != *sol.MatchAtletaID)
 		if destino == nil && sol.MatchAtletaID != nil && sol.MatchTipo != "nombre" {
 			destino = sol.MatchAtletaID
 		}
@@ -886,11 +895,21 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 				cid, normEmail(sol.Email)).Scan(&existente)
 			if err == nil {
 				destino = &existente
-				if err := hist(ctx, tx, existente, "Solicitud de alta enlazada por email", "El email de la solicitud ya era de este atleta: sin duplicado y sin avisos"); err != nil {
-					return err
-				}
+				matchTipo = "email"
 			} else if !errors.Is(err, pgx.ErrNoRows) {
 				return err
+			}
+		}
+		// The same person with another email (a typo in the domain, a second alta): the phone with the same name, or
+		// the same name and birth date, is this athlete and the request is linked like the email match (no duplicate).
+		if destino == nil {
+			id, tipo, err := s.atletaDuplicado(ctx, tx, cid, personaAtleta{Nombre: sol.Nombre, Apellidos: sol.Apellidos,
+				Telefono: sol.Telefono, Nacimiento: sol.FechaNacimiento})
+			if err != nil {
+				return err
+			}
+			if id != nil {
+				destino, matchTipo = id, tipo
 			}
 		}
 		if destino == nil {
@@ -910,6 +929,12 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 			}
 			if n == 0 {
 				return problem.NotFound("Ese atleta no está en esta competición.")
+			}
+			// Linking to a record that already exists says why in the history of the athlete, whichever rule did it
+			// (the panel always sends the proposed athlete, so the reason cannot hang on which branch set destino).
+			accion, detalle := motivoEnlace(matchTipo, elegido)
+			if err := hist(ctx, tx, *destino, accion, detalle); err != nil {
+				return err
 			}
 		}
 		// An athlete that already had this email keeps their access: approving the request notifies nobody.
@@ -984,9 +1009,9 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		if err := hist(ctx, tx, *destino, "Perfil creado o actualizado desde una solicitud de alta", "revisado por "+por); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE solicitudes_atleta SET estado = 'aprobada', match_atleta_id = $3, foto_clave = '',
+		if _, err := tx.Exec(ctx, `UPDATE solicitudes_atleta SET estado = 'aprobada', match_atleta_id = $3, match_tipo = $5, foto_clave = '',
 			revisado_at = now(), revisado_por = $4, version = version + 1, updated_at = now() WHERE competition_id = $1 AND id = $2`,
-			cid, id, destino, por); err != nil {
+			cid, id, destino, por, matchTipo); err != nil {
 			return err
 		}
 		// «¿Necesitas handler?» del alta: la solicitud de handling del atleta, en la misma transacción. Si ya la

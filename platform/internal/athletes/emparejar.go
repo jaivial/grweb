@@ -83,7 +83,19 @@ type DetalleEmparejamiento struct {
 	NivelAEP      []string        `json:"nivelAep"`
 	NotasIA       []string        `json:"notasIa" doc:"Diferencias que ha visto la IA (orientativas)"`
 	Motivo        string          `json:"motivo"`
+	// Duplicado is the athlete that already has a row of the roll with this name («duplicado»: the record is
+	// probably a second record of the same person).
+	Duplicado *AtletaRef `json:"duplicado,omitempty"`
 }
+
+// AtletaRef names another athlete in a decision (the record a «duplicado» points at), short enough for a panel.
+type AtletaRef struct {
+	ID     uuid.UUID `json:"id"`
+	Nombre string    `json:"nombre"`
+}
+
+// corto is the first block of the identifier, as the panels write it.
+func (a AtletaRef) corto() string { return a.ID.String()[:8] }
 
 type candidato struct {
 	personaIA
@@ -242,6 +254,38 @@ func (s *Svc) candidatosPadron(ctx context.Context, sol solEmp) ([]candidato, er
 	return out, nil
 }
 
+// padronDeOtroAtleta finds a row of the roll with the very same name, sex and year (the year only when the request
+// has a birth date) linked to ANOTHER athlete: the record being matched is probably a duplicate of that one, and
+// «nadie parecido en el padrón» would be a lie. Only the exact normalised name counts: a homonym is another person.
+func (s *Svc) padronDeOtroAtleta(ctx context.Context, sol solEmp) (*AtletaRef, error) {
+	rows, err := s.a.DB.Query(ctx, `SELECT a.id, trim(a.nombre || ' ' || a.apellidos), i.nombre, i.apellidos
+		FROM inscripciones_aep i JOIN atletas a ON a.id = i.atleta_id AND a.competition_id = i.competition_id
+		WHERE i.competition_id = $1 AND i.sexo = $2 AND i.atleta_id IS NOT NULL AND i.estado_enlace <> 'rechazado'
+			AND ($3 = 0 OR i.anio = $3) AND ($4::uuid IS NULL OR i.atleta_id <> $4)
+		ORDER BY i.updated_at DESC`, sol.CompetitionID, sol.Sexo, sol.anio, sol.MatchAtletaID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var ref AtletaRef
+		var nombre, apellidos string
+		if err := rows.Scan(&ref.ID, &ref.Nombre, &nombre, &apellidos); err != nil {
+			return nil, err
+		}
+		if normNombre(nombre) == normNombre(sol.Nombre) && normNombre(apellidos) == normNombre(sol.Apellidos) {
+			return &ref, nil
+		}
+	}
+	return nil, rows.Err()
+}
+
+// motivoDuplicado is the reason of a «duplicado»: who already has that row of the roll.
+func motivoDuplicado(o AtletaRef) string {
+	return fmt.Sprintf("Hay una fila del padrón con este nombre ya enlazada a otro atleta (%s · %s): revisa si es una ficha duplicada.",
+		o.Nombre, o.corto())
+}
+
 // comparar checks, in code, the facts of the chosen roll row against the request.
 func compararPadron(sol solEmp, c candidato, anioComp int) []Discrepancia {
 	d := []Discrepancia{}
@@ -315,9 +359,19 @@ func (s *Svc) emparejar(ctx context.Context, cid, id uuid.UUID, reintentar bool)
 			elegido = &cands[i]
 		}
 	}
+	var duplicado *AtletaRef
 	switch {
 	case len(cands) == 0:
-		origen, det.Motivo = "sin_candidatos", "No hay nadie parecido en el padrón AEP (mismo sexo, año ±1 y nombre parecido)."
+		// Nobody similar is free in the roll, but a row with this very name may already be linked to another
+		// athlete: then the record is probably a duplicate of that one, not a person missing from the roll.
+		if duplicado, err = s.padronDeOtroAtleta(ctx, sol); err != nil {
+			return "", err
+		}
+		if duplicado != nil {
+			origen, det.Motivo, det.Duplicado = "duplicado", motivoDuplicado(*duplicado), duplicado
+		} else {
+			origen, det.Motivo = "sin_candidatos", "No hay nadie parecido en el padrón AEP (mismo sexo, año ±1 y nombre parecido)."
+		}
 	case exactos == 1:
 		origen, confianza = "exacto", 1
 		det.Coincide = map[string]bool{"nombre": true, "apellidos": true, "anio": true, "club": normNombre(sol.Club) == normNombre(elegido.Club)}
@@ -358,7 +412,11 @@ func (s *Svc) emparejar(ctx context.Context, cid, id uuid.UUID, reintentar bool)
 		}
 	}
 	decision := "manual"
-	if elegido != nil {
+	if duplicado != nil {
+		// Nothing is linked (the row belongs to the other athlete) and nothing is approved: the team decides whether
+		// this record is a duplicate of that one.
+		decision = "duplicado"
+	} else if elegido != nil {
 		det.Discrepancias = compararPadron(sol, *elegido, anioComp)
 		// Without the model nothing is approved alone, however good the name looks: the team confirms it.
 		if confianza >= empAuto && len(det.Discrepancias) == 0 && origen != "error_ia" {
@@ -768,6 +826,8 @@ func (s *Svc) leerDetalle(ctx context.Context, e Emparejamiento, conf *float32, 
 			e.Detalle.Motivo = "Confirmado por el equipo: es la misma persona del padrón AEP."
 		case "descartada":
 			e.Detalle.Motivo = "El equipo ha descartado la coincidencia con el padrón."
+		case "duplicado":
+			e.Detalle.Motivo = "Hay una fila del padrón con este nombre enlazada a otra ficha: revisa si es una ficha duplicada."
 		}
 	}
 	if insc != nil {
