@@ -872,11 +872,6 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 		}
 		fotoClave = sol.FotoClave
 		cons := sol.consentMap()
-		// A minor needs the signed authorisation of their guardian.
-		if sol.EsMenor && sol.AutorizacionClave == "" {
-			return problem.Unprocessable("AUTORIZACION_OBLIGATORIA",
-				"Es menor de edad: sube primero la autorización firmada de su madre, padre o tutor.")
-		}
 		// The athlete: the one the reviewer chose, the one of the match or a new one.
 		destino := atletaID
 		perfilNuevo := false
@@ -968,6 +963,17 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 					return err
 				}
 				fotoPublicada = url
+			}
+		}
+		// The guardian's authorisation uploaded with the alta is published as the signed ones of the guardian are and
+		// the profile takes it. If it cannot be published the approval goes on and the guardian is asked (see below).
+		if sol.AutorizacionClave != "" {
+			if datos, err := os.ReadFile(s.fotoPrivada(sol.AutorizacionClave)); err != nil {
+				s.a.Log.Warn("no se ha podido leer la autorización del tutor del alta", "solicitud", id.String(), "err", err)
+			} else if url, err := s.publicaFirmada(ctx, cid, datos); err != nil {
+				s.a.Log.Warn("no se ha podido publicar la autorización del tutor del alta", "solicitud", id.String(), "err", err)
+			} else if _, err := tx.Exec(ctx, `UPDATE perfiles SET autorizacion_url = $2, updated_at = now() WHERE atleta_id = $1`, *destino, url); err != nil {
+				return err
 			}
 		}
 		// A público account with the same email becomes this athlete's account (no second account).
@@ -1072,6 +1078,13 @@ func (s *Svc) apruebaSolicitud(ctx context.Context, cid, id uuid.UUID, ifm strin
 	}
 	// The public list of athletes changed.
 	s.bump(ctx, cid)
+	// A minor approved without the guardian's authorisation (none uploaded, or it could not be published): it is asked
+	// now. Best effort: the approval stands even if the request cannot go out.
+	if r, err := getRow(ctx, s.a.DB, cid, out.Body.AtletaID); err == nil && r.menor(s.compDate(ctx, cid)) && r.AutorizacionURL == "" {
+		if _, err := s.pideAutorizacion(ctx, cid, r.ID, por); err != nil {
+			s.a.Log.Warn("alta aprobada sin pedir la autorización del tutor", "atleta", r.ID.String(), "err", err)
+		}
+	}
 	s.a.Log.Info("solicitud de atleta aprobada", "id", id.String(), "atleta", out.Body.AtletaID.String(), "revisor", por)
 	return out, nil
 }
