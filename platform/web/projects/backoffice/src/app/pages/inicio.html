@@ -180,8 +180,8 @@
       <!-- Actividad en directo -->
       <gr-card title="Actividad en directo" subtitle="Eventos de la competición en tiempo real">
         <span cardActions class="inline-flex h-7 items-center gap-1.5 rounded-pill border px-2.5 text-label-s"
-          [class]="live.connected() ? 'border-success/40 bg-success/10 text-success' : 'border-line-strong text-text-tertiary'">
-          <gr-icon [name]="live.connected() ? 'radio' : 'wifi-off'" [size]="14" />{{ live.connected() ? 'En directo' : 'Reconectando' }}
+          [class]="directo() ? 'border-success/40 bg-success/10 text-success' : 'border-line-strong text-text-tertiary'">
+          <gr-icon [name]="directo() ? 'radio' : 'wifi-off'" [size]="14" />{{ directo() ? 'En directo' : 'Reconectando' }}
         </span>
         <ul class="flex flex-col">
           @if (actividad() === null) { @for (i of [1, 2, 3, 4]; track i) { <gr-skeleton class="my-2 h-12" /> } }
