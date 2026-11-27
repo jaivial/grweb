@@ -12,7 +12,7 @@ set -uo pipefail
 comp=$1; shift
 echo "--- réplicas (Deployment: spec/ready · anotado al apagar)"
 for ns in "$@"; do
-  sudo k3s kubectl -n "$ns" get deploy -o json 2>/dev/null | jq -r --arg ns "$ns" '.items[] | "\($ns) \(.metadata.name) \(.spec.replicas // 0)/\(.status.readyReplicas // 0) \(.metadata.annotations["grcup.dev/replicas-antes"] // "-")"' | column -t
+  sudo k3s kubectl -n "$ns" get deploy -o json 2>/dev/null | jq -r --arg ns "$ns" '.items[] | "\($ns) \(.metadata.name) \(.spec.replicas // 0)/\(.status.readyReplicas // 0) \(.metadata.annotations["grcup.dev/replicas-antes"] // "-")"' | column -t 2>/dev/null || true
 done
 echo "--- capa compartida ($comp): destino de identity, gateway, messaging"
 for s in identity gateway messaging; do

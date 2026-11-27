@@ -51,7 +51,7 @@ colores_bloquear() {
   rm -f "$f"
   mkfifo "$f"
   exec 8<>"$f"
-  ssh -o BatchMode=yes "$KRAKEN" "flock -n /run/grcup-colores-$ENTORNO.lock -c 'read -r _'" <&8 &
+  ssh -o BatchMode=yes "$KRAKEN" "flock -n \$HOME/.grcup-colores-$ENTORNO.lock -c 'read -r _'" <&8 &
   sleep 3
   kill -0 $! 2>/dev/null || die "otro despliegue o rollback de $ENTORNO está en marcha (lock en kraken)"
 }
