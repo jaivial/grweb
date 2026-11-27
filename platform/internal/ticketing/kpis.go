@@ -22,8 +22,13 @@ func (s *Svc) registerKPIs() {
 			}
 			return kpiwin.Compute(ctx, in.Periodo, func(ctx context.Context, desde, hasta time.Time) (map[string]int64, error) {
 				var v [3]int64
-				err := s.a.DB.QueryRow(ctx, `SELECT count(*), COALESCE(sum(personas), 0), COALESCE(sum(dentro), 0) FROM entradas
-					WHERE competition_id = $1 AND estado <> 'anulada' AND created_at >= $2 AND created_at < $3`, in.CID, desde, hasta).Scan(&v[0], &v[1], &v[2])
+				err := s.a.DB.QueryRow(ctx, `SELECT count(*), COALESCE(sum(personas), 0) FROM entradas
+					WHERE competition_id = $1 AND estado <> 'anulada' AND created_at >= $2 AND created_at < $3`, in.CID, desde, hasta).Scan(&v[0], &v[1])
+				if err != nil {
+					return nil, err
+				}
+				err = s.a.DB.QueryRow(ctx, `SELECT COALESCE(sum(es.dentro), 0) FROM entrada_sesiones es JOIN entradas e ON e.id = es.entrada_id
+					WHERE e.competition_id = $1 AND e.estado <> 'anulada' AND e.created_at >= $2 AND e.created_at < $3`, in.CID, desde, hasta).Scan(&v[2])
 				return map[string]int64{"entradas.reservas": v[0], "entradas.personas": v[1], "entradas.dentro": v[2]}, err
 			})
 		})

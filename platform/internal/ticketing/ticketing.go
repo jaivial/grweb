@@ -233,7 +233,8 @@ func contacto(ctx context.Context, tx pgx.Tx, cid uuid.UUID, data map[string]any
 // aforoEvento announces the use of a session (public: no personal data) and refreshes the public cache.
 func (s *Svc) aforoEvento(ctx context.Context, tx pgx.Tx, cid, sesion uuid.UUID) error {
 	var usado, total int
-	if err := tx.QueryRow(ctx, `SELECT aforo, (SELECT COALESCE(sum(personas), 0) FROM entradas WHERE (sesion_id = $1 OR sesion2_id = $1) AND estado <> 'anulada')::int FROM sesiones WHERE id = $1`, sesion).Scan(&total, &usado); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT s.aforo, (SELECT COALESCE(sum(e.personas), 0) FROM entrada_sesiones es JOIN entradas e ON e.id = es.entrada_id
+		WHERE es.sesion_id = s.id AND e.estado <> 'anulada')::int FROM sesiones s WHERE s.id = $1`, sesion).Scan(&total, &usado); err != nil {
 		return err
 	}
 	return events.Enqueue(ctx, tx, events.New(ctx, "aforo.actualizado", map[string]any{"sesionId": sesion, "usado": usado, "total": total},
@@ -242,19 +243,61 @@ func (s *Svc) aforoEvento(ctx context.Context, tx pgx.Tx, cid, sesion uuid.UUID)
 
 // ---- formatting ----
 
-// dosDias presents a «both days» ticket as one span named like the web: «Sáb 19 y Dom 20 dic» (BIZ-163), from the first doors to the last end.
-func dosDias(x, y sesionRow) sesionRow {
-	a, b := x.Inicio.In(madrid), y.Inicio.In(madrid)
-	corto := func(t time.Time) string {
+// sesionesDeEntrada loads the days of a ticket, in order (one row per day: a ticket can cover several).
+func sesionesDeEntrada(ctx context.Context, q interface {
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+}, id uuid.UUID) ([]sesionRow, error) {
+	rows, err := q.Query(ctx, selSesion+` JOIN entrada_sesiones es ON es.sesion_id = s.id WHERE es.entrada_id = $1 ORDER BY s.inicio`, id)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, scanSesion)
+}
+
+// variosDias presents the days of one ticket as one span named like the web: «Sáb 19 y Dom 20 dic»,
+// «Vie 18, Sáb 19 y Dom 20 dic» (BIZ-163), from the first doors to the last end.
+func variosDias(xs []sesionRow) sesionRow {
+	if len(xs) == 0 {
+		return sesionRow{}
+	}
+	x := xs[0]
+	if len(xs) > 1 {
+		x.Nombre, x.Fin = fechasCortas(xs), xs[len(xs)-1].Fin
+	}
+	return x
+}
+
+// fechasCortas: «Sáb 19 y Dom 20 dic»; the month once when every day shares it.
+func fechasCortas(xs []sesionRow) string {
+	mes := func(x sesionRow) int { return int(x.Inicio.In(madrid).Month()) }
+	dia := func(t time.Time) string {
+		t = t.In(madrid)
 		d := diasSemana[t.Weekday()]
 		return strings.ToUpper(d[:1]) + string([]rune(d)[1:3]) + " " + t.Format("2")
 	}
-	x.Nombre = corto(a) + " y " + corto(b) + " " + meses[b.Month()]
-	if a.Month() != b.Month() {
-		x.Nombre = corto(a) + " " + meses[a.Month()] + " y " + corto(b) + " " + meses[b.Month()]
+	uno := true
+	for _, x := range xs[1:] {
+		uno = uno && mes(x) == mes(xs[0])
 	}
-	x.Fin1, x.Fin = x.Fin, y.Fin
-	return x
+	ps := make([]string, len(xs))
+	for i, x := range xs {
+		ps[i] = dia(x.Inicio)
+		if !uno {
+			ps[i] += " " + meses[mes(x)]
+		}
+	}
+	out := ps[0]
+	for i := 1; i < len(ps); i++ {
+		if i == len(ps)-1 {
+			out += " y " + ps[i]
+		} else {
+			out += ", " + ps[i]
+		}
+	}
+	if uno {
+		out += " " + meses[mes(xs[0])]
+	}
+	return out
 }
 
 var madrid = func() *time.Location {
