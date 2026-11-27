@@ -131,8 +131,10 @@ export class StoryMovil {
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `dialog::backdrop{background:rgb(0 0 0/.85)} .damero{background:repeating-conic-gradient(#3a3a3e 0 25%,#2a2a2e 0 50%) 0 0/12px 12px}`,
   template: `
-    <!-- native <dialog>: Esc and the focus trap come for free; a click on the backdrop closes it -->
-    <dialog #dlg class="relative m-auto max-h-[94dvh] max-w-[94vw] rounded-lg border border-line-subtle bg-bg-card p-2 text-text-primary" [attr.aria-label]="titulo()"
+    <!-- native <dialog>: Esc and the focus trap come for free; a click on the backdrop closes it. No positional class
+         here: a modal dialog is already pinned to the viewport by the browser, and a position:relative would make it
+         scroll with the page, taking the × off screen. -->
+    <dialog #dlg class="m-auto max-h-[94dvh] max-w-[94vw] rounded-lg border border-line-subtle bg-bg-card p-2 text-text-primary" [attr.aria-label]="titulo()"
       (cancel)="$event.preventDefault(); cerrarDialogo()" (click)="cerrarDialogo()">
       <div class="mb-2 flex justify-end">
         <button type="button" class="-my-0.5 flex size-9 items-center justify-center rounded-xs text-text-tertiary hover:text-text-primary" [attr.aria-label]="cerrarTxt()" (click)="cerrarDialogo()"><gr-icon name="x" [size]="20" /></button>
