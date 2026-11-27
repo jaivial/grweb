@@ -68,20 +68,22 @@ colores_memoria() {
   log "kraken: ${disp} GB disponibles"
 }
 
-# Sube deploy/k8s a kraken y aplica un overlay con el TAG de la versión.
-colores_aplicar() { # <overlay relativo a deploy/k8s> <versión>
-  local overlay=$1 version=$2
+# Sube deploy/k8s a kraken y aplica un overlay con el TAG de la versión. Con namespace: borra antes sus Jobs (son
+# inmutables; los seeds se vuelven a ejecutar, son idempotentes).
+colores_aplicar() { # <overlay relativo a deploy/k8s> <versión> [namespace]
+  local overlay=$1 version=$2 ns=${3:-}
   tar -C deploy/k8s -cf - . | ssh "$KRAKEN" "set -e
 tmp=\$(mktemp -d /tmp/grcup-colores.XXXXXX)
 tar -C \$tmp -xf -
 find \$tmp/colores -name kustomization.yaml -exec sed -i 's/newTag: TAG/newTag: \"$version\"/' {} +
+[ -z \"$ns\" ] || sudo k3s kubectl -n $ns delete job -l app.kubernetes.io/part-of=grcup --ignore-not-found >/dev/null
 sudo k3s kubectl apply -k \$tmp/$overlay >/dev/null
 rm -rf \$tmp"
   log "aplicado $overlay (versión $version)"
 }
 
 colores_compartido() { # <versión>: capa compartida (grcup-qa) y su Postgres listo
-  colores_aplicar colores/qa/compartido "$1"
+  colores_aplicar colores/qa/compartido "$1" "$NS_COMP"
   ssh "$KRAKEN" "sudo k3s kubectl -n $NS_COMP rollout status statefulset/postgres --timeout=180s >/dev/null"
 }
 

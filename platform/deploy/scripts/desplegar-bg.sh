@@ -28,7 +28,7 @@ mapfile -t IMAGENES < <(construir_imagenes "$VERSION" $KUST_IMAGENES)
 importar_imagenes "${IMAGENES[@]}"
 
 colores_compartido "$VERSION"
-colores_aplicar "colores/qa/$IDLE" "$VERSION"
+colores_aplicar "colores/qa/$IDLE" "$VERSION" "${NS[$IDLE]}"
 colores_secretos "${NS[$IDLE]}"
 colores_encender "$IDLE"
 colores_esperar "${NS[$IDLE]}"

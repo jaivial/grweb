@@ -34,7 +34,7 @@ log "2/6 capa compartida"
 colores_compartido "$VERSION"
 
 log "3/6 color blue en ${NS[blue]} (sus Services con las IPs 10.43.238.x)"
-colores_aplicar colores/qa/blue "$VERSION"
+colores_aplicar colores/qa/blue "$VERSION" "${NS[blue]}"
 colores_secretos "${NS[blue]}"
 colores_encender blue
 colores_esperar "${NS[blue]}"
