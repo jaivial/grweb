@@ -10,9 +10,7 @@ import { I18n, type Lang } from './i18n';
 
 const T = {
   es: {
-    leyendo: (dia: string) => `Estás viendo el chat del ${dia} (solo lectura)`,
     unido: 'Te has unido al chat · Sé respetuoso con atletas y público',
-    cerrado: 'Este día ya está cerrado: solo se puede leer.',
     tu: 'Tú',
     noEnviado: 'No se ha podido enviar.',
     borrado: 'Mensaje eliminado por moderación',
@@ -22,9 +20,7 @@ const T = {
     anonimo: 'Anónimo',
   },
   en: {
-    leyendo: (dia: string) => `You are viewing the chat for ${dia} (read-only)`,
     unido: 'You have joined the chat · Be respectful to athletes and spectators',
-    cerrado: 'This day is closed: read-only.',
     tu: 'You',
     noEnviado: 'Could not send.',
     borrado: 'Message removed by moderation',
@@ -165,14 +161,24 @@ export interface ChatHistorial {
 
 /** Maximum number of items kept in memory. */
 const MAX_ITEMS = 300;
+/** Messages per history page (`GET /chat/mensajes?todos=1`). */
+const LOTE_HISTORIAL = 50;
 /** Maximum length of a message (runas, like the backend). */
 export const MAX_TEXTO = 280;
 
-const hoyMadrid = (): string => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(new Date());
+/** Day (Europe/Madrid, YYYY-MM-DD) of an instant: the day separators of the list come from it. */
+export function diaDeFecha(ms: number): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(new Date(ms));
+}
 
 /** Day of the room in Europe/Madrid (the backend's `hoy()`). */
 export function diaDeHoy(): string {
-  return hoyMadrid();
+  return diaDeFecha(Date.now());
+}
+
+/** The day before `dia` (YYYY-MM-DD). */
+export function diaAnterior(dia: string): string {
+  return new Date(Date.parse(dia + 'T12:00:00Z') - 86400000).toISOString().slice(0, 10);
 }
 
 /** ws:// or wss:// from the current location (the browser only). */
@@ -227,14 +233,14 @@ export class ChatService {
   readonly chatEnabled = signal(true);
   /** Seconds between messages in slow mode (0 = off). */
   readonly modoLentoSeg = signal(0);
-  /** Day of the room being shown. */
+  /** Day of the room being shown (today: it moves at midnight, Europe/Madrid). */
   readonly dia = signal<string>(diaDeHoy());
-  /** True when the day shown is not today: history only, no sending. */
-  readonly soloLectura = computed(() => this.dia() !== diaDeHoy());
-  /** Phase of the live (set by /en-directo): once it has finished, today's room is read-only too. */
+  /** Today (Europe/Madrid) as the page sees it: the day separators of the list are relative to it. */
+  readonly hoy = signal<string>(diaDeHoy());
+  /** Phase of the live (set by /en-directo): once it has finished the room is read-only. */
   readonly fase = signal<'antes' | 'en_directo' | 'finalizado'>('en_directo');
-  /** No sending: a past day, or today after the live (before it the room is open: BIZ-203). */
-  readonly cerrado = computed(() => this.soloLectura() || this.fase() === 'finalizado');
+  /** No sending: after the live (before it the room is open: BIZ-203). */
+  readonly cerrado = computed(() => this.fase() === 'finalizado');
   /** Last error when sending (the backend's detail). */
   readonly errorEnvio = signal<string | null>(null);
   /** Notice about the moderation (silence) received from the server. */
@@ -256,14 +262,24 @@ export class ChatService {
   private erroresSse = 0;
   private ultimoId = '';
   private vivo = false;
+  private vigilante: ReturnType<typeof setInterval> | undefined;
+  /** Bumped on every (re)open: the history pages still in flight of the earlier room are dropped. */
+  private generacion = 0;
+  /** Stream id of the oldest message loaded: the cursor of the older pages. */
+  private cursor = '';
+  private sinMas = false;
+  private cargandoAnteriores = false;
 
-  /** Opens (or reopens) the room of a day. Browser only. */
-  conectar(dia?: string): void {
-    if (!this.browser) return;
-    const d = dia ?? this.dia();
-    if (this.vivo && this.dia() === d) return;
+  /** Opens (or reopens) the live room of today. Browser only. */
+  conectar(): void {
+    if (!this.browser || this.vivo) return;
+    const d = diaDeHoy();
     this.dia.set(d);
+    this.hoy.set(d);
+    this.generacion++;
     this.ultimoId = '';
+    this.cursor = '';
+    this.sinMas = false;
     this.items.set([]);
     this.errorEnvio.set(null);
     this.aviso.set(null);
@@ -271,24 +287,18 @@ export class ChatService {
     this.intentosWs = 0;
     this.erroresSse = 0;
     void this.cargarEstadoSala();
-    // El historial de la sala (los últimos mensajes): el socket solo trae lo que pasa desde que te conectas.
-    void this.cargarHistorial(d);
+    // El historial de la sala (los últimos mensajes de todas las jornadas): el socket solo trae lo que pasa desde que te conectas.
+    void this.cargarHistorial();
     this.anadir([
       {
         kind: 'sistema',
         id: 'hola-' + d,
-        texto: this.soloLectura() ? this.t().leyendo(etiquetaDia(d, this.i18n.lang())) : this.t().unido,
+        texto: this.t().unido,
         ts: Date.now(),
       },
     ]);
-    if (this.soloLectura()) {
-      // Un día pasado es solo historial: ni socket ni envío.
-      this.pararWs();
-      this.pararSse();
-      this.estado.set('sin-conexion');
-      return;
-    }
     this.abrirWs();
+    this.vigilarDia();
   }
 
   /** Closes the connection (the page leaves the live). */
@@ -299,15 +309,17 @@ export class ChatService {
     clearTimeout(this.temporizador);
     clearInterval(this.ping);
     clearInterval(this.cuentaAtras);
+    clearInterval(this.vigilante);
     this.estado.set('sin-conexion');
   }
 
-  /** History of a day (`GET /chat/mensajes`): the backend answers newest first. */
-  async cargarHistorial(dia: string): Promise<void> {
+  /** Latest messages of every day (`GET /chat/mensajes?todos=1`): the backend answers newest first. */
+  async cargarHistorial(): Promise<void> {
+    const generacion = this.generacion;
     try {
-      const r = await firstValueFrom(this.http.get<ChatHistorial>(`${this.base}/mensajes`, { params: { dia, limite: 50 } }));
-      const items = (r?.mensajes ?? []).slice().reverse().map((f) => this.aItem(f)).filter((i): i is ChatItem => !!i);
-      this.anadir(items);
+      const r = await firstValueFrom(this.http.get<ChatHistorial>(`${this.base}/mensajes`, { params: { todos: 1, limite: LOTE_HISTORIAL } }));
+      if (generacion !== this.generacion) return;
+      this.anteponer(r?.mensajes ?? []);
       const ultimo = this.items()
         .filter((i): i is ChatMsg => i.kind === 'msg' && !i.id.startsWith('local-'))
         .map((i) => i.id)
@@ -316,6 +328,52 @@ export class ChatService {
     } catch {
       /* the panel shows the error state */
     }
+  }
+
+  /** Older messages, from any day, before the first one shown (scroll up). Returns how many were added. */
+  async cargarAnteriores(): Promise<number> {
+    if (!this.cursor || this.sinMas || this.cargandoAnteriores) return 0;
+    const generacion = this.generacion;
+    this.cargandoAnteriores = true;
+    try {
+      const r = await firstValueFrom(this.http.get<ChatHistorial>(`${this.base}/mensajes`, { params: { todos: 1, antes: this.cursor, limite: LOTE_HISTORIAL } }));
+      if (generacion !== this.generacion) return 0;
+      return this.anteponer(r?.mensajes ?? []);
+    } catch {
+      return 0;
+    } finally {
+      this.cargandoAnteriores = false;
+    }
+  }
+
+  /** Adds a history page before the list (newest first from the backend). Returns how many items were added. */
+  private anteponer(frames: ChatFrame[]): number {
+    this.sinMas = frames.length < LOTE_HISTORIAL;
+    if (frames.length) this.cursor = frames[frames.length - 1].id ?? this.cursor;
+    const viejos = frames
+      .slice()
+      .reverse()
+      .map((f) => this.aItem(f))
+      .filter((i): i is ChatItem => !!i);
+    if (!viejos.length) return 0;
+    this.items.update((l) => this.dedup([...viejos, ...l]));
+    return viejos.length;
+  }
+
+  /**
+   * Midnight (Europe/Madrid) while the page is open: the live connection moves to the room of the new day and the
+   * list stays as it is (the separators of the days tell them apart). No reload.
+   */
+  private vigilarDia(): void {
+    clearInterval(this.vigilante);
+    this.vigilante = setInterval(() => {
+      const d = diaDeHoy();
+      if (d === this.dia()) return;
+      this.dia.set(d);
+      this.hoy.set(d);
+      this.ultimoId = '';
+      this.abrirWs();
+    }, 30000);
   }
 
   /** Public state of the room (`GET /chat/estado`). */
@@ -343,10 +401,6 @@ export class ChatService {
   async enviar(texto: string): Promise<boolean> {
     const limpio = texto.trim();
     if (!limpio) return false;
-    if (this.soloLectura()) {
-      this.errorEnvio.set(this.t().cerrado);
-      return false;
-    }
     if (!this.fan.conSesion()) {
       this.fan.abrirAcceso('chat');
       return false;

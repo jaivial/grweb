@@ -65,7 +65,7 @@ export interface ResumenFantasy {
 }
 
 /** «sáb 21 nov». */
-const diaCorto = (d: string, locale = 'es-ES') => (d ? new Date(d + 'T12:00:00').toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).replace(/\./g, '').replace(',', '') : '');
+export const diaCorto = (d: string, locale = 'es-ES') => (d ? new Date(d + 'T12:00:00').toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).replace(/\./g, '').replace(',', '') : '');
 const num = (n: number, sep = '.') => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, sep);
 const cuotaTxt = (c?: number) => (c ? '×' + c.toFixed(2).replace('.', ',') : '—');
 
