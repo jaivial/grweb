@@ -50,6 +50,10 @@ func (s *Svc) registerRGPD() {
 					return err
 				}
 				o.Body.Envios = int(tag.RowsAffected())
+				// The provider's answer of a try may quote the address (an SMTP 550): the log goes with it.
+				if _, err := tx.Exec(ctx, `UPDATE mensaje_intentos SET tecnico = '' WHERE mensaje_id IN (SELECT id FROM mensajes WHERE competition_id = $1 AND destino = ANY($2))`, in.CID, dests); err != nil {
+					return err
+				}
 				_, err = tx.Exec(ctx, `UPDATE mensajes SET destino = 'suprimido@rgpd.invalid', vars = '{}', updated_at = now() WHERE competition_id = $1 AND destino = ANY($2)`, in.CID, dests)
 				return err
 			})
