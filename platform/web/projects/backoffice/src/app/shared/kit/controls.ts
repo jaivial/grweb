@@ -10,7 +10,7 @@ import { GrIcon } from '@grcup/ui';
   template: `
     <label class="group inline-flex min-h-11 cursor-pointer items-center gap-3 text-body-s text-text-secondary has-disabled:cursor-not-allowed md:min-h-0">
       <input type="checkbox" class="peer sr-only" [checked]="value() === true" [indeterminate]="value() === 'mixed'" [disabled]="disabled()"
-        [attr.aria-invalid]="error() || null" [attr.aria-label]="label() ? null : aria()" (change)="toggle()" />
+        [attr.aria-invalid]="error() || null" [attr.aria-label]="label() ? null : aria()" [attr.aria-describedby]="describedBy()" (change)="toggle()" />
       <span class="flex size-[18px] shrink-0 items-center justify-center rounded-2xs border transition-colors peer-focus-visible:shadow-[0_0_0_2px_rgb(230_96_107/0.9)] motion-reduce:transition-none"
         [class]="box()">
         @if (value() === true) { <gr-icon name="check" [size]="12" [stroke]="3" class="text-white" /> }
@@ -26,6 +26,8 @@ export class BoCheckbox {
   readonly aria = input('Seleccionar');
   readonly disabled = input(false);
   readonly error = input(false);
+  /** Id of the element that explains the checkbox (aria-describedby), e.g. why it is disabled. */
+  readonly describedBy = input<string | null>(null);
   protected readonly box = computed(() => {
     const on = this.value() !== false;
     const base = this.error() ? (on ? 'border-error bg-accent' : 'border-2 border-error bg-bg-field') : on ? 'border-accent bg-accent' : 'border-line-strong bg-bg-field group-hover:border-line-hover';

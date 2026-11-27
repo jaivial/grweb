@@ -61,7 +61,7 @@ function hexValido(texto: string): string | null {
               <label class="flex flex-col gap-1.5">
                 <span class="text-label-s">{{ c.l }}</span>
                 <span class="flex h-10 items-center gap-2 rounded-sm border border-line-strong bg-bg-field px-2">
-                  <span class="relative size-6 shrink-0 overflow-hidden rounded-xs border border-line-strong" [style.background-color]="b.esquema.ajustes.tema[c.k]">
+                  <span class="relative size-6 shrink-0 overflow-hidden rounded-xs border border-line-strong has-[:focus-visible]:shadow-[0_0_0_2px_rgb(230_96_107/0.9)]" [style.background-color]="b.esquema.ajustes.tema[c.k]">
                     <input type="color" class="absolute inset-0 size-full cursor-pointer opacity-0" [value]="hexSeguro(b.esquema.ajustes.tema[c.k])" (input)="colorTema(c.k, $any($event.target).value)" [attr.aria-label]="'Selector de color: ' + c.l" />
                   </span>
                   <input type="text" class="min-w-0 flex-1 bg-transparent font-mono text-[13px] text-text-primary outline-none" maxlength="7" spellcheck="false" autocomplete="off"

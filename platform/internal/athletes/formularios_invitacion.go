@@ -95,7 +95,7 @@ func (s *Svc) registerFormulariosPrevia() {
 		Body struct {
 			Esquema  formularios.Esquema `json:"esquema"`
 			Email    FormularioEmail     `json:"email"`
-			WhatsApp FormularioWhatsApp  `json:"whatsapp"`
+			WhatsApp FormularioWhatsApp  `json:"whatsapp,omitempty"`
 		}
 	}
 	type previsualizarOut struct {

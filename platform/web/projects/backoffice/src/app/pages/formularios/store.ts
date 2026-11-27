@@ -95,17 +95,18 @@ export class FormularioStore {
     this.mutar((b) => ({ ...b, whatsapp: { texto } }), clave);
   }
 
-  /** Adds a new field of `tipo` at `indice` (default: after the selection, or at the end). Selects it; returns its id. */
+  /** Adds a new field of `tipo` at `indice` (default: after the selection, or at the end). Selects it; returns its id, or '' when there is no draft. */
   anadir(tipo: TipoCampo, indice?: number): string {
     const campo = campoNuevo(tipo);
     // The position is computed from the draft being changed (not from a snapshot read before it): rapid successive adds
     // each land after the previous one, none overwrites another.
-    this.mutar((b) => {
+    const insertado = this.mutar((b) => {
       const campos = b.esquema.campos;
       const sel = indiceDe(campos, this.seleccion());
       const destino = indice ?? (sel >= 0 ? sel + 1 : campos.length);
       return { ...b, esquema: { ...b.esquema, campos: insertar(campos, campo, destino) } };
     });
+    if (!insertado) return '';
     this.seleccion.set(campo.id);
     return campo.id;
   }
@@ -188,9 +189,9 @@ export class FormularioStore {
   }
 
   /** Applies a change: one history step per call, except successive calls with the same `clave` within the window. */
-  private mutar(fn: (b: Borrador) => Borrador, clave: string | null = null): void {
+  private mutar(fn: (b: Borrador) => Borrador, clave: string | null = null): boolean {
     const actual = this.draft();
-    if (!actual) return;
+    if (!actual) return false;
     const siguiente = fn(structuredClone(actual));
     const ahora = Date.now();
     const agrupa = clave !== null && clave === this.claveActual && ahora - this.ultimoCambio < VENTANA_MS;
@@ -202,6 +203,7 @@ export class FormularioStore {
     this.ultimoCambio = ahora;
     this.fijarDraft(siguiente);
     if (!agrupa) this.ajustarSeleccion();
+    return true;
   }
 
   /** The only place that replaces the draft: every replacement moves the revision. */

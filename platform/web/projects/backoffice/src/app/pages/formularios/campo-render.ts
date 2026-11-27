@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, input, output, viewChildren } from '@angular/core';
 import { GrIcon } from '@grcup/ui';
 import type { Campo } from './api';
 import { textoHtml } from './texto';
@@ -93,7 +93,8 @@ const ALINEA: Record<string, string> = { izquierda: 'left', centro: 'center', de
                     <div class="absolute left-3 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-[var(--f-acento)]" [style.width]="'calc((100% - 24px) * ' + fraccion(indiceDeslizador()) + ')'"></div>
                   }
                   @for (o of paradas(); track o.id; let i = $index) {
-                    <button type="button" role="radio" [attr.aria-checked]="valor() === o.id" [attr.aria-label]="o.texto" [title]="o.texto" (click)="valorCambia.emit(o.id)"
+                    <button #parada type="button" role="radio" [attr.aria-checked]="valor() === o.id" [attr.aria-label]="o.texto" [title]="o.texto" (click)="valorCambia.emit(o.id)"
+                      [attr.tabindex]="paradaEnFoco(i) ? 0 : -1" (keydown)="teclaDeslizador($event, i)"
                       class="absolute top-1/2 flex size-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-[var(--f-acento)]" [style.left]="posicion(i)">
                       <span class="size-2.5 rounded-full" [class]="i <= indiceDeslizador() && indiceDeslizador() >= 0 ? 'bg-white' : 'bg-[color-mix(in_srgb,var(--f-texto)_35%,transparent)]'"></span>
                     </button>
@@ -170,6 +171,7 @@ export class BoCampoRender {
   protected readonly alineacion = computed(() => ALINEA[this.campo().estilo?.alinear] ?? 'left');
   /** Deslizador: its stops are the options, left to right. */
   protected readonly paradas = computed(() => this.campo().opciones ?? []);
+  protected readonly paradasRef = viewChildren<ElementRef<HTMLButtonElement>>('parada');
   protected readonly indiceDeslizador = computed(() => this.paradas().findIndex((o) => o.id === this.valor()));
   protected readonly textoDeslizador = computed(() => {
     const i = this.indiceDeslizador();
@@ -200,6 +202,30 @@ export class BoCampoRender {
 
   protected numero(v: unknown): number {
     return Number(v ?? 0);
+  }
+
+  /** Roving tabindex: the selected stop is the tab stop (the first one when nothing is selected). */
+  protected paradaEnFoco(i: number): boolean {
+    const sel = this.indiceDeslizador();
+    return sel >= 0 ? sel === i : i === 0;
+  }
+
+  /** Radio-group keys: arrows (or Home/End) move the selection and the focus one stop. */
+  protected teclaDeslizador(ev: KeyboardEvent, i: number): void {
+    const n = this.paradas().length;
+    let j: number;
+    switch (ev.key) {
+      case 'ArrowRight':
+      case 'ArrowDown': j = Math.min(n - 1, i + 1); break;
+      case 'ArrowLeft':
+      case 'ArrowUp': j = Math.max(0, i - 1); break;
+      case 'Home': j = 0; break;
+      case 'End': j = n - 1; break;
+      default: return;
+    }
+    ev.preventDefault();
+    this.valorCambia.emit(this.paradas()[j].id);
+    this.paradasRef()[j]?.nativeElement.focus();
   }
 
   /** Share of the track (0 = first stop, 1 = last) where stop `i` sits. */

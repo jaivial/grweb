@@ -26,6 +26,9 @@ const DEBOUNCE_MS = 300;
 const COLA_RITMO = 'Los mensajes entran en la Cola de envío y salen al ritmo anti-spam: WhatsApp 1 cada 30–60 s, 40/h, 150/día, nunca de 22:00 a 09:00.';
 const hora = (iso: string): string => (iso ? new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '');
 const nombreDe = (a: { nombre: string; apellidos: string }): string => `${a.nombre} ${a.apellidos}`.trim();
+const NOTA_WHATSAPP = 'Solo con consentimiento: sin consentimiento de WhatsApp no se envía.';
+/** Same text as the server's 503 WHATSAPP_NO_COMPROBADO (FORMULARIOS.md §4). */
+const msgWaNoComprobado = 'No se ha podido comprobar WhatsApp. Inténtalo de nuevo o envía solo por email.';
 
 /**
  * «Nuevo envío» dialog: channels, recipients (every athlete of a status, or chosen athletes) and a live audience (per
@@ -53,12 +56,8 @@ const nombreDe = (a: { nombre: string; apellidos: string }): string => `${a.nomb
           <div class="flex flex-col gap-1">
             <bo-checkbox label="Email" [value]="email()" (valueChange)="email.set($event === true)" />
             @if (formulario().soloWeb) { <p class="pl-7 text-body-xs text-text-tertiary">El email lleva solo el botón a la web (el formulario tiene archivos).</p> }
-            <bo-checkbox label="WhatsApp" [value]="whatsapp()" [disabled]="waNoDisponible()" (valueChange)="marcarWhatsapp($event === true)" />
-            @if (waNoDisponible()) {
-              <p class="pl-7 text-body-xs text-warning" data-motivo-whatsapp>{{ motivoWa() }}</p>
-            } @else {
-              <p class="pl-7 text-body-xs text-text-tertiary">Solo con consentimiento: sin consentimiento de WhatsApp no se envía.</p>
-            }
+            <bo-checkbox label="WhatsApp" [value]="whatsapp()" [disabled]="!waDisponible()" describedBy="motivo-whatsapp" (valueChange)="marcarWhatsapp($event === true)" />
+            <p id="motivo-whatsapp" class="pl-7 text-body-xs" [class.text-warning]="!waDisponible()" [class.text-text-tertiary]="waDisponible()" data-motivo-whatsapp>{{ motivoWa() || notaWa }}</p>
           </div>
         </fieldset>
 
@@ -94,7 +93,10 @@ const nombreDe = (a: { nombre: string; apellidos: string }): string => `${a.nomb
                   @if (resultados() === undefined) {
                     <gr-skeleton class="m-2 h-24 rounded-sm" />
                   } @else if (resultados() === null) {
-                    <p class="p-3 text-body-s text-text-tertiary">No se ha podido buscar atletas. Inténtalo de nuevo.</p>
+                    <div class="flex flex-wrap items-center justify-between gap-3 p-3">
+                      <p class="text-body-s text-text-tertiary">No se ha podido buscar atletas. Inténtalo de nuevo.</p>
+                      <button type="button" grButton variant="ghost" data-reintentar-busqueda (click)="reintentarBusqueda()">Reintentar</button>
+                    </div>
                   } @else if (!resultados()!.length) {
                     <p class="p-3 text-body-s text-text-tertiary">Ningún atleta coincide con la búsqueda.</p>
                   } @else {
@@ -171,7 +173,8 @@ export class BoEnvioDialogo {
   protected readonly n = fmtNumber;
   protected readonly nombre = nombreDe;
   protected readonly email = signal(true);
-  protected readonly whatsapp = signal(true);
+  /** WhatsApp starts unticked and disabled: it is only enabled once the audience answers that messaging has it available. */
+  protected readonly whatsapp = signal(false);
   protected readonly soloSinResponder = signal(false);
   protected readonly modo = signal<Destinatarios>('todos');
   private readonly estadosSel = signal<Estado[]>(['confirmado', 'reserva']);
@@ -182,14 +185,19 @@ export class BoEnvioDialogo {
   protected readonly resultados = signal<AtletaCandidato[] | null | undefined>(undefined);
   /** undefined = loading, null = failed. */
   protected readonly audiencia = signal<Audiencia | null | undefined>(undefined);
+  /** WhatsApp availability from the last audience answer. undefined = not answered yet, null = could not be checked. */
+  private readonly waEstado = signal<Pick<Audiencia, 'whatsappDisponible' | 'whatsappMotivo'> | null | undefined>(undefined);
   protected readonly enviando = signal(false);
   protected readonly error = signal('');
-  /** Why WhatsApp cannot be sent now (from the audience); empty when it can. */
+  protected readonly notaWa = NOTA_WHATSAPP;
+  protected readonly waDisponible = computed(() => this.waEstado()?.whatsappDisponible === true);
+  /** Why WhatsApp cannot be sent now (or that it is being checked); empty when it is available. */
   protected readonly motivoWa = computed(() => {
-    const a = this.audiencia();
-    return a && a.whatsappDisponible === false ? a.whatsappMotivo || 'WhatsApp no está disponible ahora.' : '';
+    const w = this.waEstado();
+    if (w === undefined) return 'Comprobando si WhatsApp está disponible…';
+    if (w === null) return msgWaNoComprobado;
+    return w.whatsappDisponible ? '' : w.whatsappMotivo || 'WhatsApp no está disponible ahora.';
   });
-  protected readonly waNoDisponible = computed(() => this.motivoWa() !== '');
   private readonly cid = computed(() => this.comps.current()?.id ?? '');
   /** At least one channel and a recipient set: an empty filter would be ambiguous. */
   protected readonly puedeEnviar = computed(() => {
@@ -233,10 +241,15 @@ export class BoEnvioDialogo {
     this.actualizarAudiencia();
   }
 
-  /** WhatsApp cannot be ticked while the server says it is not available. */
+  /** WhatsApp cannot be ticked until the server says it is available. */
   protected marcarWhatsapp(on: boolean): void {
-    if (on && this.waNoDisponible()) return;
+    if (on && !this.waDisponible()) return;
     this.whatsapp.set(on);
+  }
+
+  protected reintentarBusqueda(): void {
+    this.resultados.set(undefined);
+    void this.buscarAtletas();
   }
 
   protected cambiarModo(m: Destinatarios): void {
@@ -294,8 +307,7 @@ export class BoEnvioDialogo {
     const mine = ++this.seq;
     // Chosen athletes but none picked yet: nothing to count (an empty filter would mean everybody).
     if (this.modo() === 'concretos' && !this.elegidos().length) {
-      const previa = this.audiencia();
-      const vacia: Audiencia = { total: 0, email: 0, whatsapp: 0, whatsappDisponible: previa?.whatsappDisponible ?? true, whatsappMotivo: previa?.whatsappMotivo ?? '' };
+      const vacia: Audiencia = { total: 0, email: 0, whatsapp: 0, whatsappDisponible: false, whatsappMotivo: '' };
       if (mine === this.seq) this.audiencia.set(vacia);
       return vacia;
     }
@@ -303,11 +315,17 @@ export class BoEnvioDialogo {
       const a = await this.api.audiencia(this.cid(), this.formulario().id, this.filtro());
       if (mine === this.seq) {
         this.audiencia.set(a);
-        if (a.whatsappDisponible === false) this.whatsapp.set(false);
+        this.waEstado.set({ whatsappDisponible: a.whatsappDisponible, whatsappMotivo: a.whatsappMotivo });
+        if (!a.whatsappDisponible) this.whatsapp.set(false);
       }
       return a;
     } catch {
-      if (mine === this.seq) this.audiencia.set(null);
+      // Audience failed: WhatsApp stays disabled and unticked (the server would refuse it anyway).
+      if (mine === this.seq) {
+        this.audiencia.set(null);
+        this.waEstado.set(null);
+        this.whatsapp.set(false);
+      }
       return null;
     }
   }
@@ -362,6 +380,11 @@ export class BoEnvioDialogo {
       } else {
         // Clave reutilizada con otros canales o filtro: se renueva; el usuario vuelve a pulsar Enviar.
         if (p.code === 'CLAVE_REUTILIZADA') this.clave = nuevoUuid();
+        // WhatsApp rechazado por messaging: se desmarca y se vuelve a preguntar la disponibilidad.
+        if (p.code === 'WHATSAPP_NO_DISPONIBLE' || p.code === 'WHATSAPP_NO_COMPROBADO') {
+          this.whatsapp.set(false);
+          this.actualizarAudiencia();
+        }
         this.error.set(this.textoError(e, p));
       }
     } finally {

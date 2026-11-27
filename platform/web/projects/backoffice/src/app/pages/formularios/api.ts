@@ -231,17 +231,15 @@ export class FormulariosApi {
   cambiarEstado(cid: string, id: string, estado: EstadoFormulario): Promise<Formulario> {
     return firstValueFrom(this.http.post<Formulario>(`${this.base(cid)}/${id}/estado`, { estado }));
   }
-  previsualizar(cid: string, b: { esquema: Esquema; email: TextosEmail }): Promise<Previsualizacion> {
+  /** Vista previa del email y del WhatsApp de un borrador (sin guardar). `whatsapp` opcional: sin él, el texto por defecto. */
+  previsualizar(cid: string, b: { esquema: Esquema; email: TextosEmail; whatsapp?: TextosWhatsApp }): Promise<Previsualizacion> {
     return firstValueFrom(this.http.post<Previsualizacion>(`${this.base(cid)}/previsualizar`, b));
   }
+  /** POST: el filtro va en el cuerpo (una lista de hasta 500 atletas no cabe en la URL). */
   audiencia(cid: string, id: string, f: Filtro = {}): Promise<Audiencia> {
-    let p = new HttpParams();
-    if (f.estados?.length) p = p.set('estados', f.estados.join(','));
-    if (f.atletas?.length) p = p.set('atletas', f.atletas.join(','));
-    if (f.soloSinResponder) p = p.set('soloSinResponder', 'true');
-    return firstValueFrom(this.http.get<Audiencia>(`${this.base(cid)}/${id}/audiencia`, { params: p }));
+    return firstValueFrom(this.http.post<Audiencia>(`${this.base(cid)}/${id}/audiencia`, f));
   }
-  /** Athletes matching `q` (name, surname or club) for the «Atletas concretos» picker of a send. */
+  /** Athletes matching `q` (name, surname, club or email) for the «Atletas concretos» picker of a send. */
   candidatos(cid: string, id: string, q: string, size = 20): Promise<AtletaCandidato[]> {
     let p = new HttpParams().set('size', size);
     if (q) p = p.set('q', q);
