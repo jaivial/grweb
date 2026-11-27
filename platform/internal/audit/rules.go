@@ -382,6 +382,18 @@ func resumen(e events.Event) string {
 		return "cambió los ajustes de un código de referido"
 	case "athletes.inscripcion_configurada":
 		return "cambió la configuración de la inscripción"
+	case "athletes.formulario_creado":
+		return "creó el formulario «" + str(d["nombre"]) + "»"
+	case "athletes.formulario_guardado":
+		return "guardó el formulario «" + str(d["nombre"]) + "»"
+	case "athletes.formulario_borrado":
+		return "borró el formulario «" + str(d["nombre"]) + "»"
+	case "athletes.formulario_duplicado":
+		return "duplicó un formulario"
+	case "athletes.formulario_estado":
+		return "cambió el estado de un formulario a " + str(d["estado"])
+	case "athletes.formulario_enviado":
+		return "envió un formulario a sus atletas"
 	case "athletes.atleta_creado":
 		return "añadió a " + str(d["nombre"]) + " a los atletas"
 	case "athletes.atleta_actualizado":

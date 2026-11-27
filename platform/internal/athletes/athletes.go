@@ -63,6 +63,7 @@ type Svc struct {
 	fansSvc      *svcclient.Client
 	openlifter   *svcclient.Client
 	ai           *svcclient.Client
+	messaging    *svcclient.Client
 	comps        *compref.Resolver
 	cache        *cache.Cache
 	qrKey        []byte
@@ -108,6 +109,7 @@ func (s *Svc) init(a *app.App) {
 	s.fansSvc = svcclient.New(config.Str("UPSTREAM_FANS", "http://fans:8080"), "athletes", "fans", a.Cfg.InternalToken)
 	s.openlifter = svcclient.New(config.Str("UPSTREAM_OPENLIFTER", "http://openlifter:8080"), "athletes", "openlifter", a.Cfg.InternalToken)
 	s.ai = svcclient.New(config.Str("UPSTREAM_AI", "http://ai:8080"), "athletes", "ai", a.Cfg.InternalToken)
+	s.messaging = svcclient.New(config.Str("UPSTREAM_MESSAGING", "http://messaging:8080"), "athletes", "messaging", a.Cfg.InternalToken)
 	// The ai service gives the model 30 s and answers its own timeout: this client waits a little longer (35 s), so the
 	// review panel gets «tardó demasiado» and not a generic «no respondió». The default 10 s of svcclient cut it.
 	s.ai.HTTP = &http.Client{Timeout: 35 * time.Second}
@@ -163,6 +165,7 @@ func (s *Svc) setup(_ context.Context, a *app.App) error {
 	s.registerEmparejamiento()
 	s.registerPadronEquipo()
 	s.registerAltaCupos()
+	s.registerFormularios()
 	a.Go(s.expirador)
 	// Places changed in the backoffice (competition service): publish the new counter to the open pages.
 	a.Go((&events.Consumer{Redis: a.Redis, Stream: a.Stream(), Group: "athletes-plazas", Start: "$", Types: []string{"competition.inscripcion_actualizada"},
@@ -252,8 +255,15 @@ func (s *Svc) change(ctx context.Context, cid uuid.UUID, ev string, data any, fn
 
 // email asks messaging to send a transactional email (outbox → messaging consumer).
 func email(ctx context.Context, tx pgx.Tx, cid uuid.UUID, para, plantilla string, vars map[string]string) error {
-	return events.Enqueue(ctx, tx, events.New(ctx, "athletes.email_solicitado", map[string]any{"para": para, "plantilla": plantilla, "vars": vars},
-		events.Competition(cid.String()), events.Audience(events.Internal)))
+	_, err := encolaMensaje(ctx, tx, cid, "athletes.email_solicitado", map[string]any{"para": para, "plantilla": plantilla, "vars": vars})
+	return err
+}
+
+// encolaMensaje queues a request for messaging (an email or a WhatsApp) in the caller's transaction and returns the id of
+// its event: messaging keeps it as the evento_id of the message, so the producer can follow the delivery later.
+func encolaMensaje(ctx context.Context, tx pgx.Tx, cid uuid.UUID, typ string, data map[string]any) (uuid.UUID, error) {
+	ev := events.New(ctx, typ, data, events.Competition(cid.String()), events.Audience(events.Internal))
+	return ev.ID, events.Enqueue(ctx, tx, ev)
 }
 
 // contacto tells crm about a person (internal event: personal data never reaches the public or admin streams).

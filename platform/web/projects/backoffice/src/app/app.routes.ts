@@ -1,5 +1,5 @@
 import { inject } from '@angular/core';
-import { type ActivatedRouteSnapshot, type CanActivateChildFn, type CanActivateFn, Router, type Routes } from '@angular/router';
+import { type ActivatedRouteSnapshot, type CanActivateChildFn, type CanActivateFn, type CanDeactivateFn, Router, type Routes } from '@angular/router';
 import { Auth } from './core/auth';
 import { Competitions } from './core/competitions';
 import { GrToasts } from '@grcup/ui';
@@ -72,6 +72,9 @@ const oauthGoogle: CanActivateFn = async (route) => {
 /** Old list URL → the tab that now holds it, keeping the competition (string redirects drop the query). */
 const aPestana = (seccion: string, queryParams: Record<string, string>): CanActivateFn => (route) =>
   inject(Router).createUrlTree(['/', route.parent?.paramMap.get('comp') ?? '', seccion], { queryParams });
+
+/** `/:comp/formularios/:id`: leaving the editor with unsaved changes asks first (the editor answers `puedeSalir`). */
+const sinCambiosFormulario: CanDeactivateFn<unknown> = (c) => (c as { puedeSalir?: () => Promise<boolean> }).puedeSalir?.() ?? true;
 
 /** Resolves /:comp against the user's competitions and checks the section permission. */
 const compGuard: CanActivateChildFn = async (child) => {
@@ -183,6 +186,8 @@ export const routes: Routes = [
       { path: 'campanas', pathMatch: 'full', canActivate: [aPestana('emails', { tab: 'campanas' })], children: [] },
       { path: 'campanas/whatsapp', loadComponent: () => import('./pages/campanas/campanas').then((m) => m.WhatsAppPage), title: 'WhatsApp · Backoffice GR Cup' },
       { path: 'campanas/:id', loadComponent: () => import('./pages/campanas/editor').then((m) => m.CampanaEditorPage), title: 'Campaña · Backoffice GR Cup' },
+      { path: 'formularios', loadComponent: () => import('./pages/formularios/formularios').then((m) => m.FormulariosPage), title: 'Formularios · Backoffice GR Cup' },
+      { path: 'formularios/:id', loadComponent: () => import('./pages/formularios/editor').then((m) => m.FormularioEditorPage), canDeactivate: [sinCambiosFormulario], title: 'Formulario · Backoffice GR Cup' },
       { path: 'sorteo', loadComponent: () => import('./pages/sorteo/sorteo').then((m) => m.SorteoPage), title: 'Sorteo · Backoffice GR Cup' },
       { path: 'chat', loadComponent: () => import('./pages/social/chat/chat').then((m) => m.ChatPage), title: 'Chat · Moderación · Backoffice GR Cup' },
       { path: 'patrocinio/informe', loadComponent: () => import('./pages/social/patrocinio/informe').then((m) => m.PatrocinioInformePage), data: { vista: 'informe' }, title: 'Patrocinio · Informe del día · Backoffice GR Cup' },
