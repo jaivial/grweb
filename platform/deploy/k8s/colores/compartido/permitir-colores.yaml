@@ -1,0 +1,41 @@
+# Los colores (namespaces con grcup.dev/colores=true) llegan a la capa compartida: su ingress por namespace es aditivo
+# a las políticas de cada servicio (que solo admiten pods de su propio namespace).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-colores-postgres
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: postgres } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { grcup.dev/colores: "true" } }
+      ports:
+        - { port: 5432, protocol: TCP }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-colores-mailpit
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: mailpit } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { grcup.dev/colores: "true" } }
+      ports:
+        - { port: 1025, protocol: TCP }
+        - { port: 8025, protocol: TCP }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-colores-evo-weai
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: evo-weai } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { grcup.dev/colores: "true" } }
+      ports:
+        - { port: 8080, protocol: TCP }

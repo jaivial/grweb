@@ -1,27 +1,28 @@
-# QA on kraken (k3s): namespace grcup-qa, tailnet-only subdomains *.menustudioai.com.
+# QA: lo común de los dos colores (blue y green). El namespace y las IPs fijas los pone cada color (../blue, ../green).
+# Presupuesto y patrones del overlay de QA anterior: prod-20261115 (deploy/k8s/presupuesto.py).
+# Réplicas mínimas 1 en QA: el nodo (110 pods) no admite dos colores completos más prod (36 pods); con mínimos de 1
+# cada color ocupa ~22 pods. El escalado máximo sigue como en QA.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: grcup-qa
 resources:
-  - namespace.yaml
-  - ../../base
-  - chat-ws.yaml # perf-20261115 §8: fixed ClusterIP for the direct chat WebSocket (host nginx)
-# Fixed ClusterIPs that the host nginx proxies to (no NodePorts: kraken has no firewall).
+  - ../../color
+  - enlaces.yaml # Services ExternalName: postgres, redis, mailpit, evo-weai → capa compartida (grcup-qa)
+  - chat-ws.yaml # perf-20261115 §8: Service del WebSocket de chat directo desde nginx (IP fija por color)
 patches:
   # prod-20261115: QA quota and floors leave room for production on the same node (deploy/k8s/presupuesto.py).
   - path: recursos.yaml
   - path: chat-memoria.yaml
+  - target: { kind: HorizontalPodAutoscaler }
+    patch: |-
+      - { op: add, path: /spec/minReplicas, value: 1 }
   - target: { kind: HorizontalPodAutoscaler, name: gateway }
     patch: |-
-      - { op: replace, path: /spec/minReplicas, value: 2 }
       - { op: replace, path: /spec/maxReplicas, value: 4 }
   - target: { kind: HorizontalPodAutoscaler, name: juegos }
     patch: |-
-      - { op: replace, path: /spec/minReplicas, value: 3 }
       - { op: replace, path: /spec/maxReplicas, value: 4 }
   - target: { kind: HorizontalPodAutoscaler, name: realtime }
     patch: |-
-      - { op: replace, path: /spec/minReplicas, value: 2 }
       - { op: replace, path: /spec/maxReplicas, value: 3 }
   - target: { kind: HorizontalPodAutoscaler, name: chat }
     patch: |-
@@ -30,11 +31,8 @@ patches:
   - target: { kind: Deployment, name: chat }
     patch: |-
       - { op: replace, path: /spec/template/spec/containers/0/resources/limits/memory, value: 512Mi }
-  - target: { kind: StatefulSet, name: postgres }
-    patch: |-
-      - { op: replace, path: /spec/template/spec/containers/0/resources/limits/cpu, value: "2" }
   # ST1-R1-2: authorised load tests send X-GrCup-Carga: <LOADTEST_SECRET> and skip the per-IP bucket (QA only;
-  # create it with: kubectl -n grcup-qa create secret generic grcup-carga --from-literal=LOADTEST_SECRET=$(openssl rand -hex 32)).
+  # the Secret grcup-carga is copied into each color by scripts/lib/colores.sh).
   - target: { kind: Deployment, name: gateway }
     patch: |-
       - op: add
@@ -42,26 +40,6 @@ patches:
         value:
           name: LOADTEST_SECRET
           valueFrom: { secretKeyRef: { name: grcup-carga, key: LOADTEST_SECRET, optional: true } }
-  - target: { kind: Service, name: gateway }
-    patch: |-
-      - op: add
-        path: /spec/clusterIP
-        value: 10.43.240.10
-  - target: { kind: Service, name: web }
-    patch: |-
-      - op: add
-        path: /spec/clusterIP
-        value: 10.43.240.11
-  - target: { kind: Service, name: backoffice }
-    patch: |-
-      - op: add
-        path: /spec/clusterIP
-        value: 10.43.240.12
-  - target: { kind: Service, name: mailpit }
-    patch: |-
-      - op: add
-        path: /spec/clusterIP
-        value: 10.43.240.25
 # The deploy script replaces TAG with the commit being deployed.
 images:
   - { name: grcup/ai, newTag: TAG }

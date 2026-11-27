@@ -1,0 +1,14 @@
+# Capa compartida (sin color): Postgres, Redis (puente al host), Mailpit, evo-weai y juegos-worker. Son singletons o
+# guardan estado, así que viven una sola vez y los dos colores llegan a ellos por Services ExternalName
+# (colores/<env>/comun/enlaces.yaml). Lo que el color vivo expone a esta capa (webhooks, juegos-worker) lo resuelven
+# los Services ExternalName de la capa que mantiene scripts/lib/colores.sh.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base/common
+  - ../../base/postgres
+  - ../../base/redis-bridge
+  - ../../base/mailpit
+  - ../../base/evo-weai
+  - ../../base/juegos-worker
+  - permitir-colores.yaml

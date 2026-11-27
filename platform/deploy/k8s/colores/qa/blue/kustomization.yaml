@@ -1,0 +1,20 @@
+# QA · color blue (namespace grcup-qa-blue). IPs fijas del color: nginx de QA las apunta mientras blue está vivo.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: grcup-qa-blue
+resources:
+  - namespace.yaml
+  - ../comun
+patches:
+  - target: { kind: Service, name: gateway }
+    patch: |-
+      - { op: add, path: /spec/clusterIP, value: 10.43.238.10 }
+  - target: { kind: Service, name: web }
+    patch: |-
+      - { op: add, path: /spec/clusterIP, value: 10.43.238.11 }
+  - target: { kind: Service, name: backoffice }
+    patch: |-
+      - { op: add, path: /spec/clusterIP, value: 10.43.238.12 }
+  - target: { kind: Service, name: chat-ws }
+    patch: |-
+      - { op: add, path: /spec/clusterIP, value: 10.43.238.13 }
