@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -31,10 +32,105 @@ type ColaItem struct {
 	Intentos  int        `json:"intentos"`
 	Detalle   string     `json:"detalle"`
 	Prueba    bool       `json:"prueba"`
-	ProximoAt *time.Time `json:"proximoAt,omitempty" doc:"Cuándo le toca salir (solo pendientes)"`
+	ProximoAt *time.Time `json:"proximoAt,omitempty" doc:"Cuándo vuelve a mirarlo el worker (solo pendientes)"`
+	SalidaAt  *time.Time `json:"salidaAt,omitempty" doc:"Hora estimada de salida según su puesto en la cola, el turno del número, los topes y el horario de descanso (solo pendientes)"`
 	EnviadoAt *time.Time `json:"enviadoAt,omitempty"`
 	CreatedAt time.Time  `json:"createdAt"`
 	UpdatedAt time.Time  `json:"updatedAt"`
+}
+
+// ColaPausa is the pause of a channel (the number unlinked or blocked, the server down).
+type ColaPausa struct {
+	Motivo string    `json:"motivo"`
+	Hasta  time.Time `json:"hasta" doc:"Siguiente intento"`
+}
+
+// estimarSalidas fills SalidaAt of the pending messages of a page, playing the queue in order (from the first
+// pending one, so a later page counts the ones before it) against the sender's turn, its hourly and daily caps (with
+// the warm-up), the pause of the channel and the quiet hours. An estimate: the first-contact cap and the campaigns
+// that share the number are not simulated. Returns the pause of the channel, if any.
+func (s *Svc) estimarSalidas(ctx context.Context, cid uuid.UUID, canal string, offset int, items []ColaItem) *ColaPausa {
+	ahora := time.Now()
+	var remitente string
+	var paso time.Duration
+	porHora, porDia := 0, emailPorDia
+	if canal == "whatsapp" {
+		remitente, paso, porHora = remitenteWA(s.waDe(ctx, cid), cid), (waIntervaloMin+waIntervaloMax)/2, waPorHora
+	} else {
+		ritmo := 120
+		_ = s.a.DB.QueryRow(ctx, `SELECT ritmo_minuto FROM ajustes WHERE competition_id = $1`, cid).Scan(&ritmo)
+		remitente, paso = remitenteEmail(s.smtpDe(ctx, cid)), time.Minute/time.Duration(max(ritmo, 1))
+	}
+	t := ahora
+	var sig, desde time.Time
+	if s.a.DB.QueryRow(ctx, `SELECT siguiente_at, calentamiento_desde FROM envio_turnos WHERE remitente = $1`, remitente).Scan(&sig, &desde) == nil {
+		t = later(t, sig)
+		if canal == "whatsapp" {
+			porDia = porDiaWA(desde, ahora)
+		}
+	} else if canal == "whatsapp" {
+		porDia = porDiaWA(ahora, ahora)
+	}
+	var pausa *ColaPausa
+	caido := s.a.Keys.Of("messaging", "canal-caido", cid.String(), canal)
+	if motivo, err := s.a.Redis.Get(ctx, caido).Result(); err == nil {
+		ttl, _ := s.a.Redis.TTL(ctx, caido).Result()
+		pausa = &ColaPausa{Motivo: motivo, Hasta: ahora.Add(max(ttl, 0))}
+		t = later(t, pausa.Hasta)
+	}
+	// What the sender already sent in the windows of the caps, then each message of the queue as it would go out.
+	var envios []time.Time
+	if rows, err := s.a.DB.Query(ctx, `SELECT at FROM envio_registro WHERE remitente = $1 AND at > now() - interval '24 hours' ORDER BY at`, remitente); err == nil {
+		envios, _ = pgx.CollectRows(rows, pgx.RowTo[time.Time])
+	}
+	rows, err := s.a.DB.Query(ctx, `SELECT proximo_at FROM mensajes WHERE competition_id = $1 AND canal = $2 AND estado IN ('en_cola', 'reintentando', 'enviando')
+		ORDER BY `+colaFiltros["pendientes"].orden+` LIMIT $3`, cid, canal, offset+len(items))
+	if err != nil {
+		return pausa
+	}
+	proximos, err := pgx.CollectRows(rows, pgx.RowTo[time.Time])
+	if err != nil {
+		return pausa
+	}
+	loc := s.zonaDe(ctx, cid)
+	lleno := func(ventana time.Duration, tope int) (time.Time, bool) {
+		i := sort.Search(len(envios), func(i int) bool { return envios[i].After(t.Add(-ventana)) })
+		if tope > 0 && len(envios)-i >= tope {
+			return envios[i].Add(ventana), true
+		}
+		return t, false
+	}
+	for k, p := range proximos {
+		t = later(t, p)
+		for {
+			if canal == "whatsapp" {
+				t = finSilencio(t, loc)
+			}
+			if nt, ok := lleno(24*time.Hour, porDia); ok {
+				t = nt
+				continue
+			}
+			if nt, ok := lleno(time.Hour, porHora); ok {
+				t = nt
+				continue
+			}
+			break
+		}
+		if k >= offset && k-offset < len(items) {
+			salida := t
+			items[k-offset].SalidaAt = &salida
+		}
+		envios = append(envios, t)
+		t = t.Add(paso)
+	}
+	return pausa
+}
+
+func later(a, b time.Time) time.Time {
+	if b.After(a) {
+		return b
+	}
+	return a
 }
 
 // ColaCuentas are the counters of a channel in «Cola de envío».
@@ -151,6 +247,7 @@ func (s *Svc) registerCola() {
 			Por     int                    `json:"por"`
 			Cuentas map[string]ColaCuentas `json:"cuentas" doc:"Por canal (email, whatsapp)"`
 			Ahora   time.Time              `json:"ahora" doc:"Hora del servidor (la cuenta atrás no depende del reloj del navegador)"`
+			Pausa   *ColaPausa             `json:"pausa,omitempty" doc:"El canal está en pausa (número desconectado o bloqueado, servidor caído)"`
 		}
 	}
 	huma.Register(api, huma.Operation{OperationID: "emails-cola", Method: http.MethodGet, Path: base + "/cola", Summary: "Cola de envío por canal (pendientes por turno, fallidos, enviados)", Tags: tagAdmin, Security: bearer},
@@ -217,7 +314,17 @@ func (s *Svc) registerCola() {
 				}
 				o.Body.Items = append(o.Body.Items, it)
 			}
-			return o, rows.Err()
+			if err := rows.Err(); err != nil {
+				return nil, err
+			}
+			rows.Close()
+			// The pause shows in every filter; the estimated times only for the pending ones.
+			if in.Filtro == "pendientes" {
+				o.Body.Pausa = s.estimarSalidas(ctx, in.CID, in.Canal, (in.Pagina-1)*colaPorPagina, o.Body.Items)
+			} else {
+				o.Body.Pausa = s.estimarSalidas(ctx, in.CID, in.Canal, 0, nil)
+			}
+			return o, nil
 		})
 
 	type idIn struct {
