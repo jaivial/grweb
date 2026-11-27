@@ -99,9 +99,9 @@ func (s *Svc) reservar(ctx context.Context, remitente, destino string, wa, forza
 			}
 			var hora, dia, nuevos int
 			var hora0, dia0, nuevo0 *time.Time
-			if err := tx.QueryRow(ctx, `SELECT count(*) FILTER (WHERE at > $2 - interval '1 hour'), count(*), count(*) FILTER (WHERE nuevo AND at > $2 - interval '1 hour'),
-				min(at) FILTER (WHERE at > $2 - interval '1 hour'), min(at), min(at) FILTER (WHERE nuevo AND at > $2 - interval '1 hour')
-				FROM envio_registro WHERE remitente = $1 AND at > $2 - interval '24 hours'`, remitente, ahora).Scan(&hora, &dia, &nuevos, &hora0, &dia0, &nuevo0); err != nil {
+			if err := tx.QueryRow(ctx, `SELECT count(*) FILTER (WHERE at > $2::timestamptz - interval '1 hour'), count(*), count(*) FILTER (WHERE nuevo AND at > $2::timestamptz - interval '1 hour'),
+				min(at) FILTER (WHERE at > $2::timestamptz - interval '1 hour'), min(at), min(at) FILTER (WHERE nuevo AND at > $2::timestamptz - interval '1 hour')
+				FROM envio_registro WHERE remitente = $1 AND at > $2::timestamptz - interval '24 hours'`, remitente, ahora).Scan(&hora, &dia, &nuevos, &hora0, &dia0, &nuevo0); err != nil {
 				return err
 			}
 			// A full window frees a slot when its oldest message leaves it.
